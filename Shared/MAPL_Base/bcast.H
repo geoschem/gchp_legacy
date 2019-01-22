@@ -1,7 +1,11 @@
-! $Id: bcast.H,v 1.4 2015-03-03 17:00:48 atrayano Exp $
+! $Id$
 
 #ifdef NAME_
 #undef NAME_
+#endif
+
+#ifdef NAMESTR_
+#  undef NAMESTR_
 #endif
 
 #define NAME_ MAPL_CommsBcast_
@@ -39,8 +43,10 @@
   END SUBROUTINE SUB_
 
 #undef NAME_
+#undef NAMESTR_
 
 #define NAME_ MAPL_CommsBcastVm_
+#define NAMESTR_ 'MAPL_CommsBcastVm_'
 
   subroutine SUB_ ( vm, DATA, N, ROOT, RC)
 
@@ -69,9 +75,11 @@
   END SUBROUTINE SUB_
 
 #undef NAME_
+#undef NAMESTR_
 
 #undef DIMENSIONS_
 #undef RANK_
+#undef RANKSTR_
 #undef VARTYPE_
 
 

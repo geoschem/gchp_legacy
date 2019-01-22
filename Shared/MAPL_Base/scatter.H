@@ -1,10 +1,15 @@
-! $Id: scatter.H,v 1.2 2008-08-28 20:30:48 trayanov Exp $
+! $Id$
 
 #ifdef NAME_
 #undef NAME_
 #endif
 
+#ifdef NAMESTR_
+#undef NAMESTR_
+#endif
+
 #define NAME_ MAPL_CommsScatterV_
+#define NAMESTR_ 'MAPL_CommsScatterV_'
 
 #include "overload.macro"
 
@@ -44,8 +49,10 @@
   END SUBROUTINE SUB_
 
 #undef NAME_
+#undef NAMESTR_
 
 #undef DIMENSIONS_
 #undef RANK_
+#undef RANKSTR_
 #undef VARTYPE_
 

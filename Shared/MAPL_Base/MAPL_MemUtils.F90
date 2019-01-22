@@ -13,6 +13,9 @@ module MAPL_MemUtilsMod
   use MAPL_BaseMod
   use MAPL_CommsMod
   use MAPL_IOMod
+  use MAPL_ShmemMod
+  use, intrinsic :: iso_fortran_env, only: INT64
+  use, intrinsic :: iso_fortran_env, only: REAL64
 
 !Author: Balaji (V.Balaji@noaa.gov)
 !Various operations for memory management
@@ -25,8 +28,8 @@ module MAPL_MemUtilsMod
   integer :: pe, shmem_my_pe
 #endif
 
-  integer(kind=8) :: l1_cache_line_size, l1_cache_size, l1_associativity
-  integer(kind=8) :: l2_cache_line_size, l2_cache_size, l2_associativity
+  integer(kind=INT64) :: l1_cache_line_size, l1_cache_size, l1_associativity
+  integer(kind=INT64) :: l2_cache_line_size, l2_cache_size, l2_associativity
 
   logical :: memutils_initialized=.FALSE.
 
@@ -35,6 +38,11 @@ module MAPL_MemUtilsMod
      module procedure memcpy_r8_gather
      module procedure memcpy_r8_scatter
      module procedure memcpy_r8_gather_scatter
+  end interface
+
+  interface MAPL_MemUtilsWrite
+     module procedure MAPL_MemUtilsWriteVM
+     module procedure MAPL_MemUtilsWriteComm
   end interface
 
   public MAPL_MemUtilsInit
@@ -51,7 +59,13 @@ module MAPL_MemUtilsMod
 #endif
   logical,    save :: DISABLED  = .false.
 
+  integer, public, parameter :: MAPL_MemUtilsModeNode = 2
+  integer, public, parameter :: MAPL_MemUtilsModeFull = 1
+  integer, public, parameter :: MAPL_MemUtilsModeBase = 0
+  integer, save      :: MAPL_MemUtilsMode
   real, save :: gmax_save
+
+  include "mpif.h"
 
   contains
 
@@ -78,7 +92,8 @@ module MAPL_MemUtilsMod
 
 !********************************************************
 
-    subroutine MAPL_MemUtilsInit(RC)
+    subroutine MAPL_MemUtilsInit(mode,RC)
+      integer, optional, intent(IN )   :: mode
       integer, optional, intent(OUT)   :: RC
 
       character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_MemUtilsInit"
@@ -109,6 +124,11 @@ module MAPL_MemUtilsMod
       memutils_initialized = .TRUE.
  
       gmax_save = 0.0
+      if (present(mode)) then
+         MAPL_MemUtilsMode=mode
+      else
+         MAPL_memUtilsMode=MAPL_MemUtilsModeBase
+      endif
      
       RETURN_(ESMF_SUCCESS)
     end subroutine MAPL_MemUtilsInit
@@ -161,8 +181,8 @@ module MAPL_MemUtilsMod
 !base routine: handles constant stride memcpy
 !default strides are of course 1
       integer, intent(in) :: dim
-      real(kind=8), dimension(0:dim-1), intent(in)  :: rhs
-      real(kind=8), dimension(0:dim-1), intent(out) :: lhs
+      real(kind=REAL64), dimension(0:dim-1), intent(in)  :: rhs
+      real(kind=REAL64), dimension(0:dim-1), intent(out) :: lhs
       integer, intent(in), optional :: nelems, lhs_stride, rhs_stride
       integer :: n, rs, ls
 
@@ -195,12 +215,12 @@ module MAPL_MemUtilsMod
     subroutine memcpy_r8_gather( lhs, rhs, dim, nelems, lhs_stride, rhs_indx )
 !memcpy routine with gather: copies nelems words from rhs(indx(:)) to lhs(:)
       integer, intent(in) :: dim, nelems, lhs_stride
-      real(kind=8), dimension(0:dim-1), intent(in)  :: rhs
-      real(kind=8), dimension(0:dim-1), intent(out) :: lhs
+      real(kind=REAL64), dimension(0:dim-1), intent(in)  :: rhs
+      real(kind=REAL64), dimension(0:dim-1), intent(out) :: lhs
       integer, intent(in), dimension(nelems) :: rhs_indx
 #ifdef _CRAYT3E
 !dir$ CACHE_BYPASS lhs, rhs, rhs_indx
-      real(kind=8), dimension(nelems) :: tmp
+      real(kind=REAL64), dimension(nelems) :: tmp
 
       if( lhs_stride.EQ.1 )then
           call SHMEM_IXGET( lhs(0), rhs(0), rhs_indx, nelems, pe )
@@ -217,12 +237,12 @@ module MAPL_MemUtilsMod
     subroutine memcpy_r8_scatter( lhs, rhs, dim, nelems, lhs_indx, rhs_stride )
 !memcpy routine with scatter: copies nelems words from rhs(:) to lhs(indx(:))
       integer, intent(in) :: dim, nelems, rhs_stride
-      real(kind=8), dimension(0:dim-1), intent(in)  :: rhs
-      real(kind=8), dimension(0:dim-1), intent(out) :: lhs
+      real(kind=REAL64), dimension(0:dim-1), intent(in)  :: rhs
+      real(kind=REAL64), dimension(0:dim-1), intent(out) :: lhs
       integer, intent(in), dimension(nelems) :: lhs_indx
 #ifdef _CRAYT3E
 !dir$ CACHE_BYPASS lhs, rhs, lhs_indx
-      real(kind=8), dimension(nelems) :: tmp
+      real(kind=REAL64), dimension(nelems) :: tmp
 
       if( rhs_stride.EQ.1 )then
           call SHMEM_IXPUT( lhs(0), rhs(0), lhs_indx, nelems, pe )
@@ -240,12 +260,12 @@ module MAPL_MemUtilsMod
     subroutine memcpy_r8_gather_scatter( lhs, rhs, dim, nelems, lhs_indx, rhs_indx )
 !memcpy routine with gather/scatter: copies nelems words from rhs(indx(:)) to lhs(indx(:))
       integer, intent(in) :: dim, nelems
-      real(kind=8), dimension(0:dim-1), intent(in)  :: rhs
-      real(kind=8), dimension(0:dim-1), intent(out) :: lhs
+      real(kind=REAL64), dimension(0:dim-1), intent(in)  :: rhs
+      real(kind=REAL64), dimension(0:dim-1), intent(out) :: lhs
       integer, intent(in), dimension(nelems) :: lhs_indx, rhs_indx
 #ifdef _CRAYT3E
 !dir$ CACHE_BYPASS lhs, rhs, lhs_indx, rhs_indx
-      real(kind=8), dimension(nelems) :: tmp
+      real(kind=REAL64), dimension(nelems) :: tmp
 
       call SHMEM_IXGET( tmp, rhs(0), rhs_indx, nelems, pe )
       call SHMEM_IXPUT( lhs(0), tmp, lhs_indx, nelems, pe )
@@ -292,26 +312,41 @@ module MAPL_MemUtilsMod
   end function stklen
 #endif /* _CRAYT90 */
 
-!cache utilities: need to write version for other argument types
-  function get_l1_cache_line(a)
-    integer(kind=8) :: get_l1_cache_line
-    real, intent(in) :: a
-    integer(kind=8) :: i
-    i = LOC(a)
-    get_l1_cache_line = mod(i,l1_cache_size/l1_associativity)/l1_cache_line_size
-  end function get_l1_cache_line
-
-  function get_l2_cache_line(a)
-    integer(kind=8) :: get_l2_cache_line
-    real, intent(in) :: a
-    integer(kind=8) :: i
-    i = LOC(a)
-    get_l2_cache_line = mod(i,l2_cache_size/l2_associativity)/l2_cache_line_size
-  end function get_l2_cache_line
-
-  subroutine MAPL_MemUtilsWrite( vm, text, always, RC )
+  subroutine MAPL_MemUtilsWriteVM( vm, text, always, RC )
     type(ESMF_VM) :: vm
     character(len=*), intent(in) :: text
+    logical, intent(in), optional :: always
+    integer, optional, intent(OUT  ) :: RC
+
+    character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_MemUtilsWriteVM"
+    integer :: status
+
+    integer :: comm
+
+    call ESMF_VMGet(vm,mpicommunicator=comm,rc=status)
+    VERIFY_(status)
+
+    if( PRESENT(always) )then
+        if( .NOT.always ) then
+            RETURN_(ESMF_SUCCESS)
+        endif
+        call MAPL_MemUtilsWriteComm(text,comm=comm,always=always,rc=status)
+        VERIFY_(STATUS)
+    else
+        if( DISABLED ) then
+            RETURN_(ESMF_SUCCESS)
+        endif
+        call MAPL_MemUtilsWriteComm(text,comm=comm,rc=status)
+        VERIFY_(STATUS)
+    end if
+
+
+    RETURN_(ESMF_SUCCESS)
+  end subroutine MAPL_MemUtilsWriteVM
+
+  subroutine MAPL_MemUtilsWriteComm( text, comm, always, RC )
+    character(len=*), intent(in) :: text
+    integer, optional  :: Comm
     logical, intent(in), optional :: always
     integer, optional, intent(OUT  ) :: RC
 
@@ -320,15 +355,25 @@ module MAPL_MemUtilsMod
     real :: gmin, gmax, gavg, gstd
     real :: lhwm, ghwm
     real :: lmem, gmem, lswap, gswap
+    real :: commitlimit, committed_as
+    real :: lcommitlimit, lcommitted_as
+    real :: gcommitlimit, gcommitted_as
+    integer :: npes
 
 !memuse is an external function: works on SGI
 !use #ifdef to generate equivalent on other platforms.
-    integer :: memuse !default integer OK?
 
-    character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_MemUtilsWrite"
+    character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_MemUtilsWriteComm"
     integer :: status
 
     character(len=ESMF_MAXSTR) :: outString
+    integer :: comm_
+
+    if (present(comm)) then
+       comm_=comm
+    else
+       comm_=MPI_COMM_WORLD
+    end if
 
     if( PRESENT(always) )then
         if( .NOT.always ) then
@@ -342,42 +387,69 @@ module MAPL_MemUtilsMod
 #if defined(__sgi) || defined(__aix) || defined(__SX)
     m = memuse()*1e-3
 #else
-    call mem_dump(mhwm, mrss, memused, swapused)
+    call mem_dump(mhwm, mrss, memused, swapused, commitlimit, committed_as)
 #endif 
-    lhwm = mhwm; call MAPL_CommsAllReduceMax(vm, lhwm, ghwm, 1, rc=status)
-    VERIFY_(STATUS)
-    mmin = mrss; call MAPL_CommsAllReduceMin(vm, mmin, gmin, 1, rc=status)
-    VERIFY_(STATUS)
-    mmax = mrss; call MAPL_CommsAllReduceMax(vm, mmax, gmax, 1, rc=status)
-    VERIFY_(STATUS)
-    mavg = mrss; call MAPL_CommsAllReduceSum(vm, mavg, gavg, 1, rc=status)
-    VERIFY_(STATUS)
-    gavg = gavg/MAPL_NPES(vm)
-    mstd = (mrss-gavg)**2; call MAPL_CommsAllReduceSum(vm, mstd, gstd, 1, rc=status)
-    gstd = sqrt( gstd/MAPL_NPES(vm) )
- !  write(outString,'(a64,5es11.3)') &
- !       'Memuse(MB) at '//trim(text)//'=', gmin, gmax, gstd, gavg, gmax-gmax_save
-    write(outString,'(a64,5es11.3)') &
-         'Memuse(MB) at '//trim(text)//'=', ghwm, gmax, gmin, gavg, gmax-gmax_save
-    gmax_save = gmax
-    call WRITE_PARALLEL(trim(outString),format='(a132)')
+    call MPI_Comm_Size(comm_,npes,status)
+    if (MAPL_MemUtilsMode == MAPL_MemUtilsModeFull) then
+       lhwm = mhwm; call MPI_AllReduce(lhwm,ghwm,1,MPI_REAL,MPI_MAX,comm_,status)
+       VERIFY_(STATUS)
+       mmin = mrss; call MPI_AllReduce(mmin,gmin,1,MPI_REAL,MPI_MIN,comm_,status)
+       VERIFY_(STATUS)
+       mmax = mrss; call MPI_AllReduce(mmax,gmax,1,MPI_REAL,MPI_MAX,comm_,status)
+       VERIFY_(STATUS)
+       mavg = mrss; call MPI_AllReduce(mavg,gavg,1,MPI_REAL,MPI_SUM,comm_,status)
+       VERIFY_(STATUS)
+       gavg = gavg/npes
+       mstd = (mrss-gavg)**2; call MPI_AllReduce(mstd,gstd,1,MPI_REAL,MPI_SUM,comm_,status)
+       gstd = sqrt( gstd/npes )
+       gmax_save = gmax
+       lcommitlimit  = commitlimit;  call MPI_AllReduce(lcommitlimit,gcommitlimit,1,MPI_REAL,MPI_MAX,comm_,status)
+       VERIFY_(STATUS)
+       lcommitted_as = committed_as; call MPI_AllReduce(lcommitted_as,gcommitted_as,1,MPI_REAL,MPI_MAX,comm_,status)
+       VERIFY_(STATUS)
+    end if
 
-    lmem  = memused; call MAPL_CommsAllReduceMax(vm, lmem, gmem, 1, rc=status)
-    VERIFY_(STATUS)
-    lswap = swapused; call MAPL_CommsAllReduceMax(vm, lswap, gswap, 1, rc=status)
-    VERIFY_(STATUS)
-    write(outString,'(a64,2es11.3)') &
-         'Mem/Swap Used (MB) at '//trim(text)//'=', gmem, gswap
-    call WRITE_PARALLEL(trim(outString),format='(a132)')
+    if (MAPL_MemUtilsMode == MAPL_MemUtilsModeFull .or. MAPL_MemUtilsMode == MAPL_MemUtilsModeBase) then
+       lmem  = memused;  call MPI_AllReduce(lmem,gmem,1,MPI_REAL,MPI_MAX,comm_,status)
+       VERIFY_(STATUS)
+       lswap = swapused; call MPI_AllReduce(lswap,gswap,1,MPI_REAL,MPI_MAX,comm_,status)
+       VERIFY_(STATUS)
+    end if
+
+    if (MAPL_MemUtilsMode == MAPL_MemUtilsModeBase) then
+       write(outString,'(a64,2es11.3)') &
+            'Mem/Swap Used (MB) at '//trim(text)//'=', gmem, gswap
+       call WRITE_PARALLEL(trim(outString),format='(a132)')
+    end if
+
+    if (MAPL_MemUtilsMode == MAPL_MemUtilsModeFull) then
+       write(outString,'(a64,5es11.3)') &
+            'Memuse(MB) at '//trim(text)//'=', ghwm, gmax, gmin, gavg, gmax-gmax_save
+       gmax_save = gmax
+       call WRITE_PARALLEL(trim(outString),format='(a132)')
+       write(outString,'(a64,2es11.3)') &
+            'Mem/Swap Used (MB) at '//trim(text)//'=', gmem, gswap
+       call WRITE_PARALLEL(trim(outString),format='(a132)')
+       write(outString,'(a64,2es11.3)') &
+            'CommitLimit/Committed_AS (MB) at '//trim(text)//'=', gcommitlimit, gcommitted_as
+       call WRITE_PARALLEL(trim(outString),format='(a132)')
+    end if
+
+    if (MAPL_MemUtilsMode == MAPL_MemUtilsModeNode) then
+       if (MAPL_AmNodeRoot) then
+          write(*,'(a64,i3,a2,es11.3)')'Memory use at '//trim(text)//' on node ',MAPL_MyNodeNum,': ',memused
+       end if
+
+    end if
 
     RETURN_(ESMF_SUCCESS)
-  end subroutine MAPL_MemUtilsWrite
+  end subroutine MAPL_MemUtilsWriteComm
 
 !#######################################################################
 
-subroutine mem_dump ( memhwm, memrss, memused, swapused, RC )
+subroutine mem_dump ( memhwm, memrss, memused, swapused, commitlimit, committed_as, RC )
 
-real, intent(out) :: memhwm, memrss, memused, swapused
+real, intent(out) :: memhwm, memrss, memused, swapused, commitlimit, committed_as
 integer, optional, intent(OUT  ) :: RC
 
 ! This routine returns the memory usage on Linux systems.
@@ -443,6 +515,18 @@ integer :: status
       if (TRIM(string(LEN_TRIM(string)-1:)) == "kB" ) &
         multiplier = 1.0/1024. ! Convert from kB to MB
       swapfree = swapfree * multiplier
+    endif
+    if ( INDEX ( string, 'CommitLimit:' ) == 1 ) then  ! Resident Memory
+      read (string(13:LEN_TRIM(string)-2),*) commitlimit
+      if (TRIM(string(LEN_TRIM(string)-1:)) == "kB" ) &
+        multiplier = 1.0/1024. ! Convert from kB to MB
+      commitlimit = commitlimit * multiplier
+    endif
+    if ( INDEX ( string, 'Committed_AS:' ) == 1 ) then  ! Resident Memory
+      read (string(14:LEN_TRIM(string)-2),*) committed_as
+      if (TRIM(string(LEN_TRIM(string)-1:)) == "kB" ) &
+        multiplier = 1.0/1024. ! Convert from kB to MB
+      committed_as = committed_as * multiplier
     endif
   enddo
 20 close(mem_unit)

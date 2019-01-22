@@ -1,10 +1,15 @@
-! $Id: arraygatherRcvCnt.H,v 1.3 2013-01-17 14:54:55 atrayano Exp $
+! $Id$
 
 #ifdef NAME_
 #undef NAME_
 #endif
 
+#ifdef NAMESTR_
+#undef NAMESTR_
+#endif
+
 #define NAME_ ArrayGatherRcvCnt_
+#define NAMESTR_ 'ArrayGatherRcvCnt_'
 
 #include "overload.macro"
 
@@ -27,7 +32,6 @@
     
     integer                               :: I
     integer                               :: IM1 ! 'I minus 1'
-    integer                               :: de
     integer                               :: deId ! index of my PE
     integer                               :: dstDE
     
@@ -70,7 +74,9 @@
   end subroutine SUB_
 
 #undef NAME_
+#undef NAMESTR_
 
 #undef DIMENSIONS_
 #undef RANK_
+#undef RANKSTR_
 #undef VARTYPE_

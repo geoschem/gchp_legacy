@@ -1,5 +1,5 @@
 
-!  $Id: MAPL_Profiler.F90,v 1.18 2016-04-25 18:55:11 atrayano Exp $ 
+!  $Id$ 
 
 #include "MAPL_ErrLog.h"
 
@@ -255,7 +255,7 @@
             DEALLOCATE(TEMP_TIME)
          end if
 
-         if (writing .and. timerMode == MAPL_TimerModeRootOnly) then
+         if (writing .and. (timerMode == MAPL_TimerModeRootOnly .or. timerMode == MAPL_TimerModeOld) ) then
             ! We do the loop twice to make sure TOTAL is reported first
             do I=1,size(TIMES)
                if(trim(TIMES(I)%name)=='TOTAL') then

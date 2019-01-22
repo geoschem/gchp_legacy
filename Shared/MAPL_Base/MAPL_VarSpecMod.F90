@@ -1,4 +1,4 @@
-!  $Id: MAPL_VarSpecMod.F90,v 1.31 2016-02-21 14:17:09 atrayano Exp $
+!  $Id$
 
 #include "MAPL_ErrLog.h"
 
@@ -363,9 +363,12 @@ contains
       if(present(GRID)) then
          usableGRID=GRID
       else
-         usableGRID = ESMF_GridEmptyCreate(RC=STATUS)
-         VERIFY_(STATUS)
-         call ESMF_GridDestroy(usableGRID) !ALT we do not need RC
+!         usableGRID = ESMF_GridEmptyCreate(RC=STATUS)
+!         VERIFY_(STATUS)
+!         call ESMF_GridDestroy(usableGRID) !ALT we do not need RC
+
+         ! Initialize this grid object as invalid
+         usableGrid%this = ESMF_NULL_POINTER
       endif
 
       if(present(FIELD)) then
@@ -373,9 +376,12 @@ contains
       else
          allocate(usableFIELD, STAT=STATUS)
          VERIFY_(STATUS)
-         usableFIELD = ESMF_FieldEmptyCreate(NAME=SHORT_NAME,RC=STATUS)
-         VERIFY_(STATUS)
-         call ESMF_FieldDestroy(usableFIELD) !ALT we do not need RC
+!         usableFIELD = ESMF_FieldEmptyCreate(NAME=SHORT_NAME,RC=STATUS)
+!         VERIFY_(STATUS)
+!         call ESMF_FieldDestroy(usableFIELD) !ALT we do not need RC
+
+         ! Initialize this field object as invalid
+         usableField%ftypep => NULL()
       endif
 
       if(present(BUNDLE)) then
@@ -383,9 +389,12 @@ contains
       else
          allocate(usableBUNDLE, STAT=STATUS)
          VERIFY_(STATUS)
-         usableBUNDLE = ESMF_FieldBundleCreate(NAME=SHORT_NAME,RC=STATUS)
-         VERIFY_(STATUS)
-         call ESMF_FieldBundleDestroy(usableBUNDLE) !ALT we do not need RC
+!         usableBUNDLE = ESMF_FieldBundleCreate(NAME=SHORT_NAME,RC=STATUS)
+!         VERIFY_(STATUS)
+!         call ESMF_FieldBundleDestroy(usableBUNDLE) !ALT we do not need RC
+
+         ! Initialize this fieldBundle object as invalid
+         usableBundle%this => NULL()
       endif
 
       if(present(STATE)) then
@@ -393,9 +402,12 @@ contains
       else
          allocate(usableSTATE, STAT=STATUS)
          VERIFY_(STATUS)
-         usableSTATE = ESMF_StateCreate(NAME=SHORT_NAME,RC=STATUS)
-         VERIFY_(STATUS)
-         call ESMF_StateDestroy(usableSTATE) !ALT we do not need RC
+!         usableSTATE = ESMF_StateCreate(NAME=SHORT_NAME,RC=STATUS)
+!         VERIFY_(STATUS)
+!         call ESMF_StateDestroy(usableSTATE) !ALT we do not need RC
+
+         ! Initialize this state object as invalid
+         usableState%statep => NULL()
       endif
 
       if(present(HALOWIDTH)) then
@@ -861,7 +873,6 @@ contains
 
 
     character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_VarSpecDestroy"
-    integer                               :: STATUS
 
       if(associated(SPEC%SPECPtr)) then
        deallocate(SPEC%SPECPtr)
@@ -878,7 +889,6 @@ contains
 
 
     character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_VarSpecDestroy"
-    integer                               :: STATUS
     integer :: i
 
     if (associated(SPEC)) then
@@ -931,7 +941,6 @@ contains
 
 
     character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_VarSpecSet"
-    integer                               :: STATUS
 
       if(.not.associated(SPEC%SPECPtr)) then
        RETURN_(ESMF_FAILURE)
@@ -1030,7 +1039,6 @@ contains
 
 
     character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_VarSpecSetFieldPtr"
-    integer                               :: STATUS
 
       if(.not.associated(SPEC%SPECPtr)) then
        RETURN_(ESMF_FAILURE)
@@ -1050,7 +1058,6 @@ contains
 
 
       character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_VarSpecSetBundlePtr"
-      integer                               :: STATUS
 
       if(.not.associated(SPEC%SPECPtr)) then
          RETURN_(ESMF_FAILURE)
@@ -1070,7 +1077,6 @@ contains
 
 
       character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_VarSpecSetStatePtr"
-      integer                               :: STATUS
 
       if(.not.associated(SPEC%SPECPtr)) then
          RETURN_(ESMF_FAILURE)
@@ -1146,7 +1152,6 @@ contains
 
 
     character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_VarSpecGet"
-    integer                               :: STATUS
 
       if(.not.associated(SPEC%SPECPtr)) then
        RETURN_(ESMF_FAILURE)
@@ -1300,7 +1305,6 @@ contains
 
 
     character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_VarSpecGetFieldPtr"
-    integer                               :: STATUS
 
       if(.not.associated(SPEC%SPECPtr)) then
        RETURN_(ESMF_FAILURE)
@@ -1320,7 +1324,6 @@ contains
 
 
     character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_VarSpecGetBundlePtr"
-    integer                               :: STATUS
 
       if(.not.associated(SPEC%SPECPtr)) then
        RETURN_(ESMF_FAILURE)
@@ -1340,7 +1343,7 @@ contains
 
 
     character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_VarSpecGetStatePtr"
-    integer                               :: STATUS
+
 
       if(.not.associated(SPEC%SPECPtr)) then
        RETURN_(ESMF_FAILURE)
@@ -1361,7 +1364,6 @@ contains
 
 
     character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_VarSpecAddChildName"
-    integer                               :: STATUS
 
     integer K
 
@@ -1580,7 +1582,6 @@ contains
 
 
     character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_VarConnGet"
-    integer                               :: STATUS
 
 
     if(.not.associated(CONN%CONNPtr)) then
@@ -1621,7 +1622,6 @@ contains
 
 
     character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_VarIsConnectedEE"
-    integer                               :: STATUS
     integer                               :: I
     integer                               :: FI, TI, FE, TE
 
@@ -1678,7 +1678,6 @@ contains
 
 
     character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_VarIsConnectedIE"
-    integer                               :: STATUS
     integer                               :: I
     integer                               :: FI, TI, FE, TE
 
@@ -1750,7 +1749,6 @@ contains
 
 
     character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_VarIsListed"
-    integer                               :: STATUS
     integer                               :: I
     integer                               :: FI, TI, FE, TE
 
@@ -1796,7 +1794,6 @@ contains
 
 
     character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_VarSpecPrint"
-    integer                               :: STATUS
     character(len=3) :: tmp
     character(len=ESMF_MAXSTR)            :: string
 
@@ -1852,7 +1849,6 @@ contains
 
 
     character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_VarSpecPrint1CSV"
-    integer                               :: STATUS
     character(len=3)                      :: dimensions
     character(len=ESMF_MAXSTR)            :: specInfo
 
@@ -1920,7 +1916,6 @@ contains
     integer, optional,        intent(OUT) :: RC
 
     character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_ConnCheckReq"
-    integer                               :: STATUS
     integer                               :: I, J
     integer                               :: IMP
     integer                               :: FI

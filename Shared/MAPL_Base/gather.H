@@ -1,10 +1,15 @@
-! $Id: gather.H,v 1.4 2012-08-23 19:55:28 atrayano Exp $
+! $Id$
 
 #ifdef NAME_
 #undef NAME_
 #endif
 
+#ifdef NAMESTR_
+#undef NAMESTR_
+#endif
+
 #define NAME_ MAPL_CommsGatherV_
+#define NAMESTR_ 'MAPL_CommsGatherV_'
 
 #include "overload.macro"
 
@@ -44,8 +49,10 @@
   END SUBROUTINE SUB_
 
 #undef NAME_
+#undef NAMESTR_
 
 #undef DIMENSIONS_
 #undef RANK_
+#undef RANKSTR_
 #undef VARTYPE_
 

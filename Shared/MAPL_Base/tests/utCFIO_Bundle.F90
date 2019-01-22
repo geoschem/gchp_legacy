@@ -6,7 +6,7 @@
 
    Program utCFIO
 
-   use ESMF_Mod
+   use ESMF
    use MAPL_Mod
 
    implicit NONE
@@ -47,6 +47,7 @@ CONTAINS
     subroutine test_main()
 
       character(len=ESMF_MAXSTR) :: string
+   type(ESMF_Grid)     :: grid
       integer                    :: I
 
 !   Initialize framework
@@ -73,10 +74,14 @@ CONTAINS
 !   --------------------
 !    fBundle = ESMF_FieldBundleCreate ( name='Francesca', grid=grid, rc=status )
 !    VERIFY_(status)
-    fBundle = ESMF_FieldBundleCreate ( name='PRECIP', grid=grid, rc=status )
+    fBundle = ESMF_FieldBundleCreate ( name='PRECIP', rc=status )
     VERIFY_(status)
-    dBundle = ESMF_FieldBundleCreate ( name='Denise',    grid=grid, rc=status )
+    call ESMF_FieldBundleSet(fBundle, grid=grid, rc=status)
+    VERIFY_(STATUS) 
+    dBundle = ESMF_FieldBundleCreate ( name='Denise', rc=status )
     VERIFY_(status)
+    call ESMF_FieldBundleSet(dBundle, grid=grid, rc=status)
+    VERIFY_(STATUS) 
 
 !   Set the time as the one on the hardwired file name
 !   --------------------------------------------------

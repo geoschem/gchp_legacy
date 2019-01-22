@@ -15,7 +15,13 @@ from datetime import datetime
     
 class Config(object):
 
-    def __init__(self,RcFiles,delim=':'):
+    def __init__(self,RcFiles,delim=':',Environ=True):
+        """
+        Creates config object from one or more resource files.
+        If set to True, the *Environ* parameter will be used to
+        determined whether resource files are interpolated based on
+        the current value of environment variables.
+        """
 
         if type(RcFiles) is StringType:
             Files = ( RcFiles, ) # in case a single file is given
@@ -29,6 +35,9 @@ class Config(object):
             for line in self.Lines:
                 line = line.rstrip()
                 name, value, comment = _parseLine(line,self.delim)
+                if Environ:
+                    if value is not None:
+                        value = string.Template(value).safe_substitute(os.environ)
                 if name:
                     self.Rc[name] = {  'value': value, 
                                      'comment': comment, 
@@ -138,7 +147,7 @@ class Config(object):
     def setenv(self,Only=None):
         """
         Use resources to set environment variables. Option,
-        once can provide a list of strings (*Only*) with those
+        one can provide a list of strings (*Only*) with those
         resources to be turned into environment variables.
         """ 
         for name in self.Rc:
@@ -305,5 +314,7 @@ def _ut_strTemplate():
     print strTemplate(templ,expid=expid,dtime=dtime)
 
 if __name__ == "__main__":
-    _ut_strTemplate()
+    cf = Config('test.rc', delim=' = ')
+    
+#    _ut_strTemplate()
 

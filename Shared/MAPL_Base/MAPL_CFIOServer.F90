@@ -52,6 +52,7 @@
       integer             :: date
       integer             :: time
       integer             :: markdone
+      logical             :: useFaceDim
    end type MAPL_CFIOServerIOinfo
   
    include "mpif.h"
@@ -120,7 +121,7 @@
     integer :: queueExit(1)
     integer, allocatable :: workQueue(:)
     integer, allocatable :: workQueueSize(:)
-    integer :: n_workers, CoresPerNode,num_nodes,MAX_WORK_REQUESTS
+    integer :: n_workers,num_nodes,MAX_WORK_REQUESTS
     integer :: i,j,k,i0
     integer :: num_q_exit, num_q_workRequests,sender
     logical, allocatable :: freeWorkers(:)
@@ -395,7 +396,7 @@ contains
    integer                :: mpistatus(MPI_STATUS_SIZE)
 
    type(MAPL_CFIOServerIOInfo) :: ioinfo
-   integer                    :: i, ncid, IM, JM, nymd, nhms, k
+   integer                    :: i, ncid, IM, JM, nymd, nhms
    real, allocatable              :: buffer(:,:,:)
    real, allocatable          :: lbuff(:,:)
    character(len=ESMF_MAXSTR), allocatable :: vnames(:)
@@ -405,6 +406,7 @@ contains
    real                             :: rwsize
    integer :: globalComm
    integer, allocatable :: krank(:)
+   logical :: useFaceDim
 
    Iam = "MAPL_CFIOServerIOWorker"
  
@@ -466,9 +468,10 @@ contains
          status = nf90_open(trim(ioinfo%filename),NF90_WRITE,ncid)
          VERIFY_(STATUS)
 
+         useFaceDim = ioinfo%useFaceDim
          do i=1,ioinfo%nlevs
             call CFIO_PutVar(ncid,trim(vnames(i)),nymd,nhms, &
-                 IM,JM,levs(i),1,buffer(:,:,i),status)
+                 IM,JM,levs(i),1,buffer(:,:,i),useFaceDim,status)
             VERIFY_(STATUS)
          enddo
         
@@ -506,13 +509,13 @@ contains
    
    character(len=ESMF_MAXSTR) :: Iam
 
-   integer :: icount,csize,status
+   integer :: icount,csize,status,isize
    integer, allocatable, dimension(:) :: iblock, itype
    integer(KIND=MPI_ADDRESS_KIND), allocatable, dimension(:) :: idisp
 
    Iam = "MAPL_CFIOServerInitMpiTypes"
 
-   icount =2
+   icount =3
 
    allocate(iblock(icount),stat=status)
    VERIFY_(STATUS)
@@ -523,14 +526,19 @@ contains
 
    itype(1)  = MPI_CHARACTER
    itype(2)  = MPI_INTEGER
+   itype(3)  = MPI_LOGICAL
 
    iblock(1) = ESMF_MAXSTR
    iblock(2) = 6
+   iblock(3) = 1
 
    call MPI_TYPE_SIZE(MPI_CHARACTER,csize,status)
    VERIFY_(STATUS)
+   call MPI_TYPE_SIZE(MPI_INTEGER,isize,status)
+   VERIFY_(STATUS)
    idisp(1)=0
    idisp(2)=idisp(1) + iblock(1)*csize
+   idisp(3)=idisp(2) + iblock(2)*isize
 
    call MPI_TYPE_CREATE_STRUCT(icount,iblock,idisp,itype,mpi_io_server_info_type,status)
    VERIFY_(STATUS)

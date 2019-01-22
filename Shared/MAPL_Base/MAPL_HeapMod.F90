@@ -1,5 +1,5 @@
 
-!  $Id: MAPL_HeapMod.F90,v 1.2 2014-12-12 16:32:00 bmauer Exp $
+!  $Id$
 
 #include "MAPL_ErrLog.h"
 #define ADDRS_POSITION 1
@@ -16,7 +16,7 @@
 
   use ESMF
   use MAPL_BaseMod
-
+  use, intrinsic :: iso_fortran_env, only: INT64
   implicit none
   private
 
@@ -91,7 +91,6 @@
       integer, optional, intent(OUT  ) :: RC
 
       character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_HeapGet"
-      integer :: status
 
       if(present(HeapSize)) then
          HeapSize = size(heap%buffer)
@@ -213,7 +212,6 @@
       integer :: i
 
       character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_DeAlloc_R_2D"
-      integer :: status
 
 ! Look for the pointer in the list of allocated segments
 !-------------------------------------------------------
@@ -255,21 +253,24 @@
   end module MAPL_HeapMod
 
 
-  integer(kind=8) function ival1(i)
+  integer(kind=INT64) function ival1(i)
+    use, intrinsic :: iso_fortran_env, only: INT64
     implicit none
-    integer(kind=8), intent(IN) :: I(ADDRS_POSITION)
+    integer(kind=INT64), intent(IN) :: I(ADDRS_POSITION)
     ival1 = i(ADDRS_POSITION)
   end function ival1
 
-  integer(kind=8) function ival2(i)
+  integer(kind=INT64) function ival2(i)
+    use, intrinsic :: iso_fortran_env, only: INT64
     implicit none
-    integer(kind=8), intent(IN) :: I(ADDRS_POSITION)
+    integer(kind=INT64), intent(IN) :: I(ADDRS_POSITION)
     ival2 = i(ADDRS_POSITION)
   end function ival2
 
-  integer(kind=8) function ival3(i)
+  integer(kind=INT64) function ival3(i)
+    use, intrinsic :: iso_fortran_env, only: INT64
     implicit none
-    integer(kind=8), intent(IN) :: I(ADDRS_POSITION)
+    integer(kind=INT64), intent(IN) :: I(ADDRS_POSITION)
     ival3 = i(ADDRS_POSITION)
   end function ival3
 

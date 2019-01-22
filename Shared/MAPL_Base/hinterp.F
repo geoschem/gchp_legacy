@@ -2,7 +2,7 @@
       implicit   none
       integer    iin,jin,       iout,jout, mlev
       real   qin(iin,jin,mlev), qout(iout,jout,mlev)
-      real undef,pi,dlin,dpin,dlout,dpout,lon,lat
+      real undef,pi,dlin,dpin,dlout,dpout
 
       real dlam_in (iin)
       real dphi_in (jin)
@@ -68,13 +68,13 @@ c --------------------------
       real undef,pi,dlin,dpin,dlout,dpout
       real lons_in (iin) , lats_in (jin)
       real lons_out(iout), lats_out(jout)
-      real dlam(iin), lons(iout*jout), lon
-      real dphi(jin), lats(iout*jout), lat
-      integer i,j,loc,rc
+      real dlam(iin), lons(iout*jout)
+      real dphi(jin), lats(iout*jout)
+      integer i,j,loc
       real lon_min
 
-      character(len=*), parameter :: Iam='hhinterp'
-      integer :: i1, i2, i3, i4, n1, n2, n3, n4, imh, k
+      character(len=*), parameter :: Iam='hinterp_'
+      integer :: imh, k
       real lons_save(iin)
 
       pi = 4.0*atan(1.0)
@@ -221,13 +221,9 @@ c ---------------
 
 c Local Variables
 c ---------------
-      integer  i,j,l,m,n
+      integer  i,j,l
       integer, allocatable       :: ip1(:), ip0(:), im1(:), im2(:)
       integer, allocatable       :: jp1(:), jp0(:), jm1(:), jm2(:)
-
-      integer ip1_for_jp1, ip0_for_jp1, im1_for_jp1, im2_for_jp1
-      integer ip1_for_jm2, ip0_for_jm2, im1_for_jm2, im2_for_jm2
-      integer jm2_for_jm2, jp1_for_jp1
 
 c Bi-Linear Weights
 c -----------------
@@ -255,8 +251,8 @@ c ----------------
       real, allocatable       ::    wc_im1jm2 (:)
       real, allocatable       ::    wc_im2jm2 (:)
 
-      real    ux, ap1, ap0, am1, am2
-      real    uy, bp1, bp0, bm1, bm2
+      real    ap1, ap0, am1, am2
+      real    bp1, bp0, bm1, bm2
 
       real    lon_cmp(im)
       real    lat_cmp(jm)
@@ -265,9 +261,9 @@ c ----------------
       real    pi,d
       real    lam,lam_ip1,lam_ip0,lam_im1,lam_im2
       real    phi,phi_jp1,phi_jp0,phi_jm1,phi_jm2
-      real    dl,dp,phi_np,lam_0
-      real    lam_geo, lam_cmp
-      real    phi_geo, phi_cmp
+      real    dl,dp
+      real    lam_cmp
+      real    phi_cmp
       real    undef
       integer im1_cmp,icmp
       integer jm1_cmp,jcmp

@@ -62,7 +62,7 @@ MAN_SRC :=  MAPL_Intro.tex
 
 API_SRC := ../MAPL_Cap.F90 ../MAPL_Generic.F90 ../MAPL_CFIO.F90 \
 	   ../MAPL_LocStreamMod.F90 ../MAPL_Base.F90 \
-	   ../ESMFL_Mod.P90 ../MAPL_HistoryGridComp.F90 \
+	   ../ESMFL_Mod.F90 ../MAPL_HistoryGridComp.F90 \
 	   ../MAPL_GenericCplComp.F90 ../MAPL_ExtDataGridCompMod.F90
 
 $(MAPLUG).tex: $(MAN_SRC) MAPL_Preamble.tex MAPL_API__.tex

@@ -1,6 +1,7 @@
-!  $Id: MAPL_GenericCplComp.F90,v 1.12 2014-12-12 15:30:03 bmauer Exp $
+!  $Id$
 
 #include "MAPL_Generic.h"
+#include "unused_dummy.H"
 
 !=============================================================================
 !BOP
@@ -168,7 +169,7 @@ contains
     character(len=ESMF_MAXSTR)           :: SRC_NAME
     character(len=ESMF_MAXSTR)           :: DST_NAME
 
-    integer                              :: I, NCPL
+    integer                              :: I
 
 ! Begin...
 
@@ -263,17 +264,17 @@ contains
     real, pointer                         :: PTR10(:    )
     real, pointer                         :: PTR20(:,:  )
     real, pointer                         :: PTR30(:,:,:)
-    integer                               :: CLEAR_INTERVAL
-    integer                               :: COUPLE_INTERVAL
-    integer                               :: CLEAR
-    integer                               :: COUPLE
     integer                               :: OFFSET
     integer, pointer                      :: ungrd(:)
     logical                               :: has_ungrd
     type(ESMF_Field)                      :: field
-    integer                               :: minmax
+    integer                               :: cplfunc
 
 ! Begin...
+
+    _UNUSED_DUMMY(SRC)
+    _UNUSED_DUMMY(DST)
+    _UNUSED_DUMMY(CLOCK)
 
 ! Get the target components name and set-up traceback handle.
 ! -----------------------------------------------------------
@@ -440,11 +441,11 @@ contains
 
        call ESMF_StateGet(src, NAME, field, rc=status)
        VERIFY_(STATUS)
-       call ESMF_AttributeGet(field, NAME="MINMAX", VALUE=minmax, RC=STATUS)
+       call ESMF_AttributeGet(field, NAME="CPLFUNC", VALUE=cplfunc, RC=STATUS)
        if (status /= ESMF_SUCCESS) then
-          minmax = MAPL_CplAverage
+          cplfunc = MAPL_CplAverage
        end if
-       state%couplerType(J) = MinMax
+       state%couplerType(J) = cplfunc
 
 ! Create Accumulators for 3 dimensions
 !-------------------------------------
@@ -460,7 +461,7 @@ contains
           LN = UBOUND(PTR3,3)
           allocate(PTR30(size(PTR3,1),size(PTR3,2),L1:LN), STAT=STATUS)
           VERIFY_(STATUS)
-          if (STATE%couplerType(J) /= MAPL_CplAverage) then
+          if (STATE%couplerType(J) /= MAPL_CplAverage .and. STATE%couplerType(J) /= MAPL_CplAccumulate) then
              PTR30 = MAPL_UNDEF
           else
 ! Set accumulator values to zero
@@ -475,7 +476,7 @@ contains
           VERIFY_(STATUS)
           allocate(PTR20(size(PTR2,1),size(PTR2,2)), STAT=STATUS)
           VERIFY_(STATUS)
-          if (STATE%couplerType(J) /= MAPL_CplAverage) then
+          if (STATE%couplerType(J) /= MAPL_CplAverage .and. STATE%couplerType(J) /= MAPL_CplAccumulate) then
              PTR20 = MAPL_UNDEF
           else
              PTR20 = 0.0
@@ -488,7 +489,7 @@ contains
           VERIFY_(STATUS)
           allocate(PTR10(size(PTR1)), STAT=STATUS)
           VERIFY_(STATUS)
-          if (STATE%couplerType(J) /= MAPL_CplAverage) then
+          if (STATE%couplerType(J) /= MAPL_CplAverage .and. STATE%couplerType(J) /= MAPL_CplAccumulate) then
              PTR10 = MAPL_UNDEF
           else
              PTR10 = 0.0
@@ -539,6 +540,8 @@ contains
     type (MAPL_GenericCplWrap )           :: WRAP
 
 ! Begin...
+
+    _UNUSED_DUMMY(CLOCK)
 
 ! Get the target components name and set-up traceback handle.
 ! -----------------------------------------------------------
@@ -620,7 +623,6 @@ contains
 
 ! Accumulate only if we are in the couplings averaging interval
 !--------------------------------------------------------------
-
        if(STATE%ACCUM_COUNT(J) < 0) cycle
 
 ! Get info from the SRC spec
@@ -654,7 +656,7 @@ contains
              end if
           end if
 
-          if (couplerType == MAPL_CplAverage) then
+          if (couplerType == MAPL_CplAverage .or. couplerType == MAPL_CplAccumulate) then
              if(associated(PTR3C)) then
                 where (PTR3 /= MAPL_Undef)
                    PTR30 = PTR30 + PTR3
@@ -699,7 +701,7 @@ contains
              end if
           end if
 
-          if (couplerType == MAPL_CplAverage) then
+          if (couplerType == MAPL_CplAverage .or. couplerType == MAPL_CplAccumulate) then
              if(associated(PTR2C)) then
                 where (PTR2 /= MAPL_Undef)
                    PTR20 = PTR20 + PTR2
@@ -742,7 +744,7 @@ contains
              end if
           end if
 
-          if (couplerType == MAPL_CplAverage) then
+          if (couplerType == MAPL_CplAverage .or. couplerType == MAPL_CplAccumulate) then
              if(associated(PTR1C)) then
                 where (PTR1 /= MAPL_Undef)
                    PTR10 = PTR10 + PTR1
@@ -770,7 +772,7 @@ contains
 
        end select
 
-       if(couplerType == MAPL_CplMax .or. couplerType == MAPL_CplMin) then
+       if(couplerType == MAPL_CplMax .or. couplerType == MAPL_CplMin) then 
         STATE%ACCUM_COUNT(J) = 1
        else
         STATE%ACCUM_COUNT(J) = STATE%ACCUM_COUNT(J) + 1
@@ -820,7 +822,7 @@ contains
           case(3)
              call ESMF_LocalArrayGet(STATE%ACCUMULATORS(J),farrayPtr=PTR30,RC=STATUS)
              VERIFY_(STATUS)
-             if (STATE%couplerType(J) /= MAPL_CplAverage) then
+             if (STATE%couplerType(J) /= MAPL_CplAverage .and. STATE%couplerType(J) /= MAPL_CplAccumulate) then
                 PTR30 = MAPL_UNDEF
              else
                 PTR30 = 0.0
@@ -830,7 +832,7 @@ contains
           case(2)
              call ESMF_LocalArrayGet(STATE%ACCUMULATORS(J),farrayPtr=PTR20,RC=STATUS)
              VERIFY_(STATUS)
-             if (STATE%couplerType(J) /= MAPL_CplAverage) then
+             if (STATE%couplerType(J) /= MAPL_CplAverage .and. STATE%couplerType(J) /= MAPL_CplAccumulate) then
                 PTR20 = MAPL_UNDEF
              else
                 PTR20 = 0.0
@@ -840,7 +842,7 @@ contains
           case(1)
              call ESMF_LocalArrayGet(STATE%ACCUMULATORS(J),farrayPtr=PTR10,RC=STATUS)
              VERIFY_(STATUS)
-             if (STATE%couplerType(J) /= MAPL_CplAverage) then
+             if (STATE%couplerType(J) /= MAPL_CplAverage .and. STATE%couplerType(J) /= MAPL_CplAccumulate) then
                 PTR10 = MAPL_UNDEF
              else
                 PTR10 = 0.0
@@ -881,12 +883,14 @@ contains
     integer, pointer                      :: PTR2c(:,:)
     integer, pointer                      :: PTR3c(:,:,:)
     logical                               :: RINGING
+    integer                               :: couplerType
 
     character(*), parameter       :: IAm="COUPLE"
     integer                       :: STATUS
 
     do J = 1, size(STATE%SRC_SPEC)
 
+       couplerType = state%couplerType(J)
        RINGING = ESMF_AlarmIsRinging(STATE%TIME_TO_COUPLE(J), RC=STATUS)
        VERIFY_(STATUS)
        
@@ -911,13 +915,25 @@ contains
              VERIFY_(STATUS)
              PTR3c => STATE%ARRAY_COUNT(J)%PTR3C
              if(associated(PTR3C)) then
-                where (PTR3C /= 0) 
-                   PTR30 = PTR30 / PTR3C
-                elsewhere
-                   PTR30 = MAPL_Undef
-                end where
+                if (couplerType /= MAPL_CplAccumulate) then
+                   where (PTR3C /= 0) 
+                      PTR30 = PTR30 / PTR3C
+                   elsewhere
+                      PTR30 = MAPL_Undef
+                   end where
+                else
+                   where (PTR3C /= 0) 
+                      PTR30 = PTR30
+                   elsewhere
+                      PTR30 = MAPL_Undef
+                   end where
+                end if
              elseif(STATE%ACCUM_COUNT(J)>0) then
-                PTR30 = PTR30 / STATE%ACCUM_COUNT(J)
+                if (couplerType /= MAPL_CplAccumulate) then
+                   PTR30 = PTR30 / STATE%ACCUM_COUNT(J)
+                else
+                   PTR30 = PTR30
+                end if
              else
                 PTR30 = MAPL_Undef
              end if
@@ -933,13 +949,25 @@ contains
              VERIFY_(STATUS)
              PTR2c => STATE%ARRAY_COUNT(J)%PTR2C
              if(associated(PTR2C)) then
-                where (PTR2C /= 0) 
-                   PTR20 = PTR20 / PTR2C
-                elsewhere
-                   PTR20 = MAPL_Undef
-                end where
+                if (couplerType /= MAPL_CplAccumulate) then
+                   where (PTR2C /= 0)
+                      PTR20 = PTR20 / PTR2C
+                   elsewhere
+                      PTR20 = MAPL_Undef
+                   end where
+                else
+                   where (PTR2C /= 0)
+                      PTR20 = PTR20
+                   elsewhere
+                      PTR20 = MAPL_Undef
+                   end where
+                end if
              elseif(STATE%ACCUM_COUNT(J)>0) then
-                PTR20 = PTR20 / STATE%ACCUM_COUNT(J)
+                if (couplerType /= MAPL_CplAccumulate) then
+                   PTR20 = PTR20 / STATE%ACCUM_COUNT(J)
+                else
+                   PTR20 = PTR20
+                end if
              else
                 PTR20 = MAPL_Undef
              end if
@@ -955,13 +983,25 @@ contains
              VERIFY_(STATUS)
              PTR1c => STATE%ARRAY_COUNT(J)%PTR1C
              if(associated(PTR1C)) then
-                where (PTR1C /= 0) 
-                   PTR10 = PTR10 / PTR1C
-                elsewhere
-                   PTR10 = MAPL_Undef
-                end where
+                if (couplerType /= MAPL_CplAccumulate) then
+                   where (PTR1C /= 0) 
+                      PTR10 = PTR10 / PTR1C
+                   elsewhere
+                      PTR10 = MAPL_Undef
+                   end where
+                else
+                   where (PTR1C /= 0) 
+                      PTR10 = PTR10
+                   elsewhere
+                      PTR10 = MAPL_Undef
+                   end where
+                end if
              elseif(STATE%ACCUM_COUNT(J)>0) then
-                PTR10 = PTR10 / STATE%ACCUM_COUNT(J)
+                if (couplerType /= MAPL_CplAccumulate) then
+                   PTR10 = PTR10 / STATE%ACCUM_COUNT(J)
+                else
+                   PTR10 = PTR10
+                end if
              else
                 PTR10 = MAPL_Undef
              end if
@@ -1020,6 +1060,10 @@ contains
     type (MAPL_GenericCplWrap )           :: WRAP
 
 ! Begin...
+
+    _UNUSED_DUMMY(SRC)
+    _UNUSED_DUMMY(DST)
+    _UNUSED_DUMMY(CLOCK)
 
 ! Get the target components name and set-up traceback handle.
 ! -----------------------------------------------------------

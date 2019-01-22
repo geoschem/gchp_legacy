@@ -1,5 +1,5 @@
 
-!  $Id: MAPL_ErrLog.h,v 1.8 2011-04-13 14:20:32 atrayano Exp $ 
+!  $Id$ 
 
 ! The error logging may eventually evolve into a module based
 ! on the ESMF logger.  For now these macros provide simple
@@ -15,6 +15,9 @@
 #endif
 #ifdef VERIFY_
 #undef VERIFY_
+#endif
+#ifdef _VERIFY
+#undef _VERIFY
 #endif
 #ifdef ASSERT_
 #undef ASSERT_
@@ -43,7 +46,9 @@
 
 #define RETURN_(A)     if(MAPL_RTRN(A,Iam,__LINE__,RC))return
 #define VERIFY_(A)     if(MAPL_VRFY(A,Iam,__LINE__,RC))return
+#define _VERIFY(A)     if(MAPL_VRFY(A,__FILE__,__LINE__,RC))return
 #define ASSERT_(A)     if(MAPL_ASRT(A,Iam,__LINE__,RC))return
+#define _ASSERT(A)     if(MAPL_ASRT(A,__FILE__,__LINE__,RC))return
 
 #endif
 #endif

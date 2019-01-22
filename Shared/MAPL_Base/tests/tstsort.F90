@@ -1,4 +1,4 @@
-
+subroutine foo
 USE mapl_sortMod
 
 integer*8 :: a(5), c(5)
@@ -46,5 +46,7 @@ do j=1,3
 print *, j, '===', d1(:,j)
 end do
 
-stop
-end
+end subroutine
+
+subroutine mapl_initialize()
+end subroutine mapl_initialize

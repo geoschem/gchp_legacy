@@ -18,35 +18,39 @@
 #endif
 
 #ifdef __rc__
-#undefine __rc__
+#undef __rc__
 #endif
 
 #ifdef __try__
-#undefine __try__
+#undef __try__
 #endif
 
 #ifdef __catch__
-#undefine __catch__
+#undef __catch__
 #endif
 
 #ifdef __endcatch__
-#undefine __endcatch__
+#undef __endcatch__
 #endif
 
 #ifdef __except__
-#undefine __except__
+#undef __except__
 #endif
 
 #ifdef __endtry__
-#undefine __endtry__
+#undef __endtry__
 #endif
 
 #ifdef __raise__
-#undefine __raise__
+#undef __raise__
 #endif
 
 #ifdef  VERIFY_
 #undef VERIFY_
+#endif
+
+#ifdef  _VERIFY
+#undef _VERIFY
 #endif
 
 #ifdef  IGNORE_
@@ -116,7 +120,8 @@
 !
 ! Short hand for declaring key variables
 !
-#define __Iam__(name) integer :: STATUS; character(len=255) :: Iam=name
+#define _Iam_(name) character(len=255) :: Iam=name
+#define __Iam__(name) integer :: STATUS; _Iam_(name)
 
 !
 ! Automatic exception hanler

@@ -1,8 +1,7 @@
-
-! $Id: MAPL_HistoryGridComp.F90,v 1.71 2016-05-19 15:06:00 bmauer Exp $
+! $Id$
 
 #include "MAPL_Generic.h"
-
+#include "unused_dummy.H"
 module MAPL_HistoryGridCompMod
 
 !BOP
@@ -25,9 +24,14 @@ module MAPL_HistoryGridCompMod
   use MAPL_NewArthParserMod
   use MAPL_SortMod
   use ESMF_CFIOMOD, only:  StrTemplate => ESMF_CFIOstrTemplate
-  use m_chars,  only: uppercase
   use MAPL_CFIOServerMod
   use MAPL_ShmemMod
+  use MAPL_StringGridMapMod
+  use MAPL_GridManagerMod
+  use MAPL_ConfigMod
+  use, intrinsic :: iso_fortran_env, only: REAL32, REAL64
+  use MAPL_HistoryCollectionMod, only: HistoryCollection
+  use MAPL_HistoryCollectionVectorMod, only: HistoryCollectionVector
   !use ESMF_CFIOMOD
 
   implicit none
@@ -41,65 +45,6 @@ module MAPL_HistoryGridCompMod
 !                \input{MAPL_HistoryDescr.tex}
 !
 !EOP
-
-! Define History Lists for Output
-! -------------------------------
-  type    history_list
-     character(len=ESMF_MAXSTR)         :: collection
-     character(len=ESMF_MAXSTR)         :: filename
-     character(len=ESMF_MAXSTR)         :: template
-     character(len=ESMF_MAXSTR)         :: format
-     character(len=ESMF_MAXSTR)         :: mode
-     character(len=ESMF_MAXSTR)         :: descr
-     character(len=ESMF_MAXSTR),pointer :: fields (:,:)
-     integer                            :: frequency
-     integer                            :: acc_interval
-     integer                            :: ref_date
-     integer                            :: ref_time
-     integer                            :: end_date
-     integer                            :: end_time
-     integer                            :: duration
-     type(ESMF_Alarm)                   :: his_alarm ! when to write file
-     type(ESMF_Alarm)                   :: seg_alarm ! segment alarm controls when to write to new file
-     type(ESMF_Alarm)                   :: mon_alarm
-     type(ESMF_Alarm)                   :: end_alarm
-     integer,pointer                    :: expSTATE (:)
-     integer                            :: unit
-     integer                            :: nfield
-     type(ESMF_FieldBundle)             :: bundle
-     type(MAPL_CFIO)                    :: MCFIO
-     real   , pointer                   :: levels(:)     => null()
-     integer, pointer                   :: resolution(:) => null()
-     real,    pointer                   :: subset(:) => null()
-     integer,    pointer                :: chunksize(:) => null()
-     integer, pointer                   :: peAve(:)
-     integer                            :: verbose
-     integer                            :: xyoffset
-     logical                            :: disabled
-     logical                            :: subVm
-     logical                            :: backwards ! Adds support for clock running in reverse direction
-     real                               :: vscale
-     character(len=ESMF_MAXSTR)         :: vunit
-     character(len=ESMF_MAXSTR)         :: vvars(2)
-     integer                            :: conservative
-     integer                            :: voting
-     integer                            :: nbits
-     integer                            :: deflate 
-     integer                            :: slices
-     integer                            :: Root
-     integer                            :: Psize
-     integer                            :: tm
-     ! Adding Arithemtic Field Rewrite
-     character(len=ESMF_MAXSTR),pointer :: tmpfields(:) => null()
-     logical, pointer                   :: ReWrite(:) => null()
-     integer                            :: nPExtraFields
-     character(len=ESMF_MAXSTR),pointer :: PExtraFields(:) => null()
-     character(len=ESMF_MAXSTR),pointer :: PExtraGridComp(:) => null() 
-     character(len=ESMF_MAXSTR),pointer :: vectorList(:,:) => null() 
-     logical, pointer                   :: r8_to_r4(:) => null()
-     type(ESMF_FIELD), pointer          :: r8(:) => null()
-     type(ESMF_FIELD), pointer          :: r4(:) => null()
-  endtype history_list
 
   type SpecWrapper
      type (MAPL_VarSpec),              pointer :: SPEC(:)
@@ -127,7 +72,8 @@ module MAPL_HistoryGridCompMod
   end type ExchangeRegrid
 
   type HISTORY_STATE
-     type (history_list),        pointer :: list(:)       => null()
+     type (HistoryCollection),        pointer :: list(:)       => null()
+     type(HistoryCollectionVector) :: collections 
      type (ExchangeRegrid),      pointer :: Regrid(:)     => null()
 !     character(len=ESMF_MAXSTR), pointer :: GCNameList(:) => null()
 !     type (ESMF_GridComp),       pointer :: gcs(:)        => null()
@@ -141,6 +87,7 @@ module MAPL_HistoryGridCompMod
      logical,                    pointer :: average(:)    => null()
      type (SpecWrapper),         pointer :: SRCS(:)       => null()
      type (SpecWrapper),         pointer :: DSTS(:)       => null()
+     type (StringGridMap)                :: output_grids
      character(len=ESMF_MAXSTR)          :: expsrc
      character(len=ESMF_MAXSTR)          :: expid
      character(len=ESMF_MAXSTR)          :: expdsc
@@ -149,6 +96,7 @@ module MAPL_HistoryGridCompMod
      integer                             :: blocksize
      integer                             :: MarkDone
      integer                             :: PrePost
+     integer                             :: version
   end type HISTORY_STATE
   
   type HISTORY_wrap
@@ -286,7 +234,6 @@ contains
 ! \item[end_time]     Integer (HHMMSS) ending time to stop diagnostic output. Default is disabled.
 ! \item[duration]     Integer (HHMMSS) for the duration of each file.  Default = frequency (1 time-record per file).
 ! \item[fields]       Paired character strings for the diagnostic Name and its associated Gridded Component.
-! \item[resolution]   Optional resolution (IM JM) for the ouput stream. Default is the native resolution.
 ! \item[subset]       Optional subset (lonMin lonMax latMin latMax) for the output
 ! \item[xyoffset]     Optional Flag for Grid Staggering (0:DcPc, 1:DePc, 2:DcPe, 3:DePe)
 ! \item[levels]       Optional list of output levels (Default is all levels on Native Grid).
@@ -304,7 +251,7 @@ contains
 
     logical                         :: errorFound
     logical                         :: found
-    type(history_list), pointer     :: list(:)
+    type(HistoryCollection), pointer     :: list(:)
     type(HISTORY_wrap)              :: wrap
     type (HISTORY_STATE), pointer   :: IntState
     type(HISTORY_ExchangeListWrap)  :: lswrap
@@ -330,12 +277,11 @@ contains
     character(len=ESMF_MAXSTR)     :: gridname
     character(len=ESMF_MAXSTR), pointer :: gnames(:)
     character(len=2)               :: POLE, DTLN
-    integer                        :: L, LM, layers
+    integer                        :: L, LM
     integer                        :: NMLEN
     integer                        :: NG
     integer                        :: NGRIDS
     integer                        :: COUNTS(ESMF_MAXDIM)
-    integer                        :: DECOUNT(2)
     integer                        :: NX, NY
     integer                        :: I1,IN,J1,JN
     integer, pointer               :: gridim(:), gridjm(:)
@@ -344,7 +290,6 @@ contains
     integer                        :: dimCount
     integer, allocatable           :: minindex(:,:)
     integer, allocatable           :: maxindex(:,:)
-    real, pointer                  :: VAR_2D(:,:)
     real, pointer                  :: levels(:)
     real(ESMF_KIND_R8)             :: X0, Y0, deltaX, deltaY, deltaZ
     real(ESMF_KIND_R8), pointer    :: coordX(:,:)
@@ -354,10 +299,8 @@ contains
     integer                        :: DIMS
     integer                        :: VLOCATION
     integer                        :: FIELD_TYPE
-    character(ESMF_MAXSTR)         :: FRIENDLYTO
     integer                        :: avgint
     integer                        :: REFRESH
-    integer                        :: NumSlices
     character(ESMF_MAXSTR)         :: SHORT_NAME
     character(ESMF_MAXSTR)         :: LONG_NAME
     character(ESMF_MAXSTR)         :: UNITS
@@ -373,17 +316,17 @@ contains
     logical,                   allocatable :: statelistavail(:)
     character(len=ESMF_MAXSTR),allocatable ::   tmplist(:)
     
-    integer :: nlist,unit,nsecf,nfield,nstatelist
-    integer :: k,m,n,sec,rank,nhms,size0
+    integer :: nlist,unit,nstatelist
+    integer :: k,m,n,sec,rank,size0
     integer :: year,month,day,hour,minute,second,nymd0,nhms0,nymdc,nhmsc
     integer :: ref_time(6)
     integer :: len, i, j, mype, npes
 
     type (ESMF_Grid)                          :: grid
+    type (ESMF_Grid), pointer                 :: pgrid
     type (ESMF_Grid)                          :: grid_attached
     type (ESMF_DistGrid)                      :: distgrid
     type (ESMF_Grid)                          :: grid_in, grid_out
-    type (ESMF_Grid), pointer                 :: grids(:)
     type (MAPL_LocStream)                     :: exch
     type (MAPL_LocStream)                     :: locstream
     type (ESMF_VM)                            :: vm
@@ -418,12 +361,11 @@ contains
     real                                      :: lvl
 
     integer                                   :: unitr, unitw
-    integer                                   :: tm
+    integer                                   :: tm,resolution(2)
     logical                                   :: match, contLine
     character(len=2048)                       :: line
     type(ESMF_Config)                         :: cfg
     character(len=ESMF_MAXSTR)                :: HIST_CF
-    character(len=ESMF_MAXSTR)                :: collection_rc
     character(len=ESMF_MAXSTR)                :: BLANK=""
 
 !   Parser Variables
@@ -448,6 +390,10 @@ contains
 !   variables for "backwards" mode
     integer                        :: reverse
 
+!   variables for "newFormat" mode
+    integer                        :: newFormat
+    integer                        :: cubeFormat
+
 !   variables for proper counting the number of slices to include tile-grids
     type (ESMF_Grid)     :: bgrid
     type (ESMF_DistGrid) :: bdistgrid
@@ -456,11 +402,13 @@ contains
 
     type(ESMF_Field)     :: r4field
 
-! Fortran statement function
-    nsecf(nhms) = nhms/10000*3600 + mod(nhms,10000)/100*60 + mod(nhms,100)
+    integer              :: chnksz
 
+    type(HistoryCollection) :: collection
 ! Begin
 !------
+
+    _UNUSED_DUMMY(dumexport)
 
     call MAPL_GetObjectFromGC ( gc, GENSTATE, RC=STATUS)
     VERIFY_(STATUS)
@@ -557,6 +505,9 @@ contains
     call ESMF_ConfigGetAttribute(config, value=snglcol,          &
                                          label='SINGLE_COLUMN:', default=0, rc=status)
     VERIFY_(STATUS)
+    call ESMF_ConfigGetAttribute(config, value=intstate%version,          &
+                                         label='VERSION:', default=0, rc=status)
+    VERIFY_(STATUS)
     if( MAPL_AM_I_ROOT() ) then
        print *
        print *, 'EXPSRC:',trim(INTSTATE%expsrc)
@@ -585,6 +536,11 @@ contains
     do while (.not.tend)
           call ESMF_ConfigGetAttribute ( config,value=tmpstring,default='',rc=STATUS) !ALT: we don't check return status!!!
           if (tmpstring /= '')  then
+             
+             collection%collection = tmpstring
+             collection%filename = tmpstring
+             call IntState%collections%push_back(collection)             
+             
              nlist = nlist + 1
              allocate( list(nlist), stat=status )
              VERIFY_(STATUS)
@@ -597,9 +553,47 @@ contains
           call ESMF_ConfigNextLine     ( config,tableEnd=tend,rc=STATUS )
           VERIFY_(STATUS)
     enddo
-
+    
     if (nlist == 0) then
        RETURN_(ESMF_SUCCESS)
+    end if
+
+    if (intstate%version == 1) then
+       OUTPUT_GRIDS: block
+         type (ESMF_Grid) :: output_grid
+         type (StringGridMapIterator) :: iter
+         character(len=:), pointer :: key
+         integer :: nl
+         character(len=60) :: grid_type
+         
+         call ESMF_ConfigFindLabel ( config,'GRID_LABELS:',rc=STATUS )
+         VERIFY_(status)
+         tend  = .false.
+         do while (.not.tend)
+             call ESMF_ConfigGetAttribute ( config,value=tmpstring,default='',rc=STATUS) !ALT: we don't check return status!!!
+             if (tmpstring /= '')  then
+                call IntState%output_grids%insert(trim(tmpString), output_grid)
+             end if
+             call ESMF_ConfigNextLine     ( config,tableEnd=tend,rc=STATUS )
+             VERIFY_(STATUS)
+          enddo
+          
+          iter = IntState%output_grids%begin()
+          do while (iter /= IntState%output_grids%end())
+             key => iter%key()
+             call ESMF_ConfigGetAttribute(config, value=grid_type, label=trim(key)//".GRID_TYPE:",rc=status)
+             VERIFY_(status)
+             call ESMF_ConfigGetAttribute(config, value=nl,label="NX:",rc=status)
+             call MAPL_ConfigSetAttribute(config, value=nl,label=trim(key)//".NX:",rc=status)
+             call ESMF_ConfigGetAttribute(config, value=nl,label="NY:",rc=status)
+             if (trim(grid_type)=='Cubed-Sphere') nl=nl/6
+             call MAPL_ConfigSetAttribute(config, value=nl,label=trim(key)//".NY:",rc=status)
+             output_grid = grid_manager%make_grid(config, prefix=key//'.', rc=status)
+             VERIFY_(status)
+             call IntState%output_grids%set(key, output_grid)
+             call iter%next()
+          end do
+       end block OUTPUT_GRIDS
     end if
 
     allocate(IntState%Regrid(nlist), stat=STATUS)
@@ -661,6 +655,12 @@ contains
 ! Initialize History Lists
 ! ------------------------
  
+    allocate(INTSTATE%AVERAGE    (nlist), stat=status)
+    VERIFY_(STATUS)
+    allocate(INTSTATE%STAMPOFFSET(nlist), stat=status)
+    VERIFY_(STATUS)
+
+    IntState%average = .false.
     LISTLOOP: do n=1,nlist
 
        list(n)%unit = 0
@@ -845,8 +845,8 @@ contains
               fields4 = adjustl( fields4 )
           endif
 ! convert to uppercase
-          tmpstring = UPPERCASE(fields4)
-          fields4 = tmpstring
+          tmpstring = ESMF_UtilStringUpperCase(fields4,rc=status)
+          VERIFY_(status)
 ! -------------
 
           call ESMF_ConfigNextLine  ( cfg,tableEnd=tend,rc=STATUS )
@@ -920,6 +920,16 @@ contains
 
        list(n)%nfield = m
 
+! Check if field list had a vector pair and collection marked as conservative
+! Abort if this is the case as this is not supported
+! ---------------------------------------------------------------------------
+       if (Associated(list(n)%vectorList)) then
+          if (list(n)%conservative /= 0) then
+             call WRITE_PARALLEL('Can not have a vector pair in a conservative collection')
+             ASSERT_(.false.)
+          end if
+       end if
+
 ! Get an optional list of output levels
 ! -------------------------------------
 
@@ -928,11 +938,11 @@ contains
        len = ESMF_ConfigGetLen( cfg, label=trim(trim(string) // 'levels:'), rc = status )
 
        LEVS: if( status == ESMF_SUCCESS ) then
-          call ESMF_ConfigFindLabel( config, label=trim(trim(string) // 'levels:'), rc = status )
+          call ESMF_ConfigFindLabel( cfg, label=trim(trim(string) // 'levels:'), rc = status )
           VERIFY_(STATUS)
              j = 0
           do i = 1, len
-             call ESMF_ConfigGetAttribute ( config,value=tmpstring ,rc=STATUS)
+             call ESMF_ConfigGetAttribute ( cfg,value=tmpstring ,rc=STATUS)
              VERIFY_(STATUS)
              if( trim(tmpstring) == ',' )  cycle
              j = j + 1
@@ -1084,37 +1094,59 @@ contains
 
        vvarn(n) = vvar
 
-! Get an optional 2-D output resolution
-! -------------------------------------
+       cubeFormat = 1
        list(n)%xyoffset = 0
-       len = ESMF_ConfigGetLen ( cfg, label=trim(trim(string) // 'resolution:'), rc = status )
-       if( status == ESMF_SUCCESS ) then
-          call  ESMF_ConfigFindLabel( cfg, label=trim(trim(string) // 'resolution:'), rc = status )
-          allocate( list(n)%resolution(2), stat = status )  
-          VERIFY_(STATUS)
+       ! Determine the file-side grid to use for the collection.
+       select case (intstate%version)
+       case(1)
+          call ESMF_ConfigGetAttribute ( cfg, tmpString, default='' , &
+                                         label=trim(string) // 'grid_label:' ,rc=status )
+          VERIFY_(status)
+          if (len_trim(tmpString) == 0) then
+             list(n)%output_grid_label=''
+          else
+             cubeFormat = 0
+             i1 = index(tmpstring(:),",")
+             if( i1.eq.1 )  tmpstring = adjustl( tmpstring(2:)   )
+             j1 = index(tmpstring(:),",")-1
+             if( j1.gt.0 )  tmpstring = adjustl( tmpstring(1:j1) )
+             pgrid => IntState%output_grids%at(trim(tmpString))
+             ! If user specifies a grid label, then it is required.
+             ! Do not default to native in this case
+             ASSERT_(associated(pgrid))
+             list(n)%output_grid_label = trim(tmpString)
+          end if
+       case(0)
+          call ESMF_ConfigFindLabel( cfg, label=trim(trim(string) // 'resolution:'), rc = status )
+          if (status==ESMF_SUCCESS) then
              j = 0
-          do i = 1,len
-             call ESMF_ConfigGetAttribute ( cfg,value=tmpstring ,rc=STATUS)
-             VERIFY_(STATUS)
-             if( trim(tmpstring) == ',' )  cycle
-             j = j + 1
-             ASSERT_(j<=2)
-                     i1 = index(tmpstring(:),",")
-                 if( i1.eq.1 )  tmpstring = adjustl( tmpstring(2:)   )
-                     j1 = index(tmpstring(:),",")-1
-                 if( j1.gt.0 )  tmpstring = adjustl( tmpstring(1:j1) )
-             read(tmpstring,*)  list(n)%resolution(j)
-          enddo
-          call ESMF_ConfigGetAttribute ( cfg, list(n)%xyoffset, default=0, &
-                                         label=trim(string) // 'xyoffset:' ,rc=status )
-          VERIFY_(STATUS)
-       end if
+             do i = 1,2
+                call ESMF_ConfigGetAttribute ( cfg,value=tmpstring ,rc=STATUS)
+                VERIFY_(STATUS)
+                if( trim(tmpstring) == ',' )  cycle
+                j = j + 1
+                ASSERT_(j<=2)
+                        i1 = index(tmpstring(:),",")
+                    if( i1.eq.1 )  tmpstring = adjustl( tmpstring(2:)   )
+                        j1 = index(tmpstring(:),",")-1
+                    if( j1.gt.0 )  tmpstring = adjustl( tmpstring(1:j1) )
+                read(tmpstring,*)  resolution(j)
+             enddo
+             call list(n)%AddGrid(IntState%output_grids,resolution,config,rc=status)
+             VERIFY_(status)
+          else
+             list(n)%output_grid_label=''
+          end if
+       end select
+
+
 
 ! Get an optional 2-D output subset
 ! ---------------------------------
 
        len = ESMF_ConfigGetLen(cfg, label=trim(trim(string) // 'subset:'), rc = status)
        if ( status == ESMF_SUCCESS ) then
+          cubeFormat = 0
           call ESMF_ConfigFindLabel( cfg, label=trim(trim(string) // 'subset:'), rc =status)
           VERIFY_(STATUS)
           allocate( list(n)%subset(4), stat = status)
@@ -1132,11 +1164,28 @@ contains
              if (j1.gt.0) tmpstring = adjustl( tmpstring(1:j1) )
              if (j<=4) read(tmpstring,*) list(n)%subset(j)
           enddo
-          if (.not. associated(list(n)%resolution)) then
-             call WRITE_PARALLEL('A resolution must be specified for this subset history output')
-             ASSERT_(associated(list(n)%resolution))
+          pgrid => IntState%output_grids%at(trim(list(n)%output_grid_label))
+          if (.not. associated(pgrid)) then
+             call WRITE_PARALLEL('A grid_label must be specified for this subset history output')
+             ASSERT_(associated(pgrid))
           endif
        end if
+
+! Handle "useNewFormat" mode: this is hidden (i.e. not documented) feature
+! Affects only "new" cubed-sphere native output
+! Defaults to .true.
+       newFormat = cubeFormat
+       if (cubeFormat /= 0) then
+          call ESMF_ConfigGetAttribute ( cfg, newFormat, default=cubeFormat, &
+	                                 label=trim(string) // 'cubeFormat:'  ,rc=status )
+          VERIFY_(STATUS)
+       end if
+       list(n)%useNewFormat = (newFormat /= 0)
+
+! Force history so that time averaged collections are timestamped with write time
+       call ESMF_ConfigGetAttribute(cfg, list(n)%ForceOffsetZero, default=.false., & 
+                                    label=trim(string)//'timestampEnd:', rc=status)
+       VERIFY_(status) 
 
 ! Get an optional chunk size
 ! --------------------------
@@ -1144,7 +1193,11 @@ contains
        if ( status == ESMF_SUCCESS ) then
           call ESMF_ConfigFindLabel( cfg, label=trim(trim(string) // 'chunksize:'), rc =status)
           VERIFY_(STATUS)
-          allocate( list(n)%chunksize(4), stat = status)
+          chnksz = 4
+          if (list(n)%useNewFormat) then
+             chnksz = 5
+          end if
+          allocate( list(n)%chunksize(chnksz), stat = status)
           VERIFY_(STATUS)
           j=0
           do i=1,len
@@ -1157,7 +1210,7 @@ contains
              if (i1.eq.1) tmpstring = adjustl( tmpstring(2:)  )
              j1 = index(tmpstring(:),",")-1
              if (j1.gt.0) tmpstring = adjustl( tmpstring(1:j1) )
-             if (j<=4) read(tmpstring,*) list(n)%chunksize(j)
+             if (j<=chnksz) read(tmpstring,*) list(n)%chunksize(j)
           enddo
        end if
 
@@ -1167,7 +1220,7 @@ contains
                                       label=trim(string) // 'regrid_exch:' ,rc=status )
        VERIFY_(STATUS)
 
-       call ESMF_ConfigGetAttribute ( config, value=gridname, default="", &
+       call ESMF_ConfigGetAttribute ( cfg, value=gridname, default="", &
                                       label=trim(string) // 'regrid_name:' ,rc=status )
        VERIFY_(STATUS)
 
@@ -1183,6 +1236,15 @@ contains
 ! ----------
 
        if (list(n)%disabled) cycle
+
+       if(list(n)%mode == "instantaneous" .or. list(n)%ForceOffsetZero) then
+          sec = 0
+       else
+          IntState%average(n) = .true.
+          sec = MAPL_nsecf(list(n)%acc_interval) / 2
+       endif
+       call ESMF_TimeIntervalSet( INTSTATE%STAMPOFFSET(n), S=sec, rc=status )
+       VERIFY_(STATUS)
 
 ! His and Seg Alarms based on Reference Date and Time
 ! ---------------------------------------------------
@@ -1200,7 +1262,7 @@ contains
                                    M  = REF_TIME(5), &
                                    S  = REF_TIME(6), calendar=cal, rc=rc )
 
-       sec = nsecf( list(n)%frequency )
+       sec = MAPL_nsecf( list(n)%frequency )
        call ESMF_TimeIntervalSet( Frequency, S=sec, calendar=cal, rc=status ) ; VERIFY_(STATUS)
        RingTime = RefTime
 
@@ -1213,20 +1275,30 @@ contains
        if (RingTime < currTime .and. sec /= 0 ) then
            RingTime = RingTime + (INT((currTime - RingTime)/frequency)+1)*frequency
        endif
-       list(n)%his_alarm = ESMF_AlarmCreate( clock=clock, RingInterval=Frequency, RingTime=RingTime, sticky=.false., rc=status )
+       if ( list(n)%backwards ) then
+          list(n)%his_alarm = ESMF_AlarmCreate( clock=clock, RingInterval=Frequency, RingTime=RingTime, rc=status )
+       else
+          list(n)%his_alarm = ESMF_AlarmCreate( clock=clock, RingInterval=Frequency, RingTime=RingTime, sticky=.false., rc=status )
+       endif
        VERIFY_(STATUS)
        
        if( list(n)%duration.ne.0 ) then
-          sec = nsecf( list(n)%duration )
+          sec = MAPL_nsecf( list(n)%duration )
           call ESMF_TimeIntervalSet( Frequency, S=sec, calendar=cal, rc=status ) ; VERIFY_(STATUS)
-          RingTime = RefTime
+          RingTime = RefTime + IntState%StampOffset(n)
           if (RingTime < currTime) then
               RingTime = RingTime + (INT((currTime - RingTime)/frequency)+1)*frequency
           endif
-          list(n)%seg_alarm = ESMF_AlarmCreate( clock=clock, RingInterval=Frequency, RingTime=RingTime, sticky=.false., rc=status )
+          if ( list(n)%backwards ) then
+             list(n)%seg_alarm = ESMF_AlarmCreate( clock=clock, RingInterval=Frequency, RingTime=RingTime, rc=status )
+          else
+             list(n)%seg_alarm = ESMF_AlarmCreate( clock=clock, RingInterval=Frequency, RingTime=RingTime, sticky=.false., rc=status )
+          endif
           VERIFY_(STATUS)
        else
-          list(n)%seg_alarm = ESMF_AlarmCreate( clock=clock, RingTime=RingTime, sticky=.false., rc=status )
+          ! this alarm should never ring, but it is checked if ringing
+          list(n)%seg_alarm = ESMF_AlarmCreate( clock=clock, enabled=.false., &
+               ringTime=currTime, name='historyNewSegment', rc=status )
           VERIFY_(STATUS)
        endif
 
@@ -1251,7 +1323,11 @@ contains
        do while ( RingTime < currTime )
           RingTime = RingTime + Frequency
        enddo
-       list(n)%mon_alarm = ESMF_AlarmCreate( clock=clock, RingInterval=Frequency, RingTime=RingTime, sticky=.false., rc=status )
+       if ( list(n)%backwards ) then
+          list(n)%mon_alarm = ESMF_AlarmCreate( clock=clock, RingInterval=Frequency, RingTime=RingTime, rc=status )
+       else
+          list(n)%mon_alarm = ESMF_AlarmCreate( clock=clock, RingInterval=Frequency, RingTime=RingTime, sticky=.false., rc=status )
+       endif
        VERIFY_(STATUS)
        
 ! End Alarm based on end_date and end_time
@@ -1271,10 +1347,18 @@ contains
                                         M  = REF_TIME(5), &
                                         S  = REF_TIME(6), calendar=cal, rc=rc )
 
-           list(n)%end_alarm = ESMF_AlarmCreate( clock=clock, RingTime=RingTime, sticky=.false., rc=status )
+           if ( list(n)%backwards ) then
+              list(n)%end_alarm = ESMF_AlarmCreate( clock=clock, RingTime=RingTime, rc=status )
+           else
+              list(n)%end_alarm = ESMF_AlarmCreate( clock=clock, RingTime=RingTime, sticky=.false., rc=status )
+           endif
            VERIFY_(STATUS)
         else
-           list(n)%end_alarm = ESMF_AlarmCreate( clock=clock, RingTime=CurrTime, sticky=.false., rc=status )
+           if ( list(n)%backwards ) then
+              list(n)%end_alarm = ESMF_AlarmCreate( clock=clock, RingTime=CurrTime, rc=status )
+           else
+              list(n)%end_alarm = ESMF_AlarmCreate( clock=clock, RingTime=CurrTime, sticky=.false., rc=status )
+           endif
            VERIFY_(STATUS)
            call  ESMF_AlarmRingerOff(list(n)%end_alarm, rc=status )
            VERIFY_(STATUS)
@@ -1557,24 +1641,6 @@ ENDDO PARSER
     enddo
 
     ASSERT_(.not. errorFound)
-
-   allocate(INTSTATE%AVERAGE    (nlist), stat=status)
-   VERIFY_(STATUS)
-   allocate(INTSTATE%STAMPOFFSET(nlist), stat=status)
-   VERIFY_(STATUS)
-
-   IntState%average = .false.
-   do n=1, nlist
-      if (list(n)%disabled) cycle
-      if(list(n)%mode == "instantaneous") then
-         sec = 0
-      else
-         IntState%average(n) = .true.
-         sec = nsecf(list(n)%acc_interval) / 2
-      endif
-      call ESMF_TimeIntervalSet( INTSTATE%STAMPOFFSET(n), S=sec, rc=status )
-      VERIFY_(STATUS)
-   end do
 
    nactual = npes
    if (.not. disableSubVmChecks) then
@@ -1905,9 +1971,9 @@ ENDDO PARSER
             allocate(minindex(dimCount,ndes), maxindex(dimCount,ndes), stat=status)
             VERIFY_(STATUS)
 
-            call ESMF_DistGridGet(distgrid, &
-                 minIndexPDe=minindex, &
-                 maxIndexPDe=maxindex, rc=status)
+            call MAPL_DistGridGet(distgrid, &
+                 minIndex=minindex, &
+                 maxIndex=maxindex, rc=status)
             VERIFY_(STATUS)
 
             call MAPL_GetImsJms(Imins=minindex(1,:),Imaxs=maxindex(1,:),&
@@ -1929,8 +1995,7 @@ ENDDO PARSER
                  name=GNAMES(NG),               &
                  countsPerDEDim1=ims,           &
                  countsPerDEDim2=jms,           &
-                 indexFlag = ESMF_INDEX_USER,   &
-                 gridMemLBound = (/1,1/),       &
+                 indexFlag = ESMF_INDEX_DELOCAL,&
                  gridEdgeLWidth = (/0,0/),      &
                  gridEdgeUWidth = (/0,0/),      &
                  coordDep1 = (/1,2/),           &
@@ -1972,7 +2037,7 @@ ENDDO PARSER
                cornerY(j+1) = cornerY(j) + deltaY
             enddo
     
-            call ESMF_GRID_INTERIOR(grid_out,I1,IN,J1,JN)
+            call MAPL_GRID_INTERIOR(grid_out,I1,IN,J1,JN)
             
             do i = 1,size(coordX,1)
                coordX(I,:) = 0.5d0*(cornerX(I+I1-1)+cornerX(I+I1))
@@ -2074,10 +2139,13 @@ ENDDO PARSER
          VERIFY_(STATUS)
          if (list(n)%fields(4,m) /= BLANK) then
             if (list(n)%fields(4,m) == 'MIN') then
-               call ESMF_AttributeSet(f, NAME='MINMAX', VALUE=MAPL_CplMin, RC=STATUS)
+               call ESMF_AttributeSet(f, NAME='CPLFUNC', VALUE=MAPL_CplMin, RC=STATUS)
                VERIFY_(STATUS)
             else if (list(n)%fields(4,m) == 'MAX') then
-               call ESMF_AttributeSet(f, NAME='MINMAX', VALUE=MAPL_CplMax, RC=STATUS)
+               call ESMF_AttributeSet(f, NAME='CPLFUNC', VALUE=MAPL_CplMax, RC=STATUS)
+               VERIFY_(STATUS)
+            else if (list(n)%fields(4,m) == 'ACCUMULATE') then
+               call ESMF_AttributeSet(f, NAME='CPLFUNC', VALUE=MAPL_CplAccumulate, RC=STATUS)
                VERIFY_(STATUS)
             else
                call WRITE_PARALLEL("Functionality not supported yet")
@@ -2198,8 +2266,8 @@ ENDDO PARSER
                        UNGRIDDED_NAME = ungridded_name,                       &
                        UNGRIDDED_UNIT = ungridded_unit,                       &
                        UNGRIDDED_COORDS = ungridded_coord,                      &
-                       ACCMLT_INTERVAL= nsecf(list(n)%acc_interval),            &
-                       COUPLE_INTERVAL= nsecf(list(n)%frequency   ),            &
+                       ACCMLT_INTERVAL= MAPL_nsecf(list(n)%acc_interval),       &
+                       COUPLE_INTERVAL= MAPL_nsecf(list(n)%frequency   ),       &
                        VLOCATION  = VLOCATION,                                  &
                        GRID       = GRID,                                       &
                        FIELD_TYPE = FIELD_TYPE,                                 &
@@ -2230,8 +2298,8 @@ ENDDO PARSER
                        UNGRIDDED_DIMS = UNGRD,                                  &
                        UNGRIDDED_NAME = ungridded_name,                       &
                        UNGRIDDED_UNIT = ungridded_unit,                       &
-                       ACCMLT_INTERVAL= nsecf(list(n)%acc_interval),            &
-                       COUPLE_INTERVAL= nsecf(list(n)%frequency   ),            &
+                       ACCMLT_INTERVAL= MAPL_nsecf(list(n)%acc_interval),       &
+                       COUPLE_INTERVAL= MAPL_nsecf(list(n)%frequency   ),       &
                        VLOCATION  = VLOCATION,                                  &
                        GRID       = GRID,                                       &
                        FIELD_TYPE = FIELD_TYPE,                                 &
@@ -2261,8 +2329,8 @@ ENDDO PARSER
                     LONG_NAME  = LONG_NAME,                                  &
                     UNITS      = UNITS,                                      &
                     DIMS       = DIMS,                                       &
-                    ACCMLT_INTERVAL= nsecf(list(n)%acc_interval),            &
-                    COUPLE_INTERVAL= nsecf(list(n)%frequency   ),            &
+                    ACCMLT_INTERVAL= MAPL_nsecf(list(n)%acc_interval),       &
+                    COUPLE_INTERVAL= MAPL_nsecf(list(n)%frequency   ),       &
                     VLOCATION  = VLOCATION,                                  &
                     GRID       = GRID,                                       &
                     FIELD_TYPE = FIELD_TYPE,                                 &
@@ -2274,8 +2342,8 @@ ENDDO PARSER
 
          else ! else for if averaged
 
-            REFRESH = nsecf(list(n)%acc_interval)
-            AVGINT  = nsecf( list(n)%frequency )
+            REFRESH = MAPL_nsecf(list(n)%acc_interval)
+            AVGINT  = MAPL_nsecf( list(n)%frequency )
             call ESMF_AttributeSet(F, NAME='REFRESH_INTERVAL', VALUE=REFRESH, RC=STATUS)
             VERIFY_(STATUS)
             call ESMF_AttributeSet(F, NAME='AVERAGING_INTERVAL', VALUE=AVGINT, RC=STATUS)
@@ -2440,6 +2508,7 @@ ENDDO PARSER
           call Get_Tdim (list(n), clock, tm)
           async = .false.
           if (list(n)%format == 'CFIOasync') async = .true.
+          pgrid => IntState%output_grids%at(trim(list(n)%output_grid_label)) 
           call MAPL_CFIOCreate(                        &
                MCFIO      = list(n)%MCFIO,             &
                NAME       = trim(list(n)%filename),    &
@@ -2451,10 +2520,10 @@ ENDDO PARSER
                EXPID      = IntState%expid,            &
                SOURCE     = IntState%expsrc,           &
                COMMENT    = IntState%expdsc,           &
-               RESOLUTION = list(n)%resolution,        &
+               OUTPUT_GRID= pgrid,       &
                SUBSET     = list(n)%subset,            &
                CHUNKSIZE  = list(n)%chunksize,         &
-               FREQUENCY  = nsecf(list(n)%frequency),  &
+               FREQUENCY  = MAPL_nsecf(list(n)%frequency),  &
                LEVELS     = list(n)%levels,            &
                DESCR      = list(n)%descr,             &
                XYOFFSET   = list(n)%xyoffset,          &
@@ -2505,10 +2574,17 @@ ENDDO PARSER
          print *, '    End_Date: ',       list(n)%end_date
          print *, '    End_Time: ',       list(n)%end_time
          endif
-
-         if( associated  ( list(n)%resolution ) ) then
-                           print *, ' Output RSLV: ',list(n)%resolution
-         endif
+         
+         block 
+            integer :: im_world, jm_world,dims(3)
+            pgrid => IntState%output_grids%at(trim(list(n)%output_grid_label))
+            if (associated(pgrid)) then
+               call MAPL_GridGet(pgrid,globalCellCountPerDim=dims,RC=status)
+               VERIFY_(status)
+               print *, ' Output RSLV: ',dims(1),dims(2)
+            end if
+         end block
+         
          select case ( list(n)%xyoffset   )
                 case (0)
                            print *, '   XY-offset: ',list(n)%xyoffset,'  (DcPc: Dateline Center, Pole Center)'
@@ -2533,7 +2609,7 @@ ENDDO PARSER
          write (*,*)
          do m=1,list(n)%nfield
             if( trim(list(n)%fields(4,m)).ne.BLANK ) then
-                print *, '   MINMAX Variable: ',trim(list(n)%fields(3,m)),'  Function: ',trim(list(n)%fields(4,m))
+                print *, '   CPLFUNC Variable: ',trim(list(n)%fields(3,m)),'  Function: ',trim(list(n)%fields(4,m))
             endif
          enddo
 
@@ -2594,7 +2670,7 @@ ENDDO PARSER
 ! Locals
 
     type(MAPL_MetaComp),  pointer  :: GENSTATE
-    type(history_list),   pointer  :: list(:)
+    type(HistoryCollection),   pointer  :: list(:)
     type(HISTORY_STATE),  pointer  :: IntState
     type(HISTORY_wrap)             :: wrap
     integer                        :: nlist
@@ -2606,11 +2682,9 @@ ENDDO PARSER
     type(ESMF_State)               :: state_out
     integer                        :: nymd, nhms
     character(len=ESMF_MAXSTR)     :: DateStamp
-    integer                        :: n1, n2, nn, CollBlock
+    integer                        :: n1, n2, nn, CollBlock, scount
     type(MAPL_Communicators)       :: mapl_Comm
-    integer                        :: IM,JM,IOnode
-    character(len=ESMF_MAXSTR)     :: timestring
-    integer                        :: nNodes
+    integer                        :: nNodes,RootRank
     logical                        :: PrePost_
 
 !   variables for "backwards" mode
@@ -2624,6 +2698,9 @@ ENDDO PARSER
 !=============================================================================
 
 ! Begin...
+
+    _UNUSED_DUMMY(import)
+    _UNUSED_DUMMY(export)
 
 ! Retrieve the pointer to the state
 !----------------------------------
@@ -2769,20 +2846,47 @@ ENDDO PARSER
           end do
        end if
 
+       ! Check for new segment
+       !----------------------
+
+       NewSeg = ESMF_AlarmIsRinging ( list(n)%seg_alarm )
+
+       if( NewSeg) then 
+          call ESMF_AlarmRingerOff( list(n)%seg_alarm,rc=status )
+          VERIFY_(STATUS)
+       endif
+
+       if( NewSeg .and. list(n)%unit /= 0 .and. list(n)%duration /= 0 ) then
+          if (list(n)%unit > 0 ) then
+             call FREE_FILE( list(n)%unit )
+          end if
+          list(n)%unit = 0
+       endif
+
    end do
 
    if(any(Writing)) call WRITE_PARALLEL("")
 
    n1 = 1
+   scount = maxval(list%Slices,writing)
+   CollBlock = max(scount,CollBlock)
    IOTIME: do while(n1<=nlist)
 
       nn=0
+      scount=0
       do n=n1,nlist
-         if(Writing(n)) nn = nn+1
-         if(nn==CollBlock) exit
+         nn = nn+1
+         if(Writing(n)) then 
+           scount = scount + list(n)%Slices
+         end if
+         if(scount .gt. CollBlock) then 
+            nn=nn-1
+            scount=scount-list(n)%Slices
+            exit
+         end if
       enddo
 
-      if(nn==0) exit
+      if(scount==0) exit
 
       n2=n1+nn-1
 
@@ -2794,8 +2898,8 @@ ENDDO PARSER
 ! Set strategy for apportioning node "partitions" to active collections
 
       nNodes = size(MAPL_NodeRankList)
-      call SetPsizeStrategy(list(n1:n2)%Slices, Writing(n1:n2), n2-n1+1,  &
-                            nNodes,list(n1:n2)%Psize,  list(n1:n2)%Root)
+      call MAPL_CFIOPartition(list(n1:n2)%Slices, n2-n1+1,  &
+                            nNodes,Writing(n1:n2),list(n1:n2)%Psize,  list(n1:n2)%Root)
 
       do n=n1,n2
          if( Writing(n) ) then
@@ -2836,22 +2940,10 @@ ENDDO PARSER
                               Psize=list(n)%Psize,     rc=status)
             VERIFY_(STATUS)
 
-! Check for new segment
-!----------------------
-
-            NewSeg = ESMF_AlarmIsRinging ( list(n)%seg_alarm )
-
-            if( NewSeg) then 
-               call ESMF_AlarmRingerOff( list(n)%seg_alarm,rc=status )
-               VERIFY_(STATUS)
-            endif
-
-            if( NewSeg .and. list(n)%unit /= 0 .and. list(n)%duration /= 0 ) then
-               if (list(n)%unit > 0 ) then
-                  call FREE_FILE( list(n)%unit )
-               end if
-               list(n)%unit = 0
-            endif
+            call MAPL_CFIOSet(list(n)%mCFIO, newFormat=list(n)%useNewFormat, rc=status)
+            VERIFY_(STATUS)
+            call MAPL_CFIOSetKrank(list(n)%mCFIO,rc=status)
+            VERIFY_(STATUS)
 
             if( list(n)%unit.eq.0 ) then
                if (list(n)%format == 'CFIO') then
@@ -2874,7 +2966,7 @@ ENDDO PARSER
             end if
 
             if(  MAPL_AM_I_ROOT() ) then
-                 write(6,'(1X,"Writing: ",i6," Slices (",i3," Nodes, ",i2," PartitionRoot) to File:  ",a)') &
+                 write(6,'(1X,"Writing: ",i6," Slices (",i4," Nodes, ",i4," PartitionRoot) to File:  ",a)') &
                        list(n)%Slices,list(n)%Psize,list(n)%Root, &
                        trim(MAPL_CFIOGetFilename(list(n)%MCFIO))
             endif
@@ -2951,7 +3043,7 @@ ENDDO PARSER
                if( INTSTATE%LCTL(n) ) then
                   call MAPL_GradsCtlWrite ( clock, state_out, list(n), &
                        filename(n), INTSTATE%expid, &
-                       list(n)%descr, rc )
+                       list(n)%descr, intstate%output_grids,rc )
                   INTSTATE%LCTL(n) = .false.
                endif
 
@@ -2978,7 +3070,9 @@ ENDDO PARSER
       IOSERVERLOOP: do n=n1,n2
 
          if (writing(n) .and. list(n)%unit <0 .and. list(n)%format == 'CFIOasync' ) then
-            if (mapl_comm%myGlobalRank == MAPL_NodeRankList(list(n)%Root)%rank(1)) then
+            call MAPL_CFIOGet(list(n)%mCFIO,rootRank=rootRank,rc=status)
+            VERIFY_(status)
+            if (mapl_comm%myGlobalRank == rootRank) then
 
                call MAPL_CFIOStartAsyncColl(list(n)%mcfio,clock,mapl_comm &
                    ,intstate%markdone,rc=status)
@@ -2987,7 +3081,7 @@ ENDDO PARSER
             end if
             call MAPL_CFIOSet(list(n)%mcfio,GlobalComm=mapl_comm%maplcomm,rc=status)
             VERIFY_(STATUS)
-            call MAPL_CFIOBcastIONode(list(n)%mcfio,MAPL_NodeRankList(list(n)%Root)%rank(1),mapl_comm%esmfcomm,rc=status)
+            call MAPL_CFIOBcastIONode(list(n)%mcfio,rootRank,mapl_comm%esmfcomm,rc=status)
             VERIFY_(STATUS)
          end if
 
@@ -3078,12 +3172,11 @@ ENDDO PARSER
 
     character(len=ESMF_MAXSTR)      :: IAm="Finalize" 
     integer                         :: status
-    type(history_list), pointer     :: list(:)
+    type(HistoryCollection), pointer     :: list(:)
     type(HISTORY_wrap)              :: wrap
     type (HISTORY_STATE), pointer   :: IntState
     integer                         :: nlist, n
     type (MAPL_MetaComp), pointer :: GENSTATE
-    logical                       :: doAsync
     type(MAPL_Communicators)      :: mapl_Comm
  
 
@@ -3133,15 +3226,15 @@ ENDDO PARSER
    enddo
 #endif
 
-    if (mapl_comm%iocommsize > 0) then
-       if (mapl_am_i_root()) then
-          call MPI_Send(mapl_comm%myGlobalRank,1,MPI_INTEGER,mapl_comm%ioCommRoot,MAPL_TAG_NORMALEXIT, &
-           mapL_comm%maplcomm,status)
-          VERIFY_(STATUS)
-          call MPI_Recv(n,1,MPI_INTEGER,mapl_comm%ioCommRoot,MAPL_TAG_WORKEREXIT, &
-           mapl_comm%maplcomm,MPI_STATUS_IGNORE,status)
-       end if
-    end if
+    !if (mapl_comm%iocommsize > 0) then
+       !if (mapl_am_i_root()) then
+          !call MPI_Send(mapl_comm%myGlobalRank,1,MPI_INTEGER,mapl_comm%ioCommRoot,MAPL_TAG_NORMALEXIT, &
+           !mapL_comm%maplcomm,status)
+          !VERIFY_(STATUS)
+          !call MPI_Recv(n,1,MPI_INTEGER,mapl_comm%ioCommRoot,MAPL_TAG_WORKEREXIT, &
+           !mapl_comm%maplcomm,MPI_STATUS_IGNORE,status)
+       !end if
+    !end if
 
     call MAPL_TimerOff(GENSTATE,"Finalize")
     call MAPL_TimerOff(GENSTATE,"TOTAL")
@@ -3154,14 +3247,15 @@ ENDDO PARSER
   end subroutine Finalize
 
 !======================================================
- subroutine MAPL_GradsCtlWrite ( clock, state,list,fname,expid,expdsc,rc )
+ subroutine MAPL_GradsCtlWrite ( clock, state,list,fname,expid,expdsc,output_grids,rc )
    
    type(ESMF_Clock),  intent(inout) :: clock
    type(ESMF_State)                 :: state
-   type(history_list)               :: list
+   type(HistoryCollection)               :: list
    character(len=*)                 :: expid
    character(len=*)                 :: expdsc
    character(len=*)                 :: fname
+   type(StringGridMap), intent(in)  :: output_grids
    integer, optional, intent(out)   :: rc
    
    type(ESMF_Array)               :: array
@@ -3179,7 +3273,6 @@ ENDDO PARSER
    character(len=ESMF_MAXSTR)     :: filename
    character(len=ESMF_MAXSTR)     :: options
    integer                        :: DIMS(3)
-   integer                        :: COUNTS(3)
    integer                        :: IM,JM,LM
    
    character*3                    :: months(12)
@@ -3188,14 +3281,14 @@ ENDDO PARSER
    
    integer      :: unit,nfield
    character(len=ESMF_MAXSTR)      :: IAm="MAPL_GradsCtlWrite" 
-   integer      :: k,m,n,nsecf,nhms,rank,status
+   integer      :: k,m,rank,status
    integer      :: year,month,day,hour,minute
-   real*8   LONBEG,DLON
-   real*8   LATBEG,DLAT
+   real(kind=REAL64)   LONBEG,DLON
+   real(kind=REAL64)   LATBEG,DLAT
    integer  mass, freq,zero
-   real(KIND=4),      pointer :: LATS(:,:), LONS(:,:)
+   real(kind=REAL32),      pointer :: LATS(:,:), LONS(:,:)
    character(len=ESMF_MAXSTR):: gridname
-
+   type(ESMF_Grid), pointer :: pgrid
    
 ! Mass-Weighted Diagnostics
 ! -------------------------
@@ -3206,8 +3299,6 @@ ENDDO PARSER
                'SIT'      , 'PHYSICS'    , & 
                'DTDT'     , 'PHYSICS'    , &
                'DTDT'     , 'GWD'        /
-
-   nsecf(nhms) = nhms/10000*3600 + mod(nhms,10000)/100*60 + mod(nhms,100)
 
    call ESMF_ClockGet ( clock,  currTime=CurrTime ,rc=STATUS ) ; VERIFY_(STATUS)
    call ESMF_ClockGet ( clock,  StopTime=StopTime ,rc=STATUS ) ; VERIFY_(STATUS)
@@ -3222,7 +3313,7 @@ ENDDO PARSER
    read(timestring(15:16),'(i2.2)') minute
    
    ti = StopTime-CurrTime
-   freq = nsecf( list%frequency )
+   freq = MAPL_nsecf( list%frequency )
    call ESMF_TimeIntervalSet( Frequency, S=freq, calendar=cal, rc=status ) ; VERIFY_(STATUS)
    
    nsteps =  ti/Frequency + 1
@@ -3268,13 +3359,13 @@ ENDDO PARSER
       LONBEG = 0.0
    else
       if (IM /= 1) then
-         DLON   =  360._8/ IM
+         DLON   =  360._REAL64/ IM
       else
          DLON = 1.0
       end if
 
       if (JM /= 1) then
-         DLAT   =  180._8/(JM-1)
+         DLAT   =  180._REAL64/(JM-1)
       else
          DLAT   =  1.0
       end if
@@ -3295,32 +3386,38 @@ ENDDO PARSER
 
 !ALT: Note: the LATS(1,1) and LONS(1,1) are correct ONLY on root
       if( MAPL_AM_I_ROOT() ) then
-         LONBEG = LONS(1,1)*(180._8/MAPL_PI_R8)
+         LONBEG = LONS(1,1)*(180._REAL64/MAPL_PI_R8)
          if (size(LONS,1) > 1) then
-            DLON = (LONS(2,1)-LONS(1,1))*(180._8/MAPL_PI_R8)
+            DLON = (LONS(2,1)-LONS(1,1))*(180._REAL64/MAPL_PI_R8)
          end if
 
-         LATBEG = LATS(1,1)*(180._8/MAPL_PI_R8)
+         LATBEG = LATS(1,1)*(180._REAL64/MAPL_PI_R8)
          if (size(LATS,2) > 1) then
-            DLAT = (LATS(1,2)-LATS(1,1))*(180._8/MAPL_PI_R8)
+            DLAT = (LATS(1,2)-LATS(1,1))*(180._REAL64/MAPL_PI_R8)
          end if
       endif
 
 !
 ! Check if changing resolution
 ! -------------------------------------------------------------------------
-      if (associated( list%resolution )) then
-         IM = list%resolution(1)
-         JM = list%resolution(2)
-         DLON   =  360._8/float(IM)
-         if (JM /= 1) then
-            DLAT   =  180._8/float(JM-1)
-         else
-            DLAT   =  1.0
-         end if
-         LONBEG = -180._8
-         LATBEG =  -90._8
-      endif
+      block
+         integer :: dims(3)
+         pgrid => output_grids%at(trim(list%output_grid_label))
+         if (associated(pgrid)) then
+            call MAPL_GridGet(pgrid,globalCellCountPerDim=dims,RC=status)
+            VERIFY_(status)
+            IM = dims(1)
+            JM = dims(2)
+            DLON   =  360._REAL64/float(IM)
+            if (JM /= 1) then
+               DLAT   =  180._REAL64/float(JM-1)
+            else
+               DLAT   =  1.0
+            end if
+            LONBEG = -180._REAL64
+            LATBEG =  -90._REAL64
+         endif
+      end block
    end if
 
 ! Compute Vertical Dimension for each Field (Augment nfield for VDIMS > LM)
@@ -3440,7 +3537,6 @@ ENDDO PARSER
     type(ESMF_Time)                   :: currentTime
     type(ESMF_Alarm)                  :: PERPETUAL
     character(len=ESMF_MAXSTR)        :: TimeString
-    character(len=ESMF_MAXSTR)        :: TimeStamp
     character(len=ESMF_MAXSTR)        :: clockname
     character                         :: String(ESMF_MAXSTR)
     logical                           :: LPERP
@@ -3517,7 +3613,7 @@ ENDDO PARSER
     type (ESMF_State)        , intent(IN   ) :: STATE_IN
     type (ESMF_State)        , intent(INOUT) :: STATE_OUT
     type(MAPL_LocStreamXform), intent(IN   ) :: XFORM
-    type(MAPL_LocStream)     , intent(INOUT) :: LS_IN, LS_OUT
+    type(MAPL_LocStream)     , intent(IN   ) :: LS_IN, LS_OUT
     integer                  , intent(IN   ) :: NTILES_IN, NTILES_OUT
     integer, optional        , intent(  OUT) :: RC
 
@@ -3649,7 +3745,7 @@ ENDDO PARSER
     type (ESMF_State)        , intent(IN   ) :: STATE_IN
     type (ESMF_State)        , intent(INOUT) :: STATE_OUT
     type(MAPL_LocStreamXform), intent(IN   ) :: XFORM, XFORMntv
-    type(MAPL_LocStream)     , intent(INOUT) :: LS_IN, LS_OUT, LS_NTV
+    type(MAPL_LocStream)     , intent(IN   ) :: LS_IN, LS_OUT, LS_NTV
     integer                  , intent(IN   ) :: NTILES_IN, NTILES_OUT
     integer, optional        , intent(  OUT) :: RC
 
@@ -3669,9 +3765,9 @@ ENDDO PARSER
     real, pointer                   :: ptr1d_in(:)
     real, pointer                   :: ptr2d_in(:,:)
     real, pointer                   :: ptr3d_in(:,:,:)
-    real*8, pointer                 :: p1dr8_in(:)
-    real*8, pointer                 :: p2dr8_in(:,:)
-    real*8, pointer                 :: p3dr8_in(:,:,:)
+    real(kind=REAL64), pointer                 :: p1dr8_in(:)
+    real(kind=REAL64), pointer                 :: p2dr8_in(:,:)
+    real(kind=REAL64), pointer                 :: p3dr8_in(:,:,:)
     real, pointer                   :: ptr2d_out(:,:)
     real, pointer                   :: ptr3d_out(:,:,:)
     real, pointer                   :: ptr4d_out(:,:,:,:)
@@ -3871,7 +3967,7 @@ ENDDO PARSER
     type (ESMF_State)        , intent(IN   ) :: STATE_IN
     type (ESMF_State)        , intent(INOUT) :: STATE_OUT
     type(MAPL_LocStreamXform), optional, intent(IN   ) :: XFORM
-    type(MAPL_LocStream)     , intent(INOUT) :: LS_OUT
+    type(MAPL_LocStream)     , intent(IN   ) :: LS_OUT
     integer                  , intent(IN   ) :: NTILES_OUT
     integer, optional        , intent(  OUT) :: RC
 
@@ -3886,14 +3982,13 @@ ENDDO PARSER
     real, pointer                   :: ptr1d_in(:)
     real, pointer                   :: ptr2d_in(:,:)
     real, pointer                   :: ptr3d_in(:,:,:)
-    real*8, pointer                 :: p1dr8_in(:)
-    real*8, pointer                 :: p2dr8_in(:,:)
-    real*8, pointer                 :: p3dr8_in(:,:,:)
+    real(kind=REAL64), pointer                 :: p1dr8_in(:)
+    real(kind=REAL64), pointer                 :: p2dr8_in(:,:)
+    real(kind=REAL64), pointer                 :: p3dr8_in(:,:,:)
     real, pointer                   :: ptr2d_out(:,:)
     real, pointer                   :: ptr3d_out(:,:,:)
     real, pointer                   :: ptr4d_out(:,:,:,:)
     real, pointer                   :: out2d(:,:)
-    real, pointer                   :: out3d(:,:,:)
     real, pointer                   :: tile1d(:) => null()
     type(ESMF_Array)                :: array_in
     type(ESMF_Array)                :: array_out
@@ -4059,111 +4154,6 @@ ENDDO PARSER
     RETURN_(ESMF_SUCCESS)
   end subroutine RegridTransformT2G
 
-  subroutine SetPsizeStrategy(Slices, Writing, NumColls, NumNodes, Psize,Root)
-    integer, intent(IN ) :: Slices(NumColls), NumColls, NumNodes
-    logical, intent(IN ) :: Writing(NumColls)
-    integer, intent(OUT) :: Psize(NumColls), Root(NumColls)
-
-    integer :: MaxSlicesPerNode, n
-    integer :: CurrNode, Len, SlicesInNode
-
-    integer, dimension(NumColls) :: SortedSlices, CollNo
-
-!!!  Returns Psize and Root, the size (in nodes) and root node 
-!!!  of each node partition assigned to active collections.
-
-!!!  NumNodes is the number of nodes being dealt out to the partitions
-!!!  NumColls is the total number of collection, some of which may be inactive
-!!!  Writing  identifies active collection
-!!!  Slices   is the number of 2-D sections or slices in each collection
-!!!           The number in inactive collections is ignored.
-
-!!! Begin
-!!!------
-
-!!! Make sure all outputs are initialized.
-!!! Needed only for inactive collections.
-!!!---------------------------------------
-
-    Psize = 0
-    Root  = 1
-
-!!! Sort the collection sizes (# of slices) in ascending order.
-!!!  Also sort the collection index the same way, to fill the 
-!!!  correct ones later.
-!!!------------------------------------------------------------
-    where(writing)
-       SortedSlices = Slices
-    elsewhere
-       SortedSlices = 0
-    endwhere
-
-    do n=1,NumColls
-       CollNo(n) = n
-    end do
-
-    call MAPL_Sort(SortedSlices, CollNo)
-
-!!! This is the maximum number of slices in a node if all slices
-!!!  were uniformly distributed without honoring collection and
-!!!  node boundaries. Since every collection boundary must also be
-!!!  a node boundary, this is a lower bound on MaxSlicesPerNode
-!!! and is used as our initial guess.
-
-    MaxSlicesPerNode = (sum(Slices,mask=Writing)-1)/NumNodes + 1
-    ! ALT: The above expression could be zero if 
-    !      NumNodes==1 and the sum over "writing" slices is 0 (i.e. no writing)
-    MaxSlicesPerNode = max(MaxSlicesPerNode,1) ! make sure it is not 0
-
-!!! We try to distribute the slices in active collections as uniformly
-!!!  as possible. "Small" collections (<= MaxSlicesPerNode) are
-!!!  assigned to a single node, others span multiple nodes. 
-!!!  Small collections are grouped in a node without 
-!!!  exceeding MaxSlicesPerNode. Multi-node collections are
-!!!  not grouped in nodes. Since MaxSlicesPerNode  is generally
-!!!  too small to fit all the collections, it is then increased,until
-!!!  all the active collections fit in the given nodes.
-!!!--------------------------------------------------------------------
-
-    do
-       CurrNode     = 1
-       SlicesInNode = 0
-
-       COLLECTIONS: do n=1,NumColls
-          ACTIVE: if(Writing(CollNo(n))) then
-
-             if(SortedSlices(n)<MaxSlicesPerNode) then ! A single-node collection
-                SlicesInNode = SlicesInNode + SortedSlices(n)
-
-                if(SlicesInNode > MaxSlicesPerNode) then ! Current Coll oveerfills node
-                   CurrNode     = CurrNode + 1
-                   SlicesInNode = SortedSlices(n)
-                end if
-
-                Psize(CollNo(n)) = 1
-                Root (CollNo(n)) = (CurrNode-1) + 1
-
-             else                                      ! A multi-node collection
-                Len = (SortedSlices(n)-1)/MaxSlicesPerNode + 1
-
-                Psize(CollNo(n)) = Len
-                Root (CollNo(n)) = (CurrNode-1) + 1
-
-                CurrNode = CurrNode + len
-             endif
-
-          endif ACTIVE
-       end do COLLECTIONS
-
-       if(CurrNode<=NumNodes) exit
-
-       MaxSlicesPerNode = MaxSlicesPerNode + 1
-    enddo
-
-    return
-  end subroutine SetPsizeStrategy
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
   subroutine Get_Tdim (list, clock, tdim)
 
 ! !IROUTINE: Get_Tdim -- Returns Time Dimension (Number of Records) in a HISTORY.rc collection file
@@ -4176,7 +4166,7 @@ ENDDO PARSER
 
 ! !ARGUMENTS:
 
-    type (history_list),  intent(IN ) :: list
+    type (HistoryCollection),  intent(IN ) :: list
     type (ESMF_Clock),    intent(IN ) :: clock
     integer,              intent(OUT) :: tdim
 
@@ -4195,11 +4185,6 @@ ENDDO PARSER
     integer                      :: ndelt
     integer                      :: STATUS
 
-! NSECF Function
-!---------------
-    integer  nhms, nsecf
-    nsecf(nhms) =  nhms/10000*3600 + mod(nhms,10000)/100*60 + mod(nhms,100)
-
 !  Initialize TDIM=-1 (UNLIMITED)
 !--------------------------------
     tdim = -1
@@ -4215,7 +4200,7 @@ ENDDO PARSER
           call ESMF_TimeIntervalGet(tint, s=ndelt, RC=status)
           if (status /= ESMF_SUCCESS) goto 200
          
-          nfreq = nsecf( list%frequency )
+          nfreq = MAPL_nsecf( list%frequency )
           rfreq = real(nfreq)
           rdelt = real(ndelt)
           rfrac = rdelt/rfreq - ndelt/nfreq
@@ -4223,10 +4208,10 @@ ENDDO PARSER
           ndelt = ndelt  + rfrac*nfreq
 
        else
-          ndelt = nsecf( list%duration )
+          ndelt = MAPL_nsecf( list%duration )
        endif
        
-       nfreq = nsecf( list%frequency )
+       nfreq = MAPL_nsecf( list%frequency )
        if (nfreq /=0) then
           tdim  = ndelt/nfreq
        end if
@@ -4264,7 +4249,7 @@ ENDDO PARSER
   integer:: i,j,m,k,status,largest_rank,iRepField,ivLoc
   logical :: ifound_vloc
   character(len=ESMF_MAXSTR) :: Iam='MAPL_SetExpression'
-  character(len=ESMF_MAXSTR) :: replace_field, replace_comp, tmpList
+  character(len=ESMF_MAXSTR) :: tmpList
   character(len=ESMF_MAXSTR) :: VarName
   integer                    :: idx
   character(len=ESMF_MAXSTR), allocatable :: VarNames(:)
@@ -4284,7 +4269,6 @@ ENDDO PARSER
   type(ESMF_State)                        :: state
   type(ESMF_Field)                        :: field
   integer                                 :: dims
-  real, pointer                           :: ptr3d(:,:,:)
   logical, allocatable                    :: isBundle(:)
 
 ! Set rewrite flag and tmpfields.

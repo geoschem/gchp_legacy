@@ -1,10 +1,15 @@
-! $Id: write_parallel.H,v 1.3 2009-04-29 16:01:51 wputman Exp $
+! $Id$
 
 #ifdef NAME_
 #undef NAME_
 #endif
 
+#ifdef NAMESTR_
+#undef NAMESTR_
+#endif
+
 #define NAME_ WRITE_PARALLEL_
+#define NAMESTR_ WRITE_PARALLEL_
 
 #include "overload.macro"
 
@@ -148,7 +153,9 @@ end subroutine SUB_
 
 !---------------------------
 #undef NAME_
+#undef NAMESTR_
 
 #undef DIMENSIONS_
 #undef RANK_
+#undef RANKSTR_
 #undef VARTYPE_

@@ -1,4 +1,4 @@
-! $Id: sun.H,v 1.14 2015-04-02 14:22:22 mathomp4 Exp $
+! $Id$
 
 
       type(MAPL_SunOrbit),               intent(IN ) :: ORBIT
@@ -32,7 +32,6 @@
       integer           :: DAY_OF_YEAR
       integer           :: L
       type (ESMF_Time)  :: CURRENTTIME
-      type (ESMF_Time)  :: firstofyear
       type (ESMF_Clock) :: MYCLOCK
       type (ESMF_TimeInterval)  :: ts
       real,    dimension THE_SIZE :: ZTT, SLT, Y, ZTB, ZTD, NCC
@@ -57,13 +56,10 @@
          VERIFY_(STATUS)
       end if
 
-!#define DP_SUN
-#ifdef DP_SUN
-! WMP- Hack for Doubly Period Constant Solar Insolation
+      if (ORBIT%FIX_SUN) then
             call WRITE_PARALLEL('--- WARNING --- sun.H --- Doubly Periodic Using Daily Mean Solar Insolation')
             TIME_=MAPL_SunDailyMean
-! WMP- Hack for Doubly Period Constant Solar Insolation
-#endif
+      end if
 
       MEAN_OR_INST: if(.not.present(INTV) .or. TIME_==MAPL_SunDailyMean &
                        .or.  TIME_==MAPL_SunAnnualMean) then
@@ -72,14 +68,12 @@
               dayOfYear=DAY_OF_YEAR, RC=STATUS)
          VERIFY_(STATUS)
 
-#ifdef DP_SUN
-! WMP- Hack for Doubly Period Constant Solar Insolation
+      if (ORBIT%FIX_SUN) then
          TIME_=10
          YEAR=2005
          SEC_OF_DAY=86400/2
          DAY_OF_YEAR=31*7
-! WMP- Hack for Doubly Period Constant Solar Insolation
-#endif
+      end if
 
          YEAR = mod(YEAR-1,ORBIT%YEARS_PER_CYCLE)
          IDAY = YEAR*int(ORBIT%YEARLEN)+DAY_OF_YEAR
@@ -155,9 +149,8 @@
 
             ZTH =         ZS*SIN(LATS) +       ZC*COS(LATS) &
                  * (sin(ANG)*SIN(LONS) - cos(ANG)*COS(LONS))
-            !ZTH = max(ZTH, 0.0)
-            !SLR = ZTH*AA
-            SLR = max(ZTH,0.0)*AA
+            ZTH = max(ZTH, 0.0)
+            SLR = ZTH*AA
 
             if(present(DIST)) DIST = AA
 
@@ -215,8 +208,7 @@
               CLOCK=MYCLOCK, TIME=TIME, DIST=DD, RC=STATUS)
          VERIFY_(STATUS)
 
-         !if(present(ZTH1)) ZTH1 = max(ZTT,0.0)
-         if(present(ZTH1)) ZTH1 = ZTT
+         if(present(ZTH1)) ZTH1 = max(ZTT,0.0)
 
          do L=1,NT
             SLR = SLR +     SLT*0.5

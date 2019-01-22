@@ -199,8 +199,7 @@ contains
     real    :: BalCond_
     integer :: MaxPasses_
     integer :: KPASS, STATUS, Balance, MyNewWork, MyBufSize
-    integer :: NPES, MyPE, J, JSPARD, LEN
-    real    :: MEAN
+    integer :: NPES, MyPE, J
 
     integer, allocatable :: WORK(:), RANK(:), NOP(:,:) 
 

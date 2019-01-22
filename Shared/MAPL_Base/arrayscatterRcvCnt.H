@@ -1,10 +1,15 @@
-! $Id: arrayscatterRcvCnt.H,v 1.3 2013-01-17 14:54:55 atrayano Exp $
+! $Id$
 
 #ifdef NAME_
 #undef NAME_
 #endif
 
+#ifdef NAMESTR_
+#undef NAMESTR_
+#endif
+
 #define NAME_ ArrayScatterRcvCnt_
+#define NAMESTR_ ArrayScatterRcvCnt_
 
 #include "overload.macro"
 
@@ -69,7 +74,10 @@
   end subroutine SUB_
 
 #undef NAME_
+#undef NAMESTR_
 
 #undef DIMENSIONS_
 #undef RANK_
+
+#undef RANKSTR_
 #undef VARTYPE_

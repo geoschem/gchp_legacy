@@ -134,7 +134,6 @@ CONTAINS
 
      integer      :: i
      character(len=ESMF_MAXSTR), parameter :: Iam = "bytecode_dealloc"
-     integer      :: status
 
      do i=1,comp%StackSize
         if (associated(comp%stack(i)%Q2D)) deallocate(comp%Stack(i)%Q2D)
@@ -210,7 +209,6 @@ CONTAINS
     TYPE(ESMF_Field)               , INTENT(inout) :: Field     ! resultant field, use to get rank, etc . . .
     INTEGER, OPTIONAL              , INTENT(out  ) :: rc
 
-    INTEGER,   DIMENSION(:),  ALLOCATABLE :: ipos              ! Associates function strings
     CHARACTER(len=LEN(FuncStr))           :: Func
     character(len=ESMF_MAXSTR), parameter :: Iam="parsef"
     integer :: status
@@ -373,9 +371,7 @@ CONTAINS
      real, pointer        :: var2d(:,:), var3d(:,:,:)
 
      type(ESMF_Array)      :: array
-     type(ESMF_LocalArray) :: larray
      integer               :: rank
-     integer               :: lbnds(ESMF_MAXDIM), ubnds(ESMF_MAXDIM)
      character(len=ESMF_MAXSTR), parameter :: Iam="CopyFieldtoField"
      integer :: status
      integer :: i
@@ -413,12 +409,9 @@ CONTAINS
      real, pointer        :: var2d(:,:), var3d(:,:,:)
 
      type(ESMF_Array)      :: array
-     type(ESMF_LocalArray) :: larray
      integer               :: rank
-     integer               :: lbnds(ESMF_MAXDIM), ubnds(ESMF_MAXDIM)
      character(len=ESMF_MAXSTR), parameter :: Iam="CopyFieldtoField"
      integer :: status
-     integer :: i
 
      call ESMF_FieldGet(field,array=array,rc=status)
      VERIFY_(STATUS)
@@ -446,7 +439,6 @@ CONTAINS
      integer,               intent(in   ) :: arthcode
      integer, optional,     intent(out  ) :: rc
      Character(len=ESMF_MAXSTR), parameter    :: Iam="ArthFieldToField"
-     integer                                  :: status
 
      if (ptrs_1%rank == 3 .and. ptrs_2%rank ==3) then
         select case(arthcode)
@@ -528,7 +520,6 @@ CONTAINS
      integer, optional,     intent(out  ) :: rc
 
      character(len=ESMF_MAXSTR), parameter :: Iam="UnaryFuncField"
-     integer :: status
 
      if (ptrs%rank == 3) then
         select case(funcCode)
@@ -740,7 +731,6 @@ CONTAINS
      integer, optional,     intent(out  ) :: rc
 
      character(len=ESMF_MAXSTR), parameter :: Iam="CopyScalarToField"
-     integer :: status
 
      if (ptrs%rank == 2) then
         ptrs%Q2D=rn
@@ -769,7 +759,7 @@ CONTAINS
                                                    j,ib,in,lFunc
     LOGICAL                                     :: isUndef
     INTEGER                                     :: status
-    character(len=ESMF_MAXSTR)                  :: func
+    character(len=ESMF_MAXPATHLEN)              :: func
     integer, allocatable                        :: ipos(:)
     character(len=ESMF_MAXSTR), parameter       :: IAm="CheckSyntax"
     !----- -------- --------- --------- --------- --------- --------- --------- -------
@@ -996,7 +986,7 @@ CONTAINS
     LOGICAL                                     :: isUndef   ! Index of variable
     INTEGER, OPTIONAL,              INTENT(out) :: ibegin, & ! Start position of variable name
                                                    inext     ! Position of character after name
-    INTEGER                                     :: j,ib,in,lstr
+    INTEGER                                     :: ib,in,lstr
     CHARACTER (LEN=ESMF_MAXSTR)                 :: fun
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     isUndef = .false.

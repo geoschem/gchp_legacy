@@ -1,10 +1,15 @@
-! $Id: arraygather.H,v 1.10.124.2.60.3 2015-01-31 02:25:39 atrayano Exp $
+! $Id$
 
 #ifdef NAME_
 #undef NAME_
 #endif
 
+#ifdef NAMESTR_
+#undef NAMESTR_
+#endif
+
 #define NAME_ ArrayGather_
+#define NAMESTR_ 'ArrayGather_'
 
 #include "overload.macro"
 
@@ -30,15 +35,16 @@
     integer                                       :: nDEs
     integer                                       :: sendcount
     
-    integer                                       :: I, J, K, II, JJ, LX
+    integer                                       :: I, J, K, II
+#if (RANK_ != 1)
+    integer                                       :: LX, JJ
+#endif
     integer                                       :: de, deId
-    integer                                       :: NX, NY
     integer                                       :: I1, IN
     integer                                       :: ibeg,iend
     integer                                       :: gridRank
 #if (RANK_ > 1)
     integer                                       :: J1, JN
-    integer                                       :: k1, k2
     integer                                       :: jbeg,jend
 #endif
     integer                                       :: ISZ, JSZ
@@ -79,8 +85,8 @@
     allocate (AU(gridRank,0:nDEs-1),  stat=status)
     VERIFY_(STATUS)
 
-    call ESMF_DistGridGet(distgrid, &
-         minIndexPDe=AL, maxIndexPDe=AU, rc=status)
+    call MAPL_DistGridGet(distgrid, &
+         minIndex=AL, maxIndex=AU, rc=status)
     VERIFY_(STATUS)
 
     allocate (recvcounts(nDEs), displs(0:nDEs), stat=status)
@@ -205,7 +211,9 @@
   end subroutine SUB_
 
 #undef NAME_
+#undef NAMESTR_
 
 #undef DIMENSIONS_
 #undef RANK_
+#undef RANKSTR_
 #undef VARTYPE_

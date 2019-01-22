@@ -1,8 +1,10 @@
-!  $Id: MAPL_LocStreamMod.F90,v 1.61 2016-04-21 15:12:11 atrayano Exp $
+!  $Id$
 
 #include "MAPL_ErrLog.h"
 
 #define DEALOC_(A) if(associated(A)) then;A=0;call MAPL_DeAllocNodeArray(A,rc=STATUS);if(STATUS==MAPL_NoShm) deallocate(A,stat=STATUS);VERIFY_(STATUS);NULLIFY(A);endif
+#define DEALOC__(A) if(associated(A)) then;A=.false.;call MAPL_DeAllocNodeArray(A,rc=STATUS);if(STATUS==MAPL_NoShm) deallocate(A,stat=STATUS);VERIFY_(STATUS);NULLIFY(A);endif
+#include "unused_dummy.H"
 
 module MAPL_LocStreamMod
 
@@ -22,6 +24,7 @@ use MAPL_IOMod
 use MAPL_CommsMod
 use MAPL_HashMod
 use MAPL_ShmemMod
+use, intrinsic :: iso_fortran_env, only: REAL64
 
 implicit none
 private
@@ -149,11 +152,10 @@ contains
 !===================================================================
 
   logical function MAPL_LocStreamIsAssociated(LocStream, RC)
-    type(MAPL_LocStream),                 intent(INOUT) :: LocStream
+    type(MAPL_LocStream),                 intent(IN   ) :: LocStream
     integer, optional,                    intent(  OUT) :: RC  
     
     character(len=ESMF_MAXSTR) :: IAm='MAPL_LocStreamIsAssocited'
-    integer                    :: STATUS
 
     MAPL_LocStreamIsAssociated = associated(LocStream%Ptr)
 
@@ -167,7 +169,6 @@ contains
     integer, optional,                    intent(  OUT) :: RC  
     
     character(len=ESMF_MAXSTR) :: IAm='MAPL_LocStreamXformIsAssocited'
-    integer                    :: STATUS
 
     MAPL_LocStreamXformIsAssociated = associated(Xform%Ptr)
 
@@ -183,7 +184,7 @@ contains
                                TILEGRID, &
                                GRIDIM, GRIDJM, GRIDNAMES, &
                                ATTACHEDGRID, LOCAL_ID, RC)
-    type(MAPL_LocStream),                 intent(INOUT) :: LocStream
+    type(MAPL_LocStream),                 intent(IN   ) :: LocStream
     integer, optional,                    intent(  OUT) :: NT_LOCAL  
     integer, optional,                    pointer       :: TILETYPE(:)
     integer, optional,                    pointer       :: TILEKIND(:)
@@ -203,11 +204,12 @@ contains
 ! Local variables
 
     character(len=ESMF_MAXSTR) :: IAm='MAPL_LocStreamGet'
-    integer                    :: STATUS
-    integer                    :: n_ele, i
+#ifdef __GFORTRAN__
+    integer                    :: i
     integer, pointer           :: tmp_iptr(:) => null()
     real,    pointer           :: tmp_rptr(:) => null()
     character(len=ESMF_MAXSTR), pointer       :: tmp_strptr(:) => null()
+#endif
 
     if (present(NT_LOCAL)) then
        NT_LOCAL = locstream%Ptr%NT_LOCAL
@@ -369,7 +371,6 @@ contains
     logical, pointer                  :: MSK(:)
     real                              :: X, Y, X0, Y0, XE, DX, DY
     integer                           :: II, JJ
-    logical                           :: found
     logical                           :: DoCoeffs
     character(len=ESMF_MAXSTR)        :: gname
 
@@ -519,7 +520,7 @@ contains
           allocate(ISMINE(STREAM%NT_GLOBAL), STAT=STATUS)
           VERIFY_(STATUS)
           ISMINE = .false.
-          call ESMF_GRID_INTERIOR  (GRID, I1,IN,J1,JN)
+          call MAPL_GRID_INTERIOR  (GRID, I1,IN,J1,JN)
           call ESMF_GridGet(grid, name=gname, rc=status)
           VERIFY_(STATUS)
           read_always = .false.
@@ -696,7 +697,7 @@ contains
           allocate(ISMINE(STREAM%NT_GLOBAL), STAT=STATUS)
           VERIFY_(STATUS)
           ISMINE = .false.
-          call ESMF_GRID_INTERIOR  (GRID, I1,IN,J1,JN)
+          call MAPL_GRID_INTERIOR  (GRID, I1,IN,J1,JN)
           call ESMF_GridGet(grid, name=gname, rc=status)
           VERIFY_(STATUS)
           read_always = .false.
@@ -948,7 +949,7 @@ contains
 
        call FREE_FILE(UNIT)
 
-       DEALOC_(MSK)
+       DEALOC__(MSK)
        DEALOC_(AVR)
     else  ! .not.isascii
        if(present(GRID)) then
@@ -1037,7 +1038,7 @@ contains
           call ESMFL_Halo(grid, hlons, rc=status)
           VERIFY_(STATUS)
 #else
-          call ESMF_GRID_INTERIOR  (GRID, I1,IN,J1,JN)
+          call MAPL_GRID_INTERIOR  (GRID, I1,IN,J1,JN)
 #endif
           do I = 1, size(STREAM%LOCAL_IndexLocation)
 #ifdef NEW_INTERP_CODE
@@ -1467,10 +1468,11 @@ contains
     integer                           :: I1, IN, J1, JN
     integer                           :: gridRank
     integer                           :: DIMS(ESMF_MAXGRIDDIM)
-    integer                           :: N
 
 ! Begin
 !------
+
+  _UNUSED_DUMMY(ISMINE)
 
 ! Make sure Location stream has been created
 !-------------------------------------------
@@ -1519,7 +1521,7 @@ contains
 ! Find out which tiles are in local PE
 !-------------------------------------
 
-    call ESMF_GRID_INTERIOR  (GRID, I1,IN,J1,JN)
+    call MAPL_GRID_INTERIOR  (GRID, I1,IN,J1,JN)
      
 ! Local location uses local indexing
 !-----------------------------------
@@ -1546,7 +1548,6 @@ contains
 
 
     type(MAPL_LocStreamType), pointer :: STREAM
-    type(MAPL_Tiling       ), pointer :: TILING
     type (ESMF_Grid)                  :: TILEGRID
     type (ESMF_DistGrid)              :: distgrid
     character(len=ESMF_MAXSTR)        :: GNAME
@@ -1668,8 +1669,8 @@ contains
 
     !ARGUMENTS:
     type(ESMF_Field),          intent(OUT) :: OUTPUT
-    type(ESMF_Field),          intent(INOUT) :: INPUT
-    type(MAPL_LocStream),      intent(INOUT) :: LocStream
+    type(ESMF_Field),          intent(INout) :: INPUT
+    type(MAPL_LocStream),      intent(IN ) :: LocStream
     integer, optional,         intent(IN ) :: MASK(:)
     logical, optional,         intent(IN ) :: ISMINE(:), INTERP
     logical, optional,         intent(IN ) :: GLOBAL
@@ -1756,7 +1757,7 @@ contains
 end subroutine MAPL_LocStreamTransformField
 
 subroutine MAPL_LocStreamFracArea (LocStream, TYPE, AREA, RC )
-  type(MAPL_LocStream),      intent(INOUT) :: LocStream
+  type(MAPL_LocStream),      intent(IN ) :: LocStream
   integer,                   intent(IN ) :: TYPE
   real,                      intent(OUT) :: AREA(:,:)
   integer, optional,         intent(OUT) :: RC  
@@ -1764,7 +1765,6 @@ subroutine MAPL_LocStreamFracArea (LocStream, TYPE, AREA, RC )
 ! Local variables
 
   character(len=ESMF_MAXSTR) :: IAm='MAPL_LocStreamFracArea'
-  integer                    :: STATUS
 
   integer                    :: II, JJ, N
 
@@ -1803,7 +1803,7 @@ end subroutine MAPL_LocStreamFracArea
 subroutine MAPL_LocStreamTransformT2G (LocStream, OUTPUT, INPUT, MASK, SAMPLE, TRANSPOSE, RC )
   
   !ARGUMENTS:
-  type(MAPL_LocStream),      intent(INOUT) :: LocStream
+  type(MAPL_LocStream),      intent(IN ) :: LocStream
   real,                      intent(INOUT) :: OUTPUT(:,:)
   real,                      intent(INOUT) :: INPUT(:)
   logical, optional,         intent(IN ) :: MASK(:) 
@@ -1835,7 +1835,7 @@ subroutine MAPL_LocStreamTransformT2G (LocStream, OUTPUT, INPUT, MASK, SAMPLE, T
 ! that's the size of the output array
 !------------------------------------
 
-  call ESMF_GRID_INTERIOR  (LocStream%Ptr%GRID, I1,IN,J1,JN)
+  call MAPL_GRID_INTERIOR  (LocStream%Ptr%GRID, I1,IN,J1,JN)
 
   ASSERT_(IN-I1+1==size(OUTPUT,1))
   ASSERT_(JN-J1+1==size(OUTPUT,2))
@@ -1943,7 +1943,7 @@ subroutine MAPL_LocStreamTransformG2T ( LocStream, OUTPUT, INPUT,      &
                                         INTERP, TRANSPOSE, RC )
 
   !ARGUMENTS:
-  type(MAPL_LocStream),      intent(INOUT) :: LocStream
+  type(MAPL_LocStream),      intent(IN ) :: LocStream
   real,                      intent(INOUT) :: OUTPUT(:)
   real,                      intent(INOUT) :: INPUT(:,:)
   logical, optional,         intent(IN ) :: MASK(:), ISMINE(:), INTERP
@@ -1968,9 +1968,10 @@ subroutine MAPL_LocStreamTransformG2T ( LocStream, OUTPUT, INPUT,      &
   real, pointer              :: ghostedINPUT(:,:)
   real                       :: D(-1:1,-1:1)
   real                       :: val, wt
-  logical                    :: undefVals
 
   integer, parameter :: HALOWIDTH = 1
+
+  _UNUSED_DUMMY(ISMINE)
 
   IM = size(INPUT,1)
   JM = size(INPUT,2)
@@ -2013,7 +2014,7 @@ subroutine MAPL_LocStreamTransformG2T ( LocStream, OUTPUT, INPUT,      &
 ! that's the size of the output array
 !------------------------------------
 
-     call ESMF_GRID_INTERIOR  (LocStream%Ptr%GRID, I1,IN,J1,JN)
+     call MAPL_GRID_INTERIOR  (LocStream%Ptr%GRID, I1,IN,J1,JN)
 
      ASSERT_(IN-I1+1==IM)
      ASSERT_(JN-J1+1==JM)
@@ -2104,7 +2105,7 @@ subroutine MAPL_LocStreamTransformG2T ( LocStream, OUTPUT, INPUT,      &
 end subroutine MAPL_LocStreamTransformG2T
 
 subroutine MAPL_LocStreamTileWeight ( LocStream, OUTPUT, INPUT, RC )
-  type(MAPL_LocStream),      intent(INOUT) :: LocStream
+  type(MAPL_LocStream),      intent(IN ) :: LocStream
   real,                      intent(OUT) :: OUTPUT(:)
   real,                      intent(IN ) :: INPUT(:,:)
   integer, optional,         intent(OUT) :: RC  
@@ -2114,7 +2115,6 @@ subroutine MAPL_LocStreamTileWeight ( LocStream, OUTPUT, INPUT, RC )
   integer                    :: N
 
   character(len=ESMF_MAXSTR) :: IAm='MAPL_LocStreamTileWeight'
-  integer                    :: STATUS
 
 
 ! Fill output subject to mask
@@ -2437,17 +2437,15 @@ subroutine MAPL_LocStreamCreateXform ( Xform, LocStreamOut, LocStreamIn, NAME, M
   type (ESMF_VM)              :: vm
   integer                     :: NDES, hash
   integer, pointer            :: GLOBAL_IdByPe(:) =>null() ! All Location Ids in PE   order
-  integer                     :: I, First, Last, Comm
+  integer                     :: I, First, Last
   logical, allocatable        :: IsNeeded(:)
   integer, allocatable        :: PELens(:), Begs(:), Ends(:)
   integer                     :: NumSenders
-  integer                     :: NumReceivers
-  integer                     :: lNumReceivers
-  integer                     :: K, myId
+  integer                     :: myId
   integer                     :: MyLen(1)
-  INTEGER(KIND = MPI_ADDRESS_KIND):: LB, SizeOfReal
-  integer, allocatable        :: allSenders(:,:)
-  integer, allocatable        :: iReq(:,:)
+#if defined(ONE_SIDED_COMM)
+  integer                     :: SizeOfReal
+#endif
 
 ! Both streams must be subsets of same parent.
 ! The parent stream is usually an exchange grid.
@@ -2632,6 +2630,10 @@ subroutine MAPL_LocStreamCreateXform ( Xform, LocStreamOut, LocStreamIn, NAME, M
      Xform%Ptr%myId = myid
 
 #if defined(TWO_SIDED_COMM)
+     block
+       integer, allocatable :: allSenders(:,:)
+       integer :: NumReceivers
+       integer :: k
 #if 0
      allocate(allSenders(ndes,ndes), stat=status)
      VERIFY_(STATUS)
@@ -2663,24 +2665,27 @@ subroutine MAPL_LocStreamCreateXform ( Xform, LocStreamOut, LocStreamIn, NAME, M
 #else
      allocate(allSenders(ndes,1), stat=status)
      VERIFY_(STATUS)
+     block
+       integer :: lNumReceivers
 
-     do I=1,NDES
-        lNumReceivers = 0
-        if (m>0) lNumReceivers = count(Xform%Ptr%senders == I-1)
-        call MPI_GATHER(  lNumReceivers, 1, MPI_INTEGER, &
-                        allSenders(:,1), 1, MPI_INTEGER, &
-                        I-1, Xform%Ptr%Comm,  status )
-     enddo
+       do I=1,NDES
+          lNumReceivers = 0
+          if (m>0) lNumReceivers = count(Xform%Ptr%senders == I-1)
+          call MPI_GATHER(  lNumReceivers, 1, MPI_INTEGER, &
+               allSenders(:,1), 1, MPI_INTEGER, &
+               I-1, Xform%Ptr%Comm,  status )
+       enddo
+     end block
      call ESMF_VMBarrier(vm, rc=status)
      VERIFY_(STATUS)
-
+     
      NumReceivers = 0
      do I=1,NDES
         NumReceivers = NumReceivers + allSenders(I,1)
      end do
      allocate(Xform%Ptr%receivers(NumReceivers), stat=status)
      VERIFY_(STATUS)
-
+     
      M = 0
      do I=1,NDES
         if(myId == I-1) cycle ! skip myself
@@ -2693,6 +2698,7 @@ subroutine MAPL_LocStreamCreateXform ( Xform, LocStreamOut, LocStreamIn, NAME, M
      ASSERT_(NumReceivers==M)
      deallocate(allSenders)
 #endif
+     end block
 #endif
 
 ! Put the tiles we being brought over into a hash table
@@ -2771,7 +2777,7 @@ end function GRIDINDEX
 
 subroutine MAPL_GridCoordAdjust(GRID, LOCSTREAM, RC)
   type(ESMF_Grid),               intent(INout ) :: Grid
-  type(MAPL_LocStream),          intent(INOUT) :: Locstream
+  type(MAPL_LocStream),          intent(IN ) :: Locstream
   integer, optional,             intent(OUT) :: RC  
 
 ! local vars
@@ -2785,11 +2791,9 @@ subroutine MAPL_GridCoordAdjust(GRID, LOCSTREAM, RC)
 
   logical :: found
   integer :: COUNTS(3)
-  integer :: rank, NT, IG
-  type(ESMF_TypeKind_Flag)   :: tk
+  integer :: NT, IG
   character(len=ESMF_MAXSTR) :: GRIDNAME
   character(len=ESMF_MAXSTR), pointer :: GNAMES(:)
-  type (ESMF_Array) :: carray(2)
   real(ESMF_KIND_R8) :: X, Y, W
   real(ESMF_KIND_R8), allocatable :: sumw(:,:), sumxw(:,:), sumyw(:,:)
   real(ESMF_KIND_R8), pointer :: gridx(:,:), gridy(:,:)
@@ -2865,10 +2869,10 @@ subroutine MAPL_GridCoordAdjust(GRID, LOCSTREAM, RC)
      SUMYW = SUMYW / SUMW
 
 ! Make sure the longitudes are between -180 and 180 degrees
-     SUMXW = mod(SUMXW + 72180._8,360._8) - 180._8 ! -180<= lon0 <180
+     SUMXW = mod(SUMXW + 72180._REAL64,360._REAL64) - 180._REAL64 ! -180<= lon0 <180
 ! Convert to radians
-     SUMXW = SUMXW * (MAPL_PI_R8)/180._8
-     SUMYW = SUMYW * (MAPL_PI_R8)/180._8
+     SUMXW = SUMXW * (MAPL_PI_R8)/180._REAL64
+     SUMYW = SUMYW * (MAPL_PI_R8)/180._REAL64
      
   END WHERE
 

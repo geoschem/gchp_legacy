@@ -88,7 +88,7 @@ endif
 OBJS := $(addsuffix .o, $(basename $(SRCS)))
 DEPS := $(addsuffix .d, $(basename $(SRCS)))
 
-INC_DIRS = . .. $(INC_MPI) /usr/include
+INC_DIRS = . .. $(INC_MPI)
 MOD_DIRS = $(INC_DIRS) $(INC_ESMF) $(INC_CFIO) $(ESMAINC)/GMAO_mpeu
 
 USER_FINCS  = $(foreach dir,$(INC_DIRS),$(I)$(dir)) 
@@ -101,6 +101,7 @@ vpath % $(MOD_DIRS) ../tests
 
 $(LIB) lib : $(DEPS) $(OBJS)
 	$(AR) $(AR_FLAGS) $(LIB) $(OBJS)
+	$(RANLIB) $(RANLIB_FLAGS) $(LIB)
 
 %.x : $(LIB) %.o
 	$(FC) $(LDFLAGS) -o $@ $*.o $(LIB) \

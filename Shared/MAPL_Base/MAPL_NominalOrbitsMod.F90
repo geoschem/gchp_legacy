@@ -1,8 +1,7 @@
-!  $Id: MAPL_NominalOrbitsMod.F90,v 1.1 2011-02-25 21:48:02 adasilva Exp $
-
+!  $Id$
+#include "unused_dummy.H"
   MODULE MAPL_NominalOrbitsMod 
-
-      IMPLICIT NONE
+     IMPLICIT NONE
 
 !BOP
 
@@ -185,11 +184,10 @@ CONTAINS
 
 
 !     Other parameters!
-      REAL(dp), DIMENSION(:), ALLOCATABLE  :: t1_l, lat_l, lon_l, obstime
+      REAL(dp), DIMENSION(:), ALLOCATABLE  :: obstime
       real(dp)    :: sim_start, sim_end
       real(dp)    :: s_fraction2day, e_fraction2day
-      integer     :: i, flagauto
-      INTEGER     :: ts, las, los, time, sattemp
+      INTEGER     :: ts, las, los
       integer     :: Sat
       integer     :: ierr1, ierr2, ierr3
       REAL(dp)    :: distlat  !lat is equal dis 
@@ -382,7 +380,7 @@ END SUBROUTINE Orbits_Track2
       real(dp),    pointer  :: lons(:)      !Ground Track longitude [degree]
       real(dp),    pointer  :: lats(:)      !Ground Track latitude  [degree]
       REAL(dp),    DIMENSION(:,:,:), ALLOCATABLE  :: latlonshift
-      real(dp)              :: dist2creat, temp1
+      real(dp)              :: temp1
       integer, parameter    :: iii = 3      !this is used for the number of swaths
                                             !here is 3 indicating mid left right
       integer               :: Sat          ! Satellite number
@@ -540,21 +538,17 @@ SUBROUTINE find_waypointslat(iSat, time_sec, sim_start,sim_end, distlat,   &
       integer, intent(inout):: rc
       REAL(dp), DIMENSION(:),  ALLOCATABLE :: t1
       REAL(dp), DIMENSION(:,:),ALLOCATABLE :: lat_estwayp, long_estwayp ! temp arrays
-      REAL(dp), DIMENSION(3,1)  :: ECI_est, ECEF_est ! estimated Earth centered Innertia
-      REAL(dp), DIMENSION(:), ALLOCATABLE  :: dist_wpoints ! distance between way points
-      REAL(dp), DIMENSION(:,:), ALLOCATABLE:: latestwp, longestwp ! estimated lat long
-      REAL(dp), DIMENSION(:), ALLOCATABLE :: t1m                  !temp obs time matrix
-      REAL(dp)    :: max_wp, latest, lonest
-      REAL(dp)    :: time_day, fraction2day, lat, lon, alt
+      REAL(dp)    :: latest, lonest
+      REAL(dp)    :: time_day
       INTEGER :: say, i
-      INTEGER :: ierr1, ierr2, ierr3, ierr4
+      INTEGER :: ierr1, ierr2, ierr3
 !
 !DESCRIPTION:
 !   This subroutine finds waypoints for the possible max distance on the equator
 !   line. If flagauto = 0 then equal deltat data is created. Otherwise optimum
 !   numbeer of minimum data is created (nonlinear).  
 
-
+      _UNUSED_DUMMY(distlat)
 
           IF (time_sec.LE.0.0) THEN
               print*, "Error: time is negative. For now it is not allowed"
@@ -666,7 +660,6 @@ SUBROUTINE get_latlon(iSat, t1, lat_estwayp, long_estwayp)
        REAL(dp),    INTENT(INOUT) :: lat_estwayp, long_estwayp
        REAL(dp), DIMENSION(3,1) :: ECI_est, ECEF_est
        REAL(dp)                 :: lat, lon, alt, fraction2day 
-       INTEGER              :: i
 !DESCRIPTION:
 !   getlatlon calls three important functions to calculate lat lon values of 
 !   a satellite for a g   iven time. Those functions are described in the 
@@ -689,8 +682,6 @@ SUBROUTINE get_estimateECI(iSat, ntime_day, ECI_est)
         REAL(dp), DIMENSION(Num_coef) :: myvec
         REAL(dp), DIMENSION(Num_normcoef) :: normvec
         REAL(dp)                      :: xdata_est, ydata_est, zdata_est
-        INTEGER                   :: start, ends, temp1 
-
 
 
        CALL Orbits_Track0(iSat, myvec, normvec) ! myvec has 9 sat coef
@@ -778,7 +769,6 @@ SUBROUTINE ECEF2LLA(x, y, z, lat, lon, alt)
        REAL(dp), PARAMETER  :: e = 8.1819190842622e-2
        REAL(dp), PARAMETER  :: pi = 3.14159265358979323846 
        REAL(dp)             :: b, ep, p, th, N
-       LOGICAL k
 
        b   = sqrt(a**2 * (1-e**2))
        ep  = sqrt((a**2-b**2)/b**2)
@@ -1092,12 +1082,12 @@ SUBROUTINE redifine_timeint(kk, longind, ti, iSat,      &
        INTEGER, INTENT(IN)               :: kk 
        INTEGER, INTENT(IN)               :: ti
        REAL(dp), DIMENSION(:), ALLOCATABLE   :: t1 
-       REAL(dp), DIMENSION(:), ALLOCATABLE   :: t1_f, lat_final, lon_final, ppr 
+       REAL(dp), DIMENSION(:), ALLOCATABLE   :: t1_f, lat_final, lon_final
        REAL(dp), DIMENSION(:,:), ALLOCATABLE :: latestwp, longestwp
        REAL(dp), DIMENSION(:), ALLOCATABLE  :: t_tempo
        REAL(dp), DIMENSION(:,:), ALLOCATABLE:: lat_wayptemp, long_wayptemp
        INTEGER             :: temp1, temp2, temp4, iSat, say, ii, temp_size
-       REAL(dp) :: simtimestart_temp, simtimeend_temp, ti_day, time_day
+       REAL(dp) :: simtimestart_temp, simtimeend_temp, ti_day
        REAL(dp) :: lat_estwayp, lon_estwayp
        
        ALLOCATE(latestwp(1:carylat,1), longestwp(1:carylon,1), t1(1:caryt))
@@ -1318,7 +1308,6 @@ SUBROUTINE orbits(lat, lon, iSat, nymd, nhms) ! for now time has to be after
        INTEGER, INTENT(IN)   :: iSat
        INTEGER, INTENT(IN)   :: nymd, nhms 
        REAL(dp), INTENT(OUT)     :: lat,lon
-       REAL(dp), DIMENSION(Num_coef)    :: myvec ! 3 for each x,y,z
        REAL(dp), DIMENSION(3,1)  :: ECI_est, ECEF_est
        REAL(dp)                  :: alt
        REAL(dp)      :: fraction2day, ntime_day 

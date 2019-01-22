@@ -1,10 +1,15 @@
-! $Id: read_parallel.H,v 1.7 2012-08-23 20:45:49 atrayano Exp $
+! $Id$
 
 #ifdef NAME_
 #undef NAME_
 #endif
 
+#ifdef NAMESTR_
+#undef NAMESTR_
+#endif
+
 #define NAME_ READ_PARALLEL_
+#define NAMESTR_ 'READ_PARALLEL_'
 
 #include "overload.macro"
 
@@ -158,7 +163,9 @@ END SUBROUTINE SUB_
 
 !---------------------------
 #undef NAME_
+#undef NAMESTR_
 
 #undef DIMENSIONS_
 #undef RANK_
+#undef RANKSTR_
 #undef VARTYPE_

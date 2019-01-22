@@ -1,10 +1,15 @@
-! $Id: send.H,v 1.2 2008-12-11 14:45:02 trayanov Exp $
+! $Id$
 
 #ifdef NAME_
 #undef NAME_
 #endif
 
+#ifdef NAMESTR_
+#undef NAMESTR_
+#endif
+
 #define NAME_ MAPL_CommsSend_
+#define NAMESTR_ 'MAPL_CommsSend_'
 
 #include "overload.macro"
 
@@ -40,9 +45,11 @@
   END SUBROUTINE SUB_
 
 #undef NAME_
+#undef NAMESTR_
 
 #undef DIMENSIONS_
 #undef RANK_
+#undef RANKSTR_
 #undef VARTYPE_
 
 

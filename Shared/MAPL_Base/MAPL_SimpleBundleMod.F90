@@ -28,7 +28,6 @@
    use MAPL_MaxMinMod
    use MAPL_CommsMod, only: MAPL_AM_I_ROOT
    use MAPL_ConstantsMod, only: MAPL_PI
-   use m_StrTemplate
 
    implicit NONE
    private
@@ -171,7 +170,7 @@ CONTAINS
     type(ESMF_TypeKind_Flag) :: typeKind
     real(ESMF_KIND_R8), pointer :: LonsRad(:,:), LatsRad(:,:)
 
-    integer :: arrayRank, I, n, n1d, n2d, n3d, NumVars, myKind_
+    integer :: arrayRank, I, n, n1d, n2d, n3d, NumVars
     integer :: im, jm, km, dims(3)
     type(ESMF_FieldStatus_Flag) :: fieldStatus
     
@@ -615,7 +614,7 @@ CONTAINS
 ! !INTERFACE:
 !
 
-  Function MAPL_SimpleBundleRead (filename, grid, time, verbose, &
+  Function MAPL_SimpleBundleRead (filename, bundle_name, grid, time, verbose, &
                                   only_vars, expid, rc ) result (self)
 
 ! !ARGUMENTS:
@@ -623,6 +622,7 @@ CONTAINS
     type(MAPL_SimpleBundle)                    :: self ! Simple Bundle
 
     character(len=*),            intent(in)    :: filename
+    character(len=*),            intent(in)    :: bundle_name
     type(ESMF_Time),             intent(inout) :: Time
     type(ESMF_Grid),             intent(in)    :: Grid
     logical, OPTIONAL,           intent(in)    :: verbose
@@ -641,26 +641,11 @@ CONTAINS
     __Iam__('MAPL_SimpleBundleRead')
     type(ESMF_FieldBundle),  pointer :: Bundle
     integer                          :: k,n
-    character(len=ESMF_MAXSTR)       :: fname
 
     allocate(Bundle, stat=STATUS)
     VERIFY_(STATUS)
 
-!ALT: ESMF object name cannot exceed length of ESMF_MAXSTR(=128) 
-    k = len_trim(filename)
-    if (k > ESMF_MAXSTR) then
-       n = index(filename,'/',back=.true.)
-       ! An attempt to trim the absolute path
-       if (n >= k) then ! n+1 has potential to overflow
-          fname = filename
-       else
-          fname = filename(n+1+max(0,k-n-ESMF_MAXSTR):k)
-       end if
-    else
-       fname = filename
-    end if
-
-    Bundle = ESMF_FieldBundleCreate ( name=fname, __RC__ )
+    Bundle = ESMF_FieldBundleCreate ( name=bundle_name, __RC__ )
     call ESMF_FieldBundleSet ( bundle, grid=Grid, __RC__ )
     call MAPL_CFIORead  ( filename, Time, Bundle, verbose=verbose, &
                           ONLY_VARS=only_vars, expid=expid, __RC__ )
@@ -863,7 +848,7 @@ end subroutine MAPL_SimpleBundlePrint
     logical :: quiet_
     integer :: i
 
-                     __Iam__("MAPL_SimpleBundleGetIndex")
+                     _Iam_("MAPL_SimpleBundleGetIndex")
 
     if ( present(quiet) ) then
        quiet_ = quiet

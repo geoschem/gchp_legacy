@@ -1,10 +1,15 @@
-! $Id: arrayscatter.H,v 1.9.2.1.22.1 2015-08-05 15:58:03 atrayano Exp $
+! $Id$
 
 #ifdef NAME_
 #undef NAME_
 #endif
 
+#ifdef NAMESTR_
+#undef NAMESTR_
+#endif
+
 #define NAME_ ArrayScatter_
+#define NAMESTR_ 'ArrayScatter_'
 
 #include "overload.macro"
 
@@ -34,12 +39,21 @@
     integer, dimension(:), allocatable    :: SENDCOUNTS, DISPLS, KK
     integer                               :: nDEs
     integer                               :: recvcount
-    integer                               :: I, J, K, II,  JJ, de, deId
+    integer                               :: II, deId
+    integer                               :: I, K
+#if (RANK_ == 2)
+    integer                               :: J, JJ
+#endif
+#if (RANK_ != 1)
     integer                               :: I1, IN, J1, JN
+#endif
     integer                               :: gridRank
-    integer                               :: LX, LY
+    integer                               :: LX
+#if (RANK_ != 1)
+    integer                               :: LY
+#endif
     integer                               :: srcPE
-    integer                               :: MYHW, ISZ, JSZ, ISZL
+    integer                               :: MYHW, ISZ, JSZ
     integer                               :: deList(1)
     logical                               :: alloc_var
 
@@ -90,8 +104,8 @@
     VERIFY_(STATUS)
     allocate (sendcounts(0:nDEs-1), stat=status)
     VERIFY_(STATUS)
-    call ESMF_DistGridGet(distgrid, &
-         minIndexPDe=AL, maxIndexPDe=AU, rc=status)
+    call MAPL_DistGridGet(distgrid, &
+         minIndex=AL, maxIndex=AU, rc=status)
     VERIFY_(STATUS)
 
 ! Compute count to be sent to each PE
@@ -269,6 +283,9 @@
   end subroutine SUB_
 
 #undef NAME_
+#undef NAMESTR_
+								  
 #undef DIMENSIONS_
 #undef RANK_
+#undef RANKSTR_
 #undef VARTYPE_

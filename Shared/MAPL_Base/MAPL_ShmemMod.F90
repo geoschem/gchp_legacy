@@ -3,11 +3,11 @@
 #define VERIFY_(A)   if((A)/=SHM_SUCCESS) then; if(present(rc)) rc=A; PRINT *, Iam, __LINE__; return; endif
 #define ASSERT_(A)   if(.not.(A)) then; if(present(rc)) rc=1; PRINT *, Iam, __LINE__; return; endif
 #define RETURN_(A)   if(present(rc)) rc=A; return
+#include "unused_dummy.H"
 
   module MAPL_ShmemMod
 
     use, intrinsic :: ISO_C_BINDING
-
     implicit none
     private
 
@@ -25,6 +25,10 @@
     public :: MAPL_BroadcastToNodes
 
     public :: MAPL_AllocateShared
+    public :: GetSharedMemory
+    public :: ReleaseSharedMemory
+
+    public :: MAPL_GetNewRank
 
     integer, public, parameter :: MAPL_NoShm=255
 
@@ -32,6 +36,7 @@
 
     integer(c_int), parameter :: IPC_CREAT = 512
     integer(c_int), parameter :: IPC_RMID  = 0
+    integer,        parameter :: C_KEY_T = c_int32_t
 
     integer,        parameter :: CHUNK=256
 
@@ -56,6 +61,7 @@
 
     type NodeRankList_T
        integer, pointer :: rank(:) => NULL()
+       integer          :: rankLastUsed
     end type NodeRankList_T
 
     type(NodeRankList_T), public, allocatable :: MAPL_NodeRankList(:)
@@ -63,9 +69,10 @@
     interface
        function shmget(key, size, shmflg) bind(c, name="shmget")
          use, intrinsic :: ISO_C_BINDING
+	 import :: c_key_t
          integer (c_int)              :: shmget
-         integer (c_int),       value :: key
-         integer (c_long_long), value :: size
+         integer (c_key_t),     value :: key
+         integer (c_size_t),    value :: size
          integer (c_int),       value :: shmflg
        end function shmget
 
@@ -107,6 +114,7 @@
        module procedure MAPL_AllocNodeArray_1DI4
        module procedure MAPL_AllocNodeArray_2DI4
        module procedure MAPL_AllocNodeArray_3DI4
+       module procedure MAPL_AllocNodeArray_4DI4
        module procedure MAPL_AllocNodeArray_1DR4
        module procedure MAPL_AllocNodeArray_2DR4
        module procedure MAPL_AllocNodeArray_3DR4
@@ -123,6 +131,7 @@
        module procedure MAPL_DeAllocNodeArray_1DI4
        module procedure MAPL_DeAllocNodeArray_2DI4
        module procedure MAPL_DeAllocNodeArray_3DI4
+       module procedure MAPL_DeAllocNodeArray_4DI4
        module procedure MAPL_DeAllocNodeArray_1DR4
        module procedure MAPL_DeAllocNodeArray_2DR4
        module procedure MAPL_DeAllocNodeArray_3DR4
@@ -152,7 +161,9 @@
        module procedure MAPL_AllocateShared_1DL4
        module procedure MAPL_AllocateShared_1DI4
        module procedure MAPL_AllocateShared_1DR4
+       module procedure MAPL_AllocateShared_1DR8
        module procedure MAPL_AllocateShared_2DR4
+       module procedure MAPL_AllocateShared_2DR8
     end interface
 
   contains
@@ -341,6 +352,25 @@
 
       RETURN_(SHM_SUCCESS)
     end subroutine MAPL_DeAllocNodeArray_3DI4
+
+    subroutine MAPL_DeAllocNodeArray_4DI4(Ptr,rc)
+      integer,  pointer              :: Ptr(:,:,:,:)
+      integer, optional, intent(OUT) :: rc
+
+      type(c_ptr) :: Caddr
+      integer     :: STATUS
+
+      if(.not.MAPL_ShmInitialized) then
+         RETURN_(MAPL_NoShm)
+      endif
+
+      Caddr = C_Loc(Ptr(lbound(Ptr,1),lbound(Ptr,2),lbound(Ptr,3),lbound(Ptr,4)))
+
+      call ReleaseSharedMemory(Caddr,rc=STATUS)
+      VERIFY_(STATUS)
+
+      RETURN_(SHM_SUCCESS)
+    end subroutine MAPL_DeAllocNodeArray_4DI4
 
 
     subroutine MAPL_DeAllocNodeArray_1DR4(Ptr,rc)
@@ -617,6 +647,32 @@
       RETURN_(SHM_SUCCESS)
     end subroutine MAPL_AllocNodeArray_3DI4
 
+    subroutine MAPL_AllocNodeArray_4DI4(Ptr, Shp, lbd, rc)
+      integer, pointer,  intent(INOUT) :: Ptr(:,:,:,:)
+      integer,           intent(IN   ) :: Shp(4)
+      integer, optional, intent(IN   ) :: lbd(4)
+      integer, optional, intent(  OUT) :: rc
+
+      type(c_ptr) :: Caddr
+      integer len, STATUS
+
+      if(.not.MAPL_ShmInitialized) then
+         RETURN_(MAPL_NoShm)
+      endif
+
+      len=product(Shp)
+
+      call GetSharedMemory(Caddr, len, rc=STATUS)
+      VERIFY_(STATUS)
+
+      call c_f_pointer(Caddr, Ptr, Shp) ! C ptr to Fortran ptr
+      ASSERT_(all(shape(Ptr)==Shp))
+
+      if(present(lbd)) Ptr(lbd(1):,lbd(2):,lbd(3):,lbd(4):) => Ptr
+
+      RETURN_(SHM_SUCCESS)
+    end subroutine MAPL_AllocNodeArray_4DI4
+
 
     subroutine MAPL_AllocNodeArray_1DR4(Ptr, Shp, lbd, rc)
       real*4, pointer,   intent(INOUT) :: Ptr(:)
@@ -710,7 +766,7 @@
          RETURN_(MAPL_NoShm)
       endif
 
-      len=product(Shp)*2
+      len=product(Shp)
 
       call GetSharedMemory(Caddr, len, rc=STATUS)
       VERIFY_(STATUS)
@@ -838,6 +894,7 @@
       type(c_ptr) :: Caddr
       integer len, STATUS
 
+      _UNUSED_DUMMY(lbd)
       if(.not.MAPL_ShmInitialized) then
          RETURN_(MAPL_NoShm)
       endif
@@ -850,7 +907,7 @@
       call c_f_pointer(Caddr, Ptr, Shp) ! C ptr to Fortran ptr
       ASSERT_(all(shape(Ptr)==Shp))
 
-!     if(present(lbd)) Ptr(lbd(1):,lbd(2):,lbd(3):,lbd(4):,lbd(5):) => Ptr
+      if(present(lbd)) Ptr(lbd(1):,lbd(2):,lbd(3):,lbd(4):,lbd(5):) => Ptr
 
       RETURN_(SHM_SUCCESS)
     end subroutine MAPL_AllocNodeArray_5DR8    
@@ -928,6 +985,30 @@
 
     end subroutine MAPL_AllocateShared_1DR4
 
+    subroutine MAPL_AllocateShared_1DR8(Ptr, Shp, lbd, TransRoot, rc)
+      real(KIND=8), pointer,     intent(INOUT) :: Ptr(:)
+      integer,           intent(IN   ) :: Shp(1)
+      integer, optional, intent(IN   ) :: lbd(1)
+      logical,           intent(IN   ) :: TransRoot
+      integer, optional, intent(  OUT) :: rc
+
+
+      integer :: status
+
+      call MAPL_AllocNodeArray(Ptr, Shp, lbd, rc=STATUS)
+      if(STATUS==MAPL_NoShm) then 
+         if (TransRoot) then
+            allocate(Ptr(Shp(1)),stat=status)
+         else
+            allocate(Ptr(0),stat=status)
+         end if
+         VERIFY_(STATUS)
+      endif
+
+      RETURN_(STATUS)
+
+    end subroutine MAPL_AllocateShared_1DR8
+
     subroutine MAPL_AllocateShared_2DR4(Ptr, Shp, lbd, TransRoot, rc)
       real,    pointer,  intent(INOUT) :: Ptr(:,:)
       integer,           intent(IN   ) :: Shp(2)
@@ -951,6 +1032,30 @@
       RETURN_(STATUS)
 
     end subroutine MAPL_AllocateShared_2DR4
+
+    subroutine MAPL_AllocateShared_2DR8(Ptr, Shp, lbd, TransRoot, rc)
+      real(KIND=8), pointer, intent(INOUT) :: Ptr(:,:)
+      integer,           intent(IN   ) :: Shp(2)
+      integer, optional, intent(IN   ) :: lbd(2)
+      logical,           intent(IN   ) :: TransRoot
+      integer, optional, intent(  OUT) :: rc
+
+
+      integer :: status
+
+      call MAPL_AllocNodeArray(Ptr, Shp, lbd, rc=STATUS)
+      if(STATUS==MAPL_NoShm) then 
+         if (TransRoot) then
+            allocate(Ptr(Shp(1),Shp(2)),stat=status)
+         else
+            allocate(Ptr(0,0),stat=status)
+         end if
+         VERIFY_(STATUS)
+      endif
+
+      RETURN_(STATUS)
+
+    end subroutine MAPL_AllocateShared_2DR8
 
     subroutine ReleaseSharedMemory(Caddr,rc)
       type(c_ptr),       intent(INOUT) :: Caddr
@@ -1011,13 +1116,13 @@
       integer, optional, intent(  OUT) :: rc
 
       integer                   :: status, pos
-      integer(c_int)            :: key
-      integer(c_long_long)      :: numBytes
+      integer(c_key_t)          :: key
+      integer(c_size_t)         :: numBytes
       integer, parameter        :: WORD_SIZE = 4
       integer(c_int), parameter :: C_ZERO = 0
       integer(c_int), parameter :: myflg = o'666'
       integer(c_int), parameter :: shmflg = ior(IPC_CREAT,myflg)
-      integer(c_int), parameter :: keypre = 456000000
+      integer(c_key_t), parameter :: keypre = 456000000
 
 !!! Get an empty spot in the list of allocated segments
 !!! and use its index as the segment's key
@@ -1356,6 +1461,24 @@
       RETURN_(SHM_SUCCESS)
     end subroutine MAPL_SyncSharedMemory
 
+    function MAPL_GetNewRank(node,rc) result(rank)
+
+      integer, intent(in) :: node
+      integer, optional, intent(out) :: rc
+
+      integer :: rank
+      integer :: status
+
+      rank = MAPL_NodeRankList(node)%RankLastUsed+1
+      if (rank > size(MAPL_NodeRankList(node)%rank)) then
+         rank = 1
+      end if
+      MAPL_NodeRankList(node)%rankLastUsed=rank
+ 
+      RETURN_(SHM_SUCCESS)
+
+    end function MAPL_GetNewRank
+
     function getNodeComm(Comm, rc) result(NodeComm)
       use MAPL_SortMod
       integer,           intent( IN) :: Comm
@@ -1449,6 +1572,10 @@
          call MAPL_Sort(MAPL_NodeRankList(i)%rank)
       end do
       deallocate(newNode)
+
+      do i=1,size(MAPL_NodeRankList)
+         MAPL_NodeRankList(i)%RankLastUsed=1
+      enddo
 
       deallocate(ranks)
       deallocate(colors)

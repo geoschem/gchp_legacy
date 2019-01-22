@@ -1,10 +1,15 @@
-! $Id: allreducemin.H,v 1.1 2009-02-23 20:01:21 trayanov Exp $
+! $Id$
 
 #ifdef NAME_
 #undef NAME_
 #endif
 
+#ifdef NAMESTR_
+#  undef NAMESTR_
+#endif
+
 #define NAME_ MAPL_CommsAllReduceMin_
+#define NAMESTR_ 'MAPL_CommsAllReduceMin_'
 
 #include "overload.macro"
 
@@ -31,8 +36,10 @@
   END SUBROUTINE SUB_
 
 #undef NAME_
+#undef NAMESTR_
 
 #undef DIMENSIONS_
 #undef RANK_
+#undef RANKSTR_
 #undef VARTYPE_
 

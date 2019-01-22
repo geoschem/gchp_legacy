@@ -2,7 +2,12 @@
 #undef NAME_
 #endif
 
+#ifdef NAMESTR_
+#undef NAMESTR_
+#endif
+
 #define NAME_ ESMFL_StateGetPtrToData
+#define NAMESTR_ 'ESMFL_StateGetPtrToData'
 
 #include "overload.macro"
 
@@ -14,14 +19,13 @@
    logical, optional, intent(IN   ) :: notFoundOK
    integer, optional, intent(  OUT) :: RC
    
-   character(len=ESMF_MAXSTR)      :: IAm=SUBNAME__( SUB_ )
+   character(len=ESMF_MAXSTR)      :: IAm=SUBSTR_
    integer                         :: STATUS
 
    type (ESMF_FieldBundle)         :: bundle
    type (ESMF_Field)               :: field
    logical                         :: IsOk
    integer                         :: loc
-   integer                         :: DIMS
    type(ESMF_FieldStatus_Flag)     :: fieldStatus
 
    NULLIFY(ptr)
@@ -72,12 +76,15 @@
 
 !ALT I dont think the next lines are needed anymore
 #if 0
-   call ESMF_AttributeGet(field, name='VLOCATION', value=DIMS, rc=status)
-   if (STATUS==ESMF_SUCCESS) then
-      if (DIMS == MAPL_VLocationEdge .and. associated(ptr)) then
-         call AdjustPtrBounds(ptr, ptr, 1, size(ptr,1), 1, size(ptr,2), 0, size(ptr,3)-1)
-      end if
-   end if
+   block
+     integer :: DIMS
+     call ESMF_AttributeGet(field, name='VLOCATION', value=DIMS, rc=status)
+     if (STATUS==ESMF_SUCCESS) then
+        if (DIMS == MAPL_VLocationEdge .and. associated(ptr)) then
+           call AdjustPtrBounds(ptr, ptr, 1, size(ptr,1), 1, size(ptr,2), 0, size(ptr,3)-1)
+        end if
+     end if
+   end block
 #endif
    
    RETURN_(ESMF_SUCCESS)
@@ -86,3 +93,5 @@
 
 #undef DIMENSIONS_
 #undef RANK_
+#undef RANKSTR_
+   

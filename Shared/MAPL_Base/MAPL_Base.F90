@@ -1,6 +1,7 @@
-! $Id: MAPL_Base.F90,v 1.49.10.1 2016-05-19 21:10:27 bmauer Exp $
+! $Id$
 
 #include "MAPL_ErrLog.h"
+#include "unused_dummy.H"
 
 module MAPL_BaseMod
 
@@ -12,7 +13,9 @@ module MAPL_BaseMod
 !
 use ESMF
 use MAPL_ConstantsMod, only: MAPL_PI, MAPL_PI_R8
-
+use MAPL_RangeMod
+use, intrinsic :: iso_fortran_env, only: REAL32
+use, intrinsic :: iso_fortran_env, only: REAL64
 implicit NONE
 private
 
@@ -30,11 +33,12 @@ public MAPL_FieldCreateEmpty
 public MAPL_FieldGetTime
 public MAPL_FieldSetTime
 public MAPL_GridGet
-public MAPL_GridGetInterior
+public MAPL_GRID_INTERIOR
 public MAPL_IncYMD
 public MAPL_Interp_Fac
 public MAPL_LatLonGridCreate   ! Creates regular Lat/Lon ESMF Grids
 public MAPL_Nhmsf
+public MAPL_NSECF
 public MAPL_Nsecf2
 public MAPL_PackTime
 public MAPL_RemapBounds
@@ -60,6 +64,10 @@ public MAPL_GeosNameNew
 public MAPL_Communicators
 public MAPL_BundleCreate
 public MAPL_FieldCopy
+public MAPL_Leap
+public MAPL_Range
+public MAPL_DistGridGet
+public MAPL_GridGetCorners
 
 ! !PUBLIC PARAMETERS
 !
@@ -95,6 +103,7 @@ integer, public, parameter :: MAPL_VectorField     = 2
 integer, public, parameter :: MAPL_CplAverage      = 0
 integer, public, parameter :: MAPL_CplMin          = 1
 integer, public, parameter :: MAPL_CplMax          = 2
+integer, public, parameter :: MAPL_CplAccumulate   = 3
 integer, public, parameter :: MAPL_MinMaxUnknown   = MAPL_CplAverage
 
 integer, public, parameter :: MAPL_AttrGrid        = 1
@@ -141,8 +150,6 @@ integer, public, parameter :: MAPL_HorzTransOrderSample   = 99
 integer, public, parameter :: MAPL_RestartOptional = 0
 integer, public, parameter :: MAPL_RestartSkip = 1
 integer, public, parameter :: MAPL_RestartRequired = 2
-integer, public, parameter :: MAPL_RestartBootstrap = 3
-integer, public, parameter :: MAPL_RestartSkipInitial = 4
 
 character(len=ESMF_MAXSTR), public, parameter :: MAPL_StateItemOrderList = 'MAPL_StateItemOrderList'
 character(len=ESMF_MAXSTR), public, parameter :: MAPL_BundleItemOrderList = 'MAPL_BundleItemOrderList'
@@ -240,16 +247,6 @@ interface MAPL_GetHorzIJIndex
 end interface
 
 #define R8  8
-interface
-  subroutine AppCSEdgeCreateF(IM_World, LonEdge, LatEdge, LonCenter, LatCenter, rc)
-    integer,            intent(in   ) :: IM_World
-    real(R8), intent(inout) :: LonEdge(IM_World+1,IM_World+1,6)
-    real(R8), intent(inout) :: LatEdge(IM_World+1,IM_World+1,6)
-    real(R8), intent(inout), optional :: LonCenter(IM_World,IM_World,6)
-    real(R8), intent(inout), optional :: LatCenter(IM_World,IM_World,6)
-    integer, optional,  intent(out  ) :: rc
-  end subroutine AppCSEdgeCreateF
-end interface
 
 contains
 
@@ -261,7 +258,6 @@ contains
     integer                                 :: status
     character(len=ESMF_MAXSTR), parameter   :: IAm='MAPL_AllocateCouplingFromField'
 
-    type(ESMF_Array)                        :: array
     type(ESMF_FieldStatus_Flag)             :: fieldStatus
 
     integer          :: dims            
@@ -769,7 +765,6 @@ contains
     type(ESMF_FieldBundle)                :: bundle
     type(ESMF_Grid)                       :: GRID
     integer                               :: COUNTS(ESMF_MAXDIM)
-    integer                               :: RANK
     integer                               :: gridRank
     integer                               :: I
     integer                               :: loc
@@ -844,7 +839,6 @@ contains
     type(ESMF_FieldBundle)                :: bundle
     type(ESMF_Grid)                       :: GRID
     integer                               :: COUNTS(ESMF_MAXDIM)
-    integer                               :: RANK
     integer                               :: gridRank
     integer                               :: I
     integer                               :: loc
@@ -902,17 +896,115 @@ contains
     RETURN_(ESMF_SUCCESS)
   end subroutine MAPL_SetPointer3DR4
 
-  subroutine MAPL_DecomposeDim ( dim_world,dim,NDEs )
-      implicit   none
-      integer    dim_world, NDEs
-      integer    dim(0:NDEs-1)
-      integer    n,im,rm,nbeg,nend
-      im = dim_world/NDEs
-      rm = dim_world-NDEs*im
-      do n=0,NDEs-1
-                      dim(n) = im
-      if( n.le.rm-1 ) dim(n) = im+1
-      enddo
+  subroutine MAPL_DecomposeDim ( dim_world,dim,NDEs, unusable, symmetric, min_DE_extent )
+     use MAPL_KeywordEnforcerMod
+
+      integer, intent(in) :: dim_world, NDEs
+      integer, intent(out) :: dim(0:NDEs-1)
+      class (KeywordEnforcer), optional, intent(in) :: unusable
+      logical, intent(in), optional :: symmetric
+      integer, optional, intent(in) :: min_DE_extent
+
+      integer    im,rm
+      logical :: do_symmetric
+      integer :: is,ie,isg,ieg
+      integer :: ndiv,ndivs,imax,ndmax,ndmirror,n
+      integer :: ibegin(0:NDEs-1)
+      integer :: iend(0:NDEs-1)
+      logical :: symmetrize
+      integer :: NDEs_used
+
+      _UNUSED_DUMMY(unusable)
+
+      if (present(symmetric)) then
+         do_symmetric=symmetric
+      else
+         do_symmetric=.false.
+      end if
+
+      if (present(min_DE_extent)) then
+         NDEs_used = dim_world / min_DE_extent
+      else
+         NDEs_used = NDEs
+      end if
+
+      if (do_symmetric) then
+
+         isg = 1
+         ieg = dim_world
+         ndivs = NDEs_used
+
+         is = isg
+         n = 0
+         do ndiv=0,ndivs-1
+            !modified for mirror-symmetry
+            !original line
+            !                 ie = is + CEILING( float(ieg-is+1)/(ndivs-ndiv) ) - 1
+
+            !problem of dividing nx points into n domains maintaining symmetry
+            !i.e nx=18 n=4 4554 and 5445 are solutions but 4455 is not.
+            !this will always work for nx even n even or odd
+            !this will always work for nx odd, n odd
+            !this will never  work for nx odd, n even: for this case we supersede the mirror calculation
+            !                 symmetrize = .NOT. ( mod(ndivs,2).EQ.0 .AND. mod(ieg-isg+1,2).EQ.1 )
+            !nx even n odd fails if n>nx/2
+            symmetrize = ( even(ndivs) .AND. even(ieg-isg+1) ) .OR. &
+                 (  odd(ndivs) .AND.  odd(ieg-isg+1) ) .OR. &
+                 (  odd(ndivs) .AND. even(ieg-isg+1) .AND. ndivs.LT.(ieg-isg+1)/2 )
+
+            !mirror domains are stored in the list and retrieved if required.
+            if( ndiv.EQ.0 )then
+               !initialize max points and max domains
+               imax = ieg
+               ndmax = ndivs
+            end if
+            !do bottom half of decomposition, going over the midpoint for odd ndivs
+            if( ndiv.LT.(ndivs-1)/2+1 )then
+               !domain is sized by dividing remaining points by remaining domains
+               ie = is + CEILING( REAL(imax-is+1)/(ndmax-ndiv) ) - 1
+               ndmirror = (ndivs-1) - ndiv !mirror domain
+               if( ndmirror.GT.ndiv .AND. symmetrize )then !only for domains over the midpoint
+                  !mirror extents, the max(,) is to eliminate overlaps
+                  ibegin(ndmirror) = max( isg+ieg-ie, ie+1 )
+                  iend(ndmirror)   = max( isg+ieg-is, ie+1 )
+                  imax = ibegin(ndmirror) - 1
+                  ndmax = ndmax - 1
+               end if
+            else
+               if( symmetrize )then
+                  !do top half of decomposition by retrieving saved values
+                  is = ibegin(ndiv)
+                  ie = iend(ndiv)
+               else
+                  ie = is + CEILING( REAL(imax-is+1)/(ndmax-ndiv) ) - 1
+               end if
+            end if
+            dim(ndiv) = ie-is+1
+            is = ie + 1
+         end do
+      else
+         im = dim_world/NDEs_used
+         rm = dim_world-NDEs_used*im
+         do n = 0,NDEs_used-1
+            dim(n) = im
+            if( n.le.rm-1 ) dim(n) = im+1
+         enddo
+      end if
+
+      dim(NDEs_used:) = 0
+
+      contains
+
+         logical function even(n)
+            integer, intent(in) :: n
+            even = mod(n,2).EQ.0
+         end function even
+
+         logical function odd(n)
+            integer, intent(in) :: n
+            odd = mod(n,2).EQ.1
+         end function odd
+
   end subroutine MAPL_DecomposeDim
 
   subroutine MAPL_Interp_Fac (TIME0, TIME1, TIME2, FAC1, FAC2, RC)
@@ -1058,11 +1150,15 @@ subroutine MAPL_PackTime(TIME,IYY,IMM,IDD)
   TIME=IYY*10000+IMM*100+IDD
 end subroutine MAPL_PackTime
 
+integer function MAPL_nsecf(nhms)
+   integer, intent(in) :: nhms
+   MAPL_nsecf = nhms/10000*3600 + mod(nhms,10000)/100*60 + mod(nhms,100)
+end function MAPL_nsecf
+   
 subroutine MAPL_tick (nymd,nhms,ndt)
-      integer nymd,nhms,ndt,nsec,nsecf
-      nsecf(nhms) = nhms/10000*3600 + mod(nhms,10000)/100*60 + mod(nhms,100)
+      integer nymd,nhms,ndt,nsec
       IF(NDT.NE.0) THEN
-      NSEC = NSECF(NHMS) + NDT
+      NSEC = MAPL_NSECF(NHMS) + NDT
       IF (NSEC.GT.86400)  THEN
       DO WHILE (NSEC.GT.86400)
       NSEC = NSEC - 86400
@@ -1091,7 +1187,7 @@ logical function MAPL_RTRN(A,iam,line,rc)
    integer, optional, intent(OUT) :: RC
 
      MAPL_RTRN = .true.
-     if(A/=ESMF_SUCCESS)print'(A40,I10)',Iam,line
+     if(A/=ESMF_SUCCESS) print '(A40,I10)',Iam,line
      if(present(RC)) RC=A
 end function MAPL_RTRN
 
@@ -1103,7 +1199,7 @@ logical function MAPL_VRFY(A,iam,line,rc)
      MAPL_VRFY = A/=ESMF_SUCCESS 
      if(MAPL_VRFY)then
        if(present(RC)) then
-         print'(A40,I10)',Iam,line
+         print '(A40,I10)',Iam,line
          RC=A
        endif
      endif
@@ -1117,7 +1213,7 @@ logical function MAPL_ASRT(A,iam,line,rc)
      MAPL_ASRT = .not.A 
      if(MAPL_ASRT)then
        if(present(RC))then
-         print'(A40,I10)',Iam,LINE
+         print '(A40,I10)',Iam,LINE
          RC=ESMF_FAILURE
        endif
      endif
@@ -1131,7 +1227,7 @@ logical function MAPL_RTRNt(A,text,iam,line,rc)
 
      MAPL_RTRNt = .true.
      if(A/=ESMF_SUCCESS)then
-        print'(A40,I10)',Iam,line
+        print '(A40,I10)',Iam,line
         print *, text
      end if
      if(present(RC)) RC=A
@@ -1157,18 +1253,17 @@ logical function MAPL_ASRTt(A,text,iam,line,rc)
 end function MAPL_ASRTT
 
 integer function MAPL_nsecf2 (nhhmmss,nmmdd,nymd)
-      integer nhhmmss,nmmdd,nymd,nhms,nday,month
+      integer nhhmmss,nmmdd,nymd,nday,month
       integer nsday, ncycle,iday,iday2
-      integer nsecf,i,nsegm,nsegd
+      integer i,nsegm,nsegd
       PARAMETER ( NSDAY  = 86400 )
       PARAMETER ( NCYCLE = 1461*24*3600 )
-      INTEGER YEAR, DAY, SEC, YEAR0, DAY0, SEC0
+      INTEGER YEAR, DAY, SEC
       integer    MNDY(12,4), mnd48(48)
       DATA MND48/0,31,60,91,121,152,182,213,244,274,305,335,366,397,34*0 /
 !     DATA MNDY /0,31,60,91,121,152,182,213,244,274,305,335,366,397,34*0 /
       equivalence ( mndy(1,1), mnd48(1) )
-      nsecf(nhms) = nhms/10000*3600 + mod(nhms,10000)/100*60 + mod(nhms,100)
-      MAPL_nsecf2 = nsecf( nhhmmss )
+      MAPL_nsecf2 = MAPL_nsecf( nhhmmss )
       if( nmmdd.eq.0 ) return
       DO 100 I=15,48
 !     MNDY(I,1) = MNDY(I-12,1) + 365
@@ -1179,7 +1274,7 @@ integer function MAPL_nsecf2 (nhhmmss,nmmdd,nymd)
       YEAR   = NYMD / 10000
       MONTH  = MOD(NYMD,10000) / 100
       DAY    = MOD(NYMD,100)
-      SEC    = NSECF(nhhmmss)
+      SEC    = MAPL_NSECF(nhhmmss)
       IDAY   = MNDY( MONTH ,MOD(YEAR ,4)+1 )
       month = month + nsegm
       If( month.gt.12 ) then
@@ -1199,13 +1294,22 @@ integer function MAPL_nhmsf (nsec)
         MAPL_nhmsf =  nsec/3600*10000 + mod(nsec,3600)/60*100 + mod(nsec,60)
 end function MAPL_nhmsf
 
+! A year is a leap year if
+! 1) it is divible by 4, and 
+! 2) it is not divisible by 100, unless
+! 3) it is also divisible by 400.
+logical function MAPL_LEAP(NY)
+   integer, intent(in) :: NY
+
+   MAPL_LEAP = mod(NY,4)==0 .and. (mod(NY,100)/=0 .or. mod(NY,400)==0)
+   
+end function MAPL_LEAP
+
+
 integer function MAPL_incymd (NYMD,M)                                                  
-      integer nymd,ny,nm,nd,m,ny00
+      integer nymd,ny,nm,nd,m
       INTEGER NDPM(12)                                                          
       DATA    NDPM /31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31/             
-      LOGICAL LEAP                                                              
-      DATA    NY00     / 1900 /                                                 
-      LEAP(NY) = MOD(NY,4).EQ.0 .AND. (NY.NE.0 .OR. MOD(NY00,400).EQ.0)         
       NY = NYMD / 10000                                                         
       NM = MOD(NYMD,10000) / 100                                                
       ND = MOD(NYMD,100) + M                                                    
@@ -1216,9 +1320,9 @@ integer function MAPL_incymd (NYMD,M)
           NY = NY - 1                                                           
       ENDIF                                                                     
       ND = NDPM(NM)                                                             
-      IF (NM.EQ.2 .AND. LEAP(NY))  ND = 29                                      
+      IF (NM.EQ.2 .AND. MAPL_LEAP(NY))  ND = 29                                      
       ENDIF                                                                     
-      IF (ND.EQ.29 .AND. NM.EQ.2 .AND. LEAP(NY))  GO TO 20                      
+      IF (ND.EQ.29 .AND. NM.EQ.2 .AND. MAPL_LEAP(NY))  GO TO 20                      
       IF (ND.GT.NDPM(NM)) THEN                                                  
       ND = 1                                                                    
       NM = NM + 1                                                               
@@ -1321,7 +1425,6 @@ real    :: IIR(NT*COUNT), JJR(NT*COUNT)
       character(len=ESMF_MAXSTR),parameter   :: IAm=" MAPL_SetFieldTimeFromField"
       integer                                :: STATUS
 
-      integer                                :: YEAR, MONTH, DAY
       character(len=ESMF_MAXSTR)             :: TIMESTAMP
 
       call ESMF_TimeGet          (TIME,  timeString=TIMESTAMP,             RC=STATUS)
@@ -1343,8 +1446,6 @@ real    :: IIR(NT*COUNT), JJR(NT*COUNT)
       integer                                :: STATUS
 
       type(ESMF_FIELD)                       :: FIELD
-      integer                                :: YEAR, MONTH, DAY
-      character(len=ESMF_MAXSTR)             :: TIMESTAMP
 
       call ESMF_StateGet (STATE, FIELDNAME, FIELD, RC=STATUS )
       VERIFY_(STATUS)
@@ -1366,8 +1467,6 @@ real    :: IIR(NT*COUNT), JJR(NT*COUNT)
       integer                                :: STATUS
 
       type(ESMF_FIELD)                       :: FIELD
-      integer                                :: YEAR, MONTH, DAY
-      character(len=ESMF_MAXSTR)             :: TIMESTAMP
 
       call ESMF_StateGet (STATE, FIELDNAME, FIELD, RC=STATUS)
       VERIFY_(STATUS)
@@ -1391,27 +1490,23 @@ real    :: IIR(NT*COUNT), JJR(NT*COUNT)
 !   and set to true we create a new array and copy the data, not just reference it
 
       type(ESMF_Grid)         :: grid
-      character(len=ESMF_MAXSTR)       :: attname
       character(len=ESMF_MAXSTR)       :: fieldName
       integer, allocatable    :: gridToFieldMap(:)
       integer                 :: gridRank
       integer                 :: fieldRank
       integer                 :: status
       integer                 :: unGridDims
-      integer, allocatable    :: ungriddedLBound(:)
-      integer, allocatable    :: ungriddedUBound(:)
       character(len=ESMF_MAXSTR), parameter :: Iam='MAPL_FieldCreateRename'
       logical                 :: hasUngridDims
       integer                 :: notGridded
       logical                 :: DoCopy_
       type(ESMF_DataCopy_Flag):: datacopy
-      integer                 :: dims
       real, pointer           :: var_1d(:)
       real, pointer           :: var_2d(:,:)
       real, pointer           :: var_3d(:,:,:)
-      real*8, pointer           :: vr8_1d(:)
-      real*8, pointer           :: vr8_2d(:,:)
-      real*8, pointer           :: vr8_3d(:,:,:)
+      real(kind=REAL64), pointer           :: vr8_1d(:)
+      real(kind=REAL64), pointer           :: vr8_2d(:,:)
+      real(kind=REAL64), pointer           :: vr8_3d(:,:,:)
       type(ESMF_TypeKind_Flag)  :: tk
 
       DoCopy_ = .false.
@@ -1524,9 +1619,11 @@ real    :: IIR(NT*COUNT), JJR(NT*COUNT)
       RETURN_(ESMF_SUCCESS)
     end function MAPL_FieldCreateRename
 
-    function MAPL_FieldCreateNewgrid(FIELD, GRID, RC) RESULT(F)
+    function MAPL_FieldCreateNewgrid(FIELD, GRID, LM, NEWNAME, RC) RESULT(F)
       type (ESMF_Field), intent(INOUT) :: FIELD !ALT: intent(IN)
       type (ESMF_Grid),  intent(INout) :: GRID
+      integer, optional, intent(IN   ) :: lm
+      character(len=*), optional, intent(IN) :: newName
       integer, optional, intent(  OUT) :: RC
       type (ESMF_Field)                :: F
 
@@ -1545,7 +1642,7 @@ real    :: IIR(NT*COUNT), JJR(NT*COUNT)
       integer                 :: rank
       integer                 :: newRank
       integer                 :: COUNTS(3)
-      real, pointer           :: VAR_1D(:), VAR_2D(:,:), VAR_3D(:,:,:), VAR_4D(:,:,:,:)
+      real, pointer           :: VAR_2D(:,:), VAR_3D(:,:,:), VAR_4D(:,:,:,:)
       character(len=ESMF_MAXSTR) :: NAME
       integer                 :: status
       integer                 :: DIMS
@@ -1557,6 +1654,7 @@ real    :: IIR(NT*COUNT), JJR(NT*COUNT)
       integer                 :: ungriddedDims
       integer                 :: lb, ub
       integer                 :: lbnds(ESMF_MAXDIM), ubnds(ESMF_MAXDIM)
+      character(len=ESMF_MAXSTR) :: newName_
       character(len=ESMF_MAXSTR), parameter :: Iam='MAPL_FieldCreateNewgrid'
 
       call ESMF_FieldGet(FIELD, grid=fgrid, RC=STATUS)
@@ -1603,25 +1701,36 @@ real    :: IIR(NT*COUNT), JJR(NT*COUNT)
          newRank = rank + 1
       end if
 
+      if (present(newName)) then
+         newName_=newName
+      else
+         newName_=name
+      end if
+
       if (newRank == 2) then
          allocate(VAR_2D(COUNTS(1), COUNTS(2)), STAT=STATUS)
          VERIFY_(STATUS)
          VAR_2D = 0.0
          F = ESMF_FieldCreate(GRID, farrayPtr=VAR_2D, &
               datacopyflag=ESMF_DATACOPY_REFERENCE, &
-              name=NAME, gridToFieldMap=gridToFieldMap, RC=STATUS )
+              name=newName_, gridToFieldMap=gridToFieldMap, RC=STATUS )
          VERIFY_(STATUS)
          DIMS = MAPL_DimsHorzOnly
       else if (newRank == 3) then
 
-         lb = lbnds(griddedDims+1)
-         ub = ubnds(griddedDims+1)
+         if (present(lm)) then
+            lb=1
+            ub=lm
+         else
+            lb = lbnds(griddedDims+1)
+            ub = ubnds(griddedDims+1)
+         end if
          allocate(VAR_3D(COUNTS(1), COUNTS(2), lb:ub), STAT=STATUS)
          VERIFY_(STATUS)
          VAR_3D = 0.0
          F = ESMF_FieldCreate(GRID, farrayPtr=VAR_3D, &
               datacopyflag=ESMF_DATACOPY_REFERENCE, &
-              name=NAME, gridToFieldMap=gridToFieldMap, RC=STATUS )
+              name=newName_, gridToFieldMap=gridToFieldMap, RC=STATUS )
          if (ungriddedDims > 0) then
             DIMS = MAPL_DimsHorzOnly
          else
@@ -1635,7 +1744,7 @@ real    :: IIR(NT*COUNT), JJR(NT*COUNT)
          VAR_4D = 0.0
          F = ESMF_FieldCreate(GRID, VAR_4D, &
               datacopyflag=ESMF_DATACOPY_REFERENCE, &
-              name=NAME, gridToFieldMap=gridToFieldMap, RC=STATUS )
+              name=newName_, gridToFieldMap=gridToFieldMap, RC=STATUS )
          if (ungriddedDims > 0) then
             DIMS = MAPL_DimsHorzOnly
          else
@@ -1924,8 +2033,8 @@ real    :: IIR(NT*COUNT), JJR(NT*COUNT)
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       function MAPL_RemapBounds_3dr8(A, LB1, LB2, LB3) result(ptr)
         integer,      intent(IN) :: LB1, LB2, LB3
-        real*8, target, intent(IN) :: A(LB1:,LB2:,LB3:)
-        real*8, pointer            :: ptr(:,:,:)
+        real(kind=REAL64), target, intent(IN) :: A(LB1:,LB2:,LB3:)
+        real(kind=REAL64), pointer            :: ptr(:,:,:)
 
         ptr => A
       end function MAPL_RemapBounds_3dr8
@@ -2100,11 +2209,11 @@ and so on.
 !   ---------------------------------------
     type(ESMF_Config), pointer :: Config_
     integer           :: IM_World_      
-    real              :: BegLon_
-    real              :: DelLon_ 
+    real*8            :: BegLon_
+    real*8            :: DelLon_ 
     integer           :: JM_World_      
-    real              :: BegLat_
-    real              :: DelLat_
+    real*8            :: BegLat_
+    real*8            :: DelLat_
     integer           :: LM_World_ 
     integer           :: Nx_, Ny_, Nz_
 
@@ -2119,7 +2228,9 @@ and so on.
     real(ESMF_KIND_R8), allocatable :: cornerX(:)
     real(ESMF_KIND_R8), allocatable :: cornerY(:)
 
-    real, parameter                 :: D2R = MAPL_PI / 180.
+    real*8, parameter                 :: D2R = MAPL_PI_R8 / 180
+    real                            :: FirstOut(2)
+    real                            :: LastOut(2)
 
     integer                         :: STATUS
     character(len=ESMF_MAXSTR)      :: IAm='MAPL_LatLonGridCreate'
@@ -2210,14 +2321,14 @@ and so on.
       if ( IM_World_ == 1 ) then
            DelLon_ = 0.0
       else                  
-           DelLon_ = 360. / IM_World_
+           DelLon_ = 360.d0 / IM_World_
       end if
    end if
    if ( DelLat_ < 0.0 ) then  ! convention for global grids
       if ( JM_World_ == 1 ) then
            DelLat_ = 0.0
       else                  
-           DelLat_ = 180. / ( JM_World_ - 1)
+           DelLat_ = 180.d0 / ( JM_World_ - 1)
       end if
    end if
 
@@ -2256,8 +2367,7 @@ and so on.
                name=Name,                     &
                countsPerDEDim1=IMs,           &
                countsPerDEDim2=JMs,           &
-               indexFlag = ESMF_INDEX_USER,   &
-               gridMemLBound = (/1,1/),       &
+               indexFlag = ESMF_INDEX_DELOCAL,&
                gridEdgeLWidth = (/0,0/),      &
                gridEdgeUWidth = (/0,0/),      &
                coordDep1 = (/1,2/),           &
@@ -2308,20 +2418,20 @@ and so on.
 !  -------------------------------------------------------------------------
    deltaX      = D2R * DelLon_
    deltaY      = D2R * DelLat_
-   minCoord(1) = D2R * BegLon_ - deltaX/2 
+   minCoord(1) = D2R * BegLon_ - deltaX/2
    minCoord(2) = D2R * BegLat_ - deltaY/2 
 
    allocate(cornerX(IM_World_+1),cornerY(JM_World_+1), stat=STATUS)
    VERIFY_(STATUS)
-   
+
    cornerX(1) = minCoord(1)
    do i = 1,IM_World_
-      cornerX(i+1) = cornerX(i) + deltaX
+      cornerX(i+1) = cornerX(1) + deltaX * i
    enddo
    
    cornerY(1) = minCoord(2)
    do j = 1,JM_World_
-      cornerY(j+1) = cornerY(j) + deltaY
+      cornerY(j+1) = cornerY(1) + deltaY * j
    enddo
    
 !  Retrieve the coordinates so we can set them
@@ -2335,17 +2445,34 @@ and so on.
                            staggerloc=ESMF_STAGGERLOC_CENTER, &
                            farrayPtr=centerY, rc=status)
    VERIFY_(STATUS)
-   
-   call MAPL_GridGetInterior (Grid,i1,in,j1,jn)
-   
-   do i = 1,size(centerX,1)
-      centerX(i,:) = 0.5d0*(cornerX(i+i1-1)+cornerX(i+i1))
-   end do
-   
-   do j = 1,size(centerY,2)
-      centerY(:,j) = 0.5d0*(cornerY(j+j1-1)+cornerY(j+j1))
-   enddo
-   
+
+   FirstOut(1)=BegLon_
+   FirstOut(2)=-90.
+   LastOut(1)=360.+BegLon_ - 360./im_world_
+   LastOut(2)=90. 
+
+   block
+     use MAPL_ConstantsMod, only: MAPL_DEGREES_TO_RADIANS
+     real(kind=REAL64), allocatable :: lons(:)
+     real(kind=REAL64), allocatable :: lats(:)
+     
+     lons = MAPL_Range(FirstOut(1), LastOut(1), im_world_, &
+          & conversion_factor=MAPL_DEGREES_TO_RADIANS)
+     lats = MAPL_Range(FirstOut(2), LastOut(2), JM_WORLD, &
+          & conversion_factor=MAPL_DEGREES_TO_RADIANS)
+     
+     call MAPL_GRID_INTERIOR(grid, i1, in, j1, jn)
+     
+     do i = 1,size(centerX,1)
+        centerX(I,:) = lons(i1+i-1)
+     end do
+     
+     do j = 1,size(centerY,2)
+        centerY(:,J) = lats(j1+j-1)
+     enddo
+
+   end block
+     
    
 !  Make sure we've got it right
 !  ----------------------------
@@ -2365,26 +2492,117 @@ and so on.
 
    Contains
 
-     Subroutine parseConfig_()
+     subroutine parseConfig_()
 !
 !    Internal routine to parse the ESMF_Config.
 !
        STATUS = 200     ! not implemented yet
        VERIFY_(STATUS)
 
-     end Subroutine parseConfig_
+    end Subroutine parseConfig_
 
-   end function MAPL_LatLonGridCreate
+ end function MAPL_LatLonGridCreate
 
 !............................................................................
 
-  subroutine MAPL_GridGet(GRID, globalCellCountPerDim, localCellCountPerDim, &
-       gridCornerLons, gridCornerLats, RC)
+ subroutine MAPL_GRID_INTERIOR(GRID,I1,IN,J1,JN)
+    type (ESMF_Grid), intent(IN) :: grid
+    integer, intent(OUT)         :: I1, IN, J1, JN
+
+    ! local vars
+    integer                               :: status
+    !    character(len=ESMF_MAXSTR)            :: IAm='MAPL_Grid_Interior'
+
+    type (ESMF_DistGrid)                  :: distGrid
+    type(ESMF_DELayout)                   :: LAYOUT
+    integer,               allocatable    :: AL(:,:)
+    integer,               allocatable    :: AU(:,:)
+    integer                               :: nDEs
+    integer                               :: deId
+    integer                               :: gridRank
+    integer                               :: deList(1)
+
+    call ESMF_GridGet    (GRID, dimCount=gridRank, distGrid=distGrid, rc=STATUS)
+    call ESMF_DistGridGet(distGRID, delayout=layout, rc=STATUS)
+    call ESMF_DELayoutGet(layout, deCount =nDEs, localDeList=deList, rc=status)
+    deId = deList(1)
+
+    allocate (AL(gridRank,0:nDEs-1),  stat=status)
+    allocate (AU(gridRank,0:nDEs-1),  stat=status)
+
+    call MAPl_DistGridGet(distgrid, &
+         minIndex=AL, maxIndex=AU, rc=status)
+
+    I1 = AL(1, deId)
+    IN = AU(1, deId)
+    !    ASSERT_(gridRank > 1) !ALT: tilegrid is 1d (without RC this only for info)
+    J1 = AL(2, deId)
+    JN = AU(2, deId)
+    deallocate(AU, AL)
+
+ end subroutine MAPL_GRID_INTERIOR
+
+ subroutine MAPL_GridGetCorners(grid,gridCornerLons, gridCornerLats, RC)
+      type (ESMF_Grid), intent(INOUT) :: GRID
+      real(ESMF_KIND_R8), intent(INOUT) :: gridCornerLons(:,:)
+      real(ESMF_KIND_R8), intent(INOUT) :: gridCornerLats(:,:)
+      integer, optional, intent(  OUT) :: RC
+      integer :: status
+      character(len=ESMF_MAXSTR) :: Iam="MAPL_GridGetCorners"
+
+      type(ESMF_RouteHandle) :: rh
+      type(ESMF_Field) :: field
+      integer :: counts(3)
+      real(ESMF_KIND_R8), pointer :: ptr(:,:)
+      real(ESMF_KIND_R8), pointer :: corner(:,:)
+      integer :: im,jm,imc,jmc
+
+      call MAPL_GridGet(grid,localCellCountPerDim=counts,rc=status)
+      VERIFY_(status)
+      im=counts(1)
+      jm=counts(2)
+
+      call ESMF_GridGetCoord(grid,localDE=0,coordDim=1,staggerloc=ESMF_STAGGERLOC_CORNER, &
+                              farrayPtr=corner, rc=status)
+      imc=size(corner,1)
+      jmc=size(corner,2)
+      allocate(ptr(0:imc+1,0:jmc+1),source=0.0d0,stat=status)
+      VERIFY_(status)
+      field = ESMF_FieldCreate(grid,ptr,staggerLoc=ESMF_STAGGERLOC_CORNER,totalLWidth=[1,1],totalUWidth=[1,1],rc=status)
+      VERIFY_(status)
+      call ESMF_FieldHaloStore(field,rh,rc=status)
+      VERIFY_(status)
+
+      ptr(1:imc,1:jmc)=corner
+      call ESMF_FieldHalo(field,rh,rc=status)
+      VERIFY_(status)
+      gridCornerLons=ptr(1:im+1,1:jm+1)
+
+      !lats
+      call ESMF_GridGetCoord(grid,localDE=0,coordDim=2,staggerloc=ESMF_STAGGERLOC_CORNER, &
+                              farrayPtr=corner, rc=status)
+      VERIFY_(status)
+      ptr(1:imc,1:jmc)=corner
+      call ESMF_FieldHalo(field,rh,rc=status)
+      VERIFY_(status)
+      gridCornerLats=ptr(1:im+1,1:jm+1)
+      
+      deallocate(ptr)
+      call ESMF_FieldDestroy(field,rc=status) 
+      VERIFY_(status)
+      call ESMF_FieldHaloRelease(rh,rc=status)
+      VERIFY_(status)
+
+      RETURN_(ESMF_SUCCESS)
+
+   end subroutine MAPL_GridGetCorners
+
+!............................................................................
+
+  subroutine MAPL_GridGet(GRID, globalCellCountPerDim, localCellCountPerDim, RC)
       type (ESMF_Grid), intent(INOUT) :: GRID
       integer, optional, intent(INout) :: globalCellCountPerDim(:)
       integer, optional, intent(INout) :: localCellCountPerDim(:)
-      real(ESMF_KIND_R8), optional, intent(INOUT) :: gridCornerLons(:,:)
-      real(ESMF_KIND_R8), optional, intent(INOUT) :: gridCornerLats(:,:)
       integer, optional, intent(  OUT) :: RC
 
 ! local vars
@@ -2397,61 +2615,6 @@ and so on.
       integer :: UNGRID
       integer :: sz
       logical :: plocal, pglobal, lxtradim
-      integer :: count, i, j, idx
-      real(ESMF_KIND_R8), allocatable :: r8ptr(:)
-
-! get the corners:
-      if (present(gridCornerLons)) then
-         call ESMF_AttributeGet(grid,  NAME='GridCornerLons:', &
-              itemcount=count, RC=STATUS)
-         VERIFY_(STATUS)
-
-! Sanity check: amount of data must agree
-         ASSERT_(size(gridCornerLons,1)*size(gridCornerLons,2)==count)
-
-         allocate(r8ptr(count), stat=status)
-         VERIFY_(STATUS)
-         call ESMF_AttributeGet(grid,  NAME='GridCornerLons:', &
-              VALUELIST=r8ptr, RC=STATUS)
-         VERIFY_(STATUS)
-
-         idx = 0
-         do j = 1, size(gridCornerLons,2)
-            do i = 1, size(gridCornerLons,1)
-               idx = idx+1
-               gridCornerLons(i,j) = r8ptr(idx)
-            end do
-         end do
-
-         deallocate(r8ptr, stat=status)      
-         VERIFY_(STATUS)
-      end if
-
-      if (present(gridCornerLats)) then
-         call ESMF_AttributeGet(grid,  NAME='GridCornerLats:', &
-              itemcount=count, RC=STATUS)
-         VERIFY_(STATUS)
-
-! Sanity check: amount of data must agree
-         ASSERT_(size(gridCornerLats,1)*size(gridCornerLats,2)==count)
-
-         allocate(r8ptr(count), stat=status)
-         VERIFY_(STATUS)
-         call ESMF_AttributeGet(grid,  NAME='GridCornerLats:', &
-              VALUELIST=r8ptr, RC=STATUS)
-         VERIFY_(STATUS)
-
-         idx = 0
-         do j = 1, size(gridCornerLats,2)
-            do i = 1, size(gridCornerLats,1)
-               idx = idx+1
-               gridCornerLats(i,j) = r8ptr(idx)
-            end do
-         end do
-
-         deallocate(r8ptr, stat=status)      
-         VERIFY_(STATUS)
-      end if
 
       pglobal = present(globalCellCountPerDim)
       plocal  = present(localCellCountPerDim)
@@ -2490,6 +2653,13 @@ and so on.
          sz = min(gridRank, ESMF_MAXDIM, size(globalCellCountPerDim)) 
          globalCellCountPerDim(1:sz) = maxcounts(1:sz)-mincounts(1:sz)+1
 
+         ! kludge for new cube sphere from ESMF
+         if (globalCellCountPerDim(1)==globalCellCountPerDim(2)) then
+            if (globalCellCountPerDim(1) /= 1) then ! kludge-on-the-kludge for Single-Column case
+               globalCellCountPerDim(2)=globalCellCountPerDim(2)*6
+            end if
+         end if
+
          if (lxtradim ) then
             globalCellCountPerDim(gridRank+1) = UNGRID
          end if
@@ -2522,7 +2692,7 @@ and so on.
 
 ! local vars
     integer                               :: status
-    character(len=ESMF_MAXSTR)            :: IAm='MAPL_GridGetInterior'
+!    character(len=ESMF_MAXSTR)            :: IAm='MAPL_GridGetInterior'
 
     type (ESMF_DistGrid)                  :: distGrid
     type(ESMF_DELayout)                   :: LAYOUT
@@ -2541,8 +2711,8 @@ and so on.
     allocate (AL(gridRank,0:nDEs-1),  stat=status)
     allocate (AU(gridRank,0:nDEs-1),  stat=status)
 
-    call ESMF_DistGridGet(distgrid, &
-         minIndexPDe=AL, maxIndexPDe=AU, rc=status)
+    call MAPL_DistGridGet(distgrid, &
+         minIndex=AL, maxIndex=AU, rc=status)
 
     I1 = AL(1, deId)
     IN = AU(1, deId)
@@ -2640,15 +2810,19 @@ and so on.
     
     integer              :: nx, ny, nx0, ny0, nde, k
     integer, allocatable :: Im0(:), Jm0(:)
-    
+    integer              :: minI,minJ ! in case the starting index is zero    
     integer              :: status
     character*(14)       :: Iam="MAPL_GetImsJms"
     
     ASSERT_(.not.associated(Ims))
     ASSERT_(.not.associated(Jms))
     
-    nx = count(Jmins==1)
-    ny = count(Imins==1)
+!   The original minI and minJ are assumed to be 1
+!   The index of EASE grid  is starting from 0
+    minI = minval(Imins,DIM=1)
+    minJ = minval(Jmins,DIM=1)
+    nx = count(Jmins==minJ)
+    ny = count(Imins==minI)
     
     allocate(Ims(nx),Jms(ny), stat=STATUS)
     VERIFY_(STATUS)
@@ -2661,7 +2835,7 @@ and so on.
     ny0 = 1
     
     do k=1,nde
-       if(Imins(k)==1) then
+       if(Imins(k)==minI) then
           Jms(ny0) = Jmaxs(k)-Jmins(k) + 1
           Jm0(ny0) = Jmins(k)
           if(ny0==ny) then
@@ -2673,7 +2847,7 @@ and so on.
     end do
     
     do k=1,nde
-       if(Jmins(k)==1) then
+       if(Jmins(k)==minJ) then
           Ims(nx0) = Imaxs(k)-Imins(k) + 1
           Im0(nx0) = Imins(k)
           if(nx0==nx) then
@@ -2911,7 +3085,7 @@ and so on.
     character(len=ESMF_MAXSTR), allocatable :: currList(:)
     character(len=ESMF_MAXSTR), allocatable :: thisList(:)
     integer                                 :: natt
-    integer                                 :: i, na
+    integer                                 :: na
     type(ESMF_Field)                        :: Fields(1)
 
 
@@ -2976,7 +3150,7 @@ and so on.
     character(len=ESMF_MAXSTR), allocatable :: currList(:)
     character(len=ESMF_MAXSTR), allocatable :: thisList(:)
     integer                                 :: natt
-    integer                                 :: i, na
+    integer                                 :: na
     type(ESMF_FieldBundle)                  :: Bundles(1)
 
     bundles(1) = bundle
@@ -3035,7 +3209,7 @@ and so on.
     character(len=ESMF_MAXSTR), allocatable :: currList(:)
     character(len=ESMF_MAXSTR), allocatable :: thisList(:)
     integer                                 :: natt
-    integer                                 :: i, na
+    integer                                 :: na
     type(ESMF_Field)                        :: Fields(1)
 
 
@@ -3094,7 +3268,6 @@ and so on.
     character(len=ESMF_MAXSTR)              :: name
     character(len=ESMF_MAXSTR), allocatable :: currList(:)
     integer                                 :: natt
-    integer                                 :: i, na
 
 
 ! check for attribute
@@ -3121,7 +3294,8 @@ and so on.
 !  !IROUTINE: MAPL_GetHorzIJIndex -- Get indexes on destributed ESMF grid for an arbitary lat and lon
 
 !  !INTERFACE:
-  subroutine MAPL_GetHorzIJIndex(npts,II,JJ,lon,lat,lonR8,latR8,Grid,IMGlob,JMGlob,CenterLons,CenterLats,rc)
+  subroutine MAPL_GetHorzIJIndex(npts,II,JJ,lon,lat,lonR8,latR8,Grid,IMGlob,JMGlob, &
+          & EdgeLons, EdgeLats, rc)
      implicit none
      !ARGUMENTS:
      integer,                      intent(in   ) :: npts ! number of points in lat and lon arrays
@@ -3134,8 +3308,8 @@ and so on.
      type(ESMF_Grid),    optional, intent(inout) :: Grid ! ESMF grid
      integer,            optional, intent(in   ) :: IMGlob
      integer,            optional, intent(in   ) :: JMGlob
-     real(ESMF_KIND_R8), optional, intent(inout) :: CenterLons(:,:) ! array of longitudes in radians
-     real(ESMF_KIND_R8), optional, intent(inout) :: CenterLats(:,:) ! array of latitudes in radians
+     real(ESMF_KIND_R8), optional, intent(inout) :: EdgeLons(:,:,:) ! array of longitudes in radians on _all_ 6 faces
+     real(ESMF_KIND_R8), optional, intent(inout) :: EdgeLats(:,:,:) ! array of latitudes in radians on _all_ 6 faces
      integer,            optional, intent(out  ) :: rc  ! return code
   
      !DESCRIPTION
@@ -3161,8 +3335,8 @@ and so on.
      real(ESMF_KIND_R8), allocatable :: ey(:)
      real(ESMF_KIND_R8), allocatable :: EdgeX(:,:)
      real(ESMF_KIND_R8), allocatable :: EdgeY(:,:)
-     real(ESMF_KIND_R8), allocatable :: EdgeLats(:,:,:)
-     real(ESMF_KIND_R8), allocatable :: EdgeLons(:,:,:)
+     real(ESMF_KIND_R8), allocatable :: EdgeLats_(:,:,:)
+     real(ESMF_KIND_R8), allocatable :: EdgeLons_(:,:,:)
      real                    :: lonloc,latloc,x_loc,y_loc
      logical                 :: isCubed, switch
      integer                 :: face_pnt,face,imp1,jmp1,itmp
@@ -3170,6 +3344,7 @@ and so on.
      real(kind=8), parameter :: PI_R8     = 3.14159265358979323846
      logical                 :: localSearch
      integer                 :: fStart,fEnd
+
 
      ! if the grid is present then we can just get the prestored edges and the dimensions of the grid
      ! this also means we are running on a distributed grid
@@ -3203,27 +3378,21 @@ and so on.
      jj = -1
      if (isCubed) then
         if (localSearch) then
-           allocate(EdgeLats(IM+1,JM+1,1),stat=status)
+           allocate(EdgeLats_(IM+1,JM+1,1),stat=status)
            VERIFY_(STATUS)
-           allocate(EdgeLons(IM+1,JM+1,1),stat=status)
+           allocate(EdgeLons_(IM+1,JM+1,1),stat=status)
            VERIFY_(STATUS)
-           call MAPL_GridGet(Grid,gridCornerLons=EdgeLons(:,:,1),gridCornerLats=EdgeLats(:,:,1),rc=status)
-           VERIFY_(STATUS)
-           allocate(EdgeX(IM+1,JM+1),stat=status)
-           VERIFY_(STATUS)
-           allocate(EdgeY(IM+1,JM+1),stat=status)
+           call MAPL_GridGetCorners(Grid,EdgeLons_(:,:,1),EdgeLats_(:,:,1),rc=status)
            VERIFY_(STATUS)
         else
-           allocate(EdgeLats(IM+1,IM+1,6),stat=status)
-           VERIFY_(STATUS)
-           allocate(EdgeLons(IM+1,IM+1,6),stat=status)
-           VERIFY_(STATUS)
-           call AppCSEdgeCreateF(IM_World, EdgeLons, EdgeLats, rc=status)
-           allocate(EdgeX(IM+1,IM+1),stat=status)
-           VERIFY_(STATUS)
-           allocate(EdgeY(IM+1,IM+1),stat=status)
-           VERIFY_(STATUS)
+           ASSERT_(present(EdgeLats) .and. present(EdgeLons))
+           EdgeLats_ = EdgeLats
+           EdgeLons_ = EdgeLons
         end if
+        allocate(EdgeX(IM+1,JM+1),stat=status)
+        VERIFY_(STATUS)
+        allocate(EdgeY(IM+1,JM+1),stat=status)
+        VERIFY_(STATUS)
 
         if (localSearch) then
            fStart = 1
@@ -3235,13 +3404,13 @@ and so on.
 
         do j = fStart, fEnd
            if (localSearch) then
-              call check_face(IM+1,JM+1,EdgeLons(:,:,1),EdgeLats(:,:,1),FACE)
+              call check_face(IM+1,JM+1,EdgeLons_(:,:,1),EdgeLats_(:,:,1),FACE)
               ASSERT_(FACE > 0 .and. FACE <= 6)
-              call cube_xy(IM+1,JM+1,EdgeX,EdgeY,EdgeLons(:,:,j),EdgeLats(:,:,j),face)
+              call cube_xy(IM+1,JM+1,EdgeX,EdgeY,EdgeLons_(:,:,j),EdgeLats_(:,:,j),face)
            else
-              call check_face(IM+1,JM+1,EdgeLons(:,:,j),EdgeLats(:,:,j),FACE)
+              call check_face(IM+1,JM+1,EdgeLons_(:,:,j),EdgeLats_(:,:,j),FACE)
               ASSERT_(FACE > 0 .and. FACE <= 6)
-              call cube_xy(IM+1,JM+1,EdgeX,EdgeY,EdgeLons(:,:,j),EdgeLats(:,:,j),face)
+              call cube_xy(IM+1,JM+1,EdgeX,EdgeY,EdgeLons_(:,:,j),EdgeLats_(:,:,j),face)
            end if
            switch = .false.
            if (abs(EdgeX(1,1)-EdgeX(2,1)) < 0.0001) switch = .true.
@@ -3301,8 +3470,8 @@ and so on.
 
         deallocate(EdgeY)
         deallocate(EdgeX)
-        deallocate(EdgeLats)
-        deallocate(EdgeLons)
+        deallocate(EdgeLats_)
+        deallocate(EdgeLons_)
      else
         if (localSearch) then
            call ESMF_GridGetCoord(grid,coordDim=1, localDe=0, &
@@ -3642,26 +3811,13 @@ and so on.
        dateline='UU' ! Undefined
        pole='UU'     ! Undefined
        if (present(LON) .and. present(LAT)) then
-          ! There are two ways that a half-polar grid could be specified
-          ! Either the grid center is specified as being at the pole, or it is
-          ! specified accurately. If the location of the first grid center is
-          ! correctly specified then the grid will fail both of the following
-          ! tests, because the grid spacing is not correctly captured by
-          ! LAT(2) - LAT(1). That can be rectified by this change.
-          !==============================================================
-          !if(abs(LAT(1) + 90.0) < eps) then
-          !   pole='PC'
-          !else if (abs(LAT(1) + 90.0 - 0.5*(LAT(2)-LAT(1))) < eps) then
-          !   pole='PE'
-          !end if
-          !==============================================================
+
           dlat = LAT(4) - LAT(3)
           if ((abs(LAT(1) + 90.0) < eps).or.(abs(LAT(1) + 90.0 - 0.25*dLat) < eps)) then
              pole='PC'
           else if (abs(LAT(1) + 90.0 - 0.5*dLat) < eps) then
              pole='PE'
           end if
-          !==============================================================
           do I=0,1
              if(abs(LON(1) + 180.0*I) < eps) then
                 dateline='DC'
@@ -3916,6 +4072,95 @@ and so on.
   RETURN_(ESMF_SUCCESS)
 
   end function MAPL_BundleCreate
+
+  subroutine MAPL_DistGridGet(distGrid,minIndex,maxIndex,rc)
+
+     type(ESMF_DistGrid), intent(inout) :: distGrid
+     integer,             intent(inout) :: MinIndex(:,:)
+     integer,             intent(inout) :: MaxIndex(:,:)
+     integer, optional,   intent(out  ) :: rc
+
+     integer :: status
+     character(len=ESMF_MAXSTR) :: Iam
+
+     integer :: i,tileSize,tileCount,tile,deCount
+     logical :: ESMFCubeSphere
+     integer, allocatable :: elementCountPTile(:)
+     integer, allocatable :: deToTileMap(:)
+     integer, allocatable :: oldMinIndex(:,:),oldMaxIndex(:,:)
+
+     Iam = "MAPL_DistGridGet"
+
+     ESMFCubeSphere = .false.
+
+     call ESMF_DistGridGet(distGrid,tileCount=tileCount,rc=status)
+     VERIFY_(STATUS)
+
+     if (tileCount==6) ESMFCubeSphere = .true.
+
+     if (ESMFCubeSphere) then
+        allocate(elementCountPTile(tileCount),stat=status)
+        VERIFY_(STATUS)
+        call ESMF_DistGridGet(distGrid,elementCountPTile=elementCountPTile,rc=status)
+        VERIFY_(STATUS)
+        ! All tile should have same number of elements
+        tileSize = elementCountPTile(1)
+        tileSize = SQRT(real(tileSize))
+        deallocate(elementCountPTile)
+
+        deCount = size(minIndex,2)
+
+        allocate(deToTileMap(deCount),stat=status)
+        VERIFY_(STATUS)
+        allocate(oldMinIndex(2,deCount),oldMaxIndex(2,deCount),stat=status)
+        VERIFY_(STATUS)
+        call ESMF_DistGridGet(distGrid,MaxIndexPDe=oldMaxIndex,MinIndexPDe=oldMinIndex, &
+                              deToTileMap=deToTileMap,rc=status)
+        VERIFY_(STATUS)
+        do i=1,deCount
+           tile = deToTileMap(i)
+           select case (tile)
+              case (1)
+                 minIndex(:,i)=oldMinIndex(:,i)
+                 maxIndex(:,i)=oldMaxIndex(:,i)
+              case (2)
+                 minIndex(1,i)=oldMinIndex(1,i) -  tileSize
+                 minIndex(2,i)=oldMinIndex(2,i) +  tileSize
+                 maxIndex(1,i)=oldMaxIndex(1,i) -  tileSize
+                 maxIndex(2,i)=oldMaxIndex(2,i) +  tileSize
+              case (3)
+                 minIndex(1,i)=oldMinIndex(1,i) -  tileSize
+                 minIndex(2,i)=oldMinIndex(2,i) +  tileSize
+                 maxIndex(1,i)=oldMaxIndex(1,i) -  tileSize
+                 maxIndex(2,i)=oldMaxIndex(2,i) +  tileSize
+              case (4)
+                 minIndex(1,i)=oldMinIndex(1,i) -2*tileSize
+                 minIndex(2,i)=oldMinIndex(2,i) +2*tileSize
+                 maxIndex(1,i)=oldMaxIndex(1,i) -2*tileSize
+                 maxIndex(2,i)=oldMaxIndex(2,i) +2*tileSize
+              case (5)
+                 minIndex(1,i)=oldMinIndex(1,i) -2*tileSize
+                 minIndex(2,i)=oldMinIndex(2,i) +2*tileSize
+                 maxIndex(1,i)=oldMaxIndex(1,i) -2*tileSize
+                 maxIndex(2,i)=oldMaxIndex(2,i) +2*tileSize
+              case (6)
+                 minIndex(1,i)=oldMinIndex(1,i) -3*tileSize
+                 minIndex(2,i)=oldMinIndex(2,i) +3*tileSize
+                 maxIndex(1,i)=oldMaxIndex(1,i) -3*tileSize
+                 maxIndex(2,i)=oldMaxIndex(2,i) +3*tileSize
+           end select
+        enddo
+        deallocate(deToTileMap)
+        deallocate(oldMaxIndex,oldMinIndex)
+
+     else
+
+        call ESMF_DistGridGet(distGrid,minIndexPDe=minIndex,maxIndexPDe=maxIndex,rc=status)
+        VERIFY_(STATUS)
+
+     end if
+
+ end subroutine MAPL_DistGridGet
 
 end module MAPL_BaseMod
 
