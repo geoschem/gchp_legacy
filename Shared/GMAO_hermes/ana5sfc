@@ -1,4 +1,4 @@
-#!@DASPERL
+#!/usr/bin/env perl
 ########################################################################
 #
 #  Name: ana5sfc
@@ -40,6 +40,7 @@
 #  !REVISION HISTORY:
 #
 #   16Sep2005  Stassi   Initial version of code.
+#   17Apr2018  Todling  Invoke proper sfc grid (default g5).
 #
 ########################################################################
 
@@ -58,6 +59,7 @@ my ( $hour, $time, $ctlflg, $cleanflg );
 my ( $anaETA, $bkgETA, $bkgSFC, $anaSFC );
 my ( $anaSFCave, $yyyymm, $expID );
 my ( $ldir, $rmach, $rddir );
+my ( $sfc_grid );
 my @hours;
 my @infiles;
 
@@ -118,8 +120,8 @@ if ( $ctlflg ne "mean" ) {       #*** either -hour or -month ****
                     system "scp $rmach:$rddir/{$anaETA,$bkgETA,$bkgSFC} \.";
                 }
 
-                print "$ana5sfcX $anaETA $bkgETA $bkgSFC -o $anaSFC\n";
-                system "$ana5sfcX $anaETA $bkgETA $bkgSFC -o $anaSFC";
+                print "$ana5sfcX $sfc_grid $anaETA $bkgETA $bkgSFC -o $anaSFC\n";
+                system "$ana5sfcX $sfc_grid $anaETA $bkgETA $bkgSFC -o $anaSFC";
                 print "  output -> $anaSFC\n";
 
             } else {
@@ -134,8 +136,8 @@ if ( $ctlflg ne "mean" ) {       #*** either -hour or -month ****
                     system "scp $rmach:$rddir/{$bkgETA,$bkgSFC} \.";
                 }
 
-                print "$ana5sfcX $bkgETA $bkgETA $bkgSFC -o $anaSFC\n";
-                system "$ana5sfcX $bkgETA $bkgETA $bkgSFC -o $anaSFC";
+                print "$ana5sfcX $sfc_grid $bkgETA $bkgETA $bkgSFC -o $anaSFC\n";
+                system "$ana5sfcX $sfc_grid $bkgETA $bkgETA $bkgSFC -o $anaSFC";
                 print "  output -> $anaSFC\n";
             }
         }
@@ -187,6 +189,9 @@ sub init {
     if ($opt_mean)  {$ctlflg = "mean"};
     if ($opt_month) {$ctlflg = "month"};
     if ($opt_clean) {$cleanflg = 1};
+
+    $sfc_grid = "-g5";
+    if ($opt_merra) {$sfc_grid = ""};
 
     #---------------------------------#
     # extract data directory location #

@@ -1,3 +1,4 @@
+#include "unused_dummy.H"
 !---------------------------------------------------------------------------
 ! NASA/GSFC, Global Modeling and Assimilation Office, Code 900.3, GEOS/DAS !
 !---------------------------------------------------------------------------
@@ -97,28 +98,24 @@
 
       integer im, jm, km, lm
       integer in, jn, kn, ln
-      integer k,ierr
+      integer k
       logical verb, phis_flag, ts_flag, adm_flag
 
 ! Declare pointers
 ! ----------------
                                            ! input fields
-      real, pointer ::  lwim(:,:)          !   land-water-ice mask
       real, pointer :: phism(:,:)          !   surface geopotential
       real, pointer ::   hsm(:,:)          !   topography height stdv
       real, pointer ::   tsm(:,:)          !   sea surface temperature
-      real, pointer ::   psm(:,:)          !   surface pressure
       real, pointer ::    um(:,:,:)        !   zonal wind on D-grid
       real, pointer ::    vm(:,:,:)        !   meridional wind
       real, pointer ::   ptm(:,:,:)        !   scaled potential temperature
       real, pointer ::    qm(:,:,:,:)      !   specific humidity & mixing ratios
       real, pointer :: delpm(:,:,:)        !   pressure thickness
                                            ! output fields
-      real, pointer ::  lwin(:,:)          !   land-water-ice mask
       real, pointer :: phisn(:,:)          !   surface geopotential
       real, pointer ::   hsn(:,:)          !   topography height stdv
       real, pointer ::   tsn(:,:)          !   sea surface temperature
-      real, pointer ::   psn(:,:)          !   surface pressure
       real, pointer ::    un(:,:,:)        !   zonal wind on D-grid
       real, pointer ::    vn(:,:,:)        !   meridional wind
       real, pointer ::   ptn(:,:,:)        !   scaled potential temperature
@@ -126,6 +123,8 @@
       real, pointer :: delpn(:,:,:)        !   pressure thickness
 
 ! -------------------------------------------
+      _UNUSED_DUMMY(lwifile)
+
       verb = .false.
       if (present(verbose)) verb = verbose 
       phis_flag = .false.
@@ -293,9 +292,7 @@
       real, optional ::   hsn(in,jn)  !   topography height stdv
       real, optional ::   tsn(in,jn)  !   sea surface temperature
 
-
-      integer nymd, nhms, nstep
-      real pmax, pmin, mean
+      real pmax, pmin
 
       real dx1, dx2
       real dy1, dy2
@@ -308,14 +305,10 @@
       real sin2(jn+1)
 
       integer i, j
-      integer ks
-      real pint, ptop
-      real ak(km+1), bk(km+1)
-      integer ic
       real dl, dp
       real cosp(jm), cose(jm), sine(jm), sinp(jm)
       real sinlon(im), coslon(im), cosl5(im), sinl5(im)
-      integer imh, k
+      integer imh
       logical verb
       double precision pi, zamda, zam5
 

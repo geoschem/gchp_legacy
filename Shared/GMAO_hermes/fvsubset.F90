@@ -80,7 +80,6 @@
       integer       :: incTime      ! time increment of output
       integer       :: curTime=0    ! current time
       integer       :: preTime      ! previous time
-      integer       :: curDaye      ! current date
       logical       :: timeInterp
 
       integer iff                              ! file counter
@@ -88,7 +87,6 @@
       integer iv                               ! variable counter
       integer itest, ii, isp, i, j, k               
       integer          :: in_fmode = 1         ! non-zero for READ-ONLY
-      integer          :: out_fmode = 0        ! 0 for READ-WRITE 
       integer          :: fid1                 ! input file ID
       integer          :: fid2                 ! input file ID
       integer          :: out_fid              ! output file ID
@@ -111,7 +109,6 @@
       character(len=255) :: cvsFile            ! CVS file name containing CVS version
       character(len=255) :: cvsV               ! CVS version
       integer            :: cvsV_yes=0
-      real               :: missing_val
       character(len=255) :: vtitle(mVars)      ! output title
       character(len=255) :: vunits(mVars)      ! output title
       character(len=255) :: vName(mVars)       ! output variable names (nVars)
@@ -153,7 +150,7 @@
 
 !  Get user input
 !  --------------
-   call  Init_ ( mFiles, nFiles, inFiles, outFile, cvsFile,          &
+   call  Init_ ( nFiles, inFiles, outFile, cvsFile,          &
                  km, levNums, nLevs, Levs, mVars, nVars, outVars,    &
                  inVars, begDate, begTime, incTime, xWest, outPrec) 
    if (len(trim(cvsFile)) .ge. 1 ) then
@@ -535,7 +532,7 @@ CONTAINS
 ! 
 ! !INTERFACE:
 !
-   subroutine Init_ ( mFiles, nFiles, inFiles, outFile, cvsFile,         &
+   subroutine Init_ ( nFiles, inFiles, outFile, cvsFile,         &
                       km, levNums, nLevs, Levs, mVars, nVars, outVars,   &
                       inVars, begDate, begTime, incTime, xWest, outPrec) 
 
@@ -548,8 +545,6 @@ CONTAINS
 ! !INPUT PARAMETERS: 
 !
 
-      integer, intent(in)  :: mFiles           !  Max. number of input files as
-                                               !   declared in calling program
       integer, intent(in)  :: mVars            !  Max. number of variables
 !
 ! !OUTPUT PARAMETERS:

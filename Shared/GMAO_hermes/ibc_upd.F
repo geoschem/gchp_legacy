@@ -35,9 +35,9 @@
 
 !     Local variables
 !     ---------------
-      integer :: rc, lt, rcs(2)
+      integer :: rc, rcs(2)
       integer :: nymd_f, nhms_f, nymd_b, nhms_b
-      integer :: freq, fsyn
+      integer :: freq
       logical :: fexists  
 
       character(len=255) :: dyn_f         ! first guess file name

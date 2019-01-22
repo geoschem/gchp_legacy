@@ -1,3 +1,4 @@
+#include "unused_dummy.H"
 !-------------------------------------------------------------------------
 !         NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
 !-------------------------------------------------------------------------
@@ -55,6 +56,8 @@
 !  09feb2001  da Silva  Implemented LWI
 !  14Jan2004  Todling   Added insitu_null
 !  01Sep2004  RT/Guo    Pointers initialized to null
+!  31jan2005  da Silva  To be safe, replace intent(out)n declarations of
+!                       sim_vect with intent(inout).
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -148,7 +151,7 @@
 !
 ! !INTERFACE:
 !
-      subroutine Insitu_Init ( w_f, w_s, rc )
+      subroutine Insitu_Init ( w_f, w_s, rc, dyntype )
 
 ! !USES:
 !
@@ -157,12 +160,13 @@
 ! !INPUT PARAMETERS:
 !
 
-      type(dyn_vect), intent(in)   :: w_f       ! Gridded model fields
+      type(dyn_vect)  , intent(in) :: w_f       ! Gridded model fields
+      integer,optional, intent(in) :: dyntype   ! 4=geos4; 5=geos5
 
 ! !OUTPUT PARAMETERS:
 !
 
-      type(sim_vect), intent(out)  :: w_s       ! Transformed model fields for
+      type(sim_vect), intent(inout)  :: w_s       ! Transformed model fields for
                                                 !  insitu calculations.
 
       integer, intent(out)         :: rc        ! Error return code:
@@ -183,6 +187,7 @@
 !-------------------------------------------------------------------------
 
       character(len=*), parameter :: myname = 'Insitu_Init'
+      integer dyntype_
       integer err, im, jm, km
 
       rc = 0
@@ -212,16 +217,22 @@
 
       if ( rc .ne. 0 ) return
 
-
+      dyntype_=4
+      if(present(dyntype))then
+         dyntype_=dyntype
+      endif
+      
 !     Initialize sim_vect
 !     -------------------
       w_s%grid = w_f%grid
 
       call Insitu_Prep ( w_f%grid%im, w_f%grid%jm, w_f%grid%km,
+     &                   w_f%grid%ak, w_f%grid%bk,       
      &                   w_f%delp, w_f%u, w_f%v, w_f%pt, w_f%q,
      &                   w_f%ps, w_f%grid%ptop, w_f%grid%pint, w_f%grid%ks,
      &                   w_f%ts, w_f%phis, w_f%hs_stdv, w_f%lwi,
-     &                   w_s%pe, w_s%pm, w_s%ze, w_s%q2d, w_s%q3d )
+     &                   w_s%pe, w_s%pm, w_s%ze, w_s%q2d, w_s%q3d,
+     &                   dyntype=dyntype_ )
 
 
       end subroutine insitu_init
@@ -827,10 +838,13 @@
 !
 ! !INTERFACE:
 !
-      subroutine Insitu_Prep(im, jm, km, delp, u, v, pt, sphu,
+      subroutine Insitu_Prep(im, jm, km, 
+     &                       ak, bk, 
+     &                       delp, u, v, pt, sphu,
      &                       ps,  ptop, pint, ks,
      &                       ts, phis, stdv, lwi,
-     &                       pe, pm, ze, q2d, q3d )
+     &                       pe, pm, ze, q2d, q3d, 
+     &                       dyntype )
 
 ! !USES:
 !
@@ -847,6 +861,8 @@
 
       integer, intent(in)  :: im, jm ,km       ! grid dimensions
 
+      real,    intent(in)  ::    ak(km+1)      !
+      real,    intent(in)  ::    bk(km+1)      !
       real,    intent(in)  ::     u(im,jm,km)  ! u-wind
       real,    intent(in)  ::     v(im,jm,km)  ! v-wind
       real,    intent(in)  ::    pt(im,jm,km)  ! virtual potential temperature
@@ -862,6 +878,8 @@
       real,    intent(in)  :: phis (im,jm)     ! surface geopotential
       real,    intent(in)  :: stdv (im,jm)     ! standard deviation (m)
       real,    intent(in)  :: lwi  (im,jm)     ! land-water-ice mask
+
+      integer, optional, intent(in)  :: dyntype          ! 4=geos4, 5=geos5
 
 ! !OUTPUT PARAMETERS:
 
@@ -896,6 +914,7 @@
 !                       introduced T_star, etc.
 !  05Oct2000  Dee       Pack tpw in q2d
 !  14nov2000  Dee       Pack tpws in q2d
+!  13Jul2016  RT/Meta   Correction for GEOS-5 (A-grid,TV) handle
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -910,6 +929,8 @@
       real   pk(im,jm,km+1)            ! pressure at edges (hPa)
       real peln(im,km+1,jm)            ! log(pe)
 
+      real, allocatable,dimension(:,:,:) :: myple,mypk,mypke,mypt
+
       real p_offset, p_bot
       integer k_bot, k1, k2
       real Hmax, base, rkap
@@ -922,7 +943,6 @@
       real rg
       real dl
       real t_ref(im,jm), p_ref(im,jm)
-      real sum1, sum2
 
 !     for tpws calculation:
 
@@ -948,6 +968,9 @@
       real T, qsat_
       qsat_ ( T ) = 640380.0 * 1000. / exp ( 5107.4 / T )
 
+      _UNUSED_DUMMY(ps)
+      _UNUSED_DUMMY(pint)
+
 ! Define logitude at the center of the finite-volume
 
          dl = 8.*atan(1.0) / float(im)
@@ -958,12 +981,35 @@
          sinlon(i+im/2) = -sinlon(i)
       enddo
 
+      allocate(mypt(im,jm,km))
+      if ( dyntype==5 ) then
+          ! the following is rather redundant w/ the calls to geopm 
+          ! and pkez done below (calculating similar things), but 
+          ! geopm needs scaled virtual temperature ... a better change
+          ! would be to pass dyntype to geopm and have it calculate pt
+          ! from tv when needed ... oh well.
+          allocate (myple(im,jm,km+1),
+     &              mypke(im,jm,km+1),
+     &               mypk(im,jm,km))
+          do k=1,km+1
+             myple(:,:,k) = ak(k) + bk(k)*ps
+          enddo
+          mypke(:,:,:)  = myple(:,:,:)**cappa
+          do k=1,km
+             mypk(:,:,k)  = ( mypke(:,:,k)-mypke(:,:,k-1) )
+     &                    / (cappa*log(myple(:,:,k)/myple(:,:,k-1)) )
+          enddo
+          mypt = pt/mypk
+          deallocate (myple,mypke,mypk)
+      else
+        mypt = pt
+      endif
 ! Set up the hybrid sigma-P vertical coordinate; only ptop is needed
 ! for this code.
 
 ! Compute height, pk, pe
 
-      call geopm(ptop, pe, pk, delp, ze, phis, pt, im, jm, km, 1, jm,
+      call geopm(ptop, pe, pk, delp, ze, phis, mypt, im, jm, km, 1, jm,
      &           cp, cappa, 1)
 
 ! Compute pkz for conversion between pt and temperature
@@ -984,14 +1030,19 @@ c$doacross   local(i,j,k, ua, va)
 
       do k=1,km
 ! map D-grid wind to A-grid
-      call d2a(u(1,1,k), v(1,1,k), ua ,va,
-     &         im, jm, 1, jm, coslon, sinlon)
+         if (dyntype==4) then
+             call d2a(u(1,1,k), v(1,1,k), ua ,va,
+     &                im, jm, 1, jm, coslon, sinlon)
+         else
+             ua=u(:,:,k)
+             va=v(:,:,k)
+         endif
 
          do j=1,jm
             do i=1,im
                q3d(i,j,k,iqu) = ua(i,j)
                q3d(i,j,k,iqv) = va(i,j)
-               q3d(i,j,k,iqt) = pt(i,j,k)*pkz(i,j,k)/(1.+zvir*sphu(i,j,k))
+               q3d(i,j,k,iqt) = mypt(i,j,k)*pkz(i,j,k)/(1.+zvir*sphu(i,j,k))
                q3d(i,j,k,iqq) = 1000. * sphu(i,j,k) ! g/g -> g/kg
             enddo
          enddo
@@ -1045,8 +1096,8 @@ c$doacross   local(i,j,k,p_bot,k_bot,k1,k2)
             else
                k1 = k_bot - 1
                k2 = k_bot
-               t_ref(i,j) = ( pt(i,j,k1) * pkz(i,j,k1) * delp(i,j,k1) +
-     &                        pt(i,j,k2) * pkz(i,j,k2) * delp(i,j,k2) )
+               t_ref(i,j) = ( mypt(i,j,k1) * pkz(i,j,k1) * delp(i,j,k1) +
+     &                        mypt(i,j,k2) * pkz(i,j,k2) * delp(i,j,k2) )
      &                    / ( delp(i,j,k1) + delp(i,j,k2) )
                p_ref(i,j) = ( pe(i,k_bot+1,j) + pe(i,k_bot-1,j) ) / 2.
             end if
@@ -1133,6 +1184,7 @@ c$doacross   local(i,j)
 
       q2d(:,:,iqtpws) = rg * q2d(:,:,iqtpws)   ! (g/g)*(kg/ms^2) -> (kg water/m^2)
 
+      deallocate(mypt)
 
       return
       end subroutine insitu_prep
@@ -1648,7 +1700,7 @@ C
 C--------------------------Local Variables------------------------------
 C
       real omeps               ! 1 - 0.622
-      integer i,ii             ! Local vector indices
+      integer i                ! Local vector indices
 C
 C-----------------------------------------------------------------------
 c
@@ -1687,7 +1739,6 @@ C
       real td         ! dummy variable for function evaluation
       real tlim       ! intermediate variable for es look-up with estbl4
       real estblf     ! statement function es look-up
-      real estbl4     ! statement function es look-up
 C
 C Statement functions used in saturation vapor pressure table lookup
 C there are two ways to use these three statement functions.
@@ -1704,9 +1755,6 @@ C
      $            *estbl(int(tlim(td)-tmin)+1)
      $            -(tmin + int(tlim(td)-tmin) - tlim(td)      )
      $            *estbl(int(tlim(td)-tmin)+2)
-C
-      estbl4(td) =  (tmin+int(td-tmin)+1.0-td)*estbl(int(td-tmin)+1)
-     $            + ( td-(tmin+int(td-tmin)) )*estbl(int(td-tmin)+2)
 C
 
 C-----------------------------------------------------------------------
@@ -1769,15 +1817,6 @@ C------------------------------Arguments--------------------------------
 C
 C Input arguments
 C
-      real tmn           ! Minimum temperature entry in es lookup table
-      real tmx           ! Maximum temperature entry in es lookup table
-      real epsil         ! Ratio of h2o to dry air molecular weights
-      real trice         ! Transition range from es over range to es over ice
-      real latvap        ! Latent heat of vaporization
-      real latice        ! Latent heat of fusion
-      real rh2o          ! Gas constant for water vapor
-      real cpair         ! Specific heat of dry air
-C
 C---------------------------Local variables-----------------------------
 C
       real t             ! Temperature
@@ -1786,7 +1825,6 @@ C
       integer itype      ! Ice phase: 0 -> no ice phase
                          !            1 -> ice phase, no transition
                          !           -x -> ice phase, x degree transition
-      logical ip         ! Ice phase logical flag
 C
 C---------------------------Statement function--------------------------
 C
@@ -1821,33 +1859,6 @@ C
       real hlatv      ! Latent heat of fusion
       real cp         ! specific heat of dry air
       logical icephs  ! false => saturation vapor press over water only
-C
-C Dummy variables for statement functions
-C
-      real td         ! dummy variable for function evaluation
-      real tlim       ! intermediate variable for es look-up with estbl4
-      real estblf     ! statement function es look-up
-      real estbl4     ! statement function es look-up
-C
-C Statement functions used in saturation vapor pressure table lookup
-C there are two ways to use these three statement functions.
-C For compilers that do a simple in-line expansion:
-C => ttemp = tlim(t)
-C    es    = estbl4(ttemp)
-C
-C For compilers that provide real optimization:
-C => es    = estblf(t)
-C
-      tlim(td) = max(min(td,tmax),tmin)
-C
-      estblf(td) =  (tmin + int(tlim(td)-tmin) - tlim(td) + 1.0)
-     $            *estbl(int(tlim(td)-tmin)+1)
-     $            -(tmin + int(tlim(td)-tmin) - tlim(td)      )
-     $            *estbl(int(tlim(td)-tmin)+2)
-C
-      estbl4(td) =  (tmin+int(td-tmin)+1.0-td)*estbl(int(td-tmin)+1)
-     $            + ( td-(tmin+int(td-tmin)) )*estbl(int(td-tmin)+2)
-C
 
 C-----------------------------------------------------------------------
 C
@@ -2199,6 +2210,8 @@ C
      &                                 'qs  ', 'ps  ', 'lwi ',
      &                                 'zs  ', 'ub  ', 'tb  ', 'qb  ',
      &                                 'tss ', 'tpw ', 'tpws' /)
+
+      _UNUSED_DUMMY(opt)
 
       extp = .true.
       tolb = 10.*epsilon(1.)
@@ -2657,6 +2670,8 @@ c$&        local(a11, a12, a21, a22, a00, i1, i2)
 !     ---------------------------------------
       integer, parameter :: nsupp = 1
       character(len=4), parameter :: supported(nsupp) = (/ 'wind' /)
+
+      _UNUSED_DUMMY(opt)
 
       tolb = 10.*epsilon(1.)
 

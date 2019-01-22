@@ -1,3 +1,4 @@
+#include "unused_dummy.H"
 !-------------------------------------------------------------------------
 !         NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
 !-------------------------------------------------------------------------
@@ -164,6 +165,7 @@
       real    zlnz1, zlnz2 
       integer rc 
 
+      _UNUSED_DUMMY(ts)
 
 !     Consistency check
 !     -----------------

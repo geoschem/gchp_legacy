@@ -86,7 +86,7 @@ C
 C--------------------------Local Variables------------------------------
 C
       real omeps               ! 1 - 0.622
-      integer i,ii             ! Local vector indices
+      integer i             ! Local vector indices
 C
 C-----------------------------------------------------------------------
 c
@@ -125,26 +125,15 @@ C
       real td         ! dummy variable for function evaluation
       real tlim       ! intermediate variable for es look-up with estbl4
       real estblf     ! statement function es look-up
-      real estbl4     ! statement function es look-up
 C
 C Statement functions used in saturation vapor pressure table lookup
 C there are two ways to use these three statement functions.
-C For compilers that do a simple in-line expansion:
-C => ttemp = tlim(t)
-C    es    = estbl4(ttemp)
-C
-C For compilers that provide real optimization:
-C => es    = estblf(t)
-C
       tlim(td) = max(min(td,tmax),tmin)
 C
       estblf(td) =  (tmin + int(tlim(td)-tmin) - tlim(td) + 1.0)
      $            *estbl(int(tlim(td)-tmin)+1)
      $            -(tmin + int(tlim(td)-tmin) - tlim(td)      )
      $            *estbl(int(tlim(td)-tmin)+2)
-C
-      estbl4(td) =  (tmin+int(td-tmin)+1.0-td)*estbl(int(td-tmin)+1)
-     $            + ( td-(tmin+int(td-tmin)) )*estbl(int(td-tmin)+2)
 C
 
 C-----------------------------------------------------------------------
@@ -207,15 +196,6 @@ C------------------------------Arguments--------------------------------
 C
 C Input arguments
 C
-      real tmn           ! Minimum temperature entry in es lookup table
-      real tmx           ! Maximum temperature entry in es lookup table
-      real epsil         ! Ratio of h2o to dry air molecular weights
-      real trice         ! Transition range from es over range to es over ice
-      real latvap        ! Latent heat of vaporization
-      real latice        ! Latent heat of fusion
-      real rh2o          ! Gas constant for water vapor
-      real cpair         ! Specific heat of dry air
-C
 C---------------------------Local variables-----------------------------
 C
       real t             ! Temperature
@@ -224,7 +204,6 @@ C
       integer itype      ! Ice phase: 0 -> no ice phase
                          !            1 -> ice phase, no transition
                          !           -x -> ice phase, x degree transition
-      logical ip         ! Ice phase logical flag
 C
 C---------------------------Statement function--------------------------
 C
@@ -259,34 +238,6 @@ C
       real hlatv      ! Latent heat of fusion
       real cp         ! specific heat of dry air
       logical icephs  ! false => saturation vapor press over water only
-C
-C Dummy variables for statement functions
-C
-      real td         ! dummy variable for function evaluation
-      real tlim       ! intermediate variable for es look-up with estbl4
-      real estblf     ! statement function es look-up
-      real estbl4     ! statement function es look-up
-C
-C Statement functions used in saturation vapor pressure table lookup
-C there are two ways to use these three statement functions.
-C For compilers that do a simple in-line expansion:
-C => ttemp = tlim(t)
-C    es    = estbl4(ttemp)
-C
-C For compilers that provide real optimization:
-C => es    = estblf(t)
-C
-      tlim(td) = max(min(td,tmax),tmin)
-C
-      estblf(td) =  (tmin + int(tlim(td)-tmin) - tlim(td) + 1.0)
-     $            *estbl(int(tlim(td)-tmin)+1)
-     $            -(tmin + int(tlim(td)-tmin) - tlim(td)      )
-     $            *estbl(int(tlim(td)-tmin)+2)
-C
-      estbl4(td) =  (tmin+int(td-tmin)+1.0-td)*estbl(int(td-tmin)+1)
-     $            + ( td-(tmin+int(td-tmin)) )*estbl(int(td-tmin)+2)
-C
-
 C-----------------------------------------------------------------------
 C
 C Set es table parameters

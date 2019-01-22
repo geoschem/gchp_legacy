@@ -68,8 +68,8 @@
       integer lev, members, nfiles
       integer fid, nvars, ngatts
       integer rc
-      integer ntimes, k, freq, nymd, nhms, nymd0, nhms0, prec
-      integer im, jm, km, lm, system, dyntype, ii, jj, nm
+      integer ntimes, freq, nymd, nhms
+      integer im, jm, km, lm, dyntype, ii, jj, nm
       integer imc, jmc, kmc, lmc
       integer j1, j2
       integer seed,icnt
@@ -320,7 +320,7 @@ CONTAINS
 
       character*4, parameter :: myname = 'init'
 
-      integer iret, i, iarg, argc, iargc
+      integer i, iarg, argc, iargc
       character(len=255) :: argv
 
       files = 'NONE'

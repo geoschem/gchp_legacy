@@ -708,7 +708,7 @@ subroutine eta_set_(w,x)      ! set needed quantities from analysis
    type(dyn_vect), intent(inout) :: w
    type(bundle), intent(inout)   :: x
    type(sim_vect) :: w_s
-   integer        :: rc, nobs, i, j, k, kb, ncount
+   integer        :: rc, i, j, k, kb, ncount
    real :: zmin, alpha, ptop, pi, d2r
    if ( debug ) print *, ' [] Setting analysis fields...'
     x%tpw = 0.0 
@@ -1033,7 +1033,7 @@ end subroutine nsfc_put_
 subroutine meta_init_ ( w, x )       ! allocates local memory
   type(dyn_vect), intent(in) :: w
   type(bundle), intent(inout) :: x
-  integer rc, i, j, k
+  integer i, k
   real dpref
   dpref(k) = ( w%grid%ak(k+1) - w%grid%ak(k) ) + &
              ( w%grid%bk(k+1) - w%grid%bk(k) ) * 98400.
@@ -1519,7 +1519,6 @@ end subroutine fix_names_
       real xfact(levmax)     !x-factor, see prologue
 
       integer kk
-      real mu, Mair, Vd, factor
 
 !----------------------------------------------------------------
 ! Get value for undefined variables from funciton getcon

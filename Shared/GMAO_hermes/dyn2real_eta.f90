@@ -10,7 +10,7 @@ use m_topo_remap, only: dyn_real_eta
 use m_die, only: die
 implicit none
 
-integer  im, jm, km, ifile
+integer  im, jm, km
 integer  freq, dyntype, rc
 integer  nymd, nhms
 type(dyn_vect) x_b
@@ -59,7 +59,6 @@ contains
 
 subroutine init_
 
-character(len=256)  argv
 integer :: argc,iarg,iargc
 
 argc = iargc()

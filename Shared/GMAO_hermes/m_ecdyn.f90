@@ -221,8 +221,7 @@ CONTAINS
 !EOP
 !-------------------------------------------------------------------------
 
-     integer    err, l
-     character*3 bfr
+     integer    err
 
 
 !    Sanity check
@@ -377,8 +376,7 @@ CONTAINS
 !EOP
 !-------------------------------------------------------------------------
 
-     integer    l, lm
-     character*3 bfr
+     integer    lm
 
      lm = w_f%grid%lm
 
@@ -477,8 +475,7 @@ CONTAINS
 !EOP
 !-------------------------------------------------------------------------
 
-     integer    l, lm
-     character*3 bfr
+     integer    lm
 
      lm = w_f%grid%lm
 
@@ -1366,6 +1363,10 @@ CONTAINS
 
    logical :: readSPHU, readTRACERS
 
+   if (present(nstep)) then
+      if (.false.) print*, shape(nstep)! UNUSED_DUMMY
+   end if
+
    rc = 0
 
 !  By default, read specific humidity
@@ -1680,8 +1681,7 @@ CONTAINS
 !EOP
 !-------------------------------------------------------------------------
 
-  integer i, j, k
-  real dLon, dLat
+  integer i, k
 
 ! Consistency check
 ! -----------------

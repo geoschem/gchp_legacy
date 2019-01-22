@@ -454,7 +454,6 @@ CONTAINS
 !-------------------------------------------------------------------------
 
     integer :: im, jm, km
-    integer :: i, j, k, ierr
 
     rc = 0
 
@@ -536,6 +535,7 @@ CONTAINS
 !  08nov2002 Dee       Initial code.
 !  12Dec2004 Todling   Allow adding two perturbations fields
 !  11Feb2008 Todling   Bug fix: coef (a) for ps/delp was missing!
+!  29Apr2016 Todling   Check number of tracers and upd what possible
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -543,6 +543,7 @@ CONTAINS
    character(len=*),  parameter :: myname = 'dynp_add'
 
    logical verb
+   integer mlm
 
    if ( present ( verbose ) ) then
         verb = verbose
@@ -573,7 +574,12 @@ CONTAINS
    w%u    = w%u  + a * dw%u
    w%v    = w%v  + a * dw%v
    w%pt   = w%pt + a * dw%pt
-   w%q    = w%q  + a * dw%q
+   if (w%grid%lm/=dw%grid%lm) then
+       print *, myname//': state and pert have diff number of tracers ... '
+       print *, myname//': ... updating only what possible'
+   endif
+   mlm  = min(w%grid%lm,dw%grid%lm)
+   w%q(:,:,:,1:mlm)  = w%q(:,:,:,1:mlm) + a * dw%q(:,:,:,1:mlm)
 
 !  Add/subtract mass from lowest layers ('shaving method'),
 !                                and ensure non-negative q

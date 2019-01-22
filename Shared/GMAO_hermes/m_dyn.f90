@@ -72,6 +72,7 @@
 !  05Mar2009  Todling   Add fraction of land/water/ice
 !  14May2009  Todling   Making hardwired values more explicit
 !  19Jan2010  Todling   Various clean-ups related to dynvectype 4 or 5
+!  20Oct2015  Todling   Update default number of tracers to 6
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -87,7 +88,7 @@
    integer, parameter ::  nfix2d5 = 9              ! phis, hs_stdv, ts, ps, frlands(5)
    integer, parameter ::  nfix2d4 = 5              ! phis, hs_stdv, ts, ps, lwi
    integer, parameter ::  nfix3d  = 4              ! delp, u, v, pt
-   integer, parameter ::  n3dtrc  = 4              ! number of fix tracer: q,o3,qi,ql
+   integer, parameter ::  n3dtrc  = 6              ! number of fix tracer: q,o3,qi,ql,qr,qs
    integer, parameter ::  nfix4   = nfix2d4+nfix3d ! fixed vars (minus q)
    integer, parameter ::  nfix5   = nfix2d5+nfix3d ! fixed vars (minus q)
    integer, save      ::  nfix    = nfix4          ! Default as above: GEOS-4
@@ -286,8 +287,7 @@ CONTAINS
 
      character(len=*), parameter :: myname_ = myname//'::Dyn_Init_'
 
-     integer    i, j, err, l
-     character*3 bfr
+     integer    i, j, err
 
 
 !    Sanity check
@@ -640,7 +640,7 @@ CONTAINS
 ! !INTERFACE:
 !
   subroutine  Dyn_Dup_ ( w_in, w_out, rc,   &
-                                      copy )     ! optional
+                                      copy, vectype, lm )  ! optional
 !
 ! !USES:
 !
@@ -650,6 +650,8 @@ CONTAINS
 !
   type(dyn_vect), intent(in)    :: w_in   ! existing dynamics vector
   logical, intent(in), OPTIONAL :: copy   ! copy fields if .true.
+  integer, intent(in), OPTIONAL:: vectype ! geos4 or geos5
+  integer, intent(in), OPTIONAL:: lm      ! allow for reset number of tracers
 !
 ! !OUTPUT PARAMETERS:
 !
@@ -674,15 +676,27 @@ CONTAINS
 !  17dec2001 Dee       Added option to initialize a state increment
 !  07nov2002 Dee       Moved increment methods to m_dynp
 !  05Mar2009 Todling   Add fraction of land/water/ice
+!  16Feb2015 Todling   Pass vectype as argument
+!  03Apr2016 Todling   Allow for larger number of tracers on output
 !
 !EOP
 !-------------------------------------------------------------------------
 
+  integer lm_
+
+  lm_ = w_in%grid%lm
+  if (present(lm)) then
+     if (lm_<lm) then
+         lm_=lm ! reset number of output tracers
+     endif
+  endif
+
 ! Allocate memory and set grid
 ! ----------------------------
-  call Dyn_Init_ ( w_in%grid%im, w_in%grid%jm, w_in%grid%km, w_in%grid%lm,  &
+  call Dyn_Init_ ( w_in%grid%im, w_in%grid%jm, w_in%grid%km, lm_, &
                    w_out, rc,                                               &
-                   w_in%grid%ptop, w_in%grid%ks, w_in%grid%ak, w_in%grid%bk )
+                   w_in%grid%ptop, w_in%grid%ks, w_in%grid%ak, w_in%grid%bk, &
+                   vectype=vectype )
 
 ! Optionally copy fields
 ! ----------------------
@@ -705,7 +719,8 @@ CONTAINS
         w_out%u    = w_in%u
         w_out%v    = w_in%v
         w_out%pt   = w_in%pt
-        w_out%q    = w_in%q
+        w_out%q(:,:,:,1:w_in%grid%lm) = w_in%q(:,:,:,1:w_in%grid%lm)
+        if(w_out%grid%lm>w_in%grid%lm) w_out%q(:,:,:,w_in%grid%lm+1:w_out%grid%lm) = 0.0
 
      end if
 
@@ -1054,7 +1069,8 @@ CONTAINS
 ! !INTERFACE:
 !
   subroutine  dyn_put ( fname, nymd, nhms, prec, w_f, rc, &
-                        nstep, verbose, new, freq, epv, plevs, vectype, forceflip )   ! optional
+                        nstep, verbose, new, freq, epv, plevs, vectype, forceflip,&  ! optional
+                        only_vars, indxlevs                                       )  ! optional
 !
 ! !USES:
 !
@@ -1085,6 +1101,8 @@ CONTAINS
                                                 ! file is assumed to be PRS.
   integer, intent(in), OPTIONAL     :: vectype  ! switch between g4/g5 dyn-vects
   logical, intent(in), OPTIONAL     :: forceflip! allows flip of data%fields only
+  logical, intent(in), OPTIONAL     :: indxlevs ! place lev index instead of pressure levs in file
+  character(len=*), intent(in), OPTIONAL :: only_vars(:) ! write out only these fields
 
 !
 ! !OUTPUT PARAMETERS:
@@ -1116,6 +1134,7 @@ CONTAINS
 !  05Mar2009 Todling   Add fraction of land/water/ice; lwi no longer written out
 !  16Jan2010 Todling   Add forceflip here as already in the read
 !  23Jun2010 Kokron    Initialize fliplon to .false.
+!  08May2018 Todling   Allow for lev-index to be in file (MAPL only handles indx)
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -1130,9 +1149,9 @@ CONTAINS
 
    integer :: ks, im, jm, km, lm, nvars
    integer :: vectype_
-   real    :: p, ptop, pint
+   real    :: ptop, pint
    integer :: i, j, k, l, timeinc
-   integer :: fid, err, mydvect, next
+   integer :: fid, err, next
 
    logical verb, creating, fexists, fliplon
 
@@ -1167,7 +1186,13 @@ CONTAINS
    endif
    if(vectype_==4) nfix=nfix4
    if(vectype_==5) nfix=nfix5
-   if ( present(epv) ) nvars = nvars+1 ! additional EPV output
+
+   if (present(only_vars)) then
+      nvars=size(only_vars)
+      nfix = 0 ! for now
+   else
+      if ( present(epv) ) nvars = nvars+1 ! additional EPV output
+   endif
 
 
 !  Allocate local work space
@@ -1185,6 +1210,15 @@ CONTAINS
 !  ---------------------------
    lat = w_f%grid%lat
    lon = w_f%grid%lon
+
+!  Consistency check
+!  -----------------
+   if ( present(plevs) .and. indxlevs ) then
+        print *, 'dyn_put: error, plevs and indxlevs cannot both be specified'
+        call clean_()
+        rc = 901
+        return
+   endif
 
 !  Vertical coordinates: given on input (prs files)
 !  ------------------------------------------------
@@ -1207,6 +1241,15 @@ CONTAINS
    end if
    levunits = 'hPa'
 
+   if (present(indxlevs) ) then
+      if (indxlevs) then
+         do k=1,km
+            lev(k)=k
+         enddo
+         levunits = 'layer'
+      endif
+   endif 
+
 !  Global metadata
 !  ---------------
    if ( present(plevs) ) then
@@ -1223,66 +1266,85 @@ CONTAINS
 
 !  Setup variable information
 !  --------------------------
+   if(this_var_("phis")) then
    next=1
    vname(1)  = w_f%phism%name
    vtitle(1) = w_f%phism%long_name
    vunits(1) = w_f%phism%units
    kmvar(1)  = 0
+   endif
 
+   if(this_var_("hs_stdv")) then
    next=next+1
    vname(next)  = w_f%hs_stdvm%name
    vtitle(next) = w_f%hs_stdvm%long_name
    vunits(next) = w_f%hs_stdvm%units
    kmvar(next)  = 0
+   endif
 
+   if(this_var_("ts")) then
    next=next+1
    vname(next)  = w_f%tsm%name
    vtitle(next) = w_f%tsm%long_name
    vunits(next) = w_f%tsm%units
    kmvar(next)  = 0
+   endif
 
    if ( dynvectyp==4 ) then
 
+   if(this_var_("lwi")) then
    next=next+1
    vname(next)  = w_f%lwim%name
    vtitle(next) = w_f%lwim%long_name
    vunits(next) = w_f%lwim%units
    kmvar(next)  = 0
+   endif
 
    else
 
+   if(this_var_("frland")) then
    next=next+1
    vname(next)  = w_f%frlandm%name
    vtitle(next) = w_f%frlandm%long_name
    vunits(next) = w_f%frlandm%units
    kmvar(next)  = 0
+   endif
 
+   if(this_var_("frlandice")) then
    next=next+1
    vname(next)  = w_f%frlandicem%name
    vtitle(next) = w_f%frlandicem%long_name
    vunits(next) = w_f%frlandicem%units
    kmvar(next)  = 0
+   endif
 
+   if(this_var_("frlake")) then
    next=next+1
    vname(next)  = w_f%frlakem%name
    vtitle(next) = w_f%frlakem%long_name
    vunits(next) = w_f%frlakem%units
    kmvar(next)  = 0
+   endif
 
+   if(this_var_("frocean")) then
    next=next+1
    vname(next)  = w_f%froceanm%name
    vtitle(next) = w_f%froceanm%long_name
    vunits(next) = w_f%froceanm%units
    kmvar(next)  = 0
+   endif
 
+   if(this_var_("frseaice")) then
    next=next+1
    vname(next)  = w_f%frseaicem%name
    vtitle(next) = w_f%frseaicem%long_name
    vunits(next) = w_f%frseaicem%units
    kmvar(next)  = 0
+   endif
 
    endif
 
+   if(this_var_("slp").or.this_var_("ps")) then
    next=next+1
    if ( present(plevs) ) then
       vname(next)  = 'slp'
@@ -1295,7 +1357,9 @@ CONTAINS
       vunits(next) = w_f%psm%units
       kmvar(next)  = 0
    end if
+   end if
 
+   if(this_var_("hght").or.this_var_("delp")) then
    next=next+1
    if ( present(plevs) ) then
       vname(next)  = 'hght'
@@ -1308,19 +1372,25 @@ CONTAINS
       vunits(next) = w_f%delpm%units
       kmvar(next)  = km
    end if
+   end if
 
+   if(this_var_("u").or.this_var_("uwnd")) then
    next=next+1
    vname(next)  = w_f%um%name
    vtitle(next) = w_f%um%long_name
    vunits(next) = w_f%um%units
    kmvar(next)  = km
+   end if
 
+   if(this_var_("v").or.this_var_("vwnd")) then
    next=next+1
    vname(next)  = w_f%vm%name
    vtitle(next) = w_f%vm%long_name
    vunits(next) = w_f%vm%units
    kmvar(next)  = km
+   end if
 
+   if(this_var_("tmpu").or.this_var_("tv").or.this_var_("theta")) then
    next=next+1
    if ( present(plevs) ) then
       vname(next)  = 'tmpu'
@@ -1333,28 +1403,36 @@ CONTAINS
       vunits(next) = w_f%ptm%units
       kmvar(next)  = km
    end if
-   if (next/=nfix) then
-       print*, ' trouble: trying to write wrong number of vars (next,nfix) = ', next,nfix
-       rc = 99
-       return
+   end if
+
+   if (.not.present(only_vars)) then
+      if (next/=nfix) then
+          print*, ' trouble: trying to write wrong number of vars (next,nfix) = ', next,nfix
+          rc = 99
+          return
+      endif
    endif
 
-   do l = nfix+1, nfix+lm
-      i = l - nfix
+   do l = next+1, next+lm
+      i = l - next
+      if(this_var_(w_f%qm(i)%name) ) then
       vname(l)  = w_f%qm(i)%name
       vtitle(l) = w_f%qm(i)%long_name
       vunits(l) = w_f%qm(i)%units
       kmvar(l)  = km
+      end if
    end do
 
 !  Handle EPV as last variable
 !  ---------------------------
-   if ( present(epv) ) then
-      l = nvars
-      vname(l)  = 'epv'
-      vtitle(l) = 'Ertel Potential Vorticity'
-      vunits(l) = 'unknown'   ! check with SJ
-      kmvar(l)  = km
+   if ( .not. present(only_vars) ) then
+      if ( present(epv) ) then
+         l = nvars
+         vname(l)  = 'epv'
+         vtitle(l) = 'Ertel Potential Vorticity'
+         vunits(l) = 'unknown'   ! check with SJ
+         kmvar(l)  = km
+      end if
    end if
 
 !  For now, do not exercise packing/valid range feature
@@ -1430,124 +1508,157 @@ CONTAINS
 !   Note: we may want to write out 1 level at a time in case
 !         the compiler does aq copy when invoking putvar().
 !   --------------------------------------------------------
-    if (verb) print *, '        [] writing ', trim(vname(1))
                                 next=1
+    if (this_var_("phis")) then
+    if (verb) print *, '        [] writing ', trim(vname(next))
                                 fld2 = w_f%phis
     if( fliplon ) call hflip_ ( fld2, im, jm )
     call GFIO_PutVar ( fid, vname(next), nymd, nhms, im, jm, 0,  1, fld2,   err )
     if ( err .ne. 0 ) rc = 101
+    endif
 
-    if (verb) print *, '        [] writing ', trim(vname(2))
+    if (this_var_("hs_stdv")) then
                                 next = next+1
+    if (verb) print *, '        [] writing ', trim(vname(next))
                                 fld2 = w_f%hs_stdv
     if( fliplon ) call hflip_ ( fld2, im, jm )
     call GFIO_PutVar ( fid, vname(next), nymd, nhms, im, jm, 0,  1, fld2,   err )
     if ( err .ne. 0 ) rc = 102
+    end if
 
-    if (verb) print *, '        [] writing ', trim(vname(3))
+    if (this_var_("ts")) then
                                 next = next+1
+    if (verb) print *, '        [] writing ', trim(vname(next))
                                 fld2 = w_f%ts
     if( fliplon ) call hflip_ ( fld2, im, jm )
     call GFIO_PutVar ( fid, vname(next), nymd, nhms, im, jm, 0,  1, fld2,   err )
     if ( err .ne. 0 ) rc = 103
+    end if
 
     if ( dynvectyp==4 ) then
 
-    if (verb) print *, '        [] writing ', trim(vname(4))
+    if (this_var_("lwi")) then
                                 next = next+1
+    if (verb) print *, '        [] writing ', trim(vname(next))
                                 fld2 = w_f%lwi
     if( fliplon ) call hflip_ ( fld2, im, jm )
     call GFIO_PutVar ( fid, vname(next), nymd, nhms, im, jm, 0,  1, fld2,   err )
     if ( err .ne. 0 ) rc = 104
+    end if
 
     else
 
-    if (verb) print *, '        [] writing ', trim(vname(4))
+    if (this_var_("frland")) then
                                 next = next+1
+    if (verb) print *, '        [] writing ', trim(vname(next))
                                 fld2 = w_f%frland
     if( fliplon ) call hflip_ ( fld2, im, jm )
     call GFIO_PutVar ( fid, vname(next), nymd, nhms, im, jm, 0,  1, fld2,   err )
     if ( err .ne. 0 ) rc = 104
+    end if
 
-    if (verb) print *, '        [] writing ', trim(vname(5))
+    if (this_var_("frlandice")) then
                                 next = next+1
+    if (verb) print *, '        [] writing ', trim(vname(next))
                                 fld2 = w_f%frlandice
     if( fliplon ) call hflip_ ( fld2, im, jm )
     call GFIO_PutVar ( fid, vname(next), nymd, nhms, im, jm, 0,  1, fld2,   err )
     if ( err .ne. 0 ) rc = 105
+    end if
 
-    if (verb) print *, '        [] writing ', trim(vname(6))
+    if (this_var_("frlake")) then
                                 next = next+1
+    if (verb) print *, '        [] writing ', trim(vname(next))
                                 fld2 = w_f%frlake
     if( fliplon ) call hflip_ ( fld2, im, jm )
     call GFIO_PutVar ( fid, vname(next), nymd, nhms, im, jm, 0,  1, fld2,   err )
     if ( err .ne. 0 ) rc = 106
+    end if
 
-    if (verb) print *, '        [] writing ', trim(vname(7))
+    if (this_var_("frocean")) then
                                 next = next+1
+    if (verb) print *, '        [] writing ', trim(vname(next))
                                 fld2 = w_f%frocean
     if( fliplon ) call hflip_ ( fld2, im, jm )
     call GFIO_PutVar ( fid, vname(next), nymd, nhms, im, jm, 0,  1, fld2,   err )
     if ( err .ne. 0 ) rc = 107
+    end if
 
-    if (verb) print *, '        [] writing ', trim(vname(8))
+    if (this_var_("frseaice")) then
                                 next = next+1
+    if (verb) print *, '        [] writing ', trim(vname(next))
                                 fld2 = w_f%frseaice
     if( fliplon ) call hflip_ ( fld2, im, jm )
     call GFIO_PutVar ( fid, vname(next), nymd, nhms, im, jm, 0,  1, fld2,   err )
     if ( err .ne. 0 ) rc = 108
+    end if
 
     endif
 
-    if (verb) print *, '        [] writing ', trim(vname(9))
+    if (this_var_("ps").or.this_var_("slp")) then
                                 next = next+1
+    if (verb) print *, '        [] writing ', trim(vname(next))
                                 fld2 = w_f%ps
     if( fliplon ) call hflip_ ( fld2, im, jm )
     call GFIO_PutVar ( fid, vname(next), nymd, nhms, im, jm, 0,  1, fld2,   err )
     if ( err .ne. 0 ) rc = 109
+    end if
 
-    if (verb) print *, '        [] writing ', trim(vname(10))
+    if (this_var_("delp").or.this_var_("hght")) then
                                 next = next+1
+    if (verb) print *, '        [] writing ', trim(vname(next))
                                 fld3 = w_f%delp
     if( fliplon ) call hflip_ ( fld3, im, jm, km )
     call GFIO_PutVar ( fid, vname(next), nymd, nhms, im, jm, 1, km, fld3, err )
     if ( err .ne. 0 ) rc = 110
+    end if
 
-    if (verb) print *, '        [] writing ', trim(vname(11))
+    if (this_var_("u")) then
                                 next = next+1
+    if (verb) print *, '        [] writing ', trim(vname(next))
                                 fld3 = w_f%u
     if( fliplon ) call hflip_ ( fld3, im, jm, km )
     call GFIO_PutVar ( fid, vname(next), nymd, nhms, im, jm, 1, km, fld3,    err )
     if ( err .ne. 0 ) rc = 111
+    end if
 
-    if (verb) print *, '        [] writing ', trim(vname(12))
+    if (this_var_("v")) then
                                 next = next+1
+    if (verb) print *, '        [] writing ', trim(vname(next))
                                 fld3 = w_f%v
     if( fliplon ) call hflip_ ( fld3, im, jm, km )
     call GFIO_PutVar ( fid, vname(next), nymd, nhms, im, jm, 1, km, fld3,    err )
     if ( err .ne. 0 ) rc = 112
+    end if
 
-    if (verb) print *, '        [] writing ', trim(vname(13))
+    if (this_var_("tv").or.this_var_("tmpu")) then
                                 next = next+1
+    if (verb) print *, '        [] writing ', trim(vname(next))
                                 fld3 = w_f%pt
     if( fliplon ) call hflip_ ( fld3, im, jm, km )
     call GFIO_PutVar ( fid, vname(next), nymd, nhms, im, jm, 1, km, fld3,   err )
     if ( err .ne. 0 ) rc = 113
-    do l = nfix+1, nfix+lm
+    end if
+
+    do l = next+1, next+lm
+        if (this_var_(vname(l))) then
         if (verb) print *, '    [] writing ', trim(vname(l))
                                 fld3 = w_f%q(1:im,1:jm,1:km,l-nfix)
-    if( fliplon ) call hflip_ ( fld3, im, jm, km )
+        if( fliplon ) call hflip_ ( fld3, im, jm, km )
         call GFIO_PutVar ( fid, vname(l), nymd, nhms, im, jm, 1, km, &
                            fld3, err )
-         if ( err .ne. 0 ) rc = 100 + l
+        if ( err .ne. 0 ) rc = 100 + l
+        end if
     end do
 
-    if ( present(epv) ) then
-       if (verb) print *, '     [] writing ', trim(vname(nvars))
-                                fld3 = epv
-    if( fliplon ) call hflip_ ( fld3, im, jm, km )
-       call GFIO_PutVar ( fid, vname(nvars), nymd, nhms, im, jm, 1, km, fld3,  err )
-       if ( err .ne. 0 ) rc = 100+nvars
+    if (.not.present(only_vars) ) then
+       if ( present(epv) ) then
+          if (verb) print *, '     [] writing ', trim(vname(nvars))
+                                   fld3 = epv
+       if( fliplon ) call hflip_ ( fld3, im, jm, km )
+          call GFIO_PutVar ( fid, vname(nvars), nymd, nhms, im, jm, 1, km, fld3,  err )
+          if ( err .ne. 0 ) rc = 100+nvars
+       end if
     end if
 
 
@@ -1615,6 +1726,23 @@ CONTAINS
      dpref    = ( w_f%grid%ak(k+1) - w_f%grid%ak(k) ) + &
                 ( w_f%grid%bk(k+1) - w_f%grid%bk(k) ) * 98400.
      end function dpref
+
+!  When applicable, check whether var to be write out
+!  --------------------------------------------------
+   logical function this_var_(fldname)
+   character(len=*) fldname
+   integer  nn
+   this_var_=.true.  ! default to original behavior of put routine
+   if(.not.present(only_vars)) return
+   this_var_=.false.
+   do nn=1, size(only_vars)  
+      if(trim(fldname)==trim(only_vars(nn))) then
+         this_var_=.true.
+         exit
+      endif
+   enddo
+ 
+   end function this_var_
 
   end Subroutine dyn_put
 
@@ -1704,6 +1832,7 @@ CONTAINS
 !  20Feb2014 Todling   ncf knob to allow reading non-compliant (special) file
 !  06Mar2014 Todling   pncf knob to allow reading non-compliant perturbation file created by GSI
 !  16Oct2015 Todling   For too long now MAP-written files have upset m_dyn; patch fix
+!  01Oct2016 M.J. Kim  Add qi,ql,qr,qs to perturbation 
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -1830,7 +1959,7 @@ CONTAINS
    if(vectype_==4) nfix=nfix4
    if(vectype_==5) nfix=nfix5
    if (ncf_ .or. pncf_) then
-      lm = 4                              ! if non-compliant file, force lm to g5 lm 
+      lm = n3dtrc                         ! if non-compliant file, force lm to g5 lm 
    else
       lm =  nvars - nfix                  ! lm now means the trace dimensions
       if (vectype_==5 .and. &
@@ -2067,11 +2196,29 @@ CONTAINS
        if (pncf_) fldname = 'sphu'
           call GFIO_GetVar ( fid, trim(fldname), nymd, nhms, &
                              im, jm, 1, km, w_f%q(:,:,:,1), err )
-       if (pncf_) then ! pert files have ozone
+       if (pncf_) then ! pert fields
           fldname = 'ozone'
           call GFIO_GetVar ( fid, trim(fldname), nymd, nhms, &
                              im, jm, 1, km, w_f%q(:,:,:,2), err )
+          if ( lm > 3 ) then
+             fldname = 'qitot'
+             call GFIO_GetVar ( fid, trim(fldname), nymd, nhms, &
+                                im, jm, 1, km, w_f%q(:,:,:,3), err )
+             fldname = 'qltot'
+             call GFIO_GetVar ( fid, trim(fldname), nymd, nhms, &
+                                im, jm, 1, km, w_f%q(:,:,:,4), err )
+          endif
+          if ( lm > 5 ) then
+             fldname = 'qrtot'
+             call GFIO_GetVar ( fid, trim(fldname), nymd, nhms, &
+                                im, jm, 1, km, w_f%q(:,:,:,5), err )
+             fldname = 'qstot'
+             call GFIO_GetVar ( fid, trim(fldname), nymd, nhms, &
+                                im, jm, 1, km, w_f%q(:,:,:,6), err )
+          endif
        endif
+
+
    else ! .not. ncf/pncf
       do l = lbeg, lm
            call GFIO_GetVar ( fid, w_f%qm(l)%name, nymd, nhms, &
@@ -2197,7 +2344,6 @@ CONTAINS
   subroutine get_lwi_ ( w_f )
 ! Todling adaptation of L. Takacs change from elsewhere
     implicit none
-    integer  im,jm
     type(dyn_vect), intent(inout) :: w_f   ! dynamics state vector
                                                    w_f%lwi = 1.0  ! Land
     where (  w_f%FROCEAN+w_f%FRLAKE >= 0.6       ) w_f%lwi = 0.0  ! Water
@@ -2444,8 +2590,7 @@ CONTAINS
 !EOP
 !-------------------------------------------------------------------------
 
-  integer i, j, k
-  real dLon, dLat
+  integer i, k
 
 ! Consistency check
 ! -----------------

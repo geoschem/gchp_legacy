@@ -25,7 +25,7 @@
    character(len=3) opt
    integer iargc
    integer iarg,argc,nymd,nhms,freq
-   integer im,jm,km
+   integer im,jm
    integer ierr
    integer idim,odim
    real dotp0(1),dotp1(1),dotp2(1) !,ddot_
@@ -68,24 +68,29 @@
 
 !  allocate dyn for ouput dyn-vector
 !  ---------------------------------
-   call dyn_init ( im, jm, idyn%grid%km, idyn%grid%lm, odyn, ierr, &
-                   idyn%grid%ptop, idyn%grid%ks, idyn%grid%ak, idyn%grid%bk, vectype=5 )
+   if (im==idyn%grid%im .or. jm==idyn%grid%jm ) then
+      print *, 'No interpolation needed ...'
+      call dyn_init ( idyn, odyn, ierr, copy=.true., vectype=5 )
+   else ! same resolution ... just copy field
+      call dyn_init ( im, jm, idyn%grid%km, idyn%grid%lm, odyn, ierr, &
+                      idyn%grid%ptop, idyn%grid%ks, idyn%grid%ak, idyn%grid%bk, vectype=5 )
         if(ierr/=0)then
           print *, 'trouble in init ', ierr
           call exit(99)
         endif
 
-   if ( opt == 'ppm' ) then
-      print *, 'Using area-preserving interpolation'
-      call h_map_pert ( idyn, odyn, ierr )  ! SJ interpolation
-   endif
-   if ( opt == 'tlm' ) then
-      print *, 'Using bi-linear interpolation'
-      call h_map_pert ( idyn, odyn, 'tlm', ierr )  ! bi-linear interpolation
-   endif
-   if ( opt == 'adm' ) then
-      print *, 'Using bi-linear interpolation'
-      call h_map_pert ( idyn, odyn, 'adm', ierr )  ! bi-linear interpolation
+      if ( opt == 'ppm' ) then
+         print *, 'Using area-preserving interpolation'
+         call h_map_pert ( idyn, odyn, ierr )  ! SJ interpolation
+      endif
+      if ( opt == 'tlm' ) then
+         print *, 'Using bi-linear interpolation'
+         call h_map_pert ( idyn, odyn, 'tlm', ierr )  ! bi-linear interpolation
+      endif
+      if ( opt == 'adm' ) then
+         print *, 'Using bi-linear interpolation'
+         call h_map_pert ( idyn, odyn, 'adm', ierr )  ! bi-linear interpolation
+      endif
    endif
    if ( opt == 'dot' ) then
         call dyn_init ( idyn%grid%im, idyn%grid%jm, idyn%grid%km, idyn%grid%lm, xdyn, ierr, &
@@ -111,9 +116,9 @@
 ! write out
 !  print* , "Writing output file: ", trim(ofile)
 !  print *, 'Horizontal resolution of output: ', im, ' x ', jm
-   print *, 'sum(ps) = ',sum(idyn%ps), sum(odyn%ps)
-   print *, 'sum(pt) = ',sum(idyn%pt), sum(odyn%pt)
    if ( opt == 'dot' ) then
+       print *, 'sum(ps) = ',sum(idyn%ps), sum(odyn%ps)
+       print *, 'sum(pt) = ',sum(idyn%pt), sum(odyn%pt)
        call dyn_put ( trim(ofile), nymd, nhms, 0, xdyn, ierr, new=.true., freq=freq, vectype=5 )
    else
        call dyn_put ( trim(ofile), nymd, nhms, 0, odyn, ierr, new=.true., freq=freq, vectype=5 )

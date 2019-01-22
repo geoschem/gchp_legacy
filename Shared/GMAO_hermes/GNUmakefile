@@ -26,7 +26,7 @@ endif
 # Make sure ESMADIR is defined
 # -----------------------------
 ifndef ESMADIR
-   ESMADIR := $(PWD)/../..
+   ESMADIR := $(PWD)/../../..
 endif
 
 #-------------------------------
@@ -54,14 +54,15 @@ else
    BINS_MAPL = GFIO_remap.x GFIO_Shave.x lcv2prs.x $(LCV2PRS_EOS)
 endif
 
-BINS =  ana5sfc.x diag2dyn.x drs2dyn.x dyn2drs.x dyn2dyn.x \
+BINS =  ana5sfc.x diag2dyn.x drs2dyn.x dyn2drs.x dyn2dyn.x dyn_boot.x \
 	dyn2prs.x dyn2rs5.x dyn52dyn.x dyndiff.x dyndims.x dynp.x echorc.x \
 	fvsubset.x getgfiodim.x ibc_upd.x maph.x maph_pert.x mapz.x \
 	recalcsfc.x reset_time.x rs52dyn.x gcmbkg2ana.x dyndot.x \
-        dyn_pert_remap.x dyn_recenter.x dyn_rankhist.x dyn2real_eta.x $(BINS_MAPL)
+        dyn_pert_remap.x dyn_recenter.x dyn_rankhist.x dyn2real_eta.x \
+        dyn_ncf2dyn.x dyn_iupd.x dyn_cov.x dyn_efsens.x eta_echo.x dyn_inflate.x $(BINS_MAPL)
 
 UT = ut_ana2dyn.x ut_fread.x ut_insitu.x ut_lp.x ut_ocean.x ut_sst.x \
-	blendq.x geos2fv.x rout2prs.x 
+	blendq.x geos2fv.x rout2prs.x ut_dyn_ipert.x 
 
 MOD_DIRS = . $(INC_MPEU) $(INC_GFIO) $(INC_CFIO) $(INC_SDF) \
              $(INC_MAPL_BASE) $(INC_GEOS_SHARED)
@@ -104,9 +105,10 @@ THIS = $(shell basename `pwd`)
 LIB  = lib$(THIS).a
 
 SRCS = m_ana2dyn.F m_const.f90 m_dyn.f90 m_dyn2dyn.f90 m_dynp.F90 \
-	m_insitu.F m_interp.F90 m_lp.F m_maph.F90 m_maph_pert.F90 m_mapz.F \
+	m_insitu.F m_interp.F90 m_lp.F m_maph.F90 m_maph_pert.F90 m_mapz.F m_mapz_pert.F90 \
 	m_qsat.F m_remap.f90 m_set_eta.F90 m_vdc2vdc.F90 progsig.f90 m_topo_remap.F90 \
-	m_interpack.F m_interpack_ad.F m_ec_set_eta.F90 m_ecdyn.f90 dyn_pert_remap.F90
+	m_interpack.F m_interpack_ad.F m_ec_set_eta.F90 m_ecdyn.f90 \
+        m_tick.f90 m_dyn_util.F90 m_spline.f90
 
 ########################################################################
 
@@ -224,21 +226,25 @@ OBJS := $(addsuffix .o, $(basename $(SRCS)))
 DEPS := $(addsuffix .d, $(basename $(SRCS))) \
         $(addsuffix .d, $(basename $(BINS)))
 
-FOPT = $(FOPT3)
-COPT = $(COPT3)
+ifneq ("$(BOPT)","g")
+   FOPT = $(FOPT3)
+   COPT = $(COPT3)
+endif
 
-USER_FFLAGS = $(BIG_ENDIAN) $(MPFLAG) $(PP)
+INC_DIRS = . $(INC_MAPL_BASE)
+USER_FFLAGS = $(BIG_ENDIAN) $(MPFLAG)
 USER_FDEFS  = $(D)HERMES $(D)DEBUG_SHAVE $(D)unix $(D)__unix__
 USER_CDEFS  = $(D)HERMES $(D)DEBUG_SHAVE $(D)unix $(D)__unix__
 USER_CFLAGS = $(BIG_ENDIAN) 
 USER_FMODS  = $(foreach dir,$(MOD_DIRS),$(M)$(dir)) 
 USER_FINCS  = $(foreach dir,$(INC_DIRS),$(I)$(dir)) 
 
-vpath % $(MOD_DIRS) /usr/include
+vpath % $(MOD_DIRS)
 
 $(LIB) lib : $(DEPS) $(OBJS)
 	$(RM) $(LIB)
 	$(AR) $(AR_FLAGS) $(LIB) $(OBJS)
+	$(RANLIB) $(RANLIB_FLAGS) $(LIB)
 
 
 # test and auxiliary programs
@@ -268,8 +274,8 @@ fvsubset.x : $(LIB) fvsubset.o
 
 lcv2prs.x : $(LIB) lcv2prs.o
 	$(LD) $(LDFLAGS) -o $@ lcv2prs.o $(LIB) \
-	      $(LIB_CFIO) $(LIB_EU) $(LIB_SDF) $(LIB_SYS) \
-	      $(LIB_MAPL_BASE) $(LIB_GEOS_SHARED)
+	      $(LIB_CFIO) $(LIB_EU) $(LIB_SDF) $(LIB_ESMF) $(LIB_SYS) \
+	      $(LIB_MAPL_BASE) $(LIB_GEOS_SHARED) $(LIB_MPI)
 
 Chem_rst2aer_v.x : $(LIB) Chem_rst2aer_v.o
 	$(LD) $(LDFLAGS) -o $@ Chem_rst2aer_v.o $(LIB) \

@@ -58,8 +58,6 @@ Program GFIO_remap
    character(len=256) :: psFile             ! Input surface pressure file 
    integer  :: inc_hhmmss                   ! increment hours specified from command line
 
-   integer  :: im                           ! zonal dimension
-   integer  :: jm                           ! meridional dimension
    integer  :: km                           ! vertical dimension
 
    integer  :: iflag                        ! Initial flag
@@ -70,7 +68,6 @@ Program GFIO_remap
    real, allocatable :: lon(:)              ! longitudes in deg (im)
    real, allocatable :: lat(:)              ! latitudes in deg (jm)
    real, allocatable :: lev(:)              ! levels in hPa (km)
-   real, allocatable :: lev0(:)             ! levels in hPa (km)
    real              :: rair,cpair,akap,pr
 
    integer           :: nLevs = 0           ! total number of levels
@@ -122,9 +119,9 @@ Program GFIO_remap
 !                                  Local Work Space
 !                              -----------------------
 
-   integer iff, it, iv, lm, itest, ii, i, j, k
+   integer iff, it, iv, itest, k
    integer ig,is
-   real dx,dx1, dx2,dy, dy1, dy2
+   real dx1, dx2, dy1, dy2
    double precision pi
    logical ps_found,delp_found,ptop_found
    logical uv_flag,u_flag,v_flag
@@ -139,27 +136,20 @@ Program GFIO_remap
    character(len=256) :: contact            ! contact org.   
    character(len=256) :: levunits           ! Vertical levels
    character(len=25)  :: append             ! im*jm
-   real               :: missing_val
 
    integer, allocatable :: yyyymmdd(:)      ! Date
    integer, allocatable :: hhmmss(:)        !
    integer          :: ndate                ! Date
    integer          :: ndate_old            ! Date
-   integer          :: yyyymmddp,hhmmssp    ! previous Date & time
-   integer          :: ntimep               ! counter for total number of times previously accumulated.
    integer          :: ntime 
    integer          :: ntime_old 
    integer          :: timinc               ! Time increment
-   integer          :: timinc_save          ! Time increment
 
    integer          :: in_fmode = 1         ! non-zero for READ-ONLY
-   integer          :: out_fmode = 0        ! 0 for READ-WRITE 
    integer          :: fid                  ! input file ID
    integer          :: out_fid              ! output file ID
-   integer          :: fidt                 ! output running total file ID
-   integer          :: fidc                 ! output running counter file ID
    integer          :: nkount
-   integer          :: rc, rc1,rc2,jq       ! return error code
+   integer          :: rc, rc2              ! return error code
    integer          :: i2,j2,i1,j1
 
    character(len=256) :: vtitle(mVars)      ! output title
@@ -168,7 +158,7 @@ Program GFIO_remap
    integer            :: outKm(mVars)       ! number of levels for variables;
    real              :: valid_range_prs(2, mVars)
    real              :: packing_range_prs(2, mVars)
-   real              :: ptop,pint,ptop32,pint32,ple,pint55,ptop55,pintOut,ksOut
+   real              :: ptop,ptop32,pint32,pint55,ptop55,pintOut,ksOut
    real              :: ptopOut
    real              :: rx,ry
 
@@ -180,7 +170,6 @@ Program GFIO_remap
    integer           :: im_e                ! input zonal dimension       
    integer           :: jm_e                ! input meridional dimension       
    integer           :: jme_tmp             ! input meridional dimension       
-   integer           :: jme_old             ! input meridional dimension       
    integer           :: jme_new             ! input meridional dimension       
    integer           :: km_e                ! input vertical dimension    
    integer           :: lm_e                ! input time dimension    
@@ -217,7 +206,6 @@ Program GFIO_remap
    real, allocatable :: pk0(:,:)            ! Input p ** kappa  (im,km)
    real, allocatable :: pk1(:,:)            ! Output p ** kappa (im,kn)
    real, allocatable :: ps(:,:)             ! Surface Pressure
-   real, allocatable :: ps0(:,:,:)             ! Surface Pressure
    real, allocatable :: delp(:,:,:)         ! Pressure delta
    real, allocatable :: delp0(:,:,:)         ! Pressure delta
    real, allocatable :: dln0(:,:,:)         ! Pressure delta
@@ -1476,6 +1464,10 @@ CONTAINS
 !          Input pressure edges.
 !-------------------------------------------------------
 
+      if (.false.) print*, shape(ks_e) ! UNUSED_DUMMY
+      if (.false.) print*, shape(delp) ! UNUSED_DUMMY
+      if (.false.) print*, shape(ptop_old) ! UNUSED_DUMMY
+
       rair = 287.04
       cpair = 1004.64
       akap = rair/cpair
@@ -1589,14 +1581,11 @@ CONTAINS
       character(len=256) :: source             ! data source
       character(len=256) :: contact            ! contact org.   
       character(len=256) :: levunits           ! Vertical levels
-      character(len=25)  :: append             ! im*jm
       character(len=256) :: vtitle(mVars)      ! output title
       character(len=256) :: vunits(mVars)      ! output title
       character(len=256) :: vname(mVars)       ! output variable names (nVars)
       character(len=256) :: surfFile           ! Input surface pressure file 
 
-      real               :: valid_range_prs(2, mVars)
-      real               :: packing_range_prs(2, mVars)
       real               :: undef
       real, allocatable  :: lon_e(:)           ! latitudes in deg (jm)
       real, allocatable  :: lat_e(:)           ! latitudes in deg (jm)
@@ -1632,6 +1621,7 @@ CONTAINS
 !EOP
 !-------------------------------------------------------------------------
 
+      if (.false.) print*, shape(lm_e) ! UNUSED_DUMMY
 
 !          ------------------------------------------
 !             Construct or confirm psFile.
@@ -1857,14 +1847,12 @@ CONTAINS
 ! !INPUT PARAMETERS:
 
       character(len=*)  :: psFile
-      integer           :: ndate,nhms,ihms
+      integer           :: ndate,nhms
 
 ! WORK AREAS
       character(len=8)  :: cdate0              ! Date in character form
       character(len=6)  :: cdate              ! Date in character form
-      character(len=8)  :: ctime              ! Time in character form
-      character(len=4)  :: syyyy
-      character(len=2)  :: smm,cmm
+      character(len=2)  :: cmm
       integer           :: i,it
       logical           :: clim_flag
 
@@ -1881,6 +1869,10 @@ CONTAINS
 !
 !EOP
 !-------------------------------------------------------------------------
+
+      if (.false.) print*, shape(nhms) ! UNUSED_DUMMY
+      if (.false.) print*, shape(it) ! UNUSED_DUMMY
+
 
 !                 extract the index number to locate the "hdf" tag.
 !                ----------------------------------------------------
@@ -2022,10 +2014,12 @@ CONTAINS
 
       integer, parameter :: mKm = 256  ! max no of levels
 
-      integer i, j, rc
+      integer i, rc
       logical :: debug = .false.
       character(len=10) nLx, nLy
       character (len=1) resolution
+
+      if (.false.) print*, shape(mFiles) ! UNUSED_DUMMY
 
       print *
       print *, "-------------------------------------------------------------------"
@@ -2496,6 +2490,8 @@ CONTAINS
 !EOP
 ! ---------------------------------------------------------------
 
+      if (.false.) print*, shape(akap) ! UNUSED_DUMMY
+
       do j=1,jm_e
          do i=1,im_e
             pe3d_m(i,j,1) = ptop_old
@@ -2641,7 +2637,7 @@ CONTAINS
 ! WORK AREA PAMETERS:
 
       real  :: pemin,pemax
-      integer :: i,j,k
+      integer :: i,j
       integer :: imin_loc,jmin_loc,imax_loc,jmax_loc
 
 ! !DESCRIPTION: This routine Computes the min and max for a given variable.
@@ -2716,7 +2712,7 @@ CONTAINS
 
       integer i, j
       real sinlon(im), coslon(im), cosl5(im), sinl5(im)
-      integer imh, k
+      integer imh
       double precision pi
 
 
@@ -2969,7 +2965,7 @@ CONTAINS
 !          ofn
 !  WORKING VARIABLES
       real    :: array(in_e,jn_e)
-      integer :: i,j,k
+      integer :: k
 
 ! !DESCRIPTION: This routine Shifts the array from (-180,180) to (0,360).
 !
@@ -3038,6 +3034,13 @@ CONTAINS
       real              :: ple
       integer           :: i,j,k               ! loop indexes
       double precision pi
+
+      if (.false.) print*, shape(ptop) ! UNUSED_DUMMY
+      if (.false.) print*, shape(in) ! UNUSED_DUMMY
+      if (.false.) print*, shape(jn) ! UNUSED_DUMMY
+      if (.false.) print*, shape(qaflag) ! UNUSED_DUMMY
+      if (.false.) print*, shape(ucflag) ! UNUSED_DUMMY
+      if (.false.) print*, shape(vcflag) ! UNUSED_DUMMY
 
       rair = 287.04
       cpair = 1004.64

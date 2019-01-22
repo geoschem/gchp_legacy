@@ -19,9 +19,14 @@
       use m_dyn, only: dyn_vect
       use m_dyn, only: dyn_clean
 
+      use m_mapz, only : z_map
       use m_maph, only : h_map
       use m_maph_pert, only: h_map_pert
       use m_topo_remap, only: dyn_topo_remap
+
+      use m_set_eta, only: set_eta
+      use m_inpak90
+      use m_stdio, only : stdout,stderr
 
       implicit NONE
 
@@ -52,8 +57,16 @@
 !  25feb2013   ElAkkraoui/RT  Reset threshold of inf to mesh top of blending
 !  01Jul2015   Todling    Revisit handling of tracers
 !  16Jul2015   Todling    Revisit handling of surface pressure
+!  01Jan2017   MJ Kim     Brute-force defense against negative q
+!  09Apr2018   Todling    Add vertically-varying additive inflation mechanism
+!  11Apr2018   Todling    Additive inflation only applied over ocean for ps/delp
+!  09May2018   Todling    Ability to vertically interpolate central ana to mem res
 !
-! Remarks:
+! !See Also:
+!
+!    dyn_inflate.x - program to estimate vertically varying inflation coeffs
+!
+! !Remarks:
 !   1) For the purpose of diagnostics it seems more appropriate to remap
 !      to the central topography; but for the purpose of cycling it seems
 !      the proper thing to do is to remap to the member's topography. Recall
@@ -83,6 +96,7 @@
       type(dyn_vect) x_e  ! ensemble member
       type(dyn_vect) x_m  ! ensemble mean/new mean
       type(dyn_vect) x_x  ! extra type used when interpolation needed
+      type(dyn_vect) x_v  ! auxiliar vector for dealing w/ vertical interpolation
 
 !     Locals
 !     ------
@@ -90,17 +104,25 @@
       integer nfiles
       integer fid, nvars, ngatts
       integer rc
-      integer ntimes, k, freq, nymd, nhms, nymd0, nhms0, prec
-      integer im, jm, km, lm, system, dyntype
+      integer ntimes, k, freq, nymd, nhms, nymd0, nhms0
+      integer im, jm, km, lm, dyntype
       integer imm, jmm, kmm, lmm
+      integer ks
       integer lm_mean,lm_pert,lm_central
-      real    pkthresh, alpha
+      real    pabove,pbelow,pkthresh,alpha
+      real(8) ptop,pint
+      real(8),allocatable:: ak(:),bk(:)
       real,allocatable:: phis(:,:)
+      real,pointer:: frocean(:,:)
+      real,pointer:: ainf(:,:)
+      real :: ainf_ps, ainf_ts
       logical remap2central,remap2member
       logical damp
       logical verbose
       logical gotphis
       logical pncf
+      logical ocean_only
+      character(len=50), allocatable :: vars(:)
       character(len=30) :: remapinfo
       
 !  Initialize
@@ -129,6 +151,8 @@
    call dyn_get ( files(1), nymd, nhms, x_e, rc, timidx=1, freq=freq, vectype=dyntype )
    if ( rc .ne. 0 ) then
       call die(myname,'cannot read ensemble member file')
+   else
+      print *, trim(myname), ': read ens member ', trim(files(1))
    end if
 
    allocate(phis(x_e%grid%im,x_e%grid%jm))
@@ -138,6 +162,9 @@
    kmm=x_e%grid%km
    lmm=x_e%grid%lm
    lm_mean=lmm
+
+   allocate(frocean(x_e%grid%im,x_e%grid%jm))
+   frocean=x_e%frocean
 
 !  Get original (ensemble) mean
 !  ----------------------------
@@ -169,6 +196,8 @@
          call dyn_get ( files(2), nymd, nhms, x_x, rc, timidx=1, freq=freq, vectype=dyntype )
          if ( rc .ne. 0 ) then
             call die(myname,'cannot read new mean file')
+         else
+            print *, trim(myname), ': read ens mean ', trim(files(2))
          end if
 
 !        Interpolate to required resolution
@@ -193,6 +222,8 @@
          call dyn_get ( files(2), nymd, nhms, x_m, rc, timidx=1, freq=freq, vectype=dyntype )
          if ( rc .ne. 0 ) then
             call die(myname,'cannot read ensemble mean file')
+         else
+            print *, trim(myname), ': read ens mean ', trim(files(2))
          end if
 
       endif
@@ -239,24 +270,26 @@
 
       if(im/=imm.or.jm/=jmm) then
  
-!        Initialize dimension of output (interpolated) vector
-!        ----------------------------------------------------
-         call dyn_init ( im, jm, km, lm, x_m, rc, &
-                         x_e%grid%ptop, x_e%grid%ks, x_e%grid%ak, x_e%grid%bk, vectype=dyntype )
-              if ( rc/=0 ) then
-                   call die (myname, ': Error initializing dyn vector(x_e)')
-              endif
-   
 !        Read full resolution perturbation
 !        ---------------------------------
          call dyn_get ( trim(dyn_inflate), nymd0, nhms0, x_x, rc, timidx=1, freq=freq, vectype=dyntype, pncf=pncf )
          if ( rc .ne. 0 ) then
             call die(myname,'cannot read new mean file')
+         else
+            print *, trim(myname), ': read ens pert ', trim(dyn_inflate)
          end if
 
+!        Initialize dimension of output (interpolated) vector
+!        ----------------------------------------------------
+         call dyn_init ( im, jm, km, x_x%grid%lm, x_m, rc, &
+                         x_e%grid%ptop, x_e%grid%ks, x_e%grid%ak, x_e%grid%bk, vectype=dyntype )
+              if ( rc/=0 ) then
+                   call die (myname, ': Error initializing dyn vector(x_e)')
+              endif
+   
 !        Interpolate to required resolution
 !        ----------------------------------
-         x_m%grid%lm=min(lm_pert,lm) ! only interp minimal set of fields (others are zero) 
+!_RT     x_m%grid%lm=min(lm_pert,lm) ! only interp minimal set of fields (others are zero) 
          call h_map_pert ( x_x, x_m, rc )
               if ( rc/=0 ) then
                    call dyn_clean ( x_x )
@@ -266,7 +299,7 @@
               else
                    call dyn_clean ( x_x )
               endif
-         x_m%grid%lm = lm ! reset lm-dim(x_m)
+!_RT     x_m%grid%lm = lm ! reset lm-dim(x_m)
          print*, myname, ': interpolated additive perturbation to member resolution'
          print*, myname, ': from ', imm, 'x', jmm, ' to ', im, 'x', jm
 
@@ -274,25 +307,31 @@
 
 !        Initialize dimension of output (interpolated) vector
 !        ----------------------------------------------------
-         call dyn_init ( imm, jmm, kmm, lm, x_m, rc, &
+         call dyn_init ( imm, jmm, kmm, lm_pert, x_m, rc, &
                          x_e%grid%ptop, x_e%grid%ks, x_e%grid%ak, x_e%grid%bk, vectype=dyntype )
               if ( rc/=0 ) then
                    call die (myname, ': Error initializing dyn vector(x_m)')
               endif
 
-         x_m%grid%lm = lm_pert ! read only q variables in file
+!_RT     x_m%grid%lm = lm_pert ! read only q variables in file
          call dyn_get ( trim(dyn_inflate), nymd0, nhms0, x_m, rc, timidx=1, freq=freq, vectype=dyntype, pncf=pncf )
          if ( rc .ne. 0 ) then
             call die(myname,'cannot read inflating perturbation file')
+         else
+            print *, trim(myname), ': read ens pert ', trim(dyn_inflate)
          end if
-         x_m%grid%lm = lm ! reset number of q variables to total dim
+!_RT     x_m%grid%lm = lm ! reset number of q variables to total dim
 
       endif
 
 !     Add inflating perturbation: x_m=x_p inflating vector
 !     --------------------------
-      call my_sscal_(alpha,x_m)
-      call my_saxpy_(.true.,x_m,x_e,x_e,pklim=pkthresh) ! do not inflate above 10mb   
+      if(ocean_only) then
+         call my_sscal_(alpha,ainf,ainf_ps,ainf_ts,x_m,omask=frocean)
+      else
+         call my_sscal_(alpha,ainf,ainf_ps,ainf_ts,x_m)
+      endif
+      call my_saxpy_(.true.,x_m,x_e,x_e,pklim=pkthresh) ! do not inflate above pkthresh   
 
 !     Clean up mean
 !     -------------
@@ -304,34 +343,73 @@
 !  -------------------------------------
    if ( files(3)/='NONE') then
       call dyn_getdim ( files(3), imm, jmm, kmm, lmm, rc )
-      if(km/=kmm) then ! ignore diff in lm for now
-         print *, trim(myname), ': km/lm members     = ', km ,lm
-         print *, trim(myname), ': km/lm central mean= ', kmm,lmm
-         call die(myname,'inconsistent km/lm')
-      endif
       lm_central=lmm
 
-      if(im/=imm.or.jm/=jmm) then
+      if(im/=imm.or.jm/=jmm.or.km/=kmm) then
+
+!        If needed, start by vertically interpolating central analysis down to member vertical levels
+!        --------------------------------------------------------------------------------------------
+         if (km==kmm) then
+
+!            Read full resolution central analysis
+!            -------------------------------------
+             call dyn_get ( files(3), nymd, nhms, x_x, rc, timidx=1, freq=freq, vectype=dyntype )
+             if ( rc .ne. 0 ) then
+                call die(myname,'cannot read new mean file')
+             else
+                print *, trim(myname), ': read central ', trim(files(3))
+             end if
+
+         else
+
+!            Read full resolution central analysis
+!            -------------------------------------
+             call dyn_get ( files(3), nymd, nhms, x_v, rc, timidx=1, freq=freq, vectype=dyntype )
+             if ( rc .ne. 0 ) then
+               call die(myname,'cannot read new mean file')
+             else
+               print *, trim(myname), ': read central ', trim(files(3))
+             end if
+             print *, trim(myname), ': Vertically interpolating from km= ', x_v%grid%km, ' to km= ', km
+ 
+!            Initialize dimension of vertically interpolated vector
+!            -------------------------------------------------------
+             allocate(ak(km+1),bk(km+1))
+             call set_eta ( km,ks,ptop,pint,ak,bk )
+                if (any(abs(ak-x_e%grid%ak)>1.e-10).or.any(abs(bk-x_e%grid%bk)>1.e-10)) then
+                  call die(myname,'inconsistent ak/bk')
+                endif
+             call dyn_init ( x_v%grid%im, x_v%grid%jm, km, x_v%grid%lm, x_x, rc, vectype=dyntype, ks=ks, ak=ak, bk=bk )
+                if ( rc/=0 ) then
+                   call die(myname,': Error initializing dyn vector(x_x)')
+                endif
+             deallocate(ak,bk)
+
+!            Map to desired resolution
+!            -------------------------
+             call z_map ( x_v, x_x, rc, verbose=verbose, force=.false. )
+               if (rc<0) then
+                 call die(myname,': vertical interpolation failed')
+              endif
+
+!            Clean up
+!            --------
+             call dyn_clean ( x_v )
+
+         endif
 
 !        Initialize dimension of output (interpolated) vector
 !        ----------------------------------------------------
-         call dyn_init ( im, jm, km, lm, x_m, rc, &
+         call dyn_init ( im, jm, km, x_x%grid%lm, x_m, rc, &
                          x_e%grid%ptop, x_e%grid%ks, x_e%grid%ak, x_e%grid%bk, vectype=dyntype )
               if ( rc/=0 ) then
                    call die (myname, ': Error initializing dyn vector(x_m)')
               endif
 
-!        Read full resolution central analysis
-!        -------------------------------------
-         call dyn_get ( files(3), nymd, nhms, x_x, rc, timidx=1, freq=freq, vectype=dyntype )
-         if ( rc .ne. 0 ) then
-            call die(myname,'cannot read new mean file')
-         end if
-
 !        Interpolate to required resolution
 !        ----------------------------------
-         x_m%grid%lm = min(lm_central,lm) ! fix lm of interpolated fields 
-         x_x%grid%lm = x_m%grid%lm        ! fix lm of input fields
+!_RT     x_m%grid%lm = min(lm_central,lm) ! fix lm of interpolated fields 
+!_RT     x_x%grid%lm = x_m%grid%lm        ! fix lm of input fields
          call h_map ( x_x, x_m, rc, lwifile='NONE', dgrid=.false. )
               if ( rc/=0 ) then
                    call dyn_clean ( x_x )
@@ -351,18 +429,18 @@
 
 !        Initialize dimension of output (interpolated) vector
 !        ----------------------------------------------------
-         call dyn_init ( imm, jmm, kmm, lm, x_m, rc, &
+         call dyn_init ( imm, jmm, kmm, lm_central, x_m, rc, &
                          x_e%grid%ptop, x_e%grid%ks, x_e%grid%ak, x_e%grid%bk, vectype=dyntype )
               if ( rc/=0 ) then
                    call die (myname, ': Error initializing dyn vector(x_m)')
               endif
 
-         x_m%grid%lm = lm_central
+!        x_m%grid%lm = lm_central
          call dyn_get ( files(3), nymd, nhms, x_m, rc, timidx=1, freq=freq, vectype=dyntype )
          if ( rc .ne. 0 ) then
             call die(myname,'cannot read new mean file')
          end if
-         x_m%grid%lm = lm
+!        x_m%grid%lm = lm
 
       endif
 
@@ -402,6 +480,7 @@
 
 !  Clean up
 !  --------
+   if(associated(ainf)) deallocate(ainf)
    if(allocated(phis)) deallocate(phis)
    call dyn_clean ( x_e )
 
@@ -425,8 +504,7 @@ CONTAINS
 ! !INTERFACE:
 !
       subroutine Init_ ( dyntype, mfiles, files, damp, remap2central, remap2member, &
-                         pkthresh, alpha, pncf, &
-                         verbose )
+                         pkthresh, alpha, pncf, verbose )
 
       implicit NONE
 
@@ -450,6 +528,7 @@ CONTAINS
 !  21Apr2012   Todling    Add opt for additive inflation
 !  22Apr2012   Todling    Add opt for multiplicative factor
 !  24Feb2013   Todling    Add opt to bypass remapping
+!  03Apr2017   Todling    RC-opt; allow for vertically varying add-infl coeffs
 !
 !EOP
 !BOC
@@ -457,14 +536,21 @@ CONTAINS
       character*4, parameter :: myname = 'init'
 
       integer iret, i, iarg, argc, iargc
+      integer irow,nlevs, ier, iv, nivars
       character(len=255) :: argv
+      character(len=255) :: token
+      character(len=255) :: RCfile
+      character(len=255) :: tablename
       logical  doremap
 
+      RCfile = 'NONE'
       files = 'NONE'
       dyn_inflate = 'NONE'
       dyn_out = 'NONE'
       dyntype  = 4        ! default: GEOS-4 files
-      pkthresh = 100.0    ! default: ignore additive inflation above pkthresh (Pa)
+      pabove = 100.0      ! 1-mb lower limit for additive inflation (above: no inflation)
+      pbelow = 500.0      ! 5-mb upper limit for additive inflation (below: full inflation)
+      pkthresh = pabove   ! default: ignore additive inflation above pkthresh (Pa)
       alpha   = -999.0    ! default: do not apply multiplicative factor
       damp    = .false.
       remap2central = .false. ! remap ensmean and member to central topography
@@ -472,6 +558,7 @@ CONTAINS
       doremap = .true.
       pncf = .false.
       verbose = .false.
+      ocean_only = .false.
 
       print *
       print *, '     -------------------------------------'
@@ -521,6 +608,10 @@ CONTAINS
            case ("-remap2central")
              remap2central = .true.
              remap2member  = .false.
+           case ("-rc")
+             if ( iarg+1 .gt. argc ) call usage()
+             iarg = iarg + 1
+             call GetArg ( iArg, RCfile )
            case default
              nfiles = nfiles + 1
              if ( nfiles .gt. mfiles ) call usage()
@@ -529,8 +620,155 @@ CONTAINS
          end select
 
       end do
+      ainf_ps = alpha
+      ainf_ts = alpha
 
       if ( nfiles .lt. 1 ) call usage()
+
+!     Load resources: some of these will overwrite command line settings
+!     --------------
+      if ( trim(RCfile) .ne. 'NONE' ) then
+        call i90_loadf (trim(RCfile), iret)
+        if( iret .ne. 0) then
+           write(stdout,'(3a)') trim(myname),': Warning, I90_loadf cannot find file', trim(RCfile)
+           rc = 1
+           return
+        end if
+        write(stdout,'( a  )') '---------------------------------------------------------'
+        write(stdout,'(3a  )') trim(myname), ': Reading resource file: ', trim(RCfile)
+        write(stdout,'( a,/)') '---------------------------------------------------------'
+
+
+!       Read in number of levels in background field
+!       --------------------------------------------
+        nlevs = -1
+        call I90_label('dyn_recenter_nlevs:', iret)
+        if (iret==0) then
+           nlevs = I90_GInt(iret)
+        else
+           write(stderr,'(2a,i5)') trim(myname),': cannot determine no. of levels, aborting ... '
+           call exit(1)
+        end if
+
+!       Read in ocean-only option
+!       -------------------------
+        call I90_label('dyn_recenter_2d_ocean_only:', iret)
+        if (iret==0) then
+           call I90_GToken(token, iret)
+           if (iret==0) then
+              if(trim(token) == 'yes' .or. trim(token) == 'YES' ) then
+                 ocean_only = .true.
+              endif
+           endif
+           write(stderr,'(3a)') trim(myname),': 2d-ocean-only: ', trim(token)
+        end if
+
+!       Read in number of levels in background field
+!       --------------------------------------------
+        nivars=0
+        call I90_label('dyn_recenter_add_inf_vars:', iret)
+        do while (iret==0)  ! figure out how many variables ...
+           call I90_GToken(token, iret )
+           if (iret==0) then
+               nivars = nivars + 1
+           endif
+        end do
+        allocate(vars(nivars))
+        nivars= 0 
+        call I90_label('dyn_recenter_add_inf_vars:', iret)
+        do while (iret==0)  ! read again to get variables ...
+           call I90_GToken(token, iret )
+           if (iret==0) then
+               nivars = nivars + 1
+               vars(nivars) = trim(token)
+           endif
+        end do
+
+!       Read table with variable types
+!       ------------------------------
+        allocate(ainf(nlevs,nivars))
+        do iv=1,nivars ! for each variable ...
+           write(tablename,'(3a,i3.3,a)') 'dyn_recenter_add_inf_', trim(vars(iv)), '_', nlevs, '::'
+           call I90_label(trim(tablename), iret)
+           if (iret/=0) then
+              write(stderr,'(2a,i5,2a)') myname, ': I90_label error, iret=', iret, &
+                                                 ': trying to read ', trim(tablename)
+              call exit(2)
+           end if
+           irow = 0
+           write(stdout,'(a)') ' Reading vertically varying inflation ...'
+           do while (iret==0)                   ! read table entries
+              call I90_GLine ( iret )           ! iret=-1: end of file; +1: end of table
+              if (iret==0.and.irow<=nlevs) then ! OK, we have next row of table
+                  irow = irow + 1
+    
+                  call I90_GToken(token, ier )
+                  if(ier/=0) then
+                    write(stderr,'(2a,i5)') trim(myname),': cannot read 1st entry in table, aborting ...'
+                    call exit(3)
+                  endif
+                  call I90_GToken(token, ier )
+                  if(ier/=0) then
+                    write(stderr,'(2a,i5)') trim(myname),': cannot read 2nd entry in table, aborting ...'
+                    call exit(4)
+                  endif
+                  read(token,*) ainf(irow,iv) 
+              end if
+           end do
+           if(irow/=nlevs) then
+             write(stderr,'(2a,i5)') trim(myname),': inconsistent number of levels in table, aborting ...'
+             call exit(4)
+           endif
+        end do ! iv
+
+!       Read in additive inflation for PS
+!       ---------------------------------
+        call I90_label('dyn_recenter_add_inf_ps:', iret)
+        if (iret==0) then
+           ainf_ps = I90_GFloat(ier)
+           if(ier/=0) then
+              write(stderr,'(2a,i5)') trim(myname),': cannot addinf_coeff(ps), aborting ...'
+              call exit(5)
+           endif
+        else
+           write(stderr,'(2a)') trim(myname),': cannot get addinf_coeff(ps) from RC, using default ... '
+        end if
+        write(stdout,'(2a,f7.3)') trim(myname),': add-inf coeff (ps) = ', ainf_ps 
+
+!       Read in additive inflation for TS
+!       ---------------------------------
+        call I90_label('dyn_recenter_add_inf_ts:', iret)
+        if (iret==0) then
+           ainf_ts = I90_GFloat(ier)
+           if(ier/=0) then
+              write(stderr,'(2a,i5)') trim(myname),': cannot addinf_coeff(ts), aborting ...'
+              call exit(5)
+           endif
+        else
+           write(stderr,'(2a)') trim(myname),': cannot get addinf_coeff(ts) from RC, using default ... '
+        end if
+        write(stdout,'(2a,f7.3)') trim(myname),': add-inf coeff (ts)= ', ainf_ts 
+
+!       Read in additive inflation pressure threshold (Pa)
+!       -------------------------------------------------
+        call I90_label('dyn_addinf_pthreshold_pa:', iret)
+        if (iret==0) then
+           pkthresh = I90_GFloat(ier)
+           if(ier/=0) then
+              write(stderr,'(2a,i5)') trim(myname),': cannot pkthresh, aborting ...'
+              call exit(5)
+           endif
+        else
+           write(stderr,'(2a)') trim(myname),': cannot get pthreshold from RC, using default ... '
+        end if
+        write(stdout,'(2a,f7.3)') trim(myname),': add-inf pthreshold = ', pkthresh 
+
+!       release resource file:
+!       ---------------------
+        call I90_release()
+
+      endif ! RCfile
+
 
 !     Error check
 !     -----------
@@ -625,11 +863,9 @@ CONTAINS
 !     operator that would be required by passing 1.0 or -1.0
       integer k,km,lm_min
       real,allocatable,dimension(:)::pref
-      real alf,pk,pabove,pbelow,pklim_
+      real alf,pk,pklim_
       pklim_ = 0.0
-      pabove = 100.0 ! 1-mb
-      pbelow = 500.0 ! 5-mb
-      lm_min=min(x%grid%lm,y%grid%lm)
+      lm_min=min(size(z%q,4),min(size(x%q,4),size(y%q,4)))
       if (present(pklim)) then
           pklim_=pklim
       endif
@@ -664,9 +900,9 @@ CONTAINS
                z%v(:,:,k)           = x%v(:,:,k)               + y%v(:,:,k)
                z%pt(:,:,k)          = x%pt(:,:,k)              + y%pt(:,:,k)
                if(present(pklim)) then
-                 z%q(:,:,k,1)         = x%q(:,:,k,1)       + y%q(:,:,k,1)
+                 z%q(:,:,k,1)        = max(0.0,x%q(:,:,k,1)        + y%q(:,:,k,1))
                else
-                 z%q(:,:,k,1:lm_min) = x%q(:,:,k,1:lm_min) + y%q(:,:,k,1:lm_min)
+                 z%q(:,:,k,1:lm_min) = max(0.0,x%q(:,:,k,1:lm_min) + y%q(:,:,k,1:lm_min))
                endif
              endif
           enddo
@@ -682,18 +918,114 @@ CONTAINS
 
 !     Recalculate ps for consistency w/ delp
 !     --------------------------------------
-      z%ps = 0.0
+      z%ps = z%grid%ptop
       do k=1,size(z%delp,3)
          z%ps = z%ps + z%delp(:,:,k)
       enddo
       end subroutine my_saxpy_
 !.................................................................
-      subroutine my_sscal_(alpha,z)
+      subroutine my_sscal_(alpha,ainf,ainf_ps,ainf_ts,z,omask)
       real,intent(in) :: alpha
+      real,pointer,intent(in) :: ainf(:,:)
+      real,pointer,intent(in),optional :: omask(:,:)
+      real,intent(in) :: ainf_ps,ainf_ts
       type(dyn_vect), intent(inout) :: z
+      real factor
+      integer nlevs,iv
+      if(associated(ainf)) then
+        print *, 'Vertically varying additive inflation coefficients:'
+        nlevs = size(ainf,1)
+        if(ainf_ps<0.0) then
+          factor = 0.0
+        else
+          factor = ainf_ps
+        endif
+        if(present(omask)) then
+          print *, 'Masking out non-ocean surfaces ...'
+          where(omask>0.99)
+             z%ps  = factor*z%ps
+          elsewhere
+             z%ps  = 0.0
+          end where
+          do k = 1, nlevs
+             where(omask>0.99)
+               z%delp(:,:,k)   = factor*z%delp(:,:,k)
+             elsewhere
+               z%delp(:,:,k)   = 0.0
+             end where
+          enddo
+        else
+           z%ps  = factor*z%ps
+           do k = 1, nlevs
+              z%delp(:,:,k)   = factor*z%delp(:,:,k)
+           enddo
+        endif
+        if(ainf_ts<0.0) then
+          factor = 0.0
+        else
+          factor = ainf_ts
+        endif
+        if(present(omask)) then
+          where(omask>0.99)
+             z%ts  = factor*z%ts
+          elsewhere
+             z%ts  = 0.0
+          end where
+        else
+          z%ts  = factor*z%ts
+        endif
+        do iv=1,size(vars,1)
+           if(trim(vars(iv))=='u') then
+              do k = 1, nlevs
+                 z%u   (:,:,k)   = ainf(k,iv)*z%u   (:,:,k)
+              enddo
+           endif
+           if(trim(vars(iv))=='v') then
+              do k = 1, nlevs
+                 z%v   (:,:,k)   = ainf(k,iv)*z%v   (:,:,k)
+              enddo
+           endif
+           if(trim(vars(iv))=='tv') then
+              do k = 1, nlevs
+                 z%pt  (:,:,k)   = ainf(k,iv)*z%pt  (:,:,k)
+              enddo
+           endif
+           if(trim(vars(iv))=='sphu') then
+              do k = 1, nlevs
+                 z%q   (:,:,k,1) = ainf(k,iv)*z%q   (:,:,k,1)
+              enddo
+           endif
+           if(trim(vars(iv))=='ozone') then
+              do k = 1, nlevs
+                 z%q   (:,:,k,2) = ainf(k,iv)*z%q   (:,:,k,2)
+              enddo
+           endif
+           if(trim(vars(iv))=='qitot') then
+              do k = 1, nlevs
+                 z%q   (:,:,k,3) = ainf(k,iv)*z%q   (:,:,k,3)
+              enddo
+           endif
+           if(trim(vars(iv))=='qltot') then
+              do k = 1, nlevs
+                 z%q   (:,:,k,4) = ainf(k,iv)*z%q   (:,:,k,4)
+              enddo
+           endif
+           if(trim(vars(iv))=='qrtot') then
+              do k = 1, nlevs
+                 z%q   (:,:,k,5) = ainf(k,iv)*z%q   (:,:,k,5)
+              enddo
+           endif
+           if(trim(vars(iv))=='qstot') then
+              do k = 1, nlevs
+                 z%q   (:,:,k,6) = ainf(k,iv)*z%q   (:,:,k,6)
+              enddo
+           endif
+        enddo ! iv
+        return
+      endif
       if(alpha<-990.) return
-      z%ts        = alpha*z%ts
-      z%ps        = alpha*z%ps
+      z%ts        = ainf_ts*z%ts
+      z%ps        = ainf_ps*z%ps
       z%delp      = alpha*z%delp
       z%u         = alpha*z%u
       z%v         = alpha*z%v

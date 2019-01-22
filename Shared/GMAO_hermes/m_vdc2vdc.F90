@@ -864,7 +864,7 @@
 !EOP
 !-------------------------------------------------------------------------
 
-      integer :: i,j,k,n
+      integer :: j,k
    
       print *,' '
       print *,caption,'   format=',iform
@@ -1057,10 +1057,9 @@
       character(len=*), parameter :: myname_   = myname//'::set_'
 
       character(len=255) template
-      character(len=255) token
       character(len=255) d2drc
 
-      integer            ival, iret, ierr
+      integer            ival, iret
 
 !     Default grid: a18
 !     -----------------

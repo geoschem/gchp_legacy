@@ -266,7 +266,7 @@ CONTAINS
 
       character*4, parameter :: myname = 'init'
 
-      integer iret, i, iarg, argc, iargc
+      integer i, iarg, argc, iargc
       character(len=255) :: etafile, argv
 
       print *

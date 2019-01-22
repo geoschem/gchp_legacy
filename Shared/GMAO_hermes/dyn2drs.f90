@@ -38,7 +38,6 @@
 !  File names
 
    character(len=255) :: etafile, binfile
-   character(len=255) evalue
 
 ! start
 
@@ -124,7 +123,7 @@
    integer, parameter :: nfiles_max = 1
    character(len=255) :: infile(nfiles_max)
    character*4, parameter :: myname = 'init'
-   integer :: n,i,argc,iarg,iargc,nargs,nfiles,leta
+   integer :: i,argc,iarg,iargc,nfiles,leta
    character*255 :: argv
 
 ! defaults
