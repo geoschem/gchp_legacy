@@ -1,10 +1,13 @@
 
 module constants_mod
 
-! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">
+use platform_mod, only: r8_kind
+
+! <CONTACT EMAIL="Bruce.Wyman@noaa.gov">
 !   Bruce Wyman
 ! </CONTACT>
 
+! <HISTORY SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/"/>
 
 ! <OVERVIEW>
 !    Defines useful constants for Earth.
@@ -18,8 +21,13 @@ module constants_mod
 implicit none
 private
 
-character(len=128) :: version='$Id$'
-character(len=128) :: tagname='$Name$'
+! Include variable "version" to be written to log file.
+#include<file_version.h>
+!-----------------------------------------------------------------------
+! version is public so that write_version_number can be called for constants_mod
+! by fms_init
+public :: version
+
 !dummy variable to use in HUGE initializations
 real :: realnumber
 
@@ -55,11 +63,23 @@ real :: realnumber
 !   (kg/m^3)*(cal/kg/deg C)(joules/cal) = (joules/m^3/deg C)
 ! </DATA>
 
+#ifdef MAPL_MODE
+real(r8_kind), public, parameter :: PI_8  = 3.14159265358979323846_r8_kind
+real, public, parameter :: PI       = PI_8
+real, public, parameter :: RADIUS   = 6371.0E3
+real, public, parameter :: OMEGA    = 2.0*PI/86164.0
+real, public, parameter :: GRAV     = 9.80665
+real, public, parameter :: RDGAS    = 8314.47/28.965
+real, public, parameter :: KAPPA    = RDGAS/(3.5*RDGAS)
+#else
+real(r8_kind), public, parameter :: PI_8  = 3.14159265358979323846_r8_kind
+real, public, parameter :: PI     = 3.14159265358979323846
 real, public, parameter :: RADIUS = 6371.0e3   
 real, public, parameter :: OMEGA  = 7.292e-5 
 real, public, parameter :: GRAV   = 9.80    
 real, public, parameter :: RDGAS  = 287.04 
 real, public, parameter :: KAPPA  = 2./7.  
+#endif
 real, public, parameter :: CP_AIR = RDGAS/KAPPA 
 real, public, parameter :: CP_OCEAN = 3989.24495292815
 real, public, parameter :: RHO0    = 1.035e3
@@ -93,7 +113,16 @@ real, public, parameter :: RHO_CP  = RHO0*CP_OCEAN
 !   temp where fresh water freezes
 ! </DATA>
 
-real, public, parameter :: ES0 = 1.0 
+real, public, parameter :: ES0 = 1.0
+#ifdef MAPL_MODE
+real, public, parameter :: RVGAS = 8314.47/18.015
+real, public, parameter :: CP_VAPOR = 4.0*RVGAS
+real, public, parameter :: DENS_H2O = 1000.
+real, public, parameter :: HLV = 2.4665E6
+real, public, parameter :: HLF = 3.3370E5
+real, public, parameter :: HLS = HLV + HLF
+real, public, parameter :: TFREEZE = 273.16
+#else
 real, public, parameter :: RVGAS = 461.50 
 real, public, parameter :: CP_VAPOR = 4.0*RVGAS
 real, public, parameter :: DENS_H2O = 1000. 
@@ -101,6 +130,7 @@ real, public, parameter :: HLV = 2.500e6
 real, public, parameter :: HLF = 3.34e5   
 real, public, parameter :: HLS = HLV + HLF
 real, public, parameter :: TFREEZE = 273.16    
+#endif
 
 !-------------- radiation constants -----------------
 
@@ -209,17 +239,12 @@ real, public, parameter :: ALOGMIN     = -50.0
 
 real, public, parameter :: STEFAN  = 5.6734e-8 
 real, public, parameter :: VONKARM = 0.40     
-real, public, parameter :: PI      = 3.14159265358979323846
 real, public, parameter :: RAD_TO_DEG=180./PI
 real, public, parameter :: DEG_TO_RAD=PI/180.
 real, public, parameter :: RADIAN  = RAD_TO_DEG
 real, public, parameter :: C2DBARS = 1.e-4
 real, public, parameter :: KELVIN  = 273.15
 real, public, parameter :: EPSLN   = 1.0e-40
-!-----------------------------------------------------------------------
-! version and tagname published
-! so that write_version_number can be called for constants_mod by fms_init
-public :: version, tagname
 !-----------------------------------------------------------------------
 public :: constants_init
 

@@ -30,7 +30,7 @@
       integer, intent(in),  optional :: tag
       integer, intent(out), optional :: recv_request, send_request
       logical                       :: block_comm
-      integer                       :: i, out_unit
+      integer                       :: i 
       MPP_TYPE_, allocatable, save  :: local_data(:) !local copy used by non-parallel code (no SHMEM or MPI)
       integer                       :: comm_tag
       integer                       :: rsize
@@ -41,10 +41,9 @@
       block_comm = .true.
       if(PRESENT(block)) block_comm = block
 
-      out_unit = stdout()
       if( debug )then
           call SYSTEM_CLOCK(tick)
-          write( out_unit,'(a,i18,a,i5,a,2i5,2i8)' )&
+          write( stdout_unit,'(a,i18,a,i6,a,2i6,2i8)' )&
                'T=',tick, ' PE=',pe, ' MPP_TRANSMIT begin: to_pe, from_pe, put_len, get_len=', to_pe, from_pe, put_len, get_len
       end if
 
@@ -54,7 +53,7 @@
 !do put first and then get
       if( to_pe.GE.0 .AND. to_pe.LT.npes )then
 !use non-blocking sends
-          if( current_clock.NE.0 )call SYSTEM_CLOCK(start_tick)
+          if( debug .and. (current_clock.NE.0) )call SYSTEM_CLOCK(start_tick)
 !z1l: truly non-blocking send.
 !          if( request(to_pe).NE.MPI_REQUEST_NULL )then !only one message from pe->to_pe in queue 
 !              if( debug )write( stderr(),* )'PE waiting for sending', pe, to_pe
@@ -68,7 +67,7 @@
                 "MPP_TRANSMIT: cur_send_request is greater than max_request, increase mpp_nml request_multiply")
              call MPI_ISEND( put_data, put_len, MPI_TYPE_, to_pe, comm_tag, mpp_comm_private, request_send(cur_send_request), error)
           endif
-          if( current_clock.NE.0 )call increment_current_clock( EVENT_SEND, put_len*MPP_TYPE_BYTELEN_ )
+          if( debug .and. (current_clock.NE.0) )call increment_current_clock( EVENT_SEND, put_len*MPP_TYPE_BYTELEN_ )
       else if( to_pe.EQ.ALL_PES )then !this is a broadcast from from_pe
           if( from_pe.LT.0 .OR. from_pe.GE.npes )call mpp_error( FATAL, 'MPP_TRANSMIT: broadcasting from invalid PE.' )
           if( put_len.GT.get_len )call mpp_error( FATAL, 'MPP_TRANSMIT: size mismatch between put_data and get_data.' )
@@ -92,7 +91,7 @@
 !do the get: for libSMA, a get means do a wait to ensure put on remote PE is complete
       if( from_pe.GE.0 .AND. from_pe.LT.npes )then
 !receive from from_pe
-          if( current_clock.NE.0 )call SYSTEM_CLOCK(start_tick)
+          if( debug .and. (current_clock.NE.0) )call SYSTEM_CLOCK(start_tick)
           if( block_comm ) then
              call MPI_RECV( get_data, get_len, MPI_TYPE_, from_pe, comm_tag, mpp_comm_private, stat, error )
              call MPI_GET_COUNT( stat, MPI_TYPE_, rsize, error)
@@ -117,12 +116,12 @@
                 type_recv(cur_recv_request) = MPI_TYPE_
              endif
           endif
-          if( current_clock.NE.0 )call increment_current_clock( EVENT_RECV, get_len*MPP_TYPE_BYTELEN_ )
+          if( debug .and. (current_clock.NE.0) )call increment_current_clock( EVENT_RECV, get_len*MPP_TYPE_BYTELEN_ )
       else if( from_pe.EQ.ANY_PE )then
 !receive from MPI_ANY_SOURCE
-          if( current_clock.NE.0 )call SYSTEM_CLOCK(start_tick)
+          if( debug .and. (current_clock.NE.0) )call SYSTEM_CLOCK(start_tick)
           call MPI_RECV( get_data, get_len, MPI_TYPE_, MPI_ANY_SOURCE, comm_tag, mpp_comm_private, stat, error )
-          if( current_clock.NE.0 )call increment_current_clock( EVENT_RECV, get_len*MPP_TYPE_BYTELEN_ )
+          if( debug .and. (current_clock.NE.0) )call increment_current_clock( EVENT_RECV, get_len*MPP_TYPE_BYTELEN_ )
       else if( from_pe.EQ.ALL_PES )then
           call mpp_error( FATAL, 'MPP_TRANSMIT: from_pe=ALL_PES has ambiguous meaning, and hence is not implemented.' )
       else if( from_pe.NE.NULL_PE )then !only remaining valid choice is NULL_PE
@@ -131,7 +130,7 @@
 
       if( debug )then
           call SYSTEM_CLOCK(tick)
-          write( out_unit,'(a,i18,a,i5,a,2i5,2i8)' )&
+          write( stdout_unit,'(a,i18,a,i6,a,2i6,2i8)' )&
                'T=',tick, ' PE=',pe, ' MPP_TRANSMIT end: to_pe, from_pe, put_len, get_len=', to_pe, from_pe, put_len, get_len
       end if
       return
@@ -150,22 +149,21 @@
       MPP_TYPE_, intent(inout) :: data(*)
       integer, intent(in) :: length, from_pe
       integer, intent(in), optional :: pelist(:)
-      integer :: n, i, from_rank, out_unit
+      integer :: n, i, from_rank, stdout_unit
 
       if( .NOT.module_is_initialized )call mpp_error( FATAL, 'MPP_BROADCAST: You must first call mpp_init.' )
       n = get_peset(pelist); if( peset(n)%count.EQ.1 )return
 
-      out_unit = stdout()
       if( debug )then
           call SYSTEM_CLOCK(tick)
-          write( out_unit,'(a,i18,a,i5,a,2i5,2i8)' )&
+          write( stdout_unit,'(a,i18,a,i6,a,2i6,2i8)' )&
                'T=',tick, ' PE=',pe, ' MPP_BROADCAST begin: from_pe, length=', from_pe, length
       end if
 
       if( .NOT.ANY(from_pe.EQ.peset(current_peset_num)%list) ) &
            call mpp_error( FATAL, 'MPP_BROADCAST: broadcasting from invalid PE.' )
 
-      if( current_clock.NE.0 )call SYSTEM_CLOCK(start_tick)
+      if( debug .and. (current_clock.NE.0) )call SYSTEM_CLOCK(start_tick)
  ! find the rank of from_pe in the pelist.     
       do i = 1, mpp_npes()
          if(peset(n)%list(i) == from_pe) then
@@ -174,7 +172,7 @@
          endif
       enddo
       if( mpp_npes().GT.1 )call MPI_BCAST( data, length, MPI_TYPE_, from_rank, peset(n)%id, error )
-      if( current_clock.NE.0 )call increment_current_clock( EVENT_BROADCAST, length*MPP_TYPE_BYTELEN_ )
+      if( debug .and. (current_clock.NE.0) )call increment_current_clock( EVENT_BROADCAST, length*MPP_TYPE_BYTELEN_ )
       return
     end subroutine MPP_BROADCAST_
 

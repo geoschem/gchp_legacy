@@ -34,8 +34,8 @@ private
 !----------- ****** VERSION NUMBER ******* ---------------------------
 
 
-character(len=128)  :: version =  '$Id$'
-character(len=128)  :: tag     =  '$Name$'
+! Include variable "version" to be written to log file.
+#include<file_version.h>
 
 
 
@@ -131,6 +131,7 @@ subroutine column_diagnostics_init
 !---------------------------------------------------------------------
 #ifdef INTERNAL_FILE_NML
       read (input_nml_file, column_diagnostics_nml, iostat=io)
+      ierr = check_nml_error (io, 'column_diagnostics_nml')
 #else
       if (file_exist('input.nml')) then
         unit =  open_namelist_file ( )
@@ -144,7 +145,7 @@ subroutine column_diagnostics_init
 !---------------------------------------------------------------------
 !    write version number and namelist to logfile.
 !---------------------------------------------------------------------
-      call write_version_number (version, tag)
+      call write_version_number("COLUMN_DIAGNOSTICS_MOD", version)
       if (mpp_pe() == mpp_root_pe())    then
                     unit = stdlog()
                     write (unit, nml=column_diagnostics_nml)

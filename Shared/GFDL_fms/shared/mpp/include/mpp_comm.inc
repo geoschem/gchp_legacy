@@ -1,7 +1,4 @@
-
 ! -*-f90-*-
-! $Id$
-
 
 #ifdef use_libSMA
 #include <mpp_comm_sma.inc>
@@ -14,6 +11,8 @@
 #ifndef no_8byte_integers
 #undef MPP_CHKSUM_INT_
 #define MPP_CHKSUM_INT_ mpp_chksum_i8_1d
+#undef MPP_CHKSUM_INT_RMASK_
+#define MPP_CHKSUM_INT_RMASK_ mpp_chksum_i8_1d_rmask
 #undef MPP_TYPE_
 #define MPP_TYPE_ integer(LONG_KIND)
 #undef MPP_RANK_
@@ -22,6 +21,8 @@
 
 #undef MPP_CHKSUM_INT_
 #define MPP_CHKSUM_INT_ mpp_chksum_i8_2d
+#undef MPP_CHKSUM_INT_RMASK_
+#define MPP_CHKSUM_INT_RMASK_ mpp_chksum_i8_2d_rmask
 #undef MPP_TYPE_
 #define MPP_TYPE_ integer(LONG_KIND)
 #undef MPP_RANK_
@@ -30,6 +31,8 @@
 
 #undef MPP_CHKSUM_INT_
 #define MPP_CHKSUM_INT_ mpp_chksum_i8_3d
+#undef MPP_CHKSUM_INT_RMASK_
+#define MPP_CHKSUM_INT_RMASK_ mpp_chksum_i8_3d_rmask
 #undef MPP_TYPE_
 #define MPP_TYPE_ integer(LONG_KIND)
 #undef MPP_RANK_
@@ -38,6 +41,8 @@
 
 #undef MPP_CHKSUM_INT_
 #define MPP_CHKSUM_INT_ mpp_chksum_i8_4d
+#undef MPP_CHKSUM_INT_RMASK_
+#define MPP_CHKSUM_INT_RMASK_ mpp_chksum_i8_4d_rmask
 #undef MPP_TYPE_
 #define MPP_TYPE_ integer(LONG_KIND)
 #undef MPP_RANK_
@@ -46,6 +51,8 @@
 
 #undef MPP_CHKSUM_INT_
 #define MPP_CHKSUM_INT_ mpp_chksum_i8_5d
+#undef MPP_CHKSUM_INT_RMASK_
+#define MPP_CHKSUM_INT_RMASK_ mpp_chksum_i8_5d_rmask
 #undef MPP_TYPE_
 #define MPP_TYPE_ integer(LONG_KIND)
 #undef MPP_RANK_
@@ -55,6 +62,8 @@
 
 #undef MPP_CHKSUM_INT_
 #define MPP_CHKSUM_INT_ mpp_chksum_i4_1d
+#undef MPP_CHKSUM_INT_RMASK_
+#define MPP_CHKSUM_INT_RMASK_ mpp_chksum_i4_1d_rmask
 #undef MPP_TYPE_
 #define MPP_TYPE_ integer(INT_KIND)
 #undef MPP_RANK_
@@ -63,6 +72,8 @@
 
 #undef MPP_CHKSUM_INT_
 #define MPP_CHKSUM_INT_ mpp_chksum_i4_2d
+#undef MPP_CHKSUM_INT_RMASK_
+#define MPP_CHKSUM_INT_RMASK_ mpp_chksum_i4_2d_rmask
 #undef MPP_TYPE_
 #define MPP_TYPE_ integer(INT_KIND)
 #undef MPP_RANK_
@@ -71,6 +82,8 @@
 
 #undef MPP_CHKSUM_INT_
 #define MPP_CHKSUM_INT_ mpp_chksum_i4_3d
+#undef MPP_CHKSUM_INT_RMASK_
+#define MPP_CHKSUM_INT_RMASK_ mpp_chksum_i4_3d_rmask
 #undef MPP_TYPE_
 #define MPP_TYPE_ integer(INT_KIND)
 #undef MPP_RANK_
@@ -79,6 +92,8 @@
 
 #undef MPP_CHKSUM_INT_
 #define MPP_CHKSUM_INT_ mpp_chksum_i4_4d
+#undef MPP_CHKSUM_INT_RMASK_
+#define MPP_CHKSUM_INT_RMASK_ mpp_chksum_i4_4d_rmask
 #undef MPP_TYPE_
 #define MPP_TYPE_ integer(INT_KIND)
 #undef MPP_RANK_
@@ -87,6 +102,8 @@
 
 #undef MPP_CHKSUM_INT_
 #define MPP_CHKSUM_INT_ mpp_chksum_i4_5d
+#undef MPP_CHKSUM_INT_RMASK_
+#define MPP_CHKSUM_INT_RMASK_ mpp_chksum_i4_5d_rmask
 #undef MPP_TYPE_
 #define MPP_TYPE_ integer(INT_KIND)
 #undef MPP_RANK_
@@ -293,23 +310,74 @@
 
 !#################################################
 #undef MPP_GATHER_1D_
+#undef MPP_GATHER_1DV_
+#undef MPP_TYPE_
+#define MPP_TYPE_ logical
+#define MPP_GATHER_1D_ mpp_gather_logical_1d
+#define MPP_GATHER_1DV_ mpp_gather_logical_1dv
+#undef  MPP_GATHER_PELIST_2D_
+#undef  MPP_GATHER_PELIST_3D_
+#define MPP_GATHER_PELIST_2D_ mpp_gather_pelist_logical_2d
+#define MPP_GATHER_PELIST_3D_ mpp_gather_pelist_logical_3d
+#include <mpp_gather.h>
+
+#undef MPP_GATHER_1D_
+#undef MPP_GATHER_1DV_
 #undef MPP_TYPE_
 #define MPP_TYPE_ integer(INT_KIND)
 #define MPP_GATHER_1D_ mpp_gather_int4_1d
 #define MPP_GATHER_1DV_ mpp_gather_int4_1dv
+#undef  MPP_GATHER_PELIST_2D_
+#undef  MPP_GATHER_PELIST_3D_
+#define MPP_GATHER_PELIST_2D_ mpp_gather_pelist_int4_2d
+#define MPP_GATHER_PELIST_3D_ mpp_gather_pelist_int4_3d
 #include <mpp_gather.h>
 
 #undef MPP_GATHER_1D_
+#undef MPP_GATHER_1DV_
 #undef MPP_TYPE_
 #define MPP_TYPE_ real(FLOAT_KIND)
 #define MPP_GATHER_1D_ mpp_gather_real4_1d
 #define MPP_GATHER_1DV_ mpp_gather_real4_1dv
+#undef  MPP_GATHER_PELIST_2D_
+#undef  MPP_GATHER_PELIST_3D_
+#define MPP_GATHER_PELIST_2D_ mpp_gather_pelist_real4_2d
+#define MPP_GATHER_PELIST_3D_ mpp_gather_pelist_real4_3d
 #include <mpp_gather.h>
 
 #undef MPP_GATHER_1D_
+#undef MPP_GATHER_1DV_
 #undef MPP_TYPE_
 #define MPP_TYPE_ real(DOUBLE_KIND)
 #define MPP_GATHER_1D_ mpp_gather_real8_1d
 #define MPP_GATHER_1DV_ mpp_gather_real8_1dv
+#undef  MPP_GATHER_PELIST_2D_
+#undef  MPP_GATHER_PELIST_3D_
+#define MPP_GATHER_PELIST_2D_ mpp_gather_pelist_real8_2d
+#define MPP_GATHER_PELIST_3D_ mpp_gather_pelist_real8_3d
 #include <mpp_gather.h>
 
+!#################################################
+#undef  MPP_SCATTER_PELIST_2D_
+#undef  MPP_SCATTER_PELIST_3D_
+#undef MPP_TYPE_
+#define MPP_TYPE_ integer(INT_KIND)
+#define MPP_SCATTER_PELIST_2D_ mpp_scatter_pelist_int4_2d
+#define MPP_SCATTER_PELIST_3D_ mpp_scatter_pelist_int4_3d
+#include <mpp_scatter.h>
+
+#undef  MPP_SCATTER_PELIST_2D_
+#undef  MPP_SCATTER_PELIST_3D_
+#undef MPP_TYPE_
+#define MPP_TYPE_ real(FLOAT_KIND)
+#define MPP_SCATTER_PELIST_2D_ mpp_scatter_pelist_real4_2d
+#define MPP_SCATTER_PELIST_3D_ mpp_scatter_pelist_real4_3d
+#include <mpp_scatter.h>
+
+#undef  MPP_SCATTER_PELIST_2D_
+#undef  MPP_SCATTER_PELIST_3D_
+#undef MPP_TYPE_
+#define MPP_TYPE_ real(DOUBLE_KIND)
+#define MPP_SCATTER_PELIST_2D_ mpp_scatter_pelist_real8_2d
+#define MPP_SCATTER_PELIST_3D_ mpp_scatter_pelist_real8_3d
+#include <mpp_scatter.h>

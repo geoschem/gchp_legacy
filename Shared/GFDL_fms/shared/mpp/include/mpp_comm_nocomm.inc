@@ -1,6 +1,4 @@
-
 ! -*-f90-*-
-! $Id$
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !                                                                             !
@@ -20,6 +18,7 @@ subroutine mpp_init( flags,localcomm )
 
   module_is_initialized = .TRUE.
 
+  allocate(peset(0:0))
   !PEsets: make defaults illegal
   peset(:)%count = -1
   peset(:)%id = -1
@@ -61,6 +60,10 @@ subroutine mpp_init( flags,localcomm )
   read(unit_nml,mpp_nml,iostat=io_status)
   close(unit_nml)  
 #endif
+
+  if (io_status > 0) then
+     call mpp_error(FATAL,'=>mpp_init: Error reading input.nml')
+  endif
 
 ! non-root pe messages written to other location than stdout()
 ! 9 is reserved for etc_unit
@@ -113,7 +116,7 @@ subroutine mpp_init( flags,localcomm )
   if( verbose )call mpp_error( NOTE, 'MPP_INIT: initializing MPP module...' )
   if( pe.EQ.root_pe )then
      logunit = stdlog()
-     write( logunit,'(/a)' )'MPP module '//trim(version)//trim(tagname)
+     write( logunit,'(/a)' )'MPP module '//trim(version)
      write( logunit,'(a,i6)' )'MPP started with NPES=', npes
      write( logunit,'(a)' )'Using no library for message passing...'
      write( logunit, '(a26,es12.4,a6,i10,a11)' ) &
@@ -121,6 +124,7 @@ subroutine mpp_init( flags,localcomm )
      write( logunit, '(a23,es12.4,a6,i20,a7)' ) &
           'Clock rolls over after ', max_ticks*tick_rate, ' sec (', max_ticks, ' ticks)'
   end if
+
   call mpp_clock_begin(clock0)
 
   return
@@ -953,3 +957,57 @@ end subroutine mpp_exit
 #undef MPP_TYPE_BYTELEN_
 #define MPP_TYPE_BYTELEN_ 4
 #include <mpp_sum_nocomm.h>
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                                                                             !
+!            SCATTER AND GATHER ROUTINES: mpp_alltoall                        !
+!                                                                             !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+#undef MPP_ALLTOALL_
+#undef MPP_ALLTOALLV_
+#undef MPP_TYPE_
+#undef MPP_TYPE_BYTELEN_
+#undef MPI_TYPE_
+#define MPP_ALLTOALL_ mpp_alltoall_int4
+#define MPP_ALLTOALLV_ mpp_alltoall_int4_v
+#define MPP_TYPE_ integer(INT_KIND)
+#define MPP_TYPE_BYTELEN_ 4
+#define MPI_TYPE_ MPI_INTEGER4
+#include <mpp_alltoall_nocomm.h>
+
+#undef MPP_ALLTOALL_
+#undef MPP_ALLTOALLV_
+#undef MPP_TYPE_
+#undef MPP_TYPE_BYTELEN_
+#undef MPI_TYPE_
+#define MPP_ALLTOALL_ mpp_alltoall_int8
+#define MPP_ALLTOALLV_ mpp_alltoall_int8_v
+#define MPP_TYPE_ integer(LONG_KIND)
+#define MPP_TYPE_BYTELEN_ 8
+#define MPI_TYPE_ MPI_INTEGER8
+#include <mpp_alltoall_nocomm.h>
+
+#undef MPP_ALLTOALL_
+#undef MPP_ALLTOALLV_
+#undef MPP_TYPE_
+#undef MPP_TYPE_BYTELEN_
+#undef MPI_TYPE_
+#define MPP_ALLTOALL_ mpp_alltoall_real4
+#define MPP_ALLTOALLV_ mpp_alltoall_real4_v
+#define MPP_TYPE_ real(FLOAT_KIND)
+#define MPP_TYPE_BYTELEN_ 4
+#define MPI_TYPE_ MPI_REAL4
+#include <mpp_alltoall_nocomm.h>
+
+#undef MPP_ALLTOALL_
+#undef MPP_ALLTOALLV_
+#undef MPP_TYPE_
+#undef MPP_TYPE_BYTELEN_
+#undef MPI_TYPE_
+#define MPP_ALLTOALL_ mpp_alltoall_real8
+#define MPP_ALLTOALLV_ mpp_alltoall_real8_v
+#define MPP_TYPE_ real(DOUBLE_KIND)
+#define MPP_TYPE_BYTELEN_ 8
+#define MPI_TYPE_ MPI_REAL8
+#include <mpp_alltoall_nocomm.h>

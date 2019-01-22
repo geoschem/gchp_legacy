@@ -41,8 +41,8 @@ module horiz_interp_bicubic_mod
     module procedure horiz_interp_bicubic_new_1d_s
   end interface
 
-   character(len=128) :: version="$Id$"
-   character(len=128) :: tagname = '$Name$'
+! Include variable "version" to be written to log file.
+#include<file_version.h>
    logical            :: module_is_initialized = .FALSE.
    integer            :: verbose_bicubic = 0
    
@@ -75,16 +75,16 @@ module horiz_interp_bicubic_mod
   !#######################################################################
   !  <SUBROUTINE NAME="horiz_interp_bicubic_init">
   !  <OVERVIEW>
-  !     writes version number and tag name to logfile.out
+  !     writes version number to logfile.out
   !  </OVERVIEW>
   !  <DESCRIPTION>       
-  !     writes version number and tag name to logfile.out
+  !     writes version number to logfile.out
   !  </DESCRIPTION>
 
   subroutine horiz_interp_bicubic_init
 
      if(module_is_initialized) return
-     call write_version_number (version, tagname)
+     call write_version_number("HORIZ_INTERP_BICUBIC_MOD", version)
      module_is_initialized = .true.
      tpi = 2.0*PI
 
@@ -545,13 +545,17 @@ module horiz_interp_bicubic_mod
       integer i,j,k,l
       real d1d2,xx,cl(16),wt(16,16),x(16)
       save wt
-      data wt/1,0,-3,2,4*0,-3,0,9,-6,2,0,-6,4,8*0,3,0,-9,6,-2,0,6,-4,10* &
-       0,9,-6,2*0,-6,4,2*0,3,-2,6*0,-9,6,2*0,6,-4,4*0,1,0,-3,2,-2,0,6,-4, &
-       1,0,-3,2,8*0,-1,0,3,-2,1,0,-3,2,10*0,-3,2,2*0,3,-2,6*0,3,-2,2*0,   &
-      -6,4,2*0,3,-2,0,1,-2,1,5*0,-3,6,-3,0,2,-4,2,9*0,3,-6,3,0,-2,4,-2,  &
-       10*0,-3,3,2*0,2,-2,2*0,-1,1,6*0,3,-3,2*0,-2,2,5*0,1,-2,1,0,-2,4,   &
-      -2,0,1,-2,1,9*0,-1,2,-1,0,1,-2,1,10*0,1,-1,2*0,-1,1,6*0,-1,1,2*0,  &
-       2,-2,2*0,-1,1/
+      data wt/1., 0., -3., 2., 4*0., -3., 0., 9., -6., 2., 0., -6., 4., 8*0., &
+              3., 0., -9., 6., -2., 0., 6., -4., 10*0., 9., -6., 2*0., -6., &
+              4., 2*0., 3., -2., 6*0., -9., 6., 2*0., 6., -4., 4*0., 1., 0., &
+              -3., 2., -2., 0., 6., -4., 1., 0., -3., 2., 8*0., -1., 0., 3., &
+              -2., 1., 0., -3., 2., 10*0., -3., 2., 2*0., 3., -2., 6*0., 3., &
+              -2., 2*0., -6., 4., 2*0., 3., -2., 0., 1., -2., 1., 5*0., -3., &
+              6., -3., 0., 2., -4., 2., 9*0., 3., -6., 3., 0., -2., 4., -2., &
+              10*0., -3., 3., 2*0., 2., -2., 2*0., -1., 1., 6*0., 3., -3., &
+              2*0., -2., 2., 5*0., 1., -2., 1., 0., -2., 4., -2., 0., 1., -2., &
+              1., 9*0., -1., 2., -1., 0., 1., -2., 1., 10*0., 1., -1., 2*0., &
+              -1., 1., 6*0., -1., 1., 2*0., 2., -2., 2*0., -1., 1./
 
       d1d2=d1*d2
       do i=1,4
@@ -647,7 +651,7 @@ module horiz_interp_bicubic_mod
                  jnu = min(j+1,jce)
                  do js=jnl,jnu
                    do is=inl,inr
-                     if (work_old(is,js) .ne. blank .and. mask(is,js).ne.0) then
+                     if (work_old(is,js) .ne. blank .and. mask(is,js).ne.0.) then
                        tavr = tavr + work_old(is,js)
                        iavr = iavr+1
                      endif

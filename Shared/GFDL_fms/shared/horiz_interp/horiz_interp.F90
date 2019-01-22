@@ -24,9 +24,10 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module horiz_interp_mod
 
-! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Zhi Liang </CONTACT>
-! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Bruce Wyman </CONTACT>
+! <CONTACT EMAIL="Zhi.Liang@noaa.gov"> Zhi Liang </CONTACT>
+! <CONTACT EMAIL="Bruce.Wyman@noaa.gov"> Bruce Wyman </CONTACT>
 
+! <HISTORY SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/"/>
 
 ! <OVERVIEW>
 !   Performs spatial interpolation between grids.
@@ -54,7 +55,10 @@ module horiz_interp_mod
 !-----------------------------------------------------------------------
 
 use fms_mod,                    only: write_version_number, fms_error_handler
-use mpp_mod,                    only: mpp_error, FATAL, stdout, mpp_min
+use fms_mod,                    only: file_exist, close_file
+use fms_mod,                    only: check_nml_error, open_namelist_file
+use mpp_mod,                    only: mpp_error, FATAL, stdout, stdlog, mpp_min
+use mpp_mod,                    only: input_nml_file, WARNING, mpp_pe, mpp_root_pe
 use constants_mod,              only: pi
 use horiz_interp_type_mod,      only: horiz_interp_type, assignment(=)
 use horiz_interp_type_mod,      only: CONSERVE, BILINEAR, SPHERICA, BICUBIC
@@ -215,9 +219,25 @@ use horiz_interp_spherical_mod, only: horiz_interp_spherical_new, horiz_interp_s
  end interface
 ! </INTERFACE>
 
+
+ !--- namelist interface
+ !<NAMELIST NAME="horiz_interp_nml">
+ ! <DATA NAME="reproduce_siena" TYPE="logical" DEFAULT=".FALSE." >
+ !   Set reproduce_siena = .true. to reproduce siena results. 
+ !   Set reproduce_siena = .false. to decrease truncation error 
+ !   in routine poly_area in file mosaic_util.c. The truncation error of
+ !   second order conservative remapping might be big for high resolution
+ !   grid.  
+ ! </DATA>
+ !</NAMELIST>
+
+ logical :: reproduce_siena = .false.
+
+ namelist /horiz_interp_nml/ reproduce_siena
+
 !-----------------------------------------------------------------------
- character(len=128) :: version = '$Id$'
- character(len=128) :: tagname = '$Name$'
+! Include variable "version" to be written to log file.
+#include<file_version.h>
  logical            :: module_is_initialized = .FALSE.
 !-----------------------------------------------------------------------
 
@@ -226,16 +246,43 @@ contains
 !#######################################################################
 !  <SUBROUTINE NAME="horiz_interp_init">
 !  <OVERVIEW>
-!     writes version number and tag name to logfile.out
+!     writes version number to logfile.out
 !  </OVERVIEW>
 !  <DESCRIPTION>       
-!     writes version number and tag name to logfile.out
+!     writes version number to logfile.out
 !  </DESCRIPTION>
 
   subroutine horiz_interp_init
+  integer :: unit, ierr, io
 
   if(module_is_initialized) return
-  call write_version_number (version, tagname)
+  call write_version_number("HORIZ_INTERP_MOD", version)
+
+#ifdef INTERNAL_FILE_NML
+  read (input_nml_file, horiz_interp_nml, iostat=io)
+  ierr = check_nml_error(io,'horiz_interp_nml')
+#else
+  if (file_exist('input.nml')) then
+     unit = open_namelist_file ( )
+     ierr=1
+     do while (ierr /= 0)
+     read  (unit, nml=horiz_interp_nml, iostat=io, end=10)
+     ierr = check_nml_error(io,'horiz_interp_nml')  ! also initializes nml error codes
+     enddo
+10   call close_file (unit)
+  endif
+#endif
+  if (mpp_pe() == mpp_root_pe() ) then
+     unit = stdlog()
+     write (unit, nml=horiz_interp_nml)
+  endif
+
+  if( reproduce_siena ) then
+     call mpp_error(FATAL, "horiz_interp_mod: You have overridden the default value of reproduce_siena " // &
+                           "and set it to .true. in horiz_interp_nml. This is a temporary workaround to " // &
+                           "allow for consistency in continuing experiments. Please remove this namelist " )
+  endif
+
   call horiz_interp_conserve_init
   call horiz_interp_bilinear_init
   call horiz_interp_bicubic_init
@@ -275,7 +322,7 @@ contains
     logical, intent(in),                 optional :: src_modulo
     logical, intent(in),                 optional :: grid_at_center
     real, intent(in), dimension(:,:),    optional :: mask_in  ! dummy
-    real, intent(out),dimension(:,:),    optional :: mask_out ! dummy
+    real, intent(inout),dimension(:,:),  optional :: mask_out ! dummy
     !-----------------------------------------------------------------------
     real, dimension(:,:), allocatable :: lon_src, lat_src, lon_dst, lat_dst
     real, dimension(:),   allocatable :: lon_src_1d, lat_src_1d, lon_dst_1d, lat_dst_1d
@@ -670,7 +717,8 @@ contains
 
 !<PUBLICROUTINE INTERFACE="horiz_interp"> 
  subroutine horiz_interp_base_2d ( Interp, data_in, data_out, verbose, &
-                                   mask_in, mask_out, missing_value, missing_permit, err_msg )
+                                   mask_in, mask_out, missing_value, missing_permit, &
+                                   err_msg, new_missing_handle )
 !</PUBLICROUTINE>
 !-----------------------------------------------------------------------
    type (horiz_interp_type), intent(in) :: Interp
@@ -682,6 +730,7 @@ contains
       real, intent(in),                   optional :: missing_value
       integer, intent(in),                optional :: missing_permit
    character(len=*), intent(out),         optional :: err_msg
+      logical, intent(in),                optional :: new_missing_handle
 !-----------------------------------------------------------------------
    if(present(err_msg)) err_msg = ''
    if(.not.Interp%I_am_initialized) then
@@ -693,7 +742,7 @@ contains
       call horiz_interp_conserve(Interp,data_in, data_out, verbose, mask_in, mask_out)
    case(BILINEAR)
       call horiz_interp_bilinear(Interp,data_in, data_out, verbose, mask_in, mask_out, &
-                             missing_value, missing_permit )
+                             missing_value, missing_permit, new_missing_handle )
    case(BICUBIC)
       call horiz_interp_bicubic(Interp,data_in, data_out, verbose, mask_in, mask_out, &
                              missing_value, missing_permit )
@@ -1287,6 +1336,7 @@ implicit none
   !--- read namelist
 #ifdef INTERNAL_FILE_NML
       read (input_nml_file, test_horiz_interp_nml, iostat=io)
+      ierr = check_nml_error(io, 'test_horiz_interp_nml')
 #else
   if (file_exist('input.nml')) then
      ierr=1

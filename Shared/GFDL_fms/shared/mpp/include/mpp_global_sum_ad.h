@@ -1,32 +1,53 @@
-  subroutine MPP_GLOBAL_SUM_AD_( domain, field, gsum, position )
+  subroutine MPP_GLOBAL_SUM_AD_( domain, field, gsum, flags, position, tile_count )
+    MPP_TYPE_ :: MPP_GLOBAL_SUM_
     type(domain2D), intent(in) :: domain
     MPP_TYPE_, intent(inout) :: field(:,: MPP_EXTRA_INDICES_ )
-    MPP_TYPE_, intent(inout) :: gsum
+    MPP_TYPE_, intent(in) :: gsum
+    integer, intent(in), optional :: flags
     integer, intent(in), optional :: position
-    
-    integer :: i,j, ioff,joff
-    type(domain2d), pointer :: Dom => NULL()
+    integer, intent(in), optional :: tile_count
 
-    Dom => get_domain(domain, position)
+    integer :: i,j, ioff,joff, isc, iec, jsc, jec, is, ie, js, je, ishift, jshift, ioffset, joffset
+    integer :: global_flag, tile, ntile, nlist, n, list, m
 
-    if( size(field,1).EQ.Dom%x(1)%compute%size .AND. size(field,2).EQ.Dom%y(1)%compute%size )then
+    if( domain%max_ntile_pe > MAX_TILES ) call mpp_error(FATAL, "MPP_GLOBAL_SUM: number of tiles is exceed MAX_TILES")
+    ntile     = size(domain%x(:))
+    nlist     = size(domain%list(:))
+    tile = 1
+    if(present(tile_count)) tile = tile_count
+    global_flag = NON_BITWISE_EXACT_SUM
+    if(present(flags)) global_flag = flags
+
+    call mpp_get_domain_shift(domain, ishift, jshift, position)
+
+    if( size(field,1).EQ.domain%x(tile)%compute%size+ishift .AND. size(field,2).EQ.domain%y(tile)%compute%size+jshift )then
 !field is on compute domain
-        ioff = -Dom%x(1)%compute%begin + 1
-        joff = -Dom%y(1)%compute%begin + 1
-    else if( size(field,1).EQ.Dom%x(1)%data%size .AND. size(field,2).EQ.Dom%y(1)%data%size )then
+        ioff = -domain%x(tile)%compute%begin + 1 
+        joff = -domain%y(tile)%compute%begin + 1
+    else if( size(field,1).EQ.domain%x(tile)%memory%size+ishift .AND. size(field,2).EQ.domain%y(tile)%memory%size+jshift )then
 !field is on data domain
-        ioff = -Dom%x(1)%data%begin + 1
-        joff = -Dom%y(1)%data%begin + 1
+        ioff = -domain%x(tile)%data%begin + 1
+        joff = -domain%y(tile)%data%begin + 1
     else
         call mpp_error( FATAL, 'MPP_GLOBAL_SUM_AD_: incoming field array must match either compute domain or data domain.' )
     end if
 
-        do j = Dom%y(1)%compute%begin, Dom%y(1)%compute%end
-           do i = Dom%x(1)%compute%begin, Dom%x(1)%compute%end
-              field(i+ioff:i+ioff,j+joff:j+joff MPP_EXTRA_INDICES_)= gsum
-           end do
-        end do
-      
-        gsum = 0.
+    if(domain%ntiles > MAX_TILES)  call mpp_error( FATAL,  &
+         'MPP_GLOBAL_SUM_AD_: number of tiles on this mosaic is greater than MAXTILES')
+
+    call mpp_get_compute_domain( domain, is,  ie,  js,  je,  tile_count = tile_count )
+    isc = is; iec = ie + ishift; jsc = js; jec = je + jshift
+
+    if( global_flag == BITWISE_EXACT_SUM )then
+       do j = jsc, jec
+          do i = isc, iec
+             field(i+ioff:i+ioff,j+joff:j+joff MPP_EXTRA_INDICES_) = gsum
+          end do
+       end do
+    else  !this is not bitwise-exact across different PE counts
+       ioffset = domain%x(tile)%loffset*ishift; joffset = domain%y(tile)%loffset*jshift
+       field(is+ioff:ie+ioff+ioffset, js+joff:je+joff+joffset MPP_EXTRA_INDICES_) = gsum
+    end if
+
     return
   end subroutine MPP_GLOBAL_SUM_AD_

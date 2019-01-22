@@ -1,7 +1,7 @@
 !-----------------------------------------------------------------------
 !                 Communication for message-passing codes
 !
-! AUTHOR: V. Balaji (V.Balaji)
+! AUTHOR: V. Balaji (V.Balaji@noaa.gov)
 !         SGI/GFDL Princeton University
 !
 ! This program is free software; you can redistribute it and/or modify
@@ -21,12 +21,14 @@
 module mpp_mod
 !a generalized communication package for use with shmem and MPI
 !will add: co_array_fortran, MPI2
-!Balaji (V.Balaji) 11 May 1998
+!Balaji (V.Balaji@noaa.gov) 11 May 1998
 
-! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">
+! <CONTACT EMAIL="V.Balaji@noaa.gov">
 !   V. Balaji
 ! </CONTACT>
 
+! <HISTORY SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/"/>
+! <RCSLOG SRC="http://www.gfdl.noaa.gov/~vb/changes_mpp.html"/>
 
 ! <OVERVIEW>
 !   <TT>mpp_mod</TT>, is a set of simple calls to provide a uniform interface
@@ -163,17 +165,19 @@ module mpp_mod
   use mpp_parameter_mod, only : CLOCK_MODULE, CLOCK_ROUTINE, CLOCK_LOOP, CLOCK_INFRA
   use mpp_parameter_mod, only : MAX_EVENTS, MAX_BINS, MAX_EVENT_TYPES, MAX_CLOCKS
   use mpp_parameter_mod, only : MAXPES, EVENT_WAIT, EVENT_ALLREDUCE, EVENT_BROADCAST
+  use mpp_parameter_mod, only : EVENT_ALLTOALL
   use mpp_parameter_mod, only : EVENT_RECV, EVENT_SEND, MPP_READY, MPP_WAIT
-  use mpp_parameter_mod, only : mpp_parameter_version=>version, mpp_parameter_tagname=>tagname
+  use mpp_parameter_mod, only : mpp_parameter_version=>version
   use mpp_parameter_mod, only : DEFAULT_TAG
   use mpp_parameter_mod, only : COMM_TAG_1,  COMM_TAG_2,  COMM_TAG_3,  COMM_TAG_4
   use mpp_parameter_mod, only : COMM_TAG_5,  COMM_TAG_6,  COMM_TAG_7,  COMM_TAG_8
   use mpp_parameter_mod, only : COMM_TAG_9,  COMM_TAG_10, COMM_TAG_11, COMM_TAG_12
   use mpp_parameter_mod, only : COMM_TAG_13, COMM_TAG_14, COMM_TAG_15, COMM_TAG_16
   use mpp_parameter_mod, only : COMM_TAG_17, COMM_TAG_18, COMM_TAG_19, COMM_TAG_20
+  use mpp_parameter_mod, only : MPP_FILL_INT,MPP_FILL_DOUBLE
   use mpp_data_mod,      only : stat, mpp_stack, ptr_stack, status, ptr_status, sync, ptr_sync  
   use mpp_data_mod,      only : mpp_from_pe, ptr_from, remote_data_loc, ptr_remote
-  use mpp_data_mod,      only : mpp_data_version=>version, mpp_data_tagname=>tagname
+  use mpp_data_mod,      only : mpp_data_version=>version
 
 implicit none
 private
@@ -197,7 +201,7 @@ private
   public :: COMM_TAG_9,  COMM_TAG_10, COMM_TAG_11, COMM_TAG_12
   public :: COMM_TAG_13, COMM_TAG_14, COMM_TAG_15, COMM_TAG_16
   public :: COMM_TAG_17, COMM_TAG_18, COMM_TAG_19, COMM_TAG_20
-
+  public :: MPP_FILL_INT,MPP_FILL_DOUBLE
 
   !--- public data from mpp_data_mod ------------------------------
 !  public :: request
@@ -206,14 +210,16 @@ private
   public :: stdin, stdout, stderr, stdlog, lowercase, uppercase, mpp_error, mpp_error_state
   public :: mpp_set_warn_level, mpp_sync, mpp_sync_self, mpp_set_stack_size, mpp_pe
   public :: mpp_node, mpp_npes, mpp_root_pe, mpp_set_root_pe, mpp_declare_pelist
-  public :: mpp_get_current_pelist, mpp_set_current_pelist, mpp_clock_begin, mpp_clock_end
+  public :: mpp_get_current_pelist, mpp_set_current_pelist, mpp_get_current_pelist_name
   public :: mpp_clock_id, mpp_clock_set_grain, mpp_record_timing_data, get_unit
-  public :: read_ascii_file
+  public :: read_ascii_file, read_input_nml, mpp_clock_begin, mpp_clock_end
+  public :: get_ascii_file_num_lines
+  public :: mpp_record_time_start, mpp_record_time_end
 
   !--- public interface from mpp_comm.h ------------------------------
   public :: mpp_chksum, mpp_max, mpp_min, mpp_sum, mpp_transmit, mpp_send, mpp_recv
   public :: mpp_broadcast, mpp_malloc, mpp_init, mpp_exit
-  public :: mpp_gather
+  public :: mpp_gather, mpp_scatter, mpp_alltoall
 #ifdef use_MPI_GSM
   public :: mpp_gsm_malloc, mpp_gsm_free
 #endif
@@ -653,12 +659,55 @@ private
   !  </OVERVIEW>
   ! </INTERFACE>
   interface mpp_gather
+     module procedure mpp_gather_logical_1d
      module procedure mpp_gather_int4_1d
      module procedure mpp_gather_real4_1d
      module procedure mpp_gather_real8_1d
+     module procedure mpp_gather_logical_1dv
      module procedure mpp_gather_int4_1dv
      module procedure mpp_gather_real4_1dv
      module procedure mpp_gather_real8_1dv
+     module procedure mpp_gather_pelist_logical_2d
+     module procedure mpp_gather_pelist_logical_3d
+     module procedure mpp_gather_pelist_int4_2d
+     module procedure mpp_gather_pelist_int4_3d
+     module procedure mpp_gather_pelist_real4_2d
+     module procedure mpp_gather_pelist_real4_3d
+     module procedure mpp_gather_pelist_real8_2d
+     module procedure mpp_gather_pelist_real8_3d
+  end interface
+
+  !#####################################################################
+  ! <INTERFACE NAME="mpp_scatter">
+  !  <OVERVIEW>
+  !    gather information onto root pe.
+  !  </OVERVIEW>
+  ! </INTERFACE>
+  interface mpp_scatter
+     module procedure mpp_scatter_pelist_int4_2d
+     module procedure mpp_scatter_pelist_int4_3d
+     module procedure mpp_scatter_pelist_real4_2d
+     module procedure mpp_scatter_pelist_real4_3d
+     module procedure mpp_scatter_pelist_real8_2d
+     module procedure mpp_scatter_pelist_real8_3d
+  end interface
+
+  !#####################################################################
+  ! <interface name="mpp_alltoall">
+  !   <overview>
+  !     scatter a vector across all PEs
+  !     (e.g. transpose the vector and PE index)
+  !   </overview>
+  ! </interface>
+  interface mpp_alltoall
+     module procedure mpp_alltoall_int4
+     module procedure mpp_alltoall_int8
+     module procedure mpp_alltoall_real4
+     module procedure mpp_alltoall_real8
+     module procedure mpp_alltoall_int4_v
+     module procedure mpp_alltoall_int8_v
+     module procedure mpp_alltoall_real4_v
+     module procedure mpp_alltoall_real8_v
   end interface
 
 
@@ -1022,6 +1071,7 @@ private
   !     Integer checksums on FP data use the F90 <TT>TRANSFER()</TT>
   !     intrinsic.
   !
+  !     The <LINK SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/shared/chksum/chksum.html">serial checksum module</LINK> is superseded
   !     by this function, and is no longer being actively maintained. This
   !     provides identical results on a single-processor job, and to perform
   !     serial checksums on a single processor of a parallel job, you only
@@ -1056,11 +1106,24 @@ private
      module procedure mpp_chksum_i8_2d
      module procedure mpp_chksum_i8_3d
      module procedure mpp_chksum_i8_4d
+     module procedure mpp_chksum_i8_5d
+     module procedure mpp_chksum_i8_1d_rmask
+     module procedure mpp_chksum_i8_2d_rmask
+     module procedure mpp_chksum_i8_3d_rmask
+     module procedure mpp_chksum_i8_4d_rmask
+     module procedure mpp_chksum_i8_5d_rmask
+
 #endif
      module procedure mpp_chksum_i4_1d
      module procedure mpp_chksum_i4_2d
      module procedure mpp_chksum_i4_3d
      module procedure mpp_chksum_i4_4d
+     module procedure mpp_chksum_i4_5d
+     module procedure mpp_chksum_i4_1d_rmask
+     module procedure mpp_chksum_i4_2d_rmask
+     module procedure mpp_chksum_i4_3d_rmask
+     module procedure mpp_chksum_i4_4d_rmask
+     module procedure mpp_chksum_i4_5d_rmask
      module procedure mpp_chksum_r8_0d
      module procedure mpp_chksum_r8_1d
      module procedure mpp_chksum_r8_2d
@@ -1139,6 +1202,8 @@ private
   integer :: in_unit=5, out_unit=6, err_unit=0
 #endif
 
+  integer :: stdout_unit
+
   !--- variables used in mpp_util.h
   type(Summary_Struct) :: clock_summary(MAX_CLOCKS)
   logical              :: warnings_are_fatal = .FALSE.
@@ -1173,25 +1238,26 @@ private
   integer :: get_len_nocomm = 0 ! needed for mpp_transmit_nocomm.h
 
 !***********************************************************************
-!            variables needed for include/read_input_nml.inc
+!  variables needed for subroutine read_input_nml (include/mpp_util.inc)
 !
 ! parameter defining length of character variables 
   integer, parameter :: INPUT_STR_LENGTH = 256
 ! public variable needed for reading input.nml from an internal file
   character(len=INPUT_STR_LENGTH), dimension(:), allocatable, public :: input_nml_file
+  logical :: read_ascii_file_on = .FALSE.
 !***********************************************************************
 
-  character(len=128), public :: version= &
-       '$Id mpp.F90 $'
-  character(len=128), public :: tagname= &
-       '$Name$'
+! Include variable "version" to be written to log file.
+#include<file_version.h>
+  public version
 
   integer, parameter :: MAX_REQUEST_MIN  = 10000
   integer            :: request_multiply = 20
 
   logical :: etc_unit_is_stderr = .false.
   integer :: max_request = 0
-  namelist /mpp_nml/ etc_unit_is_stderr, request_multiply
+  logical :: sync_all_clocks = .false.
+  namelist /mpp_nml/ etc_unit_is_stderr, request_multiply, mpp_record_timing_data, sync_all_clocks
 
   contains
 #include <system_clock.h>

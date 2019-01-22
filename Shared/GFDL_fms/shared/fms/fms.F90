@@ -1,10 +1,11 @@
 
 module fms_mod
 
-! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">
+! <CONTACT EMAIL="Bruce.Wyman@noaa.gov">
 !   Bruce Wyman
 ! </CONTACT>
 
+! <HISTORY SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/"/>
 
 ! <OVERVIEW>
 !   The fms module provides routines that are commonly used
@@ -21,10 +22,12 @@ module fms_mod
 !     These include namelist files, restart files, and 32-bit IEEE
 !     data files. There also is a matching interface to close the files.
 !     If other file types are needed the <TT>mpp_open</TT> and <TT>mpp_close</TT>
+!     interfaces in module <LINK SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/shared/mpp/mpp_io.html">mpp_io</LINK> must be used.<BR/>
 !    3. Read and write distributed data to simple native unformatted files.
 !     This type of file (called a restart file) is used to checkpoint
 !     model integrations for a subsequent restart of the run.<BR/>
 !    4. For convenience there are several routines published from
+!     the <LINK SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/shared/mpp/mpp.html">mpp</LINK> module. These are routines for getting processor
 !     numbers, commonly used I/O unit numbers, error handling, and timing sections of code.
 ! </DESCRIPTION>
 
@@ -132,16 +135,19 @@ use       mpp_io_mod, only:  mpp_io_init, mpp_open, mpp_close,         &
                        MPP_RDONLY, MPP_WRONLY, MPP_APPEND, MPP_OVERWR, &
                        MPP_SEQUENTIAL, MPP_DIRECT,                     &
                        MPP_SINGLE, MPP_MULTI, MPP_DELETE, mpp_io_exit, &
-                       fieldtype, mpp_get_atts, mpp_get_info, mpp_get_fields
+                       fieldtype, mpp_get_atts, mpp_get_info, mpp_get_fields, &
+                       do_cf_compliance
 
-use fms_io_mod, only : read_data, write_data, fms_io_init, fms_io_exit, field_size, &
+use fms_io_mod, only : fms_io_init, fms_io_exit, field_size, &
+                       read_data, write_data, read_compressed, read_distributed, &
                        open_namelist_file, open_restart_file, open_ieee32_file, close_file, &
                        set_domain, get_domain_decomp, nullify_domain, &
                        open_file, open_direct_file, string, get_mosaic_tile_grid, &
-                       get_mosaic_tile_file, get_global_att_value, file_exist, field_exist
+                       get_mosaic_tile_file, get_global_att_value, file_exist, field_exist, &
+                       write_version_number
 
 use memutils_mod, only: print_memuse_stats, memutils_init
-use constants_mod, only: constants_version=>version, constants_tagname=>tagname !pjp: PI not computed
+use constants_mod, only: constants_version=>version !pjp: PI not computed
 
 
 implicit none
@@ -156,7 +162,7 @@ public :: open_namelist_file, open_restart_file, &
           open_file, open_direct_file
 
 ! routines for reading/writing distributed data
-public :: set_domain, read_data, write_data
+public :: set_domain, read_data, write_data, read_compressed, read_distributed
 public :: get_domain_decomp, field_size, nullify_domain
 public :: get_global_att_value
 
@@ -165,7 +171,9 @@ public :: get_mosaic_tile_grid, get_mosaic_tile_file
 
 ! miscellaneous i/o routines
 public :: file_exist, check_nml_error, field_exist,     &
-          write_version_number, error_mesg, fms_error_handler
+          error_mesg, fms_error_handler
+! i/o routines from fms_io
+public :: write_version_number
 
 ! miscellaneous utilities (non i/o)
 public :: lowercase, uppercase, string,        &
@@ -182,6 +190,8 @@ public :: MPP_CLOCK_SYNC, MPP_CLOCK_DETAILED
 public :: CLOCK_COMPONENT, CLOCK_SUBCOMPONENT, &
           CLOCK_MODULE_DRIVER, CLOCK_MODULE,   &
           CLOCK_ROUTINE, CLOCK_LOOP, CLOCK_INFRA
+! public mpp-io interfaces
+public :: do_cf_compliance
 
 !Balaji
 !this is published by fms and applied to any initialized clocks
@@ -194,6 +204,7 @@ integer, public :: clock_flag_default
      INTEGER :: badType1
      INTEGER :: badType2
      INTEGER :: missingVar
+     INTEGER :: NotInFile
   END TYPE nml_errors_type
   TYPE(nml_errors_type), SAVE :: nml_errors
 
@@ -220,6 +231,7 @@ integer, public :: clock_flag_default
 !     module: mpp_clock_id, mpp_clock_begin, and mpp_clock_end.
 !     The fms module makes these routines public.
 !     A list of timed code sections will be printed to STDOUT.
+!     See the <LINK SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/shared/mpp/mpp.html">MPP</LINK>
 !     module for more details.
 !   </DATA>
 !   <DATA NAME="clock_flags"  TYPE="character"  DEFAULT="'NONE'">
@@ -229,6 +241,7 @@ integer, public :: clock_flag_default
 !     DETAILED also turns on detailed message-passing performance diagnosis.
 !     Both SYNC and DETAILED will  work correctly on innermost clock nest
 !     and distort outer clocks, and possibly the overall code time.
+!     See the <LINK SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/shared/mpp/mpp.html">MPP</LINK>
 !     module for more details.
 !   </DATA>
 !   <DATA NAME="read_all_pe"  TYPE="logical"  DEFAULT="true">
@@ -276,8 +289,8 @@ integer, public :: clock_flag_default
 
 !  ---- version number -----
 
-  character(len=128) :: version = '$Id$'
-  character(len=128) :: tagname = '$Name$'
+! Include variable "version" to be written to log file.
+#include<file_version.h>
 
   logical :: module_is_initialized = .FALSE.
 
@@ -339,6 +352,7 @@ subroutine fms_init (localcomm )
 
 #ifdef INTERNAL_FILE_NML
       read (input_nml_file, fms_nml, iostat=io)
+      ierr = check_nml_error(io,'fms_nml')
 #else
     if (file_exist('input.nml')) then
        unit = open_namelist_file ( )
@@ -405,7 +419,7 @@ subroutine fms_init (localcomm )
 
 !--- write version info and namelist to logfile ---
 
-    call write_version_number (version, tagname)
+    call write_version_number("FMS_MOD", version)
     if (mpp_pe() == mpp_root_pe()) then
       unit = stdlog()
       write (unit, nml=fms_nml)
@@ -415,7 +429,7 @@ subroutine fms_init (localcomm )
     call memutils_init( print_memory_usage )
     call print_memuse_stats('fms_init')
 
-    call write_version_number (constants_version,constants_tagname)
+    call write_version_number("CONSTANTS_MOD", constants_version)
 
 end subroutine fms_init
 ! </SUBROUTINE>
@@ -633,20 +647,18 @@ end subroutine fms_end
     check_nml_error = IOSTAT
 
     ! Return on valid IOSTAT values
-    IF ( IOSTAT <= 0 .OR. IOSTAT == nml_errors%multipleNMLSinFile ) RETURN
+    IF ( IOSTAT <= 0 .OR.&
+       & IOSTAT == nml_errors%multipleNMLSinFile .OR.&
+       & IOSTAT == nml_errors%NotInFile) RETURN
 
     ! Everything else is a FATAL
-    IF ( mpp_pe() == mpp_root_pe() ) THEN
-       IF ( (IOSTAT == nml_errors%badType1 .OR. IOSTAT == nml_errors%badType2) .OR. IOSTAT == nml_errors%missingVar ) THEN
-          WRITE (err_str,*) 'Unknown namelist, or mistyped namelist variable in namelist ',TRIM(NML_NAME),', (IOSTAT = ',IOSTAT,')'
-          CALL error_mesg ('check_nml_error in fms_mod', err_str, FATAL)
-          CALL mpp_sync()
-       ELSE
-          WRITE (err_str,*) 'Unknown error while reading namelist ',TRIM(NML_NAME),', (IOSTAT = ',IOSTAT,')'
-          CALL error_mesg ('check_nml_error in fms_mod', err_str, FATAL)
-          CALL mpp_sync()
-       END IF
-    ELSE 
+    IF ( (IOSTAT == nml_errors%badType1 .OR. IOSTAT == nml_errors%badType2) .OR. IOSTAT == nml_errors%missingVar ) THEN
+       WRITE (err_str,*) 'Unknown namelist, or mistyped namelist variable in namelist ',TRIM(NML_NAME),', (IOSTAT = ',IOSTAT,')'
+       CALL error_mesg ('check_nml_error in fms_mod', err_str, FATAL)
+       CALL mpp_sync()
+    ELSE
+       WRITE (err_str,*) 'Unknown error while reading namelist ',TRIM(NML_NAME),', (IOSTAT = ',IOSTAT,')'
+       CALL error_mesg ('check_nml_error in fms_mod', err_str, FATAL)
        CALL mpp_sync()
     END IF
   END FUNCTION check_nml_error
@@ -661,7 +673,7 @@ end subroutine fms_end
     ! multiple namelist records in a single file.
     INTEGER, PARAMETER :: unit_begin = 20, unit_end = 1024
     INTEGER :: fileunit, io_stat
-    INTEGER, DIMENSION(4) :: nml_iostats
+    INTEGER, DIMENSION(5) :: nml_iostats
     LOGICAL :: opened
 
     ! Variables for sample namelists
@@ -673,6 +685,7 @@ end subroutine fms_end
     NAMELIST /badType1_nml/ i1, r1
     NAMELIST /badType2_nml/ i1, r1
     NAMELIST /missingVar_nml/ i2, r2
+    NAMELIST /not_in_file_nml/ i2, r2
 
     ! Initialize the sample namelist variables
     i1 = 1
@@ -689,7 +702,7 @@ end subroutine fms_end
           IF ( .NOT.opened ) EXIT file_opened
        END DO file_opened
 
-#if defined __PGI
+#if defined(__PGI) || defined(_CRAYFTN)
        OPEN (UNIT=fileunit, FILE='_read_error.nml', IOSTAT=io_stat)
 #else
        OPEN (UNIT=fileunit, STATUS='SCRATCH', IOSTAT=io_stat)
@@ -719,6 +732,10 @@ end subroutine fms_end
 
        ! Read in missing variable/misstyped
        READ (UNIT=fileunit, NML=missingVar_nml, IOSTAT=nml_iostats(4))
+       REWIND(UNIT=fileunit)
+
+       ! Code for namelist not in file
+       READ (UNIT=fileunit, NML=not_in_file_nml, IOSTAT=nml_iostats(5))
 
        ! Done, close file
        CLOSE (UNIT=fileunit)
@@ -737,76 +754,15 @@ end subroutine fms_end
     END IF
 
     ! Broadcast nml_errors
-    CALL mpp_broadcast(nml_iostats,4,mpp_root_pe())
+    CALL mpp_broadcast(nml_iostats,5,mpp_root_pe())
     nml_errors%multipleNMLSinFile = nml_iostats(1)
     nml_errors%badType1 = nml_iostats(2)
     nml_errors%badType2 = nml_iostats(3)
     nml_errors%missingVar = nml_iostats(4)
+    nml_errors%NotInFile = nml_iostats(5)
 
     do_nml_error_init = .FALSE.
   END SUBROUTINE nml_error_init
-
-!#######################################################################
-! <SUBROUTINE NAME="write_version_number">
-
-!   <OVERVIEW>
-!     Prints to the log file (or a specified unit) the (cvs) version id string and
-!     (cvs) tag name.
-!   </OVERVIEW>
-!   <DESCRIPTION>
-!     Prints to the log file (stdlog) or a specified unit the (cvs) version id string
-!      and (cvs) tag name.
-!   </DESCRIPTION>
-!   <TEMPLATE>
-!    call write_version_number ( version [, tag, unit] )
-!   </TEMPLATE>
-
-!   <IN NAME="version" TYPE="character(len=*)">
-!    string that contains routine name and version number.
-!   </IN>
-!   <IN NAME="tag" TYPE="character(len=*)">
-!    The tag/name string, this is usually the Name string
-!    returned by CVS when checking out the code.
-!   </IN>
-!   <IN NAME="unit" TYPE="integer">
-!    The Fortran unit number of an open formatted file. If this unit number 
-!    is not supplied the log file unit number is used (stdlog). 
-!   </IN>
-! prints module version number to the log file of specified unit number
-
- subroutine write_version_number (version, tag, unit)
-
-!   in:  version = string that contains routine name and version number
-!
-!   optional in:
-!        tag = cvs tag name that code was checked out with
-!        unit    = alternate unit number to direct output  
-!                  (default: unit=stdlog)
-
-   character(len=*), intent(in) :: version
-   character(len=*), intent(in), optional :: tag 
-   integer,          intent(in), optional :: unit 
-
-   integer :: logunit 
-
-   if (.not.module_is_initialized) call fms_init ( )
-
-     logunit = stdlog()
-     if (present(unit)) then
-         logunit = unit
-     else    
-       ! only allow stdlog messages on root pe
-         if ( mpp_pe() /= mpp_root_pe() ) return
-     endif   
-
-     if (present(tag)) then
-         write (logunit,'(/,80("="),/(a))') trim(version), trim(tag)
-     else    
-         write (logunit,'(/,80("="),/(a))') trim(version)
-     endif   
-
- end subroutine write_version_number
-! </SUBROUTINE>
 
 !#######################################################################
 

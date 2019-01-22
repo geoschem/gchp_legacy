@@ -6,7 +6,6 @@ module ensemble_manager_mod
   use mpp_mod, only : mpp_pe, mpp_declare_pelist
   use mpp_mod, only : input_nml_file
   use fms_io_mod, only       : set_filename_appendix 
-  use diag_manager_mod, only : set_diag_filename_appendix
 
   IMPLICIT NONE
 
@@ -38,7 +37,7 @@ contains
   subroutine ensemble_manager_init()
 
 
-    integer :: i, io_status, ioun, npes
+    integer :: i, io_status, ioun, npes, ierr
 
     namelist /ensemble_nml/ ensemble_size
 
@@ -49,6 +48,7 @@ contains
     read(ioun,nml=ensemble_nml,iostat = io_status)
     call close_file(ioun)
 #endif
+    ierr = check_nml_error(io_status, 'ensemble_nml')
 
     if(ensemble_size < 1) call mpp_error(FATAL, &
        'ensemble_manager_mod: ensemble_nml variable ensemble_size must be a positive integer')
@@ -222,9 +222,8 @@ contains
        ensemble_pelist_land (n, 1:land_npes) = (/(i,i=land_pe_start, land_pe_end)/)
        ensemble_pelist_ice  (n, 1:ice_npes) = (/(i,i=ice_pe_start,  ice_pe_end)/)
        ensemble_pelist(n, 1:atmos_npes)       = ensemble_pelist_atmos(n, 1:atmos_npes)
-       if( concurrent .OR. atmos_npes+ocean_npes == npes ) then
-          ensemble_pelist(n, atmos_npes+1:npes)  = ensemble_pelist_ocean(n, 1:ocean_npes)
-       endif
+       if( concurrent .OR. atmos_npes+ocean_npes == npes ) &
+            ensemble_pelist(n, atmos_npes+1:npes)  = ensemble_pelist_ocean(n, 1:ocean_npes)
        if(ANY(ensemble_pelist(n,:) == pe)) ensemble_id = n
        write(pelist_name,'(a,i2.2)')  '_ens',n
        call mpp_declare_pelist(ensemble_pelist(n,:), trim(pelist_name))
@@ -358,9 +357,6 @@ contains
        write( text,'(a,i2.2)' ) 'ens_', ensemble_id    
        !Append ensemble_id to the restart filenames
        call set_filename_appendix(trim(text)) 
-       !Append ensemble_id to the diag_out filenames
-       write( text,'(a,i2.2)' ) '.ens_', ensemble_id    
-       call set_diag_filename_appendix(trim(text)) 
     endif   
     
   end subroutine ensemble_pelist_setup

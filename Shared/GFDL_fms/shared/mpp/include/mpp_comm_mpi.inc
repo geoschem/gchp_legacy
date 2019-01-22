@@ -1,6 +1,4 @@
-
 ! -*-f90-*-
-! $Id$
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -86,6 +84,13 @@
   close(unit_nml)  
 #endif
 
+  if (io_status > 0) then
+     call mpp_error(FATAL,'=>mpp_init: Error reading input.nml')
+  endif
+
+  if(sync_all_clocks .AND. mpp_pe()==mpp_root_pe() ) call mpp_error(NOTE, &
+     "mpp_mod: mpp_nml variable sync_all_clocks is set to .true., all clocks are synchronized in mpp_clock_begin.")
+
 ! non-root pe messages written to other location than stdout()
 
   if(etc_unit_is_stderr) then
@@ -155,16 +160,18 @@
   iunit = stdlog()  ! workaround for lf95.
   if( verbose )call mpp_error( NOTE, 'MPP_INIT: initializing MPP module...' )
   if( pe.EQ.root_pe )then
-     write( iunit,'(/a)' )'MPP module '//trim(version)//trim(tagname)
+     write( iunit,'(/a)' )'MPP module '//trim(version)
      write( iunit,'(a,i6)' )'MPP started with NPES=', npes
      write( iunit,'(a)' )'Using MPI library for message passing...'
      write( iunit, '(a,es12.4,a,i10,a)' ) &
           'Realtime clock resolution=', tick_rate, ' sec (', ticks_per_sec, ' ticks/sec)'
      write( iunit, '(a,es12.4,a,i20,a)' ) &
           'Clock rolls over after ', max_ticks*tick_rate, ' sec (', max_ticks, ' ticks)'
-     write( iunit,'(/a)' )'MPP module '//trim(mpp_parameter_version)//trim(mpp_parameter_tagname)
-     write( iunit,'(/a)' )'MPP module '//trim(mpp_data_version)//trim(mpp_data_tagname)
+     write( iunit,'(/a)' )'MPP Parameter module '//trim(mpp_parameter_version)
+     write( iunit,'(/a)' )'MPP Data module '//trim(mpp_data_version)
   end if
+
+  stdout_unit = stdout()
 
   call mpp_clock_begin(clock0)
 
@@ -376,8 +383,7 @@ end subroutine mpp_gsm_free
       if( debug )then
           call SYSTEM_CLOCK(tick)
           if(mpp_pe() == mpp_root_pe()) then
-            out_unit = stdout()
-            write( out_unit,'(a,i18,a,i5,a,2i5,2i8)' )&
+            write( stdout_unit,'(a,i18,a,i5,a,2i5,2i8)' )&
                'T=',tick, ' PE=',pe, 'mpp_broadcast_text begin: from_pe, length=', from_pe, length
           endif
       end if
@@ -385,7 +391,7 @@ end subroutine mpp_gsm_free
       if( .NOT.ANY(from_pe.EQ.peset(current_peset_num)%list) ) &
            call mpp_error( FATAL, 'mpp_broadcast_text: broadcasting from invalid PE.' )
 
-      if( current_clock.NE.0 )call SYSTEM_CLOCK(start_tick)
+      if( debug .and. (current_clock.NE.0) )call SYSTEM_CLOCK(start_tick)
  ! find the rank of from_pe in the pelist.     
       do i = 1, mpp_npes()
          if(peset(n)%list(i) == from_pe) then
@@ -395,7 +401,7 @@ end subroutine mpp_gsm_free
       enddo
       lptr = LOC (data)
       if( mpp_npes().GT.1 ) call MPI_BCAST( data, length*size(data(:)), MPI_CHARACTER, from_rank, peset(n)%id, error )
-      if( current_clock.NE.0 )call increment_current_clock( EVENT_BROADCAST, length )
+      if( debug .and. (current_clock.NE.0) )call increment_current_clock( EVENT_BROADCAST, length )
       return
     end subroutine mpp_broadcast_char
 
@@ -1091,3 +1097,57 @@ end subroutine mpp_gsm_free
 #undef MPP_TYPE_BYTELEN_
 #define MPP_TYPE_BYTELEN_ 4
 #include <mpp_sum_mpi.h>
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                                                                             !
+!            SCATTER AND GATHER ROUTINES: mpp_alltoall                        !
+!                                                                             !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+#undef MPP_ALLTOALL_
+#undef MPP_ALLTOALLV_
+#undef MPP_TYPE_
+#undef MPP_TYPE_BYTELEN_
+#undef MPI_TYPE_
+#define MPP_ALLTOALL_ mpp_alltoall_int4
+#define MPP_ALLTOALLV_ mpp_alltoall_int4_v
+#define MPP_TYPE_ integer(INT_KIND)
+#define MPP_TYPE_BYTELEN_ 4
+#define MPI_TYPE_ MPI_INTEGER4
+#include <mpp_alltoall_mpi.h>
+
+#undef MPP_ALLTOALL_
+#undef MPP_ALLTOALLV_
+#undef MPP_TYPE_
+#undef MPP_TYPE_BYTELEN_
+#undef MPI_TYPE_
+#define MPP_ALLTOALL_ mpp_alltoall_int8
+#define MPP_ALLTOALLV_ mpp_alltoall_int8_v
+#define MPP_TYPE_ integer(LONG_KIND)
+#define MPP_TYPE_BYTELEN_ 8
+#define MPI_TYPE_ MPI_INTEGER8
+#include <mpp_alltoall_mpi.h>
+
+#undef MPP_ALLTOALL_
+#undef MPP_ALLTOALLV_
+#undef MPP_TYPE_
+#undef MPP_TYPE_BYTELEN_
+#undef MPI_TYPE_
+#define MPP_ALLTOALL_ mpp_alltoall_real4
+#define MPP_ALLTOALLV_ mpp_alltoall_real4_v
+#define MPP_TYPE_ real(FLOAT_KIND)
+#define MPP_TYPE_BYTELEN_ 4
+#define MPI_TYPE_ MPI_REAL4
+#include <mpp_alltoall_mpi.h>
+
+#undef MPP_ALLTOALL_
+#undef MPP_ALLTOALLV_
+#undef MPP_TYPE_
+#undef MPP_TYPE_BYTELEN_
+#undef MPI_TYPE_
+#define MPP_ALLTOALL_ mpp_alltoall_real8
+#define MPP_ALLTOALLV_ mpp_alltoall_real8_v
+#define MPP_TYPE_ real(DOUBLE_KIND)
+#define MPP_TYPE_BYTELEN_ 8
+#define MPI_TYPE_ MPI_REAL8
+#include <mpp_alltoall_mpi.h>

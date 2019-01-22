@@ -1,9 +1,10 @@
                       module astronomy_mod
-! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">
+! <CONTACT EMAIL="Fei.Liu@noaa.gov">
 !  fil
 ! </CONTACT>
 ! <REVIEWER EMAIL="">
 ! </REVIEWER>
+! <HISTORY SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/"/>
 ! <OVERVIEW>
 !    astronomy_mod provides astronomical variables for use
 !    by other modules within fms. the only currently used interface is 
@@ -45,8 +46,8 @@ private
 !---------------------------------------------------------------------
 !----------- version number for this module --------------------------
 
-character(len=128)  :: version =  '$Id$'
-character(len=128)  :: tagname =  '$Name$'
+! Include variable "version" to be written to log file.
+#include<file_version.h>
 
 
 !---------------------------------------------------------------------
@@ -169,7 +170,7 @@ real    :: twopi                    ! 2 *PI
 logical :: module_is_initialized=     &
                           .false.   ! has the module been initialized ?
 
-real, dimension(:), allocatable ::       &
+real, dimension(:,:), allocatable ::       &
                        cosz_ann, &  ! annual mean cos of zenith angle
                        solar_ann, & ! annual mean solar factor
                        fracday_ann  ! annual mean daylight fraction
@@ -273,6 +274,7 @@ real,   dimension(:,:), intent(in), optional   :: lonb
 !-----------------------------------------------------------------------
 #ifdef INTERNAL_FILE_NML
       read (input_nml_file, astronomy_nml, iostat=io)
+      ierr = check_nml_error(io,'astronomy_nml')
 #else
       if ( file_exist('input.nml')) then
         unit =  open_namelist_file ( )
@@ -286,7 +288,7 @@ real,   dimension(:,:), intent(in), optional   :: lonb
 !---------------------------------------------------------------------
 !    write version number and namelist to logfile.
 !---------------------------------------------------------------------
-      call write_version_number (version, tagname)
+      call write_version_number("ASTRONOMY_MOD", version)
       if (mpp_pe() == mpp_root_pe() ) then
         unit = stdlog()
         write (unit, nml=astronomy_nml)
@@ -345,9 +347,9 @@ real,   dimension(:,:), intent(in), optional   :: lonb
       if (present(latb)) then
         jd = size(latb,2) - 1
         id = size(lonb,1) - 1
-        allocate (cosz_ann(jd))
-        allocate (solar_ann(jd))
-        allocate (fracday_ann(jd))
+        allocate (cosz_ann(id, jd))
+        allocate (solar_ann(id, jd))
+        allocate (fracday_ann(id, jd))
         total_pts = jd*id
       endif
      
@@ -2723,9 +2725,9 @@ real,                    intent(out)   :: rrsun
 !    those variables are present; i.e., not the spectral 2-layer model.
 !---------------------------------------------------------------------
         if (allocated (cosz_ann)) then
-          cosz_ann(js:je) = cosz(1,:)
-          solar_ann(js:je)   = solar(1,:)
-          fracday_ann(js:je) = fracday(1,:)
+          cosz_ann    = cosz
+          solar_ann   = solar
+          fracday_ann = fracday
           rrsun_ann = rrsun
 
 !--------------------------------------------------------------------
@@ -2743,11 +2745,9 @@ real,                    intent(out)   :: rrsun
 !--------------------------------------------------------------------
       else
         if (allocated (cosz_ann)) then
-          do i=1, size(lat,1)
-            cosz(i,:)    = cosz_ann(js:je)
-            solar(i,:)   = solar_ann(js:je)
-            fracday(i,:) = fracday_ann(js:je)
-          end do
+          cosz    = cosz_ann
+          solar   = solar_ann
+          fracday = fracday_ann
           rrsun = rrsun_ann
         endif
       endif
@@ -2855,9 +2855,9 @@ real,               intent(out)    :: rrsun_out
 !    variables contain the results at the desired latitudes.
 !--------------------------------------------------------------------
       else
-        cosz(:)    = cosz_ann(jst:jnd)
-        solar(:)   = solar_ann(jst:jnd)
-        fracday(:) = fracday_ann(jst:jnd)
+        cosz(:)    = cosz_ann(1,jst:jnd)
+        solar(:)   = solar_ann(1,jst:jnd)
+        fracday(:) = fracday_ann(1,jst:jnd)
         rrsun      = rrsun_ann
       endif
 
@@ -2989,9 +2989,9 @@ subroutine astronomy_end
 !----------------------------------------------------------------------
 !    check if the module has been initialized.
 !----------------------------------------------------------------------
-      if (.not. module_is_initialized)   &
-                call error_mesg ( 'astronomy_mod',  &
-                         ' module has not been initialized', FATAL)
+      if (.not. module_is_initialized)  return 
+!                call error_mesg ( 'astronomy_mod',  &
+!                         ' module has not been initialized', FATAL)
 
 !----------------------------------------------------------------------
 !    deallocate module variables.
@@ -3153,7 +3153,7 @@ real, intent(in) :: ang
 !    its square (r_inv_squared) to the calling routine.
 !--------------------------------------------------------------------
       rad_per       = per*deg_to_rad
-      r             = (1 - ecc**2)/(1. + ecc*cos(ang - rad_per))
+      r             = (1. - ecc**2)/(1. + ecc*cos(ang - rad_per))
       r_inv_squared = r**(-2)
 
 
