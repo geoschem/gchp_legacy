@@ -1,3 +1,4 @@
+#include "unused_dummy.H"
 module GEOS_GmapMod
 !implicit none
 private
@@ -39,7 +40,7 @@ contains
       real      q_n(im,jm,kn,nq)
 
 ! local (private)
-      integer i, j, k, n, ic
+      integer i, j, k, n
 
       real pe1(im,km+1) ,pe2(im,kn+1)
       real pk1(im,km+1) ,pk2(im,kn+1)
@@ -49,15 +50,14 @@ contains
       real  t1(im,km)   , t2(im,kn)
       real  q1(im,km,nq), q2(im,kn,nq)
 
-      real ptop
       real akap
-      real ple,  pek, dak, bkh
       real undef
       real big
       parameter ( undef = 1.e15 )
       parameter (   big = 1.e10 )
 
 
+      _UNUSED_DUMMY(akap)
 #if   (openmp)
 !$omp  parallel do
 !$omp& default (shared)
@@ -173,6 +173,8 @@ contains
 ! local work arrays
       real a4(4,im,km)
 
+      _UNUSED_DUMMY(dp2)
+      
       do k=1,km
          do i=1,im
             a4(1,i,k) = q1(i,k)
@@ -280,10 +282,9 @@ contains
 ! local arrays.
       real dc(im,km),delq(im,km)
       real h2(im,km)
-      real a1, a2, a3, b2, c1, c2, c3, d1, d2, f1, f2, f3, f4
-      real s1, s2, s3, s4, ss3, s32, s34, s42, sc
+      real a1, a2, c1, c2, c3, d1, d2
       real qmax, qmin, cmax, cmin
-      real dm, qm, dq, tmp
+      real qm, dq, tmp
 
 ! Local scalars:
       real qmp

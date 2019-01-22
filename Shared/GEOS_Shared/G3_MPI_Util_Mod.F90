@@ -1,3 +1,4 @@
+#include "unused_dummy.H"
       module G3_MPI_Util_Mod
 
       use MAPL_Mod
@@ -125,7 +126,6 @@ end interface
       integer comm,imglobal,jmglobal,lm
       real    dummy
 
-      integer  status(mpi_status_size)
       integer  myid,ierror,im,jm,i,j,m,n,npes,rm
       integer  isum,jsum,imx,nx, img, ppe(imglobal)
 
@@ -1212,8 +1212,8 @@ end interface
       integer  myid, nx, comm, ierror, mpi_rkind
       character*(*) flag
 
-      integer im,jm,lm,shift,m,n,i,j,L,i0,req(im)
-      integer north,south,imx,ibeg,npes,request,msgn
+      integer im,jm,lm,shift,n,i,j,L
+      integer north,south,request,msgn
       real    undef
 
       real a(1:im,  1:jm  ,lm)
@@ -1222,6 +1222,8 @@ end interface
       real, allocatable :: apls(:,:,:)
       real, allocatable :: amns(:,:,:)
       real, allocatable ::  buf(:,:)
+
+      _UNUSED_DUMMY(msgn)
 
       mpi_rkind = lattice%mpi_rkind
       comm      = lattice%comm
@@ -1653,8 +1655,6 @@ end interface
       real*8 qdum
       real*8 qave 
       real   qave4
-      real   qg(lattice%imglobal,lattice%jmglobal)
-      integer status(mpi_status_size)
 
       real*8  dlat,dlon,phi
       integer i,j,ierror
@@ -1702,8 +1702,6 @@ end interface
       real*8 qdum
       real*8 qave 
       real   qave4
-      real   qg(lattice%imglobal,lattice%jmglobal)
-      integer status(mpi_status_size)
 
       real*8  dlat,dlon,phi
       integer i,j,L,ierror
@@ -1752,8 +1750,6 @@ end interface
       real*8 cosp( lattice%jm(lattice%pej) )
       real*8 qdum
       real*8 qave 
-      real   qg(lattice%imglobal,lattice%jmglobal)
-      integer status(mpi_status_size)
 
       real*8  dlat,dlon,phi
       integer i,j,ierror
@@ -1799,8 +1795,6 @@ end interface
       real*8 cosp( lattice%jm(lattice%pej) )
       real*8 qdum
       real*8 qave 
-      real   qg(lattice%imglobal,lattice%jmglobal)
-      integer status(mpi_status_size)
 
       real*8  dlat,dlon,phi
       integer i,j,L,ierror
@@ -1851,8 +1845,6 @@ end interface
       real*8 qdum
       real*8 qave
       real   qave4
-      real   qg(lattice%imglobal,lattice%jmglobal)
-      integer status(mpi_status_size)
 
       real*8  dlat,dlon,phi
       integer i,j,L,n,ierror
@@ -1907,7 +1899,6 @@ end interface
       real*8 qave1
       real*8 qave2
       real*8 qave 
-      integer status(mpi_status_size)
 
       integer i,j,ierror
 

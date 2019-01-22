@@ -9,7 +9,7 @@
 # Make sure ESMADIR is defined
 # ----------------------------
 ifndef ESMADIR
-       ESMADIR := $(PWD)/../..
+       ESMADIR := $(PWD)/../../..
 endif
 
 # Compilation rules, flags, etc
@@ -61,17 +61,27 @@ esma_doc doc:
 
 SRCS_F90 = $(wildcard GEOS_Utilities.F90 DragCoefficients.F90 GEOS.F90 \
                   tropovars.F90 surfacelayer.F90 GEOS_TopoGet.F90 \
-                  GEOS_GmapMod.F90 GEOS_RemapMod.F90 G3_MPI_Util_Mod.F90 windfix.F90 )
-SRCS_F   = $(wildcard PWSSSP.F sphere.F)
+                  GEOS_GmapMod.F90 GEOS_RemapMod.F90 G3_MPI_Util_Mod.F90 windfix.F90 OVP.F90 )
+SRCS_F   = $(wildcard PWSSSP.F sphere.F calcdbz.F)
 
 OBJS = $(SRCS_F90:.F90=.o) $(SRCS_F:.F=.o)
 DEPS = $(SRCS_F90:.F90=.d) $(SRCS_F:.F=.d)
 
 INC_DIRS = . $(INC_ESMF) $(INC_MPI) $(INC_GMAO_SHARED) 
-MOD_DIRS = . $(MOD_ESMF) $(INC_DIRS) 
+MOD_DIRS = . $(INC_DIRS) 
 
 USER_FINCS = $(foreach dir,$(INC_DIRS),$(I)$(dir))
 USER_FMODS = $(foreach dir,$(MOD_DIRS),$(M)$(dir)) 
+
+ifeq ($(ESMA_FC),ifort)
+ifeq ("$(BOPT)","fast")
+   windfix.o: FOPT = $(FOPT3) -qopt-report0 -ftz -align all -fno-alias -g -traceback
+   windfix.o: FPE = -fpe0 -fp-model source -assume noold_maxminloc -fimf-arch-consistency=true
+
+   G3_MPI_Util_Mod.o: FOPT = $(FOPT3) -qopt-report0 -ftz -align all -fno-alias -g -traceback
+   G3_MPI_Util_Mod.o: FPE = -fpe0 -fp-model source -assume noold_maxminloc -fimf-arch-consistency=true
+endif
+endif
 
 vpath % $(INC_DIRS) $(MOD_DIRS)
 
@@ -80,6 +90,7 @@ THIS_CFIO = MAPL_cfio_r4
 
 $(LIB) lib : $(DEPS) $(OBJS)
 	$(AR) $(AR_FLAGS) $(LIB) $(OBJS)
+	$(RANLIB) $(RANLIB_FLAGS) $(LIB)
 
 PWSSSP.o: PWSSSP.F
 	$(FC) -c $(FFLAGS) $(FREAL8) -I. PWSSSP.F

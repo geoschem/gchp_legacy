@@ -1,13 +1,12 @@
 ! $Id$
 ! $Name$
-
+#include "unused_dummy.H"
 module sfclayer
 
 ! !USES:
 
 use MAPL_Mod
 use DragCoefficientsMod
-
 implicit none
 private
 PUBLIC louissurface,z0sea,helfsurface,psi,phi,linadj,zcsub
@@ -361,6 +360,7 @@ end subroutine louissurface
       integer iwater,itype
       integer i,iter
 !
+      _UNUSED_DUMMY(LAI)
       rvk = 1./MAPL_KARMAN
       vk2 = MAPL_KARMAN*MAPL_KARMAN
       DO I = 1,IRUN
@@ -391,7 +391,7 @@ end subroutine louissurface
        VRIB(I) = MAPL_CP*(VPKE(I)-VPK(I))*(VTHV1(I)-VTHV2(I)) / VWS(I)
        VWS(I) = SQRT( VWS(I) )
       ENDDO    
-!
+
 !  INITIAL GUESS FOR ROUGHNESS LENGTH Z0 OVER WATER
 !
       IWATER = 0
@@ -417,7 +417,7 @@ end subroutine louissurface
 !     CU AND PSIHG FOR NEUTRALLY STRATIFIED FLOW
 !
       DO 9006 I = 1,IRUN
-       VHZ(I) = VHS(I) / VZ0(I)
+       VHZ(I) = (VHS(I) / VZ0(I) + 1.)
        VPSIM(I) = LOG( VHZ(I) )
        VAPSIM(I) = 1. / VPSIM(I)
        VCU(I) = MAPL_KARMAN * VAPSIM(I)
@@ -426,6 +426,7 @@ end subroutine louissurface
        VPSIG(I) = BMDL(i)*sqrt(max(VH0(I)*VUSTAR(I)-USTH0S,0.))
        VPSIHG(I) = VPSIM(I) + VPSIG(I)
  9006 CONTINUE
+
 !
 !     LINEAR CORRECTION FOR ERROR IN ROUGHNESS LENGTH Z0
 !
@@ -466,7 +467,8 @@ end subroutine louissurface
 !  RECOMPUTE CU, ESTIMATE PSIHG AND UPDATE ZETA AND Z0
 !
       DO 9014 I = 1,IRUN
-       VZH(I) = VZ0(I) * VAHS(I)
+!      VZH(I) = VZ0(I) * VAHS(I)
+       VZH(I) = VZ0(I) / (VHS(I) + VZ0(I))
  9014 CONTINUE
       CALL PSI (VZETA,VZH,VPSIM,VTEMP,IRUN,VXX,VXX0,VYY,VYY0,2)
       DO 9016 I = 1,IRUN
@@ -478,7 +480,6 @@ end subroutine louissurface
        VPSIHG(I) = VPSIM(I) + VPSIG(I)
        VZETA(I) = VK2 * VRIB(I) / (VCU(I) * VCU(I) * VPSIHG(I))
  9016 CONTINUE
-!
 !
       IF(LWATER)THEN
        DO 9018 I = 1,IRUN
@@ -501,12 +502,15 @@ end subroutine louissurface
 !     COMPUTE CU AND CT
 !
       DO 200 ITER = 1,N
+
        DO 9026 I = 1,IRUN
-        VZH(I) = VZ0(I) * VAHS(I)
+!       VZH(I) = VZ0(I) * VAHS(I)
+        VZH(I) = VZ0(I) / (VHS(I) + VZ0(I))
  9026  CONTINUE
        CALL PSI (VZETA,VZH,VPSIM,VPSIH,IRUN,VXX,VXX0,VYY,VYY0,1)
        DO I = 1,IRUN
-        VZH(I) = VZ0H(I) * VAHS(I)
+!       VZH(I) = VZ0H(I) * VAHS(I)
+        VZH(I) = VZ0H(I) / (VHS(I) + VZ0H(I))
        ENDDO
        if( choosez0.eq.3 .AND. Lwater ) CALL PSI (VZETA,VZH,dummy1,VPSIH,IRUN,dummy2,dummy3,dummy4,dummy5,3)
        DO 9028 I = 1,IRUN
@@ -588,7 +592,8 @@ end subroutine louissurface
 !
        DO I = 1,IRUN
         VTEMP(I) =  10. * VAHS(I) * VZETA(I)
-        VZH(I) = VZ0(I) * 0.1
+!       VZH(I) = VZ0(I) * 0.1
+        VZH(I) = VZ0(I) / (10. + VZ0(I))
        ENDDO
        CALL PSI (VTEMP,VZH,VHZ,VPSIH2,IRUN,VHZ,VHZ,VHZ,VHZ,3)
        DO I = 1,IRUN
@@ -604,7 +609,8 @@ end subroutine louissurface
 !
         do i = 1,irun
          vtemp(i) = 2. * vahs(i) * vzeta(i)
-         vzh(i) = min(vz0(i),2.) * 0.5
+!        vzh(i) = min(vz0(i),2.) * 0.5
+         VZH(I) = min(VZ0(I),2.) / (2. + min(VZ0(I),2.))
         enddo
         call psi(vtemp,vzh,psimdiag,psihdiag,irun,vhz,vhz,vhz,vhz,1)
         do i = 1,irun
@@ -617,7 +623,8 @@ end subroutine louissurface
 
         do i = 1,irun
          vtemp(i) = 10. * vahs(i) * vzeta(i)
-         vzh(i) = vz0(i) * 0.1
+!        vzh(i) = vz0(i) * 0.1
+         VZH(I) = VZ0(I) / (10. + VZ0(I))
         enddo
         call psi(vtemp,vzh,psimdiag,psihdiag,irun,vhz,vhz,vhz,vhz,1)
         do i = 1,irun
@@ -630,7 +637,8 @@ end subroutine louissurface
 
         do i = 1,irun
          vtemp(i) = 50. * vahs(i) * vzeta(i)
-         vzh(i) = vz0(i) * 0.02
+!        vzh(i) = vz0(i) * 0.02
+         VZH(I) = VZ0(I) / (50. + VZ0(I))
         enddo
         call psi(vtemp,vzh,psimdiag,psihdiag,irun,vhz,vhz,vhz,vhz,1)
         do i = 1,irun
@@ -640,6 +648,7 @@ end subroutine louissurface
 !
 !  EVALUATE TURBULENT TRANSFER COEFFICIENTS
 !
+
       DO 9044 I = 1,IRUN
 !!     VKH(I) = VUSTAR(I) * VCT(I)
 !!     VKM(I) = VUSTAR(I) * VCU(I)
@@ -651,7 +660,7 @@ end subroutine louissurface
        VRIB(I) = MAPL_CP*(VPKE(I)-VPK(I))*(VTHV1(I)-VTHV2(I)) /    &
                 max(VUS(I)*VUS(I) + VVS(I)*VVS(I),1.e-1)
       ENDDO    
-!
+
 end subroutine helfsurface
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! !IROUTINE: phi
@@ -1319,6 +1328,9 @@ end subroutine psi
       real vk,b2uhs(irun)
       integer i
 !
+      _UNUSED_DUMMY(VWS2)
+      _UNUSED_DUMMY(vk)
+
       do i = 1,irun
       B2UHS(i)   = BMDL(i) * BMDL(i) * USTH0S
       enddo
@@ -1498,6 +1510,7 @@ end subroutine psi
         IF(VINT1(I).EQ.1) VDZETA1(I) = VDPSIMC(I) / VDXPSIM(I)
         IF((VINT1(I).EQ.1).OR.(VINT2(I).EQ.1)) VTEMPLIN(I) = &
               VDY(I) + VY0(I) * VG(I) * VDXPSIM(I)
+!AMM    IF (VINT2(I).EQ.1 .and. VTEMPLIN(I).GT.tiny(1.0)) then
         IF (VINT2(I).EQ.1) then
              VDZETA2(I) =  VDPSIHC(I) / VTEMPLIN(I)
         IF ( VDZETA2(I).LT.VDZETA1(I) ) VDZETA1(I) = VDZETA2(I)

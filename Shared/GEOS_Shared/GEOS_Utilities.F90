@@ -219,7 +219,7 @@
          real, optional,    intent(OUT):: DQ
          real    :: QS
 
-         real    :: TI,W
+         real    :: TI
          real    :: DD
          real    :: TT
          real    :: DDQ
@@ -242,7 +242,7 @@
          real, optional,    intent(OUT):: DQ(:)
          real    :: QS(SIZE(TL,1))
          integer :: I
-         real    :: TI,W  
+         real    :: TI
          real    :: TT
          real    :: DDQ
          real    :: DD
@@ -266,7 +266,7 @@
          real, optional,    intent(OUT):: DQ(:,:)
          real    :: QS(SIZE(TL,1),SIZE(TL,2))
          integer :: I, J
-         real    :: TI,W  
+         real    :: TI
          real    :: TT
          real    :: DDQ
          real    :: DD
@@ -292,7 +292,7 @@
          real, optional,    intent(OUT):: DQ(:,:,:)
          real    :: QS(SIZE(TL,1),SIZE(TL,2),SIZE(TL,3))
          integer :: I, J, K
-         real    :: TI,W  
+         real    :: TI
          real    :: TT
          real    :: DDQ
          real    :: DD
@@ -689,7 +689,7 @@
       real,    optional, intent(IN) :: RAMP
       real,    optional, intent(OUT):: QSAT
       real    :: DQSAT
-      real    :: URAMP, TT, WW, DD, DQQ, QQ, TI, DQI, QI, PP
+      real    :: URAMP, TT, DD, DQQ, QQ, TI, DQI, QI, PP
       integer :: IT
 
       if(present(RAMP)) then

@@ -16,6 +16,8 @@
 
 #endif                      
 
+#include "unused_dummy.H"
+
 
 ! !INTERFACE:
 
@@ -54,6 +56,8 @@
     real    :: LOUIS_B
     real    :: LOUIS_C
     real    :: LOUIS_D
+
+    _UNUSED_DUMMY(TVS)
 
     LOUIS_B = LOUIS
     LOUIS_C = LOUIS

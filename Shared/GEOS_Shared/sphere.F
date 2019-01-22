@@ -5322,6 +5322,10 @@ c
       double precision theta(nlat),wts(nlat),w,
      1 x,pi,pis2,dtheta,dthalf,cmax,zprev,zlast,zero,
      2 zhold,pb,dpb,dcor,sum,cz
+
+      call unused_dummy(w)
+      call unused_dummy(lwork)
+
 c
 c     check work space length
 c
@@ -5414,7 +5418,13 @@ c
       do i=1,nlat
       wts(i) = 2.0d0*wts(i)/sum
       end do
+
       return
+      contains
+      subroutine unused_dummy(x)
+      class (*) :: x
+      if (.false.) print*, shape(x)
+      end
       end
       subroutine cpdp(n,cz,cp,dcp)
 c
@@ -6127,7 +6137,7 @@ c     preset quantites for fourier transform
 c     compute double precision gaussian points and weights
 c     lw = 4*nlat*(nlat+1)+2
       lw = nlat*(nlat+2)
-      call gaqd(nlat,dtheta,dwts,work,lw,ier)
+      call gaqd(nlat,dtheta,dwts,work(1),lw,ier)
       if (ier.ne.0) return
 c     store gaussian weights single precision to save computation
 c     in inner loops in analysis
@@ -6730,7 +6740,7 @@ c     preset quantites for fourier transform
 c     compute double precision gaussian points and weights
 c     lw = 4*nlat*(nlat+1)+2
       lw = nlat*(nlat+2)
-      call gaqd(nlat,dtheta,dwts,work,lw,ier)
+      call gaqd(nlat,dtheta,dwts,work(1),lw,ier)
       if (ier.ne.0) return
 c     store gaussian weights single precision to save computation
 c     in inner loops in analysis
