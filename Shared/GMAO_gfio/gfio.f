@@ -1,5 +1,6 @@
 !! #define __NCVERBOS__ NCVERBOS
 #define __NCVERBOS__ 0
+#include "unused_dummy.H"
 
 !-------------------------------------------------------------------------
 !         NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
@@ -150,7 +151,6 @@
                                     ! ------- Variable Metadata -------
       integer         nvars         ! number of variables in file
       character*(*)   vname(nvars)  ! variable short name, e.g., "hght"
-      integer         vmode         ! variable type
       character*(*)   vtitle(nvars) ! variable long name, e.g.,
                                     !   "Geopotential Height"
       character*(*)   vunits(nvars) ! variable units, e.g., "meter/second"
@@ -356,6 +356,7 @@
 !  1999.01.04  Lucchesi           Changed variable initialization
 !  1999.03.30  Lucchesi           Added 'positive=down' attribute to lev.
 !  2009.04.28  Lucchesi           Changed lon/lat/lev from float to double.
+!  2018.05.08  Todling            Add attribute coordinate for MAPL compatibility
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -363,7 +364,6 @@
       ! REAL*4 variables for 32-bit output to netCDF file.
 
       real*4 amiss_32
-      real*4 lon_32(im), lat_32(jm), levs_32(km)
       real*8 lon_64(im), lat_64(jm), levs_64(km)
       real*4 scale_32, offset_32
       real*4 high_32,low_32
@@ -373,11 +373,11 @@
       integer timedim, latdim, londim, levdim
       integer dims3D(4), dims2D(3)
       integer corner(4), edges(4)
-      integer chunksizes(4)
+#ifdef HAS_NETCDF4
+      integer :: chunksizes(4)
+#endif
       character*80 timeUnits 
       logical surfaceOnly
-      character*8 strBuf
-      character*14 dateString
       integer year,mon,day,hour,min,sec
       integer err
 
@@ -400,6 +400,13 @@ c                           levUnits: specified by user in argument list
 c                           timeUnits: string is built below
       character (len=50) :: conventions = "COARDS"
       character (len=50) :: history = "File written by GFIO v1.0.8"
+
+      
+#if defined(HAS_NETCDF4)
+      _UNUSED_DUMMY(nf_kind)
+#endif
+
+
       amiss_16 = PACK_FILL
 
 ! Variable initialization
@@ -519,6 +526,12 @@ c                           timeUnits: string is built below
      .               'down',rc)
         if (err("Create: error creating lev attribute",rc,-33) .LT. 0)
      .      return
+        if (trim(levunits).eq.'layer') then
+           call ncaptc (fid,levid,'coordinate',NCCHAR,LEN_TRIM('eta'),
+     .                  'eta',rc)
+           if (err("Create: error creating lev attribute",rc,-33) .LT. 0)
+     .         return
+        endif
       endif
 
       call ncaptc (fid, timeid, 'long_name', NCCHAR, LEN_TRIM(timeName),
@@ -972,10 +985,9 @@ c                           timeUnits: string is built below
       integer vid
       integer seconds, DiffDate, timeIndex
       integer minutes                       ! added as a work-around
-      integer idx, i, j, k
+      integer i, j, k
       integer begDate, begTime, timInc
       integer err
-      character*8 strBuf
       integer hour,min,sec,incSecs
       integer, allocatable ::  allTimes(:)
       integer fillTime
@@ -1417,10 +1429,9 @@ c                           timeUnits: string is built below
       integer vid
       integer seconds, DiffDate, timeIndex
       integer minutes                       ! added as a work-around
-      integer idx, i, j, k, l
+      integer i, j, k, l
       integer begDate, begTime, timInc
       integer err
-      character*8 strBuf
       integer hour,min,sec,incSecs
       integer, allocatable ::  allTimes(:)
       integer fillTime
@@ -1447,6 +1458,7 @@ c                           timeUnits: string is built below
       logical outRange
       logical outPRange
 
+      _UNUSED_DUMMY(nbeg)
 ! Variable initialization
 
       outRange = .FALSE.
@@ -1807,7 +1819,6 @@ c                           timeUnits: string is built below
 ! !INPUT PARAMETERS:
 !
       integer        fid              ! File handle
-      integer        fid3             ! File handle
       integer        fid2             ! File handle
       character*(*)  vname            ! Variable name
       integer        yyyymmdd         ! Year-month-day, e.g., 19971003
@@ -2133,14 +2144,13 @@ c                           timeUnits: string is built below
 !EOP
 !-------------------------------------------------------------------------
 
-      integer timeId, begDate, begTime, seconds, minutes, timInc
+      integer timeId, begDate, begTime, seconds, minutes
       integer corner(4), edges(4), timeIndex, timeShift, lm
       integer vid
       integer DiffDate
       integer err
       integer i,j,k
-      character*8 strBuf
-      integer hour,min,sec,incSecs
+      integer incSecs
 
 ! Variables for working with dimensions
 
@@ -2522,8 +2532,7 @@ c                           timeUnits: string is built below
 !EOP
 !-------------------------------------------------------------------------
 
-      integer timeid, dimId, i
-      integer attType, attLen
+      integer dimId, i
       character*(MAXCHR) dimName
       character*(MAXCHR) dimUnits
       character*(MAXCHR) vname
@@ -2752,14 +2761,12 @@ c                           timeUnits: string is built below
 
 ! Local Variables
 
-      integer vid(nvars)
       integer timeType, dimType
-      integer timeId, latId, lonId, levId, dimId, incSecs, incTime, varId
+      integer timeId, latId, lonId, levId, dimId, incSecs
       integer nDims, recdim, ngatts, seconds
       integer varType, nvDims, vDims(MAXVDIMS), nvAtts
-      integer yyyymmdd_beg, hhmmss_beg, hour, min, sec
+      integer yyyymmdd_beg, hhmmss_beg, hour, min
       integer start1D, minutes(lm)
-      character*8 strBuf
       character*(MAXCHR) dimName
       character*(MAXCHR) dimUnits
       character*(MAXCHR) vnameTemp
@@ -3127,7 +3134,7 @@ c                           timeUnits: string is built below
      .     return
         call ncagtc (fid,i,'units',vunits(fV),LEN(vunits(fV)),rc)
         if ( rc .NE. 0 ) then 
-           print *, "Inquire: Cannot find variable units attribute"
+           !!! print *, "Inquire: Cannot find variable units attribute"
         endif
         
         ! Get packing ranges and valid ranges.  Errors are not fatal 
@@ -3213,7 +3220,6 @@ c                           timeUnits: string is built below
 !EOP
 !-------------------------------------------------------------------------
 
-      integer i
       integer err
 
 ! Make NetCDF errors non-fatal, but issue warning messages.

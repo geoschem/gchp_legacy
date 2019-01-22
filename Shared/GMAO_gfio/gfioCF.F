@@ -41,7 +41,6 @@
                                     ! ------- Variable Metadata -------
       integer         nvars         ! number of variables in file
       character*(*)   vname(nvars)  ! variable short name, e.g., "hght"
-      integer         vmode         ! variable type
       character*(*)   vtitle(nvars) ! variable long name, e.g.,
                                     !   "Geopotential Height"
       character*(*)   vunits(nvars) ! variable units, e.g., "meter/second"
@@ -258,6 +257,7 @@
 !  1999.01.04  Lucchesi           Changed variable initialization
 !  1999.03.30  Lucchesi           Added 'positive=down' attribute to lev.
 !  2009.04.28  Lucchesi           Changed lon/lat/lev from float to double.
+!  2018.05.08  Todling            Add attribute coordinate for MAPL compatibility
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -265,7 +265,6 @@
       ! REAL*4 variables for 32-bit output to netCDF file.
 
       real*4 amiss_32
-      real*4 lon_32(im), lat_32(jm), levs_32(km)
       real*8 lon_64(im), lat_64(jm), levs_64(km)
       real*4 scale_32, offset_32
       real*4 high_32,low_32
@@ -278,11 +277,8 @@
       integer dimsLatLon2D(2)
       integer corner(4), edges(4)
       integer corner2d(2), edges2d(2)
-      integer chunksizes(4)
       character*80 timeUnits 
       logical surfaceOnly
-      character*8 strBuf
-      character*14 dateString
       integer year,mon,day,hour,min,sec
       integer err
 
@@ -457,6 +453,12 @@ c                           timeUnits: string is built below
      .               'down',rc)
         if (err("Create: error creating lev attribute",rc,-33) .LT. 0)
      .      return
+        if (trim(levunits).eq.'layer') then
+           call ncaptc (fid,levid,'coordinate',NCCHAR,LEN_TRIM('eta'),
+     .                  'eta',rc)
+           if (err("Create: error creating lev attribute",rc,-33) .LT. 0)
+     .         return
+        endif
       endif
 
       call ncaptc (fid, timeid, 'long_name', NCCHAR, LEN_TRIM(timeName),
@@ -560,6 +562,8 @@ c                           timeUnits: string is built below
      .         return
 
 #if defined(HAS_NETCDF4)
+          block
+          integer :: chunksizes(4)
 	  if( nf_kind .eq. 1 ) then 
               chunksizes(3) = 1          ! time
               chunksizes(2) = jm
@@ -568,6 +572,7 @@ c                           timeUnits: string is built below
               if (err("Create: error defining chunking",rc,-34) .LT. 0) 
      .           return
           endif
+          end block
 #endif
 
         else
@@ -585,6 +590,8 @@ c                           timeUnits: string is built below
      .         return
 
 #if defined(HAS_NETCDF4)
+          block
+          integer :: chunksizes(4)
 	  if( nf_kind .eq. 1 ) then 
               chunksizes(4) = 1           ! time
               chunksizes(3) = 1           ! level
@@ -593,7 +600,8 @@ c                           timeUnits: string is built below
               rc = nf_def_var_chunking(fid, vid(i), NF_CHUNKED, chunksizes)
               if (err("Create: error defining chunking",rc,-34) .LT. 0) 
      .            return
-           endif
+          endif
+          end block
 #endif
         endif
 
@@ -894,15 +902,13 @@ c                           timeUnits: string is built below
 
 ! Local Variables
 
-      integer vid(nvars)
       integer timeType, dimType
-      integer timeId, latId, lonId, levId, dimId, incSecs, incTime, varId
+      integer timeId, latId, lonId, levId, dimId, incSecs
       integer lat2Id, lon2Id, size
       integer nDims, recdim, ngatts, seconds
       integer varType, nvDims, vDims(MAXVDIMS), nvAtts
-      integer yyyymmdd_beg, hhmmss_beg, hour, min, sec
+      integer yyyymmdd_beg, hhmmss_beg, hour, min
       integer start1D, minutes(lm)
-      character*8 strBuf
       character*(MAXCHR) dimName
       character*(MAXCHR) dimUnits
       character*(MAXCHR) vnameTemp
@@ -1419,8 +1425,7 @@ c                           timeUnits: string is built below
 !EOP
 !-------------------------------------------------------------------------
 
-      integer timeid, dimId, i
-      integer attType, attLen
+      integer dimId, i
       character*(MAXCHR) dimName
       character*(MAXCHR) dimUnits
       character*(MAXCHR) vname

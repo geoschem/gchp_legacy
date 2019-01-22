@@ -89,7 +89,7 @@ help:
 	@ echo "  make depend"  
 
 GFIOSRC = gfio___.F gfioCF.F diffdate.f getdate.f timesubs.f gfioutil___.F \
-          m_GFIO_GetFld.f m_GFIO_PutFld.f gfio_flush.F
+          m_GFIO_GetFld.f m_GFIO_PutFld.f gfio_flush.F GFIO_py.F90
 
 #                  --------------------
 #                  User Defined Targets
@@ -115,6 +115,7 @@ vpath % $(INC_DIRS)
 $(LIB) lib : $(DEP) $(OBJS)
 	$(RM) $(LIB)
 	$(AR) $(AR_FLAGS) $(LIB) $(OBJS)
+	$(RANLIB) $(RANLIB_FLAGS) $(LIB)
 
 %___.F : %.f
 	@$(CP) ../$*.f $*___.F
@@ -132,7 +133,7 @@ libgfio_idl_$(RN).so : $(LIB) gfio_idl.o
 
 GFIO_mean_$(RN).x : $(LIB) GFIO_mean.o
 	$(LD) $(LDFLAGS) -o GFIO_mean_$(RN).x GFIO_mean.o \
-	      $(LIB) $(LIB_MPEU) $(LIB_SDF) $(LIB_SYS)
+	      $(LIB) $(LIB_MPEU) $(LIB_SDF) $(LIB_SYS) $(LIB_MPI)
 
 test: gfio_test.x 
 	gfio_test.x > fortran_test.txt

@@ -9,7 +9,7 @@
 # Make sure ESMADIR is defined
 # ----------------------------
 ifndef ESMADIR
-       ESMADIR := $(PWD)/..
+       ESMADIR := $(PWD)/../..
 endif
 
 THIS := $(shell basename `pwd`)
@@ -21,7 +21,6 @@ THIS := $(shell basename `pwd`)
   include $(ESMADIR)/Config/GMAO_base.mk
   include Arch.mk
 
-INC_SDF_EXPAND = $(foreach dir,$(INC_SDF), $(M)$(dir))
 
 #                  ---------------------
 #                  Standard ESMA Targets
@@ -66,8 +65,13 @@ $(TARGETS):
 	  done
 	$(MAKE) local_$@
 
+ifeq ($(F2PY),OFF)
+local_esma_install local_install: $(LIB)
+	@echo No local install in here
+else
 local_esma_install local_install: $(LIB) python_install
 	@echo No local install in here
+endif
 
 local_esma_clean local_clean:
 	-$(RM) *~ *.[aox] *.mod *.pyf *.so
@@ -109,7 +113,7 @@ test:
 python: $(PY_EXTS)
 
 GFIO_.$(F2PYEXT): GFIO_py.F90 r4_install
-	$(F2PY) -c -m GFIO_ $(M). $(INC_SDF_EXPAND) \
+	$(F2PY) -c -m GFIO_ $(M). $(M)$(INC_SDF) \
                  GFIO_py.F90 r4/libGMAO_gfio_r4.a $(LIB_SDF) $(LIB_SYS) \
                  only: gfioopen gfiocreate gfiodiminquire gfioinquire\
                        gfiogetvar gfiogetvart gfioputvar gfiogetbegdatetime\

@@ -73,8 +73,6 @@
       integer  :: irflag                       ! Monthly Mean flag
 
 
-      real, pointer     :: lon(:)              ! longitudes in deg (im)
-      real, pointer     :: lat(:)              ! latitudes in deg (jm)
       real, pointer     :: lev(:)              ! levels in hPa (km)
  
       integer           :: nLevs = 0           ! total number of levels
@@ -105,9 +103,8 @@
 !                                  Local Work Space
 !                              -----------------------
 
-      integer count, iff, it, iv, lm, itest, ii, i, j, k
-      real dx,dx1, dx2,dy, dy1, dy2, field_val
-      double precision pi
+      integer iff, it, iv, itest, i, j, k
+      real field_val
 
 
 !                              -----------------------
@@ -119,7 +116,6 @@
       character(len=255) :: contact            ! contact org.   
       character(len=255) :: levunits           ! Vertical levels
       character(len=25)  :: append             ! im*jm
-      real               :: missing_val
 
       integer, pointer :: yyyymmdd(:)          ! Date
       integer, pointer :: hhmmss(:)            !
@@ -128,7 +124,6 @@
       integer          :: ndate   ! Date
       integer          :: yyyymmdd1,yyyymmdd2  ! Date
       integer          :: yyyymmddp,hhmmssp    ! previous Date & time
-      integer          :: ntimep               ! counter for total number of times previously accumulated.
       integer          :: yyyymmdd3,hhmmss3    ! previous Date & time
       integer          :: yyyymmddp1           ! previous Date + 1
       integer          :: hhmmss1              ! Time
@@ -143,7 +138,7 @@
       integer          :: fidt                 ! output running total file ID
       integer          :: fidc                 ! output running counter file ID
       integer          :: nkount
-      integer          :: rc, rc1              ! return error code
+      integer          :: rc                   ! return error code
 
       character(len=255) :: vtitle(mVars)      ! output title
       character(len=255) :: vunits(mVars)      ! output title
@@ -175,8 +170,7 @@
       real              :: valid_range(2, mVars)
       real              :: packing_range(2, mVars)
       integer           :: ngatts              ! Number of attributes for GFIO
-      integer           :: imin,jmin,xmin,imax,jmax,xmax
-      logical              initial,file_exist,rms,define
+      logical              initial,file_exist,rms
 !.................................................................................
 
 
@@ -744,7 +738,6 @@ CONTAINS
       integer, intent(out)  :: iflag           !  Initial flag
       integer, intent(out)  :: irflag          !  Running total flag.
 
-      real, pointer         :: lev(:)          ! levels in hPa (km)
       real, pointer         :: Levs(:)         ! actual levels
       integer, intent(out)  :: nLevs           ! actual number of levels
       
@@ -777,12 +770,11 @@ CONTAINS
    integer :: iargc
    character(len=2048)  argv
 
-   character(len=255)   rcfile, label, var, Vars(mVars)
+   character(len=255)   Vars(mVars)
 
    integer, parameter :: mKm = 256  ! max no of levels
 
-   integer i, j, n, nVars0, rc, ios
-   real    xWest, p
+   integer i,  n, rc, ios
    logical :: debug = .false.
    character(len=10) nLx, nLy
 
@@ -1092,14 +1084,12 @@ print *, "   ',' in the file name to trigger the linear combination mode."
       character(len=255) :: source             ! data source
       character(len=255) :: contact            ! contact org.
       character(len=255) :: levunits           ! Vertical levels
-      character(len=25)  :: append             ! im*jm
-      real               :: missing_val,undef
+      real               :: undef
                                                                                                                                
       character(len=*), intent(out) :: out_total_file   !  Input/output total files
       character(len=*), intent(out) :: out_counter_file !  Input/output counter file
       integer          :: fidt               ! Output running total file   ID
       integer          :: fidc               ! Output running counter file ID
-      integer          :: in_fmode = 1       ! non-zero for READ-ONLY
       integer          :: out_fmode = 0      ! 0 for READ-WRITE
       integer          :: yyyymmdd3,hhmmss3  ! date & time
       integer          :: im_t,jm_t,km_t,lm_t,it
@@ -1120,7 +1110,6 @@ print *, "   ',' in the file name to trigger the linear combination mode."
       character(len=255) :: vtitle(mVars)      ! output title
       character(len=255) :: vunits(mVars)      ! output title
       character(len=257) :: vName(mVars)       ! output variable names (nVars)
-      integer            :: outKm(mVars)       ! number of levels for variables;
       integer            :: timinc
       real              :: valid_range_prs(2, mVars)
       real              :: packing_range_prs(2, mVars)
@@ -1215,8 +1204,6 @@ print *, "   ',' in the file name to trigger the linear combination mode."
       character(len=255) :: source             ! data source
       character(len=255) :: contact            ! contact org.
       character(len=255) :: levunits           ! Vertical levels
-      character(len=25)  :: append             ! im*jm
-      real               :: missing_val
                                                                                                                                
       character(len=*), intent(inout) :: outFile          !  Input/output total files
       character(len=*), intent(inout) :: out_total_file   !  Input/output total files
@@ -1224,7 +1211,6 @@ print *, "   ',' in the file name to trigger the linear combination mode."
       integer          :: out_fid              ! monthly mean output file ID
       integer          :: fidt               ! Output running total file   ID
       integer          :: fidc               ! Output running counter file ID
-      integer          :: in_fmode = 1       ! non-zero for READ-ONLY
       integer          :: out_fmode = 0      ! 0 for READ-WRITE
       integer          :: im_t,jm_t,km_t,lm_t,it
       integer          :: nvars_t,ngattst,rc,mVars
@@ -1237,14 +1223,13 @@ print *, "   ',' in the file name to trigger the linear combination mode."
       real, pointer     :: lat_t(:)            ! latitudes in deg (jm)
       real*8, pointer     :: lev_t(:)            ! levels in hPa (km)
       integer, pointer  :: kmVar_t(:)          ! Number of vertical levels for variables
-      integer           :: timinc_new,yyyymmddn
+      integer           :: timinc_new
       real, pointer   :: totField(:,:,:)       !  totals
       real, pointer   :: kntField(:,:,:)       ! Counters    
       real, pointer   :: outField(:,:,:)       ! Monthly 
       character(len=255) :: vtitle(mVars)      ! output title
       character(len=255) :: vunits(mVars)      ! output title
       character(len=257) :: vName(mVars)       ! output variable names (nVars)
-      integer            :: outKm(mVars),dd    ! number of levels for variables;
       integer            :: timinc
       real              :: valid_range_prs(2, mVars)
       real              :: packing_range_prs(2, mVars),undef
@@ -1388,7 +1373,7 @@ print *, "   ',' in the file name to trigger the linear combination mode."
         implicit none
         logical  defined
 
-        real     q,undef,q0
+        real     q,undef
 !
 !         Check for NaNs
 !

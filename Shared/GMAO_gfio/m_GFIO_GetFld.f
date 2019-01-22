@@ -100,10 +100,8 @@
 
                                    ! Grid Information
                                    !    direction
-      integer       ier, year, month, day, hour
-      integer       nobs_oi, i, j, k, kk, ia, ios
-
-      integer       lm_max_max          ! Maximum number of time stamps in file
+      integer       ier
+      integer       j, k
 
       integer       ngatts              ! number of attributes on file
       integer       nvars, nvars_in
@@ -401,14 +399,11 @@
 
                                    ! Grid Information
                                    !    direction
-      integer       ier, year, month, day, hour
-      integer       nobs_oi, i, j, k, kk, ia, ios
-
-      integer       lm_max_max          ! Maximum number of time stamps in file
+      integer       ier
 
       integer       ngatts              ! number of attributes on file
       integer       nvars_in
-      integer       im_max, jm_max, mlev_max, lev_max, lm_max
+      integer       im_max, jm_max, mlev_max, lm_max
       integer       n2dim
       integer       iv, icount
       integer       ncid
@@ -625,10 +620,8 @@
 
                                    ! Grid Information
                                    !    direction
-      integer       ier, year, month, day, hour
-      integer       nobs_oi, i, j, k, kk, ia, ios
-
-      integer       lm_max_max          ! Maximum number of time stamps in file
+      integer       ier
+      integer       j, k
 
       integer       ngatts              ! number of attributes on file
       integer       nvars_in
