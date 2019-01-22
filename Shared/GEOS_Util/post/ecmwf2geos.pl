@@ -99,12 +99,17 @@ sub init {
      }
   }
 
-  if( $opt_o ) { # rc file required by odsstats
+  if( $opt_o ) { # ouput filename
     $outetafile =  $opt_o;
   } else {
     $outetafile =  "ecmwf.ana.eta.${nymd}_${hh}z.$ncsuffix";
   }
   $outprstag = "ecmwf.inst3_3d_ana_Np"; # this is only the type (tag) for the filename
+
+  $gmaoprs ="";
+  if( $opt_gmaoprs ) { # indicate that input is really GMAO prs file
+    $gmaoprs = "-gmaoprs";
+  }
 
   # get name of file from ECMWF
   $ecmwf_anal = `$fvroot/bin/echorc.x -template ecmwf $nymd $nhms -rc $rcfile ecmwf_anal_file`;
@@ -153,7 +158,7 @@ sub e2g {
 
 # Convert ECMWF analysis to GMAO eta coordinate system
 # ----------------------------------------------------
-   $cmd = "$fvroot/bin/ec_prs2eta.x -ecmwf grads.fwrite.$ncsuffix";
+   $cmd = "$fvroot/bin/ec_prs2eta.x $gmaoprs -im $im -jm $jm -ecmwf grads.fwrite.$ncsuffix";
    print "$myname: $cmd \n";
    $rc = system($cmd);
    if ( -e   "ec_prs2eta.${nymd}_${hh}z.$ncsuffix" ) {
@@ -227,6 +232,8 @@ OPTIONS
 
  -prs          convert eta file to and write fname
                  (default: do not convert to pressure)
+
+ -gmaoprs      input file is actually GMAO prs file, not EC (used for testing only)
 
 TO DO 
 

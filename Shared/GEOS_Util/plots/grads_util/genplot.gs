@@ -93,10 +93,10 @@ endwhile
 
 * Construct Model GCs from Model EXPORTS
 * --------------------------------------
-     numm  = m
+numGCs = m
         m  = 0
         k  = 1
-while ( k <= numm )
+while ( k <= numGCs )
         EX = ''
          j = 1
        bit = substr(EXPORT.k,j,1)
@@ -125,7 +125,7 @@ endwhile
 * ----------------------------------
     numn = n
 if( numn = 0 )
-    numn = numm
+    numn = numGCs
            n  = 1
    while ( n <= numn )
        OBS.n = EXPORT.n
@@ -199,7 +199,7 @@ say 'TAYLOR = 'TAYLOR
 say 'SEASON = 'seasons
 say ' '
 m = 1
-while( m<=numm )
+while( m<=numGCs )
 say 'EXPORT.'m' = 'EXPORT.m
 say '    GC.'m' = 'GC.m
 m = m + 1
@@ -219,12 +219,13 @@ say ' '
 * Get Model Variables
 * -------------------
         m  = 1
-while ( m <= numm )
+while ( m <= numGCs )
 'run getvar 'EXPORT.m' 'GC.m
         qname.m = subwrd(result,1)
         qfile.m = subwrd(result,2)
         qscal.m = subwrd(result,3)
         qdesc.m = subwrd(result,4)
+         qtag.m = subwrd(result,5)
     if( qname.m = 'NULL' ) ; return ; endif
          m  = m + 1
 endwhile
@@ -243,7 +244,7 @@ endif
 * Ensure NAMES have no underscores
 * --------------------------------
         m=1
-while ( m<numm+1 )
+while ( m<numGCs+1 )
 'fixname 'qname.m
           alias.m = result
 say 'Alias #'m' = 'alias.m
@@ -267,7 +268,7 @@ endwhile
 * Check for Model Name Consistency
 * --------------------------------
  m = 1
-while( m <= numm )
+while( m <= numGCs )
 'set dfile 'qfile.m
 if( LEVEL = "NULL" )
    'set z 1'
@@ -320,7 +321,7 @@ endif
 * ---------------------------------
 'set dfile 'qfile.1
 'sett'
-if( numm = 1 )
+if( numGCs = 1 )
    'define qmod = 'alias.1'.'qfile.1'*'qscal.1
 else
     filename  = geosutil'/plots/'NAME'/modform.gs'
@@ -329,7 +330,7 @@ else
        close  = close(filename)
        mstring = ''
        m  = 1
-       while ( m <= numm )
+       while ( m <= numGCs )
           if( qname.m != alias.m )
               mstring = mstring' 'alias.m'*'qscal.m
           else
@@ -341,7 +342,7 @@ else
     else
        mstring = NAME
        m  = 1
-       while ( m <= numm )
+       while ( m <= numGCs )
           if( qname.m != alias.m )
               mstring = mstring' 'alias.m'*'qscal.m
           else
@@ -376,14 +377,16 @@ endif
               rgfile = result
 
 
-* Loop over Possible Experiment Datasets for Comparison
-* -----------------------------------------------------
+***********************************************************************************
+*              Loop over Possible Experiment Datasets for Comparison
+***********************************************************************************
+
 '!/bin/mv HISTORY.T HISTORY.Tmp'
 'run getenv "CMPEXP"'
          cmpexp = result
-            num = 1
+         numexp = 1
 
-          dummy = get_cmpexp (cmpexp,num)
+          dummy = get_cmpexp (cmpexp,numexp)
             exp = subwrd(dummy,1)
            type = subwrd(dummy,2)
 
@@ -426,14 +429,15 @@ endif
 * ----------------------------
 FOUND = TRUE
         m  = 1
-while ( m <= numm )
+while ( m <= numGCs )
 'run getvar 'EXPORT.m' 'GC.m' 'exp
-        oname.m = subwrd(result,1)
-        ofile.m = subwrd(result,2)
-        oscal.m = subwrd(result,3)
-        odesc.m = subwrd(result,4)
-         otag.m = subwrd(result,5)
-    if( oname.m = 'NULL' ) ; FOUND = FALSE ; endif
+        cname.numexp.m = subwrd(result,1)
+        cfile.numexp.m = subwrd(result,2)
+        cscal.numexp.m = subwrd(result,3)
+        cdesc.numexp.m = subwrd(result,4)
+         ctag.numexp.m = subwrd(result,5)
+say ''
+    if( cname.numexp.m = 'NULL' ) ; FOUND = FALSE ; endif
          m  = m + 1
 endwhile
 
@@ -444,7 +448,7 @@ if( FOUND = TRUE )
 * Land/Water Masks
 * ----------------
 if( LAND = 'TRUE' | OCEAN = 'TRUE' )
-   'set dfile 'ofile.1
+   'set dfile 'cfile.numexp.1
 if( LEVEL = "NULL" )
    'set z 1'
 else
@@ -458,7 +462,7 @@ endif
    'define  lmaskobs = maskout( 1, 0.5-lwmaskobs )'
 endif
 
-'set dfile 'ofile.1
+'set dfile 'cfile.numexp.1
 if( LEVEL = "NULL" )
    'set z 1'
 else
@@ -470,30 +474,30 @@ endif
 
 * Perform OBS Formula Calculation
 * -------------------------------
-if( numm = 1 )
-   'define qobs = 'oname.1'.'ofile.1'*'oscal.1
+if( numGCs = 1 )
+   'define cmod'numexp' = 'cname.numexp.1'.'cfile.numexp.1'*'cscal.numexp.1
 else
     filename  = geosutil'/plots/'NAME'/modform.gs'
     ioflag    = sublin( read(filename),1 )
     if(ioflag = 0)
        close  = close(filename)
-       ostring = ''
+       cstring = ''
        n  = 1
-       while ( n <= numm )
-          ostring = ostring' 'oname.n'.'ofile.n'*'oscal.n
+       while ( n <= numGCs )
+          cstring = cstring' 'cname.numexp.n'.'cfile.numexp.n'*'cscal.numexp.n
                n  = n + 1
        endwhile
-      'run 'geosutil'/plots/'NAME'/modform 'ostring
-      'define qobs = qmod'
+      'run 'geosutil'/plots/'NAME'/modform 'cstring
+      'define cmod'numexp' = qmod'
     else
-       ostring = NAME
+       cstring = NAME
        n  = 1
-       while ( n <= numm )
-          ostring = ostring' 'oname.n'.'ofile.n'*'oscal.n
+       while ( n <= numGCs )
+          ostring = ostring' 'cname.numexp.n'.'cfile.numexp.n'*'cscal.numexp.n
                n  = n + 1
        endwhile
       'run 'geosutil'/plots/'DIR'/'NAME'.gs 'ostring
-      'define qobs = 'NAME'.1'
+      'define cmod'numexp' = 'NAME'.1'
     endif
 endif
 
@@ -503,30 +507,30 @@ endif
          xdim = result
 if( xdim != 540 )
 
-                              'define qobs = regrid2( qobs,0.25,0.25,bs_p1,'lonmin','latmin')'
+                              'define cmod'numexp' = regrid2( cmod'numexp',0.25,0.25,bs_p1,'lonmin','latmin')'
     if(    LAND  = 'TRUE'   |  OCEAN = 'TRUE' )
-       if( LAND  = 'TRUE' ) ; 'define qobs = maskout( 'SCALE'*qobs,lmaskobs )' ; endif
-       if( OCEAN = 'TRUE' ) ; 'define qobs = maskout( 'SCALE'*qobs,omaskobs )' ; endif
+       if( LAND  = 'TRUE' ) ; 'define cmod'numexp' = maskout( 'SCALE'*cmod'numexp',lmaskobs )' ; endif
+       if( OCEAN = 'TRUE' ) ; 'define cmod'numexp' = maskout( 'SCALE'*cmod'numexp',omaskobs )' ; endif
     else
-                              'define qobs =          'SCALE'*qobs'
+                              'define cmod'numexp' =          'SCALE'*cmod'numexp
     endif
 
 else
 
-*                             'define qobs = regrid2( qobs,'dlon','dlat',bs_p1,'lonmin','latmin')'
-                              'define qobs = regrid2( qobs,0.25,0.25,bs_p1,'lonmin','latmin')'
+*                             'define cmod'numexp' = regrid2( cmod'numexp','dlon','dlat',bs_p1,'lonmin','latmin')'
+                              'define cmod'numexp' = regrid2( cmod'numexp',0.25,0.25,bs_p1,'lonmin','latmin')'
     if(    LAND  = 'TRUE'   |  OCEAN = 'TRUE' )
-       if( LAND  = 'TRUE' ) ; 'define qobs = maskout( 'SCALE'*qobs,lmaskobs )' ; endif
-       if( OCEAN = 'TRUE' ) ; 'define qobs = maskout( 'SCALE'*qobs,omaskobs )' ; endif
+       if( LAND  = 'TRUE' ) ; 'define cmod'numexp' = maskout( 'SCALE'*cmod'numexp',lmaskobs )' ; endif
+       if( OCEAN = 'TRUE' ) ; 'define cmod'numexp' = maskout( 'SCALE'*cmod'numexp',omaskobs )' ; endif
     else
-                              'define qobs =          'SCALE'*qobs'
+                              'define cmod'numexp' =          'SCALE'*cmod'numexp
     endif
 
 endif
 
 * Compute Seasonal Means
 * ----------------------
-'seasonal qobs'
+'seasonal cmod'numexp
 
 
 'run getenv "CLIMATE"'
@@ -549,9 +553,13 @@ else
 
 * Horizontal Plot
 * ---------------
+       mathparm  =  MATH
+while( mathparm != 'DONE' )
         flag = ""
 while ( flag = "" )
-'makplot 'NAME'  'EXPID' 'PREFIX' 'season' 'OUTPUT' 'qfile.1' 'qdesc.1' 'ofile.1' 'otag.1' 'odesc.1' 'begdate' 'enddate' 'begdateo' 'enddateo' 'climate' 'GC.1' 'MATH
+
+'makplot -MVAR 'qmod' -MNAME 'NAME ' -MFILE 'qfile.1' -MDESC 'qdesc.1' -MBEGDATE 'begdate' -MENDDATE 'enddate' -OVAR 'cmod''numexp' -ONAME 'ctag.numexp.1' -OFILE 'cfile.numexp.1' -ODESC 'cdesc.numexp.1' -OBEGDATE 'begdateo' -OENDDATE 'enddateo' -EXPID 'EXPID' -PREFIX 'PREFIX' -SEASON 'season' -OUTPUT 'OUTPUT' -CLIMATE 'climate' -GC 'GC.1' -MATH 'mathparm
+
  if( DEBUG = "debug" )
      say "Hit ENTER to repeat plot, or NON-BLANK to continue"
      pull flag
@@ -559,13 +567,23 @@ while ( flag = "" )
      flag = "next"
  endif
 'c'
-endwhile
+endwhile ;* END While_FLAG Loop
+       if( mathparm != 'NULL' )
+           mathparm  = 'NULL'
+       else
+           mathparm  = 'DONE'
+       endif
+endwhile ;* END While_MATH Loop
 
 * Zonal Mean Plot
 * ---------------
+       mathparm  =  MATH
+while( mathparm != 'DONE' )
         flag = ""
 while ( flag = "" )
-'makplotz 'NAME'  'EXPID' 'PREFIX' 'season' 'OUTPUT' 'qfile.1' 'qdesc.1' 'ofile.1' 'otag.1' 'odesc.1' 'rgfile' 'begdate' 'enddate' 'begdateo' 'enddateo' 'climate' 'GC.1' 'MATH
+
+'makplotz -MVAR 'qmod' -MNAME 'NAME ' -MFILE 'qfile.1' -MDESC 'qdesc.1' -MBEGDATE 'begdate' -MENDDATE 'enddate' -OVAR 'cmod''numexp' -ONAME 'ctag.numexp.1' -OFILE 'cfile.numexp.1' -ODESC 'cdesc.numexp.1' -OBEGDATE 'begdateo' -OENDDATE 'enddateo' -EXPID 'EXPID' -PREFIX 'PREFIX' -SEASON 'season' -OUTPUT 'OUTPUT' -CLIMATE 'climate' -GC 'GC.1' -MATH 'mathparm' -RGFILE 'rgfile
+
  if( DEBUG = "debug" )
      say "Hit ENTER to repeat plot, or NON-BLANK to continue"
      pull flag
@@ -573,7 +591,13 @@ while ( flag = "" )
      flag = "next"
  endif
 'c'
-endwhile
+endwhile ;* END While_FLAG Loop
+       if( mathparm != 'NULL' )
+           mathparm  = 'NULL'
+       else
+           mathparm  = 'DONE'
+       endif
+endwhile ;* END While_MATH Loop
 
 
 * End Season Test
@@ -588,20 +612,113 @@ endif
 
 * Check next Comparison Experiment Dataset
 * ----------------------------------------
-    num = num + 1
-  dummy = get_cmpexp (cmpexp,num)
+ numexp = numexp + 1
+  dummy = get_cmpexp (cmpexp,numexp)
     exp = subwrd(dummy,1)
    type = subwrd(dummy,2)
 
 endwhile
+ numexp = numexp - 1
+
 '!/bin/mv HISTORY.Tmp HISTORY.T'
+
+* ---------------------------------------------------------
+* Now that we have computed plots for each experiment,
+* we can compute the Closeness plots to MERRA-2
+* ---------------------------------------------------------
+
+* Find MERRA2 experiment
+* ----------------------
+  MERRA2  = 0
+       n  = 1
+while( n <= numexp )
+if( ctag.n.1 = "MERRA-2" )
+    MERRA2 = n
+endif
+         n = n + 1
+endwhile
+
+if( MERRA2 != 0 )
+
+* Loop over Seasons to Process
+* ----------------------------
+       m = 1
+while( m > 0 )
+    season = subwrd(seasons,m)
+if( season = '' )
+         m = -1
+else
+         m = m+1
+         say 'Processing Season: 'season
+
+'set dfile 'qfile.1
+'set gxout shaded'
+'rgbset'
+'run setenv "LEVTYPE" 'DLEVS
+
+* Horizontal Plot
+* ---------------
+       mathparm  =  MATH
+while( mathparm != 'DONE' )
+
+* Closeness Plot (Experiment_vs_Comparison to MERRA-2)
+* ----------------------------------------------------
+       n  = 1
+while( n <= numexp )
+if( ctag.n.1 != "NULL" & ctag.n.1 != "merra" & ctag.n.1 != "MERRA-2" )
+say 'Closeness plot between  exp: 'qtag.1
+say '                       cexp: 'ctag.n.1
+say '                        obs: 'ctag.MERRA2.1
+say ''
+        flag = ""
+while ( flag = "" )
+
+'closeness -CVAR 'cmod''n' -MVAR 'qmod' -OVAR 'cmod''MERRA2' -CNAME 'ctag.n.1' -MNAME 'NAME' -ONAME 'ctag.MERRA2.1' -CDESC 'cdesc.n.1' -MDESC 'qdesc.1' -ODESC 'cdesc.MERRA2.1' -MFILE 'qfile.1' -MBEGDATE 'begdate' -MENDDATE 'enddate' -OFILE 'cfile.MERRA2.1' -OBEGDATE 'begdateo' -OENDDATE 'enddateo' -EXPID 'EXPID' -PREFIX 'PREFIX' -SEASON 'season' -OUTPUT 'OUTPUT' -CLIMATE 'climate' -GC 'GC.1' -MATH 'mathparm
+
+if( mathparm != NULL )
+    MTH = '_'mathparm
+else
+    MTH = ''
+endif
+if( PREFIX != NULL )
+    PFX = PREFIX'_'
+else
+    PFX = ''
+endif
+'myprint -name 'OUTPUT'/'NAME''MTH'_'ctag.n.1'_closeness_'PFX''ctag.MERRA2.1'.'season
+
+ if( DEBUG = "debug" )
+     say "Hit ENTER to repeat plot, or NON-BLANK to continue"
+     pull flag
+ else
+     flag = "next"
+ endif
+'c'
+endwhile ;* END While_FLAG Loop 
+endif
+       n  = n + 1
+endwhile ;* END While_N Loop 
+       if( mathparm != 'NULL' )
+           mathparm  = 'NULL'
+       else
+           mathparm  = 'DONE'
+       endif
+endwhile ;* END While_MATH Loop
+
+* End Season Test
+* ---------------
+endif
+* ---------------
+endwhile ;* END While_m>0 Loop
+
+endif ;* END MERRA-2 Test
 
 if( cmpexp_only = TRUE ) ; return ; endif
 
+***********************************************************************************
+*                          Loop over Verification Datasets
+***********************************************************************************
 
-
-* Loop over Verification Datasets
-* -------------------------------
 'getnumrc 'geosutil'/plots/'NAME
      rcinfo = result
      numrc  = subwrd( rcinfo,1 )
@@ -634,6 +751,13 @@ while ( n <= numn )
         oscal.n = subwrd(result,3)
         odesc.n = subwrd(result,4)
          otag.n = subwrd(result,5)
+
+say 'VERIFICATION_EXPORT_name: 'oname.n
+say '             description: 'odesc.n
+say '                     tag: ' otag.n
+say '                    file: 'ofile.n
+say '                 scaling: 'oscal.n
+say ''
     if( oname.n = 'NULL' ) ; FOUND = FALSE ; endif
          n  = n + 1
 endwhile
@@ -768,9 +892,14 @@ else
 
 * Horizontal Plot
 * ---------------
+       mathparm  =  MATH
+while( mathparm != 'DONE' )
+
+* Standard Plot (Experiment_vs_Verification)
+* ------------------------------------------
         flag = ""
 while ( flag = "" )
-'makplot 'NAME'  'EXPID' 'PREFIX' 'season' 'OUTPUT' 'qfile.1' 'qdesc.1' 'ofile.1' 'otag.1' 'odesc.1' 'begdate' 'enddate' 'begdateo' 'enddateo' 'climate' 'GC.1' 'MATH
+'makplot -MVAR 'qmod' -MNAME 'NAME ' -MFILE 'qfile.1' -MDESC 'qdesc.1' -MBEGDATE 'begdate' -MENDDATE 'enddate' -OVAR 'qobs' -ONAME 'otag.1' -OFILE 'ofile.1' -ODESC 'odesc.1' -OBEGDATE 'begdateo' -OENDDATE 'enddateo' -EXPID 'EXPID' -PREFIX 'PREFIX' -SEASON 'season' -OUTPUT 'OUTPUT' -CLIMATE 'climate' -GC 'GC.1' -MATH 'mathparm
  if( DEBUG = "debug" )
      say "Hit ENTER to repeat plot, or NON-BLANK to continue"
      pull flag
@@ -778,13 +907,61 @@ while ( flag = "" )
      flag = "next"
  endif
 'c'
-endwhile
+endwhile ;* END While_FLAG Loop 
+
+* Closeness Plot (Experiment_vs_Comparison to Verification)
+* ---------------------------------------------------------
+       n  = 1
+while( n <= numexp )
+if( ctag.n.1 != "NULL" & ctag.n.1 != "merra" & ctag.n.1 != "MERRA-2" )
+say 'Closeness plot between  exp: 'qtag.1
+say '                       cexp: 'ctag.n.1
+say '                        obs: 'otag.1
+say ''
+        flag = ""
+while ( flag = "" )
+'closeness -CVAR 'cmod''n' -MVAR 'qmod' -OVAR 'qobs' -CNAME 'ctag.n.1' -MNAME 'NAME' -ONAME 'otag.1' -CDESC 'cdesc.n.1' -MDESC 'qdesc.1' -ODESC 'odesc.1' -MFILE 'qfile.1' -MBEGDATE 'begdate' -MENDDATE 'enddate' -OFILE 'ofile.1' -OBEGDATE 'begdateo' -OENDDATE 'enddateo' -EXPID 'EXPID' -PREFIX 'PREFIX' -SEASON 'season' -OUTPUT 'OUTPUT' -CLIMATE 'climate' -GC 'GC.1' -MATH 'mathparm
+
+if( mathparm != NULL )
+    MTH = '_'mathparm
+else
+    MTH = ''
+endif
+if( PREFIX != NULL )
+    PFX = PREFIX'_'
+else
+    PFX = ''
+endif
+'myprint -name 'OUTPUT'/'NAME''MTH'_'ctag.n.1'_closeness_'PFX''otag.1'.'season
+
+ if( DEBUG = "debug" )
+     say "Hit ENTER to repeat plot, or NON-BLANK to continue"
+     pull flag
+ else
+     flag = "next"
+ endif
+'c'
+endwhile ;* END While_FLAG Loop 
+
+endif
+       n  = n + 1
+endwhile ;* END While_N Loop 
+       if( mathparm != 'NULL' )
+           mathparm  = 'NULL'
+       else
+           mathparm  = 'DONE'
+       endif
+endwhile ;* END While_MATH Loop
 
 * Zonal Mean Plot
 * ---------------
+       mathparm  =  MATH
+while( mathparm != 'DONE' )
         flag = ""
 while ( flag = "" )
-'makplotz 'NAME'  'EXPID' 'PREFIX' 'season' 'OUTPUT' 'qfile.1' 'qdesc.1' 'ofile.1' 'otag.1' 'odesc.1' 'rgfile' 'begdate' 'enddate' 'begdateo' 'enddateo' 'climate' 'GC.1' 'MATH
+
+'makplotz -MVAR 'qmod' -MNAME 'NAME ' -MFILE 'qfile.1' -MDESC 'qdesc.1' -MBEGDATE 'begdate' -MENDDATE 'enddate' -OVAR 'qobs' -ONAME 'otag.1' -OFILE 'ofile.1' -ODESC 'odesc.1' -OBEGDATE 'begdateo' -OENDDATE 'enddateo' -EXPID 'EXPID' -PREFIX 'PREFIX' -SEASON 'season' -OUTPUT 'OUTPUT' -CLIMATE 'climate' -GC 'GC.1' -MATH 'mathparm' -RGFILE 'rgfile
+
  if( DEBUG = "debug" )
      say "Hit ENTER to repeat plot, or NON-BLANK to continue"
      pull flag
@@ -792,7 +969,13 @@ while ( flag = "" )
      flag = "next"
  endif
 'c'
-endwhile
+endwhile ;* END While_FLAG Loop 
+       if( mathparm != 'NULL' )
+           mathparm  = 'NULL'
+       else
+           mathparm  = 'DONE'
+       endif
+endwhile ;* END While_MATH Loop
 
 
 * End Season Test

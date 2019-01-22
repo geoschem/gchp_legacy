@@ -1,3 +1,4 @@
+#include "unused_dummy.H"
       SUBROUTINE PWSSSP (INTL,TS,TF,M,MBDCND,BDTS,BDTF,PS,PF,N,NBDCND,
      >                   BDPS,BDPF,ELMBDA,F,IDIMF,PERTRB,IERROR,W)
 C***********************************************************************
@@ -314,7 +315,7 @@ CCCCC IF (NCHECK(N)-2) 108,119,108
       SUBROUTINE PWSSS1 (INTL,TS,TF,M,MBDCND,BDTS,BDTF,PS,PF,N,NBDCND,
      1                   BDPS,BDPF,ELMBDA,F,IDIMF,PERTRB,AM,BM,CM,SN,
      2                   SS,SINT,D)
-      REAL       F(IDIMF,1) ,BDTS(*)    ,BDTF(*)    ,BDPS(*)    ,
+      REAL       F(IDIMF,*) ,BDTS(*)    ,BDTF(*)    ,BDPS(*)    ,
      1                BDPF(*)    ,AM(*)      ,BM(*)      ,CM(*)      ,
      2                SS(*)      ,SN(*)      ,D(*)       ,SINT(*)
 C
@@ -1239,9 +1240,11 @@ C
       SUBROUTINE POINIT (NPEROD,N,IEX2,IEX3,IEX5,N2PW,N2P3P,N2P3P5,KS3,
      1                   KS5,NPSTOP,TWOCOS)
       REAL       TWOCOS(1)
+
 C
 C     PARAMETER NPSTOP IS NOT USED IN THIS SUBROUTINE.
 C
+      _UNUSED_DUMMY(NPSTOP)
 C
 C     MACHINE DEPENDENT CONSTANT
 C
@@ -1381,6 +1384,8 @@ C
 C
 C     PARAMETER W NOT USED IN THIS SUBROUTINE.
 C
+      _UNUSED_DUMMY(W)
+
       DO 103 K=KSTART,KSTOP
          X = -TWOCOS(K)
          D(1) = C(1)/(B(1)+X)

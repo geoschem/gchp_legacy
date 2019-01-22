@@ -187,7 +187,32 @@ while( num <= numrc )
                      ' alias ' oname
                       oalias = result
 'chckname            'oalias
-'seasonalf -FUNCTION 'oalias'*'oscale' -NAME obs'num
+
+* Compute ECOPS differently due to missing monthly means
+* ------------------------------------------------------
+if( obsnam.num = "ecops" )
+   'define   qecops = 'oalias'*'oscale
+   'seasonal qecops'
+   'define obs'num'jan = qecopsjan'
+   'define obs'num'feb = qecopsfeb'
+   'define obs'num'mar = qecopsmar'
+   'define obs'num'apr = qecopsapr'
+   'define obs'num'may = qecopsmay'
+   'define obs'num'jun = qecopsjun'
+   'define obs'num'jul = qecopsjul'
+   'define obs'num'aug = qecopsaug'
+   'define obs'num'sep = qecopssep'
+   'define obs'num'oct = qecopsoct'
+   'define obs'num'nov = qecopsnov'
+   'define obs'num'dec = qecopsdec'
+   'define obs'num'djf = qecopsdjf'
+   'define obs'num'mam = qecopsmam'
+   'define obs'num'jja = qecopsjja'
+   'define obs'num'son = qecopsson'
+   'define obs'num'ann = qecopsann'
+else
+   'seasonalf -FUNCTION 'oalias'*'oscale' -NAME obs'num
+endif
 
 * Check Climatology Flag
 * ----------------------

@@ -96,6 +96,13 @@ endif
 'define 'field'std = lat-lat+lon-lon'
 'define 'field'var = lat-lat+lon-lon'
 
+'define 'field'varf = lat-lat+lon-lon'
+'define 'field'vara = lat-lat+lon-lon'
+'define 'field'stdf = lat-lat+lon-lon'
+'define 'field'stda = lat-lat+lon-lon'
+'define 'field'cov  = lat-lat+lon-lon'
+'define 'field'rnd  = lat-lat+lon-lon'
+
 n = 1
 while ( n <= numfiles )
 say 'Processing Field: 'field' for File: 'n'  Tag: 'tag
@@ -156,9 +163,26 @@ endwhile
 
 n = 1
 while ( n <= numfiles )
-'define 'field'mes = 'field'mes + pow('field'fm'tag'-'field'am'tag',2)'
+'define 'field'mes  = 'field'mes  + pow('field'fm'tag'-'field'am'tag',2)'
+'define 'field'varf = 'field'varf + pow('field'f.'n'*'scale'-'field'fm'tag',2)'
+'define 'field'vara = 'field'vara + pow('field'a.'n'*'scale'-'field'am'tag',2)'
+'define 'field'cov  = 'field'cov  +    ('field'f.'n'*'scale'-'field'fm'tag') * ('field'a.'n'*'scale'-'field'am'tag')'
+'define 'field'rnd  = 'field'rnd  + pow( ('field'f.'n'*'scale'-'field'fm'tag') - ('field'a.'n'*'scale'-'field'am'tag') , 2)'
 n = n + 1
 endwhile
+
+'define 'field'cov'tag'   =     'field'cov /'numfiles
+'define 'field'rnd'tag'   =     'field'rnd /'numfiles
+'define 'field'varf'tag'  =     'field'varf/'numfiles
+'define 'field'vara'tag'  =     'field'vara/'numfiles
+'define 'field'stdf'tag'  = sqrt('field'varf'tag')'
+'define 'field'stda'tag'  = sqrt('field'vara'tag')'
+
+'define 'field'ampl'tag'  = pow( 'field'stdf'tag'-'field'stda'tag',2 ) + pow( 'field'fm'tag'-'field'am'tag',2 )' 
+'define 'field'phaz'tag'  =  2*( 'field'stdf'tag'*'field'stda'tag' - 'field'cov'tag')' 
+'define 'field'ramp'tag'  = sqrt( 'field'ampl'tag' )'
+'define 'field'rphz'tag'  = sqrt( 'field'phaz'tag' )'
+'define 'field'rrnd'tag'  = sqrt( 'field'rnd'tag' )'
 
 'define 'field'mes'tag'  =      'field'mes/'numfiles
 'define 'field'rmes'tag' = sqrt('field'mes'tag')'
@@ -174,8 +198,12 @@ if( zfreq = 'varying' )
 'makez 'field'fmc'tag' z'
 'makez 'field'mes'tag' z'
 'makez 'field'mse'tag' z'
+'makez 'field'ampl'tag' z'
+'makez 'field'phaz'tag' z'
 
 'define 'field'rmes'tag'z = sqrt('field'mes'tag'z)'
+'define 'field'ramp'tag'z = sqrt('field'ampl'tag'z)'
+'define 'field'rphz'tag'z = sqrt('field'phaz'tag'z)'
 'define 'field'rms'tag'z  = sqrt('field'mse'tag'z)'
 'define 'field'var'tag'z  =      'field'mse'tag'z-'field'mes'tag'z'
 'define 'field'std'tag'z  = sqrt('field'mse'tag'z-'field'mes'tag'z)'

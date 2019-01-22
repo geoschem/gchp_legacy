@@ -30,6 +30,8 @@ while(n<=nvars)
    name  = subwrd(result,1)
    zdim  = subwrd(result,2)
 
+   if( name = slp ) ; zdim = 0 ; endif
+
    if( zdim = 0 )
        say 'Writing Variable: 'name
       'set z 1'

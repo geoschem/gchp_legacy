@@ -1,12 +1,24 @@
 #!/bin/csh -f
 
+if( ! -e STATSFILE.txt ) then
+     set STATSFILE = 'stats'
+else
+     set STATSFILE = `cat STATSFILE.txt`
+endif
+
+if( $STATSFILE != 'stats' & \
+    $STATSFILE != 'globl' ) then
+    echo 'Wrong STATSFILE: '$STATSFILE
+    exit
+endif
+
 set EXPDIRS = `echo $argv`
       @ num = $#EXPDIRS
 
 
 # Create list of files in Control Experiment
 # ------------------------------------------
-set files0 = `/bin/ls -1 $EXPDIRS[1]/*stats*ctl1 | grep -v aero`
+set files0 = `/bin/ls -1 $EXPDIRS[1]/*${STATSFILE}*ctl1 | grep -v aero`
 
 
 # Create list of files in ALL Experiments
@@ -14,7 +26,7 @@ set files0 = `/bin/ls -1 $EXPDIRS[1]/*stats*ctl1 | grep -v aero`
 set allfiles = ''
        @   n = 1
    while( $n <= $num )
-   set fnew = `/bin/ls -1 $EXPDIRS[$n]/*stats*ctl1 | grep -v aero`
+   set fnew = `/bin/ls -1 $EXPDIRS[$n]/*${STATSFILE}*ctl1 | grep -v aero`
    set allfiles = `echo $allfiles $fnew`
        @   n = $n + 1
    end
@@ -30,8 +42,8 @@ set base = `basename $file`
     # Find 'stats' node
     # -----------------
     @   statsnode = 0
-      set i  node = NULL
-    while ( $node != 'stats' )
+      set    node = NULL
+    while ( $node != ${STATSFILE} )
     @ statsnode = $statsnode + 1
       set  node = `echo $base | cut -d. -f${statsnode}`
     end

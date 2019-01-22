@@ -11,13 +11,13 @@
 ! **********************************************************************
 
 
-      character*256 dynrst, moistrst, bkgeta, topo
+      character*256 dynrst, moistrst, topo
       character*256, allocatable :: other_rst(:)
 
       integer headr1(6)
       integer headr2(5)
       integer nymd,nhms
-      integer im,jm,lm_in,lm_out,nt,iostat,rc
+      integer im,jm,lm_in,lm_out,nt,rc
       real    undef, kappa, grav
 
 ! restart variables and topography
@@ -52,14 +52,13 @@
       real*8, allocatable ::    w_out(:,:,:)
 
       real*4, allocatable ::  dum(:,:)
-      real*4, allocatable ::  zox(:,:)  ! Zonal Mean odd-ox
 
       character*256, allocatable :: arg(:)
       character*8    date
       character*1    char
       character*2    hour
       character*4    cim,cjm,clm
-      integer m,n,nargs,iargc,i,j,L,nymd0,nhms0,id
+      integer m,n,nargs,iargc,i,j,L
       integer num,num_other_rst,nbeg,nend
       integer, allocatable :: nt_other(:)
       logical  verbose
@@ -484,7 +483,6 @@
       real     dp2(im,jm,lm2)
       real      u2(im,jm,lm2)
       real      v2(im,jm,lm2)
-      real      t2(im,jm,lm2)
       real    thv2(im,jm,lm2)
       real      q2(im,jm,lm2,nt)
       real     ps2(im,jm)
@@ -496,20 +494,17 @@
 
 ! Local variables
 ! ---------------
-      real    pz(im,jm)
-      real   pe0(im,jm,lm1+1)
       real   pe1(im,jm,lm1+1)
       real   pe2(im,jm,lm2+1)
       real   pk (im,jm,lm2  )
-      real  pke0(im,jm,lm1+1)
       real  pke1(im,jm,lm1+1)
       real  pke2(im,jm,lm2+1)
       real  phi2(im,jm,lm2+1)
 
       real, allocatable :: plevs(:)
 
-      real    kappa,cp,pl,dum,dum1,dum2
-      real    rgas,pref,tref,pkref,tstar,eps,rvap,grav
+      real    kappa,cp,dum,dum1,dum2
+      real    rgas,eps,rvap,grav
       integer i,j,L,kdum
 
       kappa = MAPL_KAPPA
@@ -639,7 +634,7 @@
 ! -------------------------------------------------------------
       print *, 'Calling GMAP, LM_in : ',lm2
       print *, '              LM_out: ',lm1
-      call gmap ( im,jm,nt, kappa,                      &
+      call gmap ( im,jm,nt,                             &
                   lm2,  pke2,  pe2, u2,  v2,  thv2,  q2,&
                   lm1,  pke1,  pe1, u1,  v1,  thv1,  q1 )
 
@@ -647,7 +642,7 @@
       end
 
 !****6***0*********0*********0*********0*********0*********0**********72
-      subroutine gmap(im, jm, nq,  akap,                     &
+      subroutine gmap(im, jm, nq,                            &
                km,  pk3d_m,  pe3d_m, u_m,  v_m,  pt_m,  q_m, &
                kn,  pk3d_n,  pe3d_n, u_n,  v_n,  pt_n,  q_n  )
 !****6***0*********0*********0*********0*********0*********0**********72
@@ -678,7 +673,7 @@
       real   pe3d_n(im,jm,kn+1)
 
 ! local (private)
-      integer i, j, k, ic, n
+      integer i, j, k, n
 
       real pe1(im,km+1),pe2(im,kn+1)
       real pk1(im,km+1),pk2(im,kn+1)
@@ -688,9 +683,6 @@
       real  t1(im,km)  , t2(im,kn)
       real  q1(im,km)  , q2(im,kn)
 
-      real ptop
-      real akap
-      real ple,  pek, dak, bkh
       real undef
       real big
       parameter ( undef = 1.e15 )
@@ -732,7 +724,7 @@
 
 ! map pt
 ! ------
-      call mappm ( km, pk1, dp1, t1, kn, pk2, dp2, t2, im, 1, 7 )
+      call mappm ( km, pk1, dp1, t1, kn, pk2, t2, im, 1, 7 )
 
       do k=1,km
       do i=1,im
@@ -748,8 +740,8 @@
 
 ! map u,v
 ! -------
-      call mappm ( km, pe1, dp1, u1, kn, pe2, dp2, u2, im, -1, 7 )
-      call mappm ( km, pe1, dp1, v1, kn, pe2, dp2, v2, im, -1, 7 )
+      call mappm ( km, pe1, dp1, u1, kn, pe2, u2, im, -1, 7 )
+      call mappm ( km, pe1, dp1, v1, kn, pe2, v2, im, -1, 7 )
 
 ! map q
 ! -------
@@ -759,7 +751,7 @@
           q1(i,k) =  q_m(i,j,k,n)
          enddo
          enddo
-         call mappm ( km, pe1, dp1, q1, kn, pe2, dp2, q2, im,  0, 7 )
+         call mappm ( km, pe1, dp1, q1, kn, pe2, q2, im,  0, 7 )
          do k=1,kn
          do i=1,im
            q_n(i,j,k,n) = q2(i,k)
@@ -782,7 +774,7 @@
 
 
 !****6***0*********0*********0*********0*********0*********0**********72
-      subroutine mappm(km, pe1, dp1, q1, kn, pe2, dp2, q2, im, iv, kord)
+      subroutine mappm(km, pe1, dp1, q1, kn, pe2, q2, im, iv, kord)
 !****6***0*********0*********0*********0*********0*********0**********72
 ! IV = 0: constituents
 ! IV = 1: potential temp
@@ -798,7 +790,7 @@
       parameter (kmax = 200)
       parameter (R3 = 1./3., R23 = 2./3.)
 
-      real dp1(im,km),   dp2(im,kn)
+      real dp1(im,km)
       real  q1(im,km),    q2(im,kn)
       real pe1(im,km+1), pe2(im,kn+1)
       integer kord
@@ -913,10 +905,9 @@
 ! local arrays.
       real dc(im,km),delq(im,km)
       real h2(im,km)
-      real a1, a2, a3, b2, c1, c2, c3, d1, d2, f1, f2, f3, f4
-      real s1, s2, s3, s4, ss3, s32, s34, s42, sc
+      real a1, a2, c1, c2, c3, d1, d2
       real qmax, qmin, cmax, cmin
-      real dm, qm, dq, tmp
+      real qm, dq, tmp
 
 ! Local scalars:
       real qmp

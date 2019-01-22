@@ -3,8 +3,9 @@
 !              1. REYNOLDS & NSIDC file name format changes-- cannot be hardcoded!
 !      .......................................................................
 !
-      SUBROUTINE read_input_quart(inputFile, iDebug, today, tomrw, fileName, NLAT, NLON, &
-                            iERR)
+      SUBROUTINE read_input_quart(inputFile, iDebug, today, tomrw, & 
+                                  fileName, NLAT, NLON,            &
+                                  iERR, max_diff_SST, max_diff_ICE)
 !---------------------------------------------------------------------------
           IMPLICIT NONE
 
@@ -15,6 +16,8 @@
           INTEGER,              INTENT(OUT)   :: NLAT, NLON
           INTEGER,              INTENT(OUT)   :: iERR
 
+          REAL,                 INTENT(OUT)   :: max_diff_SST
+          REAL,                 INTENT(OUT)   :: max_diff_ICE
          
           CHARACTER (LEN = 8)                 :: tmp_today
           CHARACTER (LEN = 60)                :: tmp_char
@@ -25,10 +28,12 @@
 !       Read multi-line input
         READ (21, '(A)') today
         READ (21, '(A)') tomrw
-        READ (21, '(A)') fileName(1)                                 ! Reynolds file
-        READ (21, '(A)') fileName(2)                                 ! OSTIA    file
-        READ (21, '(I5)') NLAT
-        READ (21, '(I5)') NLON
+        READ (21, '(A)') fileName(1)             ! Reynolds file
+        READ (21, '(A)') fileName(2)             ! OSTIA    file
+        READ (21, '(I4)') NLAT
+        READ (21, '(I4)') NLON
+        READ (21, '(F8.4)') max_diff_SST            ! max allowed diff in SST between Reynolds and OSTIA
+        READ (21, '(F8.4)') max_diff_ICE            ! max allowed diff in SIC between Reynolds and OSTIA
         CLOSE(21)
 !      .......................................................................
 !      CHECK USER INPUT. Die if not correct
@@ -51,6 +56,15 @@
 !         PRINT *, 'is NOT for the Start date: ', today
 !         PRINT *, '1st eight char of file name should be START date'
 !       END IF
+!      .......................................................................
+       IF ( (max_diff_SST < 0.) .or. (max_diff_SST > 2.)) THEN
+          PRINT *, 'Value of max_diff_SST is set to ', max_diff_SST
+          PRINT *, 'Reynolds and OSTIA SSTs is out of bounds'
+       END IF
+       IF ( (max_diff_ICE < 1.e-6) .or. (max_diff_ICE > 1.)) THEN
+          PRINT *, 'Value of max_diff_ICE is set to ', max_diff_ICE
+          PRINT *, 'Reynolds and OSTIA Ice concentrations is out of bounds'
+       END IF
 !      .......................................................................
         IF( iDebug /= 0 ) THEN
           PRINT *, '---------------------------------------'

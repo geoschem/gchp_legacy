@@ -29,17 +29,19 @@ envar = sublin ( read(envar.txt),2 )
 
 * Check for grads environment variable
 * ------------------------------------
-if( envar = "" | envar = "NULL" )
-    filename = var % ".txt"
-   '!remove   grads.txt' 
-   '!listfile 'var'.txt > grads.txt'
-    checkls = sublin ( read(grads.txt),2 )
-    if( checkls = filename )
-        envar = sublin ( read(filename),2 )
-      '!remove  grads.txt' 
-    else
-        envar = NULL
-    endif
+filename = var % ".txt"
+'!remove   grads.txt' 
+'!listfile 'var'.txt > grads.txt'
+     checkls = sublin ( read(grads.txt),2 )
+ if( checkls = filename )
+       envar = sublin ( read(filename),2 )
+    '!remove grads.txt' 
+ endif
+
+* Check for grads environment variable
+* ------------------------------------
+if( envar = "" )
+    envar = NULL
 endif
 
 '!remove envar.txt' 

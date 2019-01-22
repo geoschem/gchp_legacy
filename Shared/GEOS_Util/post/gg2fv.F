@@ -1,4 +1,5 @@
       program  main
+      use m_set_eta, only: set_eta
       implicit none
 
 c **********************************************************************
@@ -19,16 +20,16 @@ c **********************************************************************
 c **********************************************************************
 
       integer  im,jm,lm,nq
-      real     pbelow,pabove,ptop
+      real     pbelow,pabove,ptop,pint
 
 c Set analysis, fvdas, date and time
 c ----------------------------------
       character*1  hres
       character*1  string(256), blank(256)
-      character*2  clm,cnhms
+      character*2  cnhms
       character*8  cnymd
 
-      character*256 ana_data, fv_data, topog, fv_rst, ts_data, lwi_data, tag, ext
+      character*256 ana_data, fv_data, fv_rst, ts_data, lwi_data, tag, ext
       data         fv_rst   /'gg2fv.rst.lcv.yyyymmdd_hhz.bin'/
       data         blank /256*' '/
 
@@ -94,22 +95,16 @@ c -----------------------------------
 c Analysis variables
 c ------------------
       real, allocatable :: phis_ana(:,:)
-      real, allocatable ::  slp_ana(:,:)
       real, allocatable ::   ps_ana(:,:)
       real, allocatable ::    u_ana(:,:,:)
       real, allocatable ::    v_ana(:,:,:)
-      real, allocatable ::    h_ana(:,:,:)
       real, allocatable ::    q_ana(:,:,:,:)
-      real, allocatable ::    p_ana(:,:,:)
       real, allocatable ::   dp_ana(:,:,:)
       real, allocatable ::    t_ana(:,:,:)
       integer ID,mlev,rc
-      integer imax,jmax,ntime,nvars,ngatts
-      integer ianal,imethod,igrid,irst
+      integer ntime,nvars,ngatts
 
       character*120, allocatable :: arg(:)
-      character*120  eta_fname
-      character*120   rs_fname
 
       logical ::   agrid = .false.
       logical ::   dgrid = .false.
@@ -121,9 +116,8 @@ c ------------------
       logical :: thvflag = .false.
       logical :: lwiflag = .false.
 
-      logical ihavetv,agridw
       integer precision
-      integer L,n,nargs,iargc
+      integer L,n,nargs,iargc,ks
 
 c NCEP Grads CTL File Variables
 c -----------------------------
@@ -134,21 +128,19 @@ c -----------------------------
       character*256, pointer :: names (:)
       character*256, pointer :: descs (:)
       integer,       pointer :: lmvars(:)
-      real,          pointer ::   levs(:)
       real,          pointer ::   lats(:)
       real,          pointer ::   lons(:)
 
       interface
                 subroutine read_ctl ( ctlfile,imncep,jmncep,lmncep,uncep,format,
      .                                nvncep,names,descs,lmvars,
-     .                                lats,lons,levs )
+     .                                lats,lons )
                 character*256  ctlfile, format
                 character*256, pointer :: names (:)
                 character*256, pointer :: descs (:)
                 integer,       pointer :: lmvars(:)
                 real,          pointer :: lats(:)
                 real,          pointer :: lons(:)
-                real,          pointer :: levs(:)
                 integer        imncep,jmncep,lmncep,nvncep
                 real           uncep
             end subroutine read_ctl
@@ -240,7 +232,7 @@ C **********************************************************************
       if( ctl_exists ) then
           call read_ctl ( ctlfile,imncep,jmncep,lmncep,uncep,format,
      .                    nvncep,names,descs,lmvars,
-     .                    lats,lons,levs )
+     .                    lats,lons )
 
           if( mlev.eq.-999 ) mlev = lmncep
           print *
@@ -415,7 +407,7 @@ c --------------
       allocate ( bk(lm+1) )
       allocate ( ple(im,jm,lm+1) )
 
-      call set_eta ( lm,ptop,ak,bk )
+      call set_eta ( lm,ks,ptop,pint,ak,bk )
 
       do L=1,lm+1
       ple(:,:,L) = ak(L) + ps(:,:)*bk(L)
@@ -445,7 +437,7 @@ c Check for ts and lwi
 c --------------------
       if ( lts  ) then
            print *, 'Reading NCEP Surface Analysis for Date: ',nymd,' Time: ',nhms
-           call get_ncep_tsx( ts_data,ts,im,jm,nymd,nhms )
+           call get_ncep_tsx( ts_data,ts,im,jm,nhms )
       endif
       if ( llwi ) then
            print *, 'Reading fv LWI dataset'
@@ -482,7 +474,7 @@ C **********************************************************************
           allocate (  ps_ana(im,jm) )
           allocate (phis_ana(im,jm) )
           call get_ncep_map ( ana_data,format,ps_ana,dp_ana,u_ana,v_ana,t_ana,q_ana,phis_ana,
-     .                        im,jm,mlev,nq,nymd,nhms,lon(1),nvncep,names,lmvars )
+     .                        im,jm,mlev,nq,lon(1),nvncep,names,lmvars )
 
 C **********************************************************************
 C ****                     Adjust fv Restart                        ****
@@ -550,6 +542,7 @@ C **********************************************************************
      .                       ts,im,jm,lm,nq,nymd,nhms,tag,ext,lonbeg,
      .                       timeinc,precision,dgrid,tvflag )
       use MAPL_BaseMod, only: MAPL_UNDEF
+      use m_set_eta, only: set_eta
       implicit  none
 
       integer   im,jm,lm,nq,nymd,nhms
@@ -625,7 +618,7 @@ C **********************************************************************
       fname = trim(tag) // trim(filename) // '.' // trim(ext)
       print *, 'Creating 32-bit eta file: ',trim(fname)
 
-      call set_eta ( lm,ptop,ak,bk )
+      call set_eta ( lm,ks,ptop,pint,ak,bk )
 
 ! Construct D-Grid Winds (if necessary)
 ! -------------------------------------
@@ -790,8 +783,6 @@ c Compute grid
 c ------------
       dlon = 360.0/ im
       dlat = 180.0/(jm-1)
-        ks = 41
-      pint = ak(ks+1)
 
       do j=1,jm
       lats(j) = -90.0 + (j-1)*dlat
@@ -892,11 +883,11 @@ c ----------------------------
       endif
       end
 
-      subroutine get_ncep_map ( filename,format,ps,dp,u,v,t,q,phis,im,jm,mlev,nq,nymd,nhms,lonbeg,
+      subroutine get_ncep_map ( filename,format,ps,dp,u,v,t,q,phis,im,jm,mlev,nq,lonbeg,
      .                          nvars,names,lmvars )
       use MAPL_ConstantsMod
       implicit none
-      integer  im,jm,mlev,nq,nymd,nhms,ku
+      integer  im,jm,mlev,nq
       integer              nvars
       integer       lmvars(nvars)
       character*256  names(nvars)
@@ -1017,7 +1008,7 @@ c --------------------------------------------------
       real*4  fhour
       real    undef,pi,dl,dp,tnp,tsp
       real    lon,lat
-      integer L,i,j,m,n,loc,ndt,imax,jmax
+      integer i,j,m,n,loc,ndt,imax,jmax
 
       call getfile ( 30,trim(filename),0 )
 
@@ -1139,11 +1130,11 @@ c ----------------------------------------------
       return
       end
 
-      subroutine get_ncep_tsx( filename,ts,im,jm,nymd,nhms )
+      subroutine get_ncep_tsx( filename,ts,im,jm,nhms )
 c program to read ts from ncep pressure level analysis file
 c ---------------------------------------------------------
       implicit none
-      integer  im,jm,nymd,nhms
+      integer  im,jm,nhms
       real  ts(im,jm)
       character*256 filename
 
@@ -1154,8 +1145,7 @@ c ---------------------------------------------------------
 
       real*4, parameter :: undef4 = 9.999E+20
       real    undef
-      logical defined
-      integer L,i,j,m,n, imax,jmax
+      integer i,j,m,imax,jmax
 
       imax = im
       jmax = jm
@@ -1465,7 +1455,7 @@ C***********************************************************************
       PARAMETER ( NSDAY  = 86400 )
       PARAMETER ( NCYCLE = 1461*24*3600 )
 
-      INTEGER YEAR, DAY, SEC, YEAR0, DAY0, SEC0
+      INTEGER YEAR, DAY, SEC
 
       DIMENSION  MNDY(12,4)
       DATA MNDY /0,31,60,91,121,152,182,213,244,274,305,335,366,
@@ -1558,6 +1548,7 @@ C*                  GODDARD LABORATORY FOR ATMOSPHERES                 *
 C***********************************************************************
 
       use MAPL_ConstantsMod
+      use m_set_eta, only: set_eta
       implicit none
       integer  im,jm,nq,lm1,lm2
 
@@ -1596,9 +1587,9 @@ c ---------------
       real  pke2(im,jm,lm2+1)
       real  phi2(im,jm,lm2+1)
 
-      real    kappa,cp,ptop,pbelow,pabove,pl,alf
+      real    kappa,cp,ptop,pbelow,pabove,pl,alf,pint
       real    rgas,pref,tref,pkref,tstar,eps,rvap,grav
-      integer i,j,L,n
+      integer i,j,L,n,ks
 
       kappa = MAPL_KAPPA
       rgas  = MAPL_RGAS
@@ -1609,7 +1600,7 @@ c ---------------
 
 c Compute edge-level pressure and pressure thickness (Using Ak,Bk)
 c ----------------------------------------------------------------
-      call set_eta ( lm1,ptop,ak,bk )
+      call set_eta ( lm1,ks,ptop,pint,ak,bk )
 
       do L=1,lm1+1
       do j=1,jm
@@ -1881,7 +1872,7 @@ c ---------------
 c Local Variables
 c ---------------
       real  xlat(im,jm)
-      integer i,j,L,koz
+      integer i,j,koz
 
       real        voltomas
       PARAMETER ( VOLTOMAS = 1.655E-6 )
@@ -1947,7 +1938,7 @@ C **********************************************************************
 C ****            Update Chemistry State to Current Time            ****
 C **********************************************************************
 
-      call time_bound  ( nymd,nhms, nymd1,nhms1, nymd2,nhms2, imns,ipls )
+      call time_bound  ( nymd, nymd1,nhms1, nymd2,nhms2, imns,ipls )
       call interp_time ( nymd,nhms, nymd1,nhms1, nymd2,nhms2, facm,facp )
 
       do L = 1,nlevs
@@ -2236,14 +2227,13 @@ C***********************************************************************
       RETURN                                                                    
       END                                                                       
 
-      subroutine time_bound ( nymd,nhms,nymd1,nhms1,nymd2,nhms2, imnm,imnp )
+      subroutine time_bound ( nymd,nymd1,nhms1,nymd2,nhms2, imnm,imnp )
 C***********************************************************************
 C  PURPOSE
 C     Compute Date and Time boundaries.
 C
 C  ARGUMENTS   DESCRIPTION
 C     nymd .... Current    Date
-C     nhms .... Current    Time
 C     nymd1 ... Previous   Date Boundary
 C     nhms1 ... Previous   Time Boundary
 C     nymd2 ... Subsequent Date Boundary
@@ -2257,7 +2247,7 @@ C*                  GODDARD LABORATORY FOR ATMOSPHERES                 *
 C***********************************************************************
 
       implicit none
-      integer  nymd,nhms, nymd1,nhms1, nymd2,nhms2
+      integer  nymd, nymd1,nhms1, nymd2,nhms2
 
 c Local Variables
 c ---------------
@@ -2571,8 +2561,8 @@ c ----------------
       real, allocatable       ::    old_dlam(:)
       real, allocatable       ::    old_dphi(:)
 
-      real    ux, ap1, ap0, am1, am2
-      real    uy, bp1, bp0, bm1, bm2
+      real    ap1, ap0, am1, am2
+      real    bp1, bp0, bm1, bm2
 
       real    lon_cmp(im)
       real    lat_cmp(jm)
@@ -3241,7 +3231,7 @@ C **********************************************************************
 
       subroutine read_ctl ( ctlfile,im,jm,lm,undef,format,
      .                      nvars,names,descs,lmvars,
-     .                      lats,lons,levs )
+     .                      lats,lons )
       implicit none
 
       character*256, pointer ::  names(:)
@@ -3249,13 +3239,12 @@ C **********************************************************************
       integer,       pointer :: lmvars(:)
       real,          pointer ::   lats(:)
       real,          pointer ::   lons(:)
-      real,          pointer ::   levs(:)
 
       character*256 ctlfile, format
       integer       im,jm,lm,nvars
-      real          undef,dx,dy,dz
-      integer       i,j,L,m,n,ndum
-      character*256 dummy,name
+      real          undef,dx,dy
+      integer       i,j,m,n,ndum
+      character*256 dummy
       character*256, allocatable :: dum(:)
 
       open (10,file=trim(ctlfile),form='formatted')

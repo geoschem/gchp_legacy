@@ -10,25 +10,28 @@ if( "$test" != "" ) then
 # Find Collections
 # ----------------
 
+set FOUND_COLLECTIONS = FALSE
 set collections = ''
 foreach line ("`cat $HISTORYRC`")
    set firstword  = `echo $line | awk '{print $1}'`
    set firstchar  = `echo $firstword | cut -c1`
    set secondword = `echo $line | awk '{print $2}'`
 
-   if ( $firstword == "::" ) goto done
+   if ( $firstword == "::" & $FOUND_COLLECTIONS == "TRUE" ) goto done
 
    if ( $firstchar != "#" ) then
       set collection  = `echo $firstword | sed -e "s/'//g"`
       set collections = `echo $collections $collection`
-      if ( $secondword == :: ) goto done
+      if ( $secondword == :: & $FOUND_COLLECTIONS == "TRUE" ) goto done
    endif
 
    if ( $firstword == COLLECTIONS: ) then
       set collections = `echo $secondword | sed -e "s/'//g"`
+      set FOUND_COLLECTIONS = TRUE
    endif
 end
 done:
+if ( $FOUND_COLLECTIONS == "FALSE" ) set collections = ''
 echo ${collections}
 
 else

@@ -1,6 +1,14 @@
 #!/bin/csh -f
-if( -e   LOCKFILE ) /bin/echo "Waiting for LOCKFILE ... "
-lockfile LOCKFILE
+
+if(    -e LOCKFILE ) /bin/echo "Waiting for LOCKFILE ... "
+if(    -e LOCKFILE ) set LOCK = `stat -c %Z LOCKFILE`
+while( -e LOCKFILE )
+          set    EPOCH = `date +'%s'`
+          @    LOCKAGE = $EPOCH - $LOCK
+          if( $LOCKAGE > 120 ) /bin/rm -f LOCKFILE
+end
+                                 lockfile LOCKFILE
 if( -e $1 ) /bin/rm $1
 /bin/rm -f LOCKFILE
+
 exit

@@ -1,6 +1,15 @@
 function  setenv (args)
+
+'numargs  'args
+ numargs = result
+
    name = subwrd (args,1)
    val  = subwrd (args,2)
+     n  = 3
+   while( n<= numargs)
+   val  = val' 'subwrd (args,n)
+     n  = n + 1
+   endwhile
 
 * Create VAR between quotes as Text File
 * --------------------------------------

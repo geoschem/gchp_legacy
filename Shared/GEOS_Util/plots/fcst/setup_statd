@@ -117,21 +117,22 @@ endwhile
 
 n = 0
 
-'getresource 'SOURCE'/'rcfile' EXP'n ;  exp.n = result
-'getresource 'SOURCE'/'rcfile' DSC'n ; desc.n = result
+'getresource 'rcfile' EXP'n ;  exp.n = result
+'getresource 'rcfile' DSC'n ; desc.n = result
  if( exp.n != NULL | desc.n  != NULL )
      length = strlen(desc.n)
      desc.n = substr(desc.n,2,length)
           n = n+1
  else
      say 'You must supply a CONTROL and COMPARISON experiment list'
-     say 'in the file:  stats.rc'
+     say 'in a stats rc file using the -rc option.'
+     say 'Current RC file: 'rcfile
      return
  endif
 
 while( n >= 0 )
-'getresource 'SOURCE'/'rcfile' EXP'n ;  exp.n = result
-'getresource 'SOURCE'/'rcfile' DSC'n ; desc.n = result
+'getresource 'rcfile' EXP'n ;  exp.n = result
+'getresource 'rcfile' DSC'n ; desc.n = result
  if( exp.n != NULL | desc.n  != NULL )
      length = strlen(desc.n)
      desc.n = substr(desc.n,2,length)
@@ -170,10 +171,135 @@ say '  EXPS: 'exps
 say 'FIELDS: 'fields
 say ' '
 
+****************************************************************
+****            Open Common Experiment Datasets             ****
+****            and set Compatable TDIM and TINC            ****
+****************************************************************
+
+'!remove 'desc0'.setup'
+'!remove 'desc1'.setup'
+
+'!'geosutil'/plots/grads_util/make_globl_ctl1 'exp.0' 'desc.0
+'!'geosutil'/plots/grads_util/make_globl_ctl1 'exp.1' 'desc.1
+
+'run getenv MONTHLAB'
+            month = result
+say 'MONTH_LABEL: 'month
+
+'run setenv STATSFILE globl'
+'!'geosutil'/plots/grads_util/create_subset_files 'desc.0' 'desc.1
+'!/bin/mv -f subset_files 'desc.0'.setup'
+'!'geosutil'/plots/grads_util/create_subset_files 'desc.1' 'desc.0
+'!/bin/mv -f subset_files 'desc.1'.setup'
+'!remove STATSFILE.txt'
+
+* Loop over Experiments
+* ---------------------
+   mzdim = 1e15
+   mtdim = 1e15
+   mtinc = 0
+       k = 0
+    ktot = ntot
+
+while( k <= ktot )
+
+* Open Files
+* ----------
+say 'Opening Files for EXP: 'k
+'syscmp_open 'desc.k' 'DESC.k
+        numfiles = result
+
+* Set Default File to 1st Ensemble Member for this Experiment
+* -----------------------------------------------------------
+'set dfile 1'
+'setlons'
+'sety'
+
+'getinfo desc'
+        cfile = result
+'getinfo tdim'
+        ctdim = result
+'getinfo tinc'
+        ctinc = result
+'getinfo zdim'
+        czdim = result
+
+* ----------------------------------------------------------------------------
+* For Zonal Mean Plots, we need to define a Master Default File which contains 
+* the smallest number of vertical levels (from 1000 to 100 mb) as well as
+* the largest time increment.  If these are not consistent, the  code will 
+* simply return with diagnostic error message.
+* ----------------------------------------------------------------------------
+
+* Find Master Vertical Dimension (smallest) among Experiment Files
+* ----------------------------------------------------------------
+     if( czdim < mzdim )
+         mzdim = czdim
+        'q file '
+         zminfile = sublin(result,2)
+         zminfile = subwrd(zminfile,2)
+     endif
+
+* Find Master Time Dimension (smallest) among Experiment Files
+* ------------------------------------------------------------
+     if( ctdim < mtdim )
+         mtdim = ctdim
+     endif
+
+* Find Master Time Frequency (largest) among Experiment Files
+* -----------------------------------------------------------
+     if( ctinc  > mtinc )
+         mtinc  = ctinc
+      tincfile  = cfile
+     endif
+
+say DESC.k
+say '  Current ZDIM: 'czdim'  Master ZDIM: 'mzdim
+say '  Current TDIM: 'ctdim'  Master TDIM: 'mtdim
+say '  Current TINC: 'ctinc'  Master TINC: 'mtinc
+say '  Current FILE: 'cfile'  Master TINCFILE: 'tincfile
+say '  Current FILE: 'cfile'  Master ZMINFILE: 'zminfile
+
+say ' '
+say 'Closing files for Exp: 'k
+'closefiles'
+
+* End Experiment Loop
+* -------------------
+k = k + 1
+endwhile
+
+* Check that Master TINC File is consistent with Master ZDIM File
+* ---------------------------------------------------------------
+'open   'zminfile
+'getinfo numfiles'
+         newfile = result
+'getinfo tinc'
+         tinc = result
+'close ' newfile
+
+if( tinc < mtinc & levs0 = 'zonal' )
+say ' '
+say 'Master ZDIM File: 'zminfile
+say 'Contains a time increment ('tinc') that is not consistent with Master TINC: 'mtinc
+say 'Zonal Mean Plots will not be performed.'
+say ' '
+return
+endif
+
+say ' '
+
+'run setenv "SYSCMP_TDIM" 'mtdim
+'run setenv "SYSCMP_TINC" 'mtinc
+'run setenv "TINCFILE"    'tincfile
+'run setenv "ZMINFILE"    'zminfile
+
 *******************************************************
-****         Compute stats for kth-Experiment      ****
+****        Compute Stats for Each Experiment      ****
 *******************************************************
 
+* Loop over Experiments
+* ---------------------
     tdim = 1e15
     zdim = 1e15
        k = 0
@@ -186,42 +312,27 @@ while( k <= ktot )
 
 * Open Files
 * ----------
-'!'geosutil'/plots/grads_util/make_globl_ctl1 'exp.k' 'DESC.k
-'pltsys_open 'desc.k' 'DESC.k
-        numfiles = result
+'syscmp_open 'desc.k' 'DESC.k
+ numfiles = result
 
-'set dfile 1'
-'setlons'
-'sety'
-'getinfo zdim'
-         zdim.k = result
-     if( zmin   > result )
-         zmin   = result
-        'q file 1'
-         zminfile = sublin(result,2)
-         zminfile = subwrd(zminfile,2)
-        'run setenv "ZMINFILE" 'zminfile
-     endif
-'getinfo tdim'
-     if( tdim   > result )
-         tdim   = result
-     endif
-
-say DESC.k'  Current TDIM: 'result'  Saved TDIM: 'tdim'  ZDIM: 'zdim.k
-'run setenv "SYSCMP_TDIM" 'tdim
-
-
+* Loop over Fields
+* ----------------
 'numargs  'fields
  numflds = result
 
 n = 1
 while ( n<=numflds )
         field = subwrd(fields,n)
+
+* Set Default File to 1st Ensemble Member for this Experiment
+* -----------------------------------------------------------
 'set dfile 1'
 'setlons'
 'sety'
+'getinfo zdim'
+         zdim.k = result
 
-if( levs0 = 'NULL' )
+if( levs0 = 'zonal' )
        'getinfo zdim'
                 zdim = result
        'set z 1'
@@ -256,6 +367,11 @@ endif
 if( numlevs > 1 )
    'set lev 1000 100'
 else
+    say 'FIELD: 'field'  NAME: 'name'  LEVELS: 'levels
+'q file'
+say 'FILE: 'result
+'q dims'
+say 'DIMS: 'result
    'set lev 'levels
    'getinfo  level'
              levelcheck = result
@@ -266,25 +382,33 @@ else
 endif
 say 'Set LEVS: 'levels
 
-*'statmak 'field' 'DESC.k' 'DESC.0
+* Compute Statistic Variables
+* ---------------------------
+'set t 1 'mtdim
+'setlons'
+'sety'
+
 if( k = 0 )
    'statmak 'field' CTL CTL'
 else
    'statmak 'field' EXP CTL'
 endif
 
+* End Field Loop
+* --------------
 n = n + 1
 endwhile
 
+**********************************************************
+
 say 'EXP   k: 'k
 say '   ktot: 'ktot
-if( k != ktot )
-'q files'
-say 'closing files 'result
-   'closefiles'
-   '!remove TINC.txt'
-endif
+say 'Closing files for EXP: 'k
+    'closefiles'
+    '!remove TINC.txt'
 
+* End Experiment Loop
+* -------------------
 k = k + 1
 endwhile
 
@@ -303,19 +427,20 @@ while( k <= ktot )
      k = k + 1
 endwhile
 
-say 'closing files 'result
-    'closefiles'
-    'pltsys_open 'desc.kmin' 'DESC.kmin
+'syscmp_open 'desc.kmin' 'DESC.kmin
 
 ****************************************************************
 ****                  Make Horizontal Plots                 ****
 ****************************************************************
 
-'set dfile 1'
+if( levs0 != 'zonal' )
+
+'open 'tincfile
+'getinfo    numfiles'
+            newfile = result
+'set dfile 'newfile
 'setlons'
 'sety'
-'getinfo month'
-         month = result
 
 k    = 0
 ktot = ntot-1
@@ -359,13 +484,28 @@ while( k <= ktot )
         'numargs  'levels
          numlevs = result
 
+*                    BIAS + VAR
+****************************************************************
                      z = 1
                      while( z <= numlevs )
                      level = subwrd(levels,z)
                   if(level >= 100)
                      'set lev 'level
-                     'movie statpltdrv "'field' 'desc.k' 'desc.kp1' 'numfiles'" -tend 'tdim' -print -rotate 90 -name 'SOURCE'/'desc.k'.'desc.kp1'/stats_'name'_syscmp_GLO_'level'_'month
+                     'movie statpltdrv "'field' 'desc.k' 'desc.kp1' 'numfiles' 1" -tend 'mtdim' -print -rotate 90 -name 'SOURCE'/'desc.k'.'desc.kp1'/stats_'name'_syscmp_GLO_'level'_'month
                      '!sleep 15 ; convert -loop 0 -delay 30 'SOURCE'/'desc.k'.'desc.kp1'/stats_'name'_syscmp_GLO_'level'_'month'.*.gif 'SOURCE'/'desc.k'.'desc.kp1'/stats_'name'_syscmp_GLO_'level'_'month'.gif &'
+                  endif
+                     z = z + 1
+                     endwhile
+
+*                    AMPL + PHAZ
+****************************************************************
+                     z = 1
+                     while( z <= numlevs )
+                     level = subwrd(levels,z)
+                  if(level >= 100)
+                     'set lev 'level
+                     'movie statpltdrv "'field' 'desc.k' 'desc.kp1' 'numfiles' 2" -tend 'mtdim' -print -rotate 90 -name 'SOURCE'/'desc.k'.'desc.kp1'/stats_'name'_syscmp2_GLO_'level'_'month
+                     '!sleep 15 ; convert -loop 0 -delay 30 'SOURCE'/'desc.k'.'desc.kp1'/stats_'name'_syscmp2_GLO_'level'_'month'.*.gif 'SOURCE'/'desc.k'.'desc.kp1'/stats_'name'_syscmp2_GLO_'level'_'month'.gif &'
                   endif
                      z = z + 1
                      endwhile
@@ -376,18 +516,24 @@ while( k <= ktot )
 k = k + 1
 endwhile
 
+'close 'newfile
+'set dfile 1'
+
+****************************************************************
+
+else
+
 ****************************************************************
 ****                  Make Zonal Mean Plots                 ****
 ****************************************************************
 
-if( numlevs > 1 )
-
-'set dfile 1'
+'open 'zminfile
+'getinfo    numfiles'
+            newfile = result
+'set dfile 'newfile
 'set x 1'
 'sety'
 'set lev 1000 100'
-'getinfo month'
-         month = result
 
 k    = 0
 ktot = ntot-1
@@ -395,28 +541,53 @@ while( k <= ktot )
  kp1 = k + 1
 '!/bin/mkdir -p 'SOURCE'/'desc.k'.'desc.kp1
 
+*      BIAS + VAR
+*******************
        n = 1
        while ( n<=numflds )
-                     field = subwrd(fields,n)
+                  field = subwrd(fields,n)
 
          if( field != p )
-         if( field  = h   ) ; name = hght ; endif
-         if( field  = u   ) ; name = uwnd ; endif
-         if( field  = v   ) ; name = vwnd ; endif
-         if( field  = t   ) ; name = tmpu ; endif
-         if( field  = q   ) ; name = sphu ; endif
-         if( field  = chi ) ; name = chi  ; endif
-         if( field  = psi ) ; name = psi  ; endif
-
-        'movie statpltdrvz "'field' 'desc.k' 'desc.kp1' 'numfiles'" -tend 'tdim' -print -rotate 90 -name 'SOURCE'/'desc.k'.'desc.kp1'/stats_'name'_syscmp_GLO_z_'month
-        '!sleep 15 ; convert -loop 0 -delay 30 'SOURCE'/'desc.k'.'desc.kp1'/stats_'name'_syscmp_GLO_z_'month'.*.gif 'SOURCE'/'desc.k'.'desc.kp1'/stats_'name'_syscmp_GLO_z_'month'.gif &'
+             if( field  = h   ) ; name = hght ; endif
+             if( field  = u   ) ; name = uwnd ; endif
+             if( field  = v   ) ; name = vwnd ; endif
+             if( field  = t   ) ; name = tmpu ; endif
+             if( field  = q   ) ; name = sphu ; endif
+             if( field  = chi ) ; name = chi  ; endif
+             if( field  = psi ) ; name = psi  ; endif
+            'movie statpltdrvz "'field' 'desc.k' 'desc.kp1' 'numfiles' 1" -tend 'mtdim' -print -rotate 90 -name 'SOURCE'/'desc.k'.'desc.kp1'/stats_'name'_syscmp_GLO_z_'month
+            '!sleep 15 ; convert -loop 0 -delay 30 'SOURCE'/'desc.k'.'desc.kp1'/stats_'name'_syscmp_GLO_z_'month'.*.gif 'SOURCE'/'desc.k'.'desc.kp1'/stats_'name'_syscmp_GLO_z_'month'.gif &'
          endif
 
-         n = n + 1
-         endwhile
+       n = n + 1
+       endwhile
+
+*      AMPL + PHAZE
+*******************
+       n = 1
+       while ( n<=numflds )
+                  field = subwrd(fields,n)
+
+         if( field != p )
+             if( field  = h   ) ; name = hght ; endif
+             if( field  = u   ) ; name = uwnd ; endif
+             if( field  = v   ) ; name = vwnd ; endif
+             if( field  = t   ) ; name = tmpu ; endif
+             if( field  = q   ) ; name = sphu ; endif
+             if( field  = chi ) ; name = chi  ; endif
+             if( field  = psi ) ; name = psi  ; endif
+            'movie statpltdrvz "'field' 'desc.k' 'desc.kp1' 'numfiles' 2" -tend 'mtdim' -print -rotate 90 -name 'SOURCE'/'desc.k'.'desc.kp1'/stats_'name'_syscmp2_GLO_z_'month
+            '!sleep 15 ; convert -loop 0 -delay 30 'SOURCE'/'desc.k'.'desc.kp1'/stats_'name'_syscmp2_GLO_z_'month'.*.gif 'SOURCE'/'desc.k'.'desc.kp1'/stats_'name'_syscmp2_GLO_z_'month'.gif &'
+         endif
+
+       n = n + 1
+       endwhile
 
 k = k + 1
 endwhile
+
+'close 'newfile
+'set dfile 1'
 
 endif
 

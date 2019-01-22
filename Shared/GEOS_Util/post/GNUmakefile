@@ -16,17 +16,19 @@ SHELL=/bin/sh
 
 BINS = makeiau.x hdf2rs.x gg2fv.x eta2prs.x eta2rst.x stats.x rs_hinterp.x \
        time_ave.x time_ave_nompi.x binarytile.x convert_eta.x rs2hdf.x \
-       ec_prs2fv.x flat2hdf.x fvrst.x rs_scale.x gg2eta.x ec_prs2eta.x \
-       merra2scm.x
+       ec_prs2fv.x flat2hdf.x fvrst.x gg2eta.x ec_prs2eta.x \
+       merra2scm.x rs_numtiles.x
+
+BINSR8 = convert_aerosols.x
 
 UT = checkdate.x swapendian_FV.x swapendian_RST.x
 
 PKGS = 
-MOD_DIRS = $(INC_MAPL_BASE) $(MOD_ESMF) $(INC_ESMF) $(INC_MPI) $(INC_GMAO_SHARED)
-PERLSCRIPTS = regrid.pl ncep2geos.pl ecmwf2geos.pl
+MOD_DIRS = $(INC_HERMES) $(INC_GEOS_SHARED) $(INC_MAPL_BASE) $(INC_ESMF) $(INC_SDF) $(INC_MPI) $(INC_GMAO_SHARED)
+PERLSCRIPTS = $(wildcard *.pl)
 PERLPKGS = 
 SHELLSCRIPTS = ec2grd.csh
-RCFILES = time_ave.rc regrid.rc
+RCFILES = time_ave.rc
 NMLFILES = 
 SUBDIRS = 
 
@@ -76,9 +78,10 @@ include $(ESMADIR)/Config/GMAO_base.mk   # System dependencies
 #-----------------------
 THIS = $(shell basename `pwd`)
 
-esma_install install: $(LIB) $(BINS) # $(UT)
+esma_install install: $(LIB) $(BINS) $(BINSR8) # $(UT)
 	$(MKDIR) $(ESMABIN) $(ESMALIB)
 	-$(CP) -p $(BINS) $(ESMABIN)
+	-$(CP) -p $(BINSR8) $(ESMABIN)
 	$(CP) $(LIB) $(ESMALIB)
 
 	@if [ "$(SCRIPTS)" != "  " ]; then (\
@@ -172,13 +175,14 @@ ut: $(UT)
 # User Defined Targets
 #----------------------
 
-vpath % $(MOD_DIRS) /usr/include
+vpath % $(MOD_DIRS)
 
 SRCS := dynamics_lattice_module.F mpi_util.F mymalloc.F PWSSSP.F windfix.F \
-        timer.F gmap.F alias.F fft.F set_eta.F90
+        timer.F gmap.F alias.F fft.F
 OBJS := $(addsuffix .o, $(basename $(SRCS)))
 DEPS := $(addsuffix .d, $(basename $(SRCS))) \
-        $(addsuffix .d, $(basename $(BINS)))
+        $(addsuffix .d, $(basename $(BINS))) \
+        $(addsuffix .d, $(basename $(BINSR8)))
 
 SRCZ := dynamics_lattice_module.F mpi_util.F mymalloc.F timer.F
 OBJZ := $(addsuffix _nompi.o, $(basename $(SRCZ)))
@@ -195,26 +199,31 @@ USER_FMODS  = $(foreach dir,$(MOD_DIRS),$(M)$(dir))
 USER_FINCS  = $(foreach dir,$(MOD_DIRS),$(I)$(dir)) 
 
 #---------------------
-# Temporary fix (Kokron?)
-# 
-# AMS: This is no quite right. Before fixing it I need to know
-#      what needs HDFEOS and what doesn't. 
-#-------------------------------------------------------------
-###LIB_HDF = $(LIB_HDFEOS) -lmfhdf -ldf -lhdfjpeg -lhdfz $(BASEDIR)/Linux/lib/libsz.a
-
-#---------------------
 FREAL = $(FREAL4)
 
 $(LIB) lib : $(OBJS)
 	$(RM) $(LIB)
 	$(AR) $(AR_FLAGS) $(LIB) $(OBJS)
+	$(RANLIB) $(RANLIB_FLAGS) $(LIB)
 
 $(LIBZ) : $(OBJZ)
 	$(RM) $(LIBZ)
 	$(AR) $(AR_FLAGS) $(LIBZ) $(OBJZ)
+	$(RANLIB) $(RANLIB_FLAGS) $(LIBZ)
 
 %.o : %.F
 	$(FC) -c $(FFLAGS) $(D)mpi $*.F
+
+dynamics_lattice_module_nompi.o: dynamics_lattice_module.o
+
+mpi_util.o: dynamics_lattice_module_nompi.o
+mpi_util_nompi.o: dynamics_lattice_module_nompi.o
+
+eta2rst.o: dynamics_lattice_module_nompi.o
+hdf2rs.o: dynamics_lattice_module_nompi.o
+makeiau.o: dynamics_lattice_module_nompi.o
+time_ave.o: dynamics_lattice_module_nompi.o
+windfix.o: dynamics_lattice_module_nompi.o
 
 stats.o : stats.F90
 	$(FC) -c $(FFLAGS) $(BIG_ENDIAN) $*.F90
@@ -224,8 +233,9 @@ stats.o : stats.F90
 
 # Generic definition of dependent libraries
 # -----------------------------------------
-LIBS = $(LIB_CFIO) $(LIB_GFIO) $(LIB_MFHDF3) \
-			 $(LIB_MAPL_BASE) $(LIB_SDF) $(LIB_ESMF) $(LIB_MPI) $(LIB_SYS)
+LIBS = $(LIB_MAPL_BASE) $(LIB_GEOS_SHARED) $(LIB_HERMES) \
+       $(LIB_CFIO) $(LIB_GFIO) $(LIB_MPEU) $(LIB_MFHDF3) \
+       $(LIB_ESMF) $(LIB_SDF) $(LIB_MPI) $(LIB_SYS)
 
 # Generic rule for mpi builds
 # ---------------------------
@@ -280,6 +290,18 @@ rs_vinterp_scm.o: rs_vinterp_scm.F90
 rs_vinterp_scm.x: rs_vinterp_scm.o $(LIB)
 	$(LD) $(LDFLAGS) -o $@ $+ $(LIBS) $(LIB_HERMES)
 
+# convert_aerosols needs to be r8
+# -------------------------------
+
+convert_aerosols.x: THIS_GFIO  = GMAO_gfio_r8
+convert_aerosols.x: THIS_CFIO  = MAPL_cfio_r8
+
+convert_aerosols_r8.o : convert_aerosols.F
+	$(FC) -c $(FFLAGS) $(FREAL8) -o $@ convert_aerosols.F
+
+convert_aerosols.x: convert_aerosols_r8.o
+	$(LD) $(LDFLAGS) -o $@ $+ $(LIB_CFIO) $(LIB_HERMES) $(LIB_GFIO) $(LIB_MPEU) \
+		                       $(LIB_SDF) $(LIB_SYS)
 
 #----------------------------------------------------
 # Hack to prevent remaking dep files during cleaning

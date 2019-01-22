@@ -21,8 +21,8 @@
       character*120  tag, output
       real         undef, lat0
       integer      im,jm,lm,tm
-      integer      i,j,L,n,nt,lrec
-      integer      iostat,rc,nargs,iargc
+      integer      j,L,n,nt,lrec
+      integer      rc,nargs,iargc
 
       undef = 1e15
 
@@ -205,12 +205,13 @@ c ------------------------
       RETURN
       END
 
-      SUBROUTINE  GLAWRT2 (A, JM,LM, KTP, undef)
+      SUBROUTINE  GLAWRT2 (A, IM, JM,LM, KTP, undef)
       real        A   (JM,LM)
       real        TEM (JM)
       real       DPHI (JM),  qout(181)
       real lon,lat,lons(181),lats(181)
       real*4                  dum(181)
+      real :: dlam(IM)
 
       pi      = 4.0*atan(1.0)
       dlam    = 1
@@ -250,7 +251,7 @@ c ------------------------
       call interp_h ( tem,1,JM,1,
      .                dlam,dphi,0.0,90.0,0.0,
      .                qout,iout*jout,lons,lats,
-     .                1,1,.true.,undef )
+     .                undef )
                   dum = qout
       WRITE(KTP)  dum
       ENDDO
@@ -607,7 +608,7 @@ c -------------------------------------------------------------------
       subroutine interp_h ( q_cmp,im,jm,lm,
      .                      dlam,dphi,rotation,tilt,precession,
      .                      q_geo,irun,lon_geo,lat_geo,
-     .                      msgn,norder,check,undef )
+     .                      undef )
 C***********************************************************************
 C
 C  PURPOSE:
@@ -629,12 +630,6 @@ C    precession . Rotation parameter lam_0  (Degrees)
 C    irun ....... Number of Output Locations
 C    lon_geo .... Longitude Location of Output
 C    lat_geo .... Latitude  Location of Output
-C    msgn ....... Flag for scalar field  ( msgn =  1 )
-C                    or vector component ( msgn = -1 )
-C    norder ..... Order of Interpolation:  Bi-Linear => abs(norder) = 1
-C                                          Bi-Cubic  => abs(norder) = 3
-C                 Note: If norder < 0, then check for positive definite
-C    check ...... Logical Flag to check for Undefined values
 C
 C  OUTPUT:
 C  =======
@@ -649,8 +644,7 @@ C***********************************************************************
 
 c Input Variables
 c ---------------
-      integer im,jm,lm,irun,norder,msgn
-      logical check
+      integer im,jm,lm,irun
 
       real      q_geo(irun,lm)
       real    lon_geo(irun)
@@ -662,7 +656,7 @@ c ---------------
 
 c Local Variables
 c ---------------
-      integer  i,j,l,m,n
+      integer  i,j,l,m
       integer, allocatable       :: ip0(:), im1(:)
       integer, allocatable       :: jp0(:), jm1(:)
 
@@ -678,21 +672,18 @@ c -----------------
       real, allocatable       ::    old_dlam(:)
       real, allocatable       ::    old_dphi(:)
 
-      real    ap0, am1
-      real    bp0, bm1
-
       real    lon_cmp(im)
       real    lat_cmp(jm)
       real    q_tmp(irun)
 
       real    pi,cosnp,sinnp,p1,p2,p3,eps,d
-      real    lam,lam_ip1,lam_ip0,lam_im1,lam_im2
-      real    phi,phi_jp1,phi_jp0,phi_jm1,phi_jm2
+      real    lam,lam_ip0,lam_im1
+      real    phi,phi_jp0,phi_jm1
       real    dl,dp,lam_np,phi_np,lam_0,eps_np
       real    rotation , tilt , precession
       real    lam_geo, lam_cmp
       real    phi_geo, phi_cmp
-      real    undef, getcon
+      real    undef
       integer im1_cmp,icmp
       integer jm1_cmp,jcmp
 

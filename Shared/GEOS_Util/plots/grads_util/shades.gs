@@ -7,14 +7,19 @@ function shades (args)
 'numargs  'args
  numargs = result
 
+'run getenv CUBEFACE'
+            cubeface = result
+
 cntval = NULL
 maxval = NULL
 minval = NULL
+quad   = NULL
 
         num = 0
 while ( num < numargs )
         num = num + 1
 
+if( subwrd(args,num) = '-quad'   ) ; quad   = TRUE               ; endif
 if( subwrd(args,num) = '-cint'   ) ; cntval = subwrd(args,num+1) ; endif
 if( subwrd(args,num) = '-maxval' ) ; maxval = subwrd(args,num+1) ; endif
 if( subwrd(args,num) = '-minval' ) ; minval = subwrd(args,num+1) ; endif
@@ -77,24 +82,51 @@ endwhile
 * ----------------------------------
 
     fixed = subwrd(args,2)
-if( fixed = '' )
+if( fixed = '' | fixed = '-quad' )
 
    if(flag=true)
+
              field = subwrd(args,1)
-       'set gxout stat'
-       'd 'field
-       MINMAX = sublin(result,8)
-      'set gxout shaded'
-       if( minval = NULL )
-           MIN  = subwrd(MINMAX,4)
-       else
-           MIN  = minval
-       endif
-       if( maxval = NULL )
-           MAX  = subwrd(MINMAX,5)
-       else
-           MAX  = maxval
-       endif
+
+        MIN = NULL
+        MAX = NULL
+       'getinfo edim'
+                edim = result
+               e = 1
+        if( cubeface != NULL )
+                edim = cubeface
+                   e = cubeface
+        endif
+        while( e<=edim )
+          'set e 'e
+          'set gxout stat'
+          'd 'field
+          MINMAX = sublin(result,8)
+          say 'E: 'e'  MINMAX: 'MINMAX
+         'set gxout shaded'
+          if( minval = NULL )
+              MIN0   = subwrd(MINMAX,4)
+              if( MIN = NULL )
+                  MIN = MIN0
+              else
+                 if( MIN0 < MIN ) ; MIN = MIN0 ; endif
+              endif
+          else
+              MIN    = minval
+          endif
+          if( maxval = NULL )
+              MAX0   = subwrd(MINMAX,5)
+              if( MAX = NULL )
+                  MAX = MAX0
+              else
+                 if( MAX0 > MAX ) ; MAX = MAX0 ; endif
+              endif
+          else
+              MAX    = maxval
+          endif
+       e = e + 1
+       endwhile
+
        if( cntval = NULL )
            cint = (MAX-MIN)/18
        else
@@ -116,11 +148,50 @@ if( fixed = '' )
     if( n != 0 ) ; clevs = clevs' 'val ; endif
         n = n + 1
     endwhile
+   'set clevs 'clevs
+   'set ccols 59   57   55   47   44   37   36   34   33    0     21   22   23   24   25   26   27   28   29'
+    say 'Inside Shades1, Linear CLEVS: 'clevs
 
-    'set clevs 'clevs
-    'set ccols 59   57   55   47   44   37   36   34   33    0     21   22   23   24   25   26   27   28   29'
-     say 'Inside Shades1: CLEVS: 'clevs
-     return cint
+    if( quad = TRUE )
+     cint2 = math_nint( math_sqrt(cint) )
+    clevs2 = ''
+            n  = -9
+    while ( n <=  9 )
+        if( n <   0 )
+            k =   n + 10
+        endif
+        if( n >   0 )
+            k =   n + 9
+        endif
+        if( n != 0 )
+
+      oldval = subwrd(clevs,k)
+      newval = n * math_abs(n)
+
+      if( math_abs(n) <= cint2 )
+          newval = n  *  cint2
+      endif
+
+      if( math_abs(newval) < math_abs(oldval) )
+          clevs2 = clevs2' 'newval
+      else
+          clevs2 = clevs2' 'oldval
+      endif
+
+        endif
+        n = n + 1
+    endwhile
+    clevs = clevs2
+   'set clevs 'clevs
+   'set ccols 59   57   55   47   44   37   36   34   33    0     21   22   23   24   25   26   27   28   29'
+    say 'Inside Shades1, Quad   CLEVS: 'clevs
+    cint = cint2
+   'run setenv SHADES_CLEVS 'clevs
+   'run setenv SHADES_CCOLS 59   57   55   47   44   37   36   34   33    0     21   22   23   24   25   26   27   28   29'
+   'run setenv SHADES_CINT  'cint
+    endif
+
+    return cint
 
 else
 
@@ -131,21 +202,47 @@ else
     if( time <= fixed | fixed = 0 )
 
        '!remove SHADES'tag'.txt'
-       'set gxout stat'
-       'd 'field
-       MINMAX = sublin(result,8)
-      'set gxout shaded'
 
-       if( minval = NULL )
-           MIN  = subwrd(MINMAX,4)
-       else
-           MIN  = minval
-       endif
-       if( maxval = NULL )
-           MAX  = subwrd(MINMAX,5)
-       else
-           MAX  = maxval
-       endif
+        MIN = NULL
+        MAX = NULL
+       'getinfo edim'
+                edim = result
+               e = 1
+        if( cubeface != NULL )
+                edim = cubeface
+                   e = cubeface
+        endif
+        while( e<=edim )
+          'set e 'e
+          'set gxout stat'
+          'd 'field
+          MINMAX = sublin(result,8)
+          say 'E: 'e'  MINMAX: 'MINMAX
+         'set gxout shaded'
+          if( minval = NULL )
+              MIN0   = subwrd(MINMAX,4)
+              if( MIN = NULL )
+                  MIN = MIN0
+              else
+                 if( MIN0 < MIN ) ; MIN = MIN0 ; endif
+              endif
+          else
+              MIN    = minval
+          endif
+          if( maxval = NULL )
+              MAX0   = subwrd(MINMAX,5)
+              if( MAX = NULL )
+                  MAX = MAX0
+              else
+                 if( MAX0 > MAX ) ; MAX = MAX0 ; endif
+              endif
+          else
+              MAX    = maxval
+          endif
+       e = e + 1
+       endwhile
+
+       say 'INITIAL MIN: 'MIN'  MAX: 'MAX
        DQ     = (MAX-MIN)/19
 
        'getint 'DQ
@@ -199,6 +296,9 @@ else
    'set  ccols 0  50  42  44  46  48  39  37  36  34  32  31  21  22  24  25  26  27  28   29'
    'set  clevs  'clevs
     say 'CLEVS: 'clevs
+   'run setenv SHADES_CLEVS 'clevs
+   'run setenv SHADES_CCOLS 0  50  42  44  46  48  39  37  36  34  32  31  21  22  24  25  26  27  28   29'
+   'run setenv SHADES_CINT  'CINT
     return CINT
 
 endif

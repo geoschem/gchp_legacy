@@ -1,18 +1,34 @@
 function hplt (args)
 
-expid   = subwrd(args,1)
-field   = subwrd(args,2)
-season  = subwrd(args,3)
-output  = subwrd(args,4)
-level   = subwrd(args,5)
-nmod    = subwrd(args,6)
-nobs    = subwrd(args,7)
-expfile = subwrd(args,8)
-anafile = subwrd(args,9)
-anal    = subwrd(args,10)
-obsname = subwrd(args,11)
-debug   = subwrd(args,12)
-expdsc  = subwrd(args,13)
+'numargs  'args
+ numargs = result
+
+* Initialize INPUT Parameters
+* ---------------------------
+        num = 0
+while ( num < numargs )
+        num = num + 1
+
+if( subwrd(args,num) = '-MVAR'     ) ; mvar     = subwrd(args,num+1) ; say 'mvar  = 'mvar  ; endif
+if( subwrd(args,num) = '-OVAR'     ) ; ovar     = subwrd(args,num+1) ; say 'ovar  = 'ovar  ; endif
+
+if( subwrd(args,num) = '-EXPID'    ) ; expid    = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-MNAME'    ) ; mname    = subwrd(args,num+1) ; say 'mname = 'mname ; endif
+if( subwrd(args,num) = '-SEASON'   ) ; season   = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-OUTPUT'   ) ; output   = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-LEVEL'    ) ; level    = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-NMOD'     ) ; nmod     = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-NOBS'     ) ; nobs     = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-MFILE'    ) ; mfile    = subwrd(args,num+1) ; say 'mfile = 'mfile   ; endif
+if( subwrd(args,num) = '-OFILE'    ) ; ofile    = subwrd(args,num+1) ; say 'ofile = 'ofile   ; endif
+if( subwrd(args,num) = '-ONAME'    ) ; oname    = subwrd(args,num+1) ; say 'oname = 'oname   ; endif
+if( subwrd(args,num) = '-ODESC'    ) ; odesc    = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-DEBUG'    ) ; debug    = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-MDESC'    ) ; mdesc    = subwrd(args,num+1) ; endif
+
+endwhile
+
+* ---------------------------
  
 blak   = 0
 
@@ -28,13 +44,13 @@ blak   = 0
 'run getenv "ENDDATE"'
          enddate  = result
 if( begdate = "NULL" )
-   'set dfile 'expfile
+   'set dfile 'mfile
    'set t    '1
    'getinfo date'
          begdate = result
 endif
 if( enddate = "NULL" )
-   'set dfile 'expfile
+   'set dfile 'mfile
    'getinfo tdim'
             tdim = result
    'set t  'tdim
@@ -58,17 +74,18 @@ endif
 
 * Set GC Components
 * -----------------
-if( field = 'SLP'   ) ; GC = DYN   ; name = slp   ; endif
-if( field = 'U'     ) ; GC = DYN   ; name = uwnd  ; endif
-if( field = 'V'     ) ; GC = DYN   ; name = vwnd  ; endif
-if( field = 'T'     ) ; GC = DYN   ; name = tmpu  ; endif
-if( field = 'Q'     ) ; GC = MOIST ; name = sphu  ; endif
-if( field = 'RH2'   ) ; GC = MOIST ; name = rh    ; endif
-if( field = 'OMEGA' ) ; GC = DYN   ; name = omega ; endif
-if( field = 'ZLE'   ) ; GC = DYN   ; name = hght  ; endif
-if( field = 'HE'    ) ; GC = DYN   ; name = hghte ; endif
-if( field = 'CHI'   ) ; GC = DYN   ; name = chi   ; endif
-if( field = 'PSI'   ) ; GC = DYN   ; name = psi   ; endif
+if( mname = 'SLP'   ) ; GC = DYN       ; name = slp   ; endif
+if( mname = 'U'     ) ; GC = DYN       ; name = uwnd  ; endif
+if( mname = 'V'     ) ; GC = DYN       ; name = vwnd  ; endif
+if( mname = 'T'     ) ; GC = DYN       ; name = tmpu  ; endif
+if( mname = 'Q'     ) ; GC = MOIST     ; name = sphu  ; endif
+if( mname = 'RH2'   ) ; GC = MOIST     ; name = rh    ; endif
+if( mname = 'OMEGA' ) ; GC = DYN       ; name = omega ; endif
+if( mname = 'ZLE'   ) ; GC = DYN       ; name = hght  ; endif
+if( mname = 'HE'    ) ; GC = DYN       ; name = hghte ; endif
+if( mname = 'CHI'   ) ; GC = DYN       ; name = chi   ; endif
+if( mname = 'PSI'   ) ; GC = DYN       ; name = psi   ; endif
+if( mname = 'O3'    ) ; GC = CHEMISTRY ; name = o3    ; endif
 
 * Get Plotting Values from Resource File
 * --------------------------------------
@@ -76,40 +93,45 @@ if( field = 'PSI'   ) ; GC = DYN   ; name = psi   ; endif
          geosutil = result
 PLOTRC = geosutil'/plots/grads_util/plot.rc'
 
-                        'getresource 'PLOTRC' 'field'_'GC'_'level'_FACTOR'
-if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'field'_'GC'_FACTOR' ; endif
+fact    = 'NULL'
+ccols   = 'NULL'
+cbscale = 'NULL'
+clab    = 'NULL'
+
+                        'getresource 'PLOTRC' 'mname'_'GC'_'level'_FACTOR'
+if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'mname'_'GC'_FACTOR' ; endif
                                                            fact = result
 
-                        'getresource 'PLOTRC' 'field'_'GC'_'level'_TITLE'
-if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'field'_'GC'_TITLE' ; endif
-                                                           desc = result
+                        'getresource 'PLOTRC' 'mname'_'GC'_'level'_TITLE'
+if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'mname'_'GC'_TITLE' ; endif
+                                                           title = result
 
-                        'getresource 'PLOTRC' 'field'_'GC'_'level'_CINT'
-if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'field'_'GC'_CINT' ; endif
+                        'getresource 'PLOTRC' 'mname'_'GC'_'level'_CINT'
+if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'mname'_'GC'_CINT' ; endif
                                                            cint = result
 
-                        'getresource 'PLOTRC' 'field'_'GC'_'level'_CCOLS'
-if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'field'_'GC'_CCOLS' ; endif
+                        'getresource 'PLOTRC' 'mname'_'GC'_'level'_CCOLS'
+if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'mname'_'GC'_CCOLS' ; endif
                                                            ccols = result
 
-                        'getresource 'PLOTRC' 'field'_'GC'_'level'_CVALS'
-if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'field'_'GC'_CVALS' ; endif
+                        'getresource 'PLOTRC' 'mname'_'GC'_'level'_CVALS'
+if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'mname'_'GC'_CVALS' ; endif
                                                            cvals = result
 
-                        'getresource 'PLOTRC' 'field'_'GC'_'level'_DCOLS'
-if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'field'_'GC'_DCOLS' ; endif
+                        'getresource 'PLOTRC' 'mname'_'GC'_'level'_DCOLS'
+if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'mname'_'GC'_DCOLS' ; endif
                                                            dcols = result
 
-                        'getresource 'PLOTRC' 'field'_'GC'_'level'_'DIFFTYPE'LEVS'
-if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'field'_'GC'_'DIFFTYPE'LEVS' ; endif
+                        'getresource 'PLOTRC' 'mname'_'GC'_'level'_'DIFFTYPE'LEVS'
+if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'mname'_'GC'_'DIFFTYPE'LEVS' ; endif
                                                            dlevs = result
 
-                        'getresource 'PLOTRC' 'field'_'GC'_'level'_CLAB'
-if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'field'_'GC'_CLAB' ; endif
+                        'getresource 'PLOTRC' 'mname'_'GC'_'level'_CLAB'
+if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'mname'_'GC'_CLAB' ; endif
                                                            clab = result
 
-                        'getresource 'PLOTRC' 'field'_'GC'_'level'_CBSCALE'
-if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'field'_'GC'_CBSCALE' ; endif
+                        'getresource 'PLOTRC' 'mname'_'GC'_'level'_CBSCALE'
+if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'mname'_'GC'_CBSCALE' ; endif
                                                            cbscale = result
 
 if( cbscale = 'NULL' ) ; cbscale =  0.8      ; endif
@@ -143,7 +165,7 @@ fact = dum
 
 * Sea-Level Pressure
 * ------------------
-if( field = 'SLP' )
+if( mname = 'SLP' )
         cvals = "988 1020"
         ccols = "84 0 85"
     std_cint  = 2  
@@ -153,7 +175,7 @@ endif
 
 * Temperature
 * -----------
-if( field = 'T' )
+if( mname = 'T' )
     'getresource 'PLOTRC' T_DYN_'level'_CVALS' ; cvals = result
      std_cint  = 0.5  
      std_cvals = '1 2'
@@ -162,7 +184,7 @@ endif
 
 * OMEGA
 * -----
-if( field = 'OMEGA' )
+if( mname = 'OMEGA' )
      std_cint  = 0.5  
      std_cvals = '1 2'
      std_dlevs = "-2.25 -2 -1.75 -1.5 -1.25 -1 -.75 -.5 -.25 .25 .5 .75 1 1.25 1.5 1.75 2 2.25"
@@ -170,14 +192,14 @@ endif
 
 * Winds
 * -----
-if( field = 'U' ) 
+if( mname = 'U' ) 
          cvals = "0"
      std_cint  = 1.0  
      std_cvals = '2 5'
      std_dlevs = "-2.25 -2 -1.75 -1.5 -1.25 -1 -.75 -.5 -.25 .25 .5 .75 1 1.25 1.5 1.75 2 2.25"
 endif
 
-if( field = 'V' ) 
+if( mname = 'V' ) 
          cvals = "0"
      std_cint  = 1.0  
      std_cvals = '2 5'
@@ -187,7 +209,7 @@ endif
 
 * Specific Humidity
 * -----------------
-if( field = 'Q' )
+if( mname = 'Q' )
 
     'getresource 'PLOTRC' Q_MOIST_'level'_CVALS' ; cvals = result
 
@@ -224,7 +246,7 @@ endif
 
 * Relative Humidity
 * -----------------
-if( field = 'RH2' )
+if( mname = 'RH2' )
 
      std_cint  = 4.0  
      std_cvals = '8 12'
@@ -279,11 +301,11 @@ endif
 
 * Heights
 * -------
-if( field = 'ZLE' )
+if( mname = 'ZLE' )
     if( level >= 300 )
-    desc  = 'Height (m)'
+    title  = 'Height (m)'
     else
-    desc  = 'Height (km) '
+    title  = 'Height (km) '
     endif
 
     if( level >= 300 )
@@ -315,9 +337,9 @@ endif
 
 * Eddy Heights
 * ------------
-if( field = 'HE' )
+if( mname = 'HE' )
     blak  = 1
-    desc  = 'Eddy Height (m)'
+    title  = 'Eddy Height (m)'
     cvals = "0"
 
      std_cint  = 10.0  
@@ -419,7 +441,7 @@ std_dcols = "55  49  47  45  44  36  34  33  32  0  21  22  23  24  25  26  27  
 'set rgb 84 204 204 204'
 'set rgb 85 137 137 137'
 
-'set dfile 'expfile
+'set dfile 'mfile
 'setlons'
 'setlats'
 'set lev 'level
@@ -427,7 +449,7 @@ std_dcols = "55  49  47  45  44  36  34  33  32  0  21  22  23  24  25  26  27  
 'q dims'
 say 'EXP DIMS Environment: 'result
 
-'define qmod  = mod'season'*'fact
+'define qmod  = 'mvar''season'*'fact
 'define maskm = 1 + qmod-qmod'
 
 * Get Dimension of Environment
@@ -452,7 +474,7 @@ say '                DLON: 'dlonm
 
 * Determine DLAT & DLON of Analysis
 * ---------------------------------
-'set dfile 'anafile
+'set dfile 'ofile
 'set z 1'
 'set t 1'
 'getinfo dlat'
@@ -466,13 +488,13 @@ say 'Analysis DLON: 'dlon
 
 'set lon 'lonbeg' 'lonend
 'set lat 'latbeg' 'latend
-'define qobs  = obs'season'*'fact
+'define qobs  = 'ovar''season'*'fact
 
 say 'define masko = regrid2( maskm,'dlon','dlat',bs_p1,'lonbeg','latbeg' )'
     'define masko = regrid2( maskm,'dlon','dlat',bs_p1,'lonbeg','latbeg' )'
     'define qobso = regrid2( qobs ,'dlon','dlat',bs_p1,'lonbeg','latbeg' )'
 
-'set dfile 'expfile
+'set dfile 'mfile
 'set lon 'lonbeg' 'lonend
 'set lat 'latbeg' 'latend
 
@@ -483,13 +505,18 @@ say 'define masko = regrid2( maskm,'dlon','dlat',bs_p1,'lonbeg','latbeg' )'
 'set parea 1.5 7.0 7.70 10.50'
 'set grads off'
 
+if( std_dev = 'true' )
+    cvals = std_cvals
+    cint  = std_cint
+endif
+
    'set gxout shaded'
    'set clevs 'cvals
    'set ccols 'ccols
    'set clab  'clab
    'd qmod'
 
-if( field != "OMEGA" & field != "RH2" )
+if( mname != "OMEGA" & mname != "RH2" & mname != "O3" )
    'set gxout contour'
    'set ccolor 1'
    'set cint 'cint
@@ -507,7 +534,7 @@ endif
    'set ccols 'ccols
    'd maskout(qobso,masko)'
 
-if( field != "OMEGA" & field != "RH2" )
+if( mname != "OMEGA" & mname != "RH2" & mname != "O3" )
    'set gxout contour'
    'set ccolor 1'
    'set cint 'cint
@@ -523,7 +550,7 @@ endif
 'set grads off'
 'getinfo lon'
          lon = result
-'set dfile 'expfile
+'set dfile 'mfile
 'set lev 'level
 'set t 1'
 'q dims'
@@ -538,8 +565,9 @@ say 'DIMS before Final Regridding: 'result
 
 'run getenv "CINTDIFF"'
              CINTDIFF  = result
+if( mname = "O3" ) ; CINTDIFF = ON ; endif
 
-if( CINTDIFF = 'NULL' )
+if( CINTDIFF = 'NULL' & std_dev != 'true' )
    'set clevs 'dlevs
    'set ccols 'dcols
 else
@@ -575,7 +603,7 @@ else
 endif
 
 'd delg'
-'cbarn -snum 'cbscale
+'cbarn -snum 'cbscale' -xmid 4.25 -ymid 0.4'
 
 'stats maskout(modg,abs(obsg))'
  avgmod = subwrd(result,1)
@@ -588,25 +616,36 @@ endif
  stddif = subwrd(result,2)
 
 'set vpage off'
+'set string 1 l 4'
+'set strsiz .065'
+'draw string 0.05 0.08 ( EXPID:  'expid' )'
+
 'set string 1 c 6'
+'set strsiz .14'
+'draw string 4.25 10.85 'level'-mb 'title
+'set strsiz .10'
+
+if( std_dev = 'true' )
+'draw string 4.25 10.62 'mdesc'  'season' ('nmod')  Stand.Dev.'
+else
+'draw string 4.25 10.62 'mdesc'  'season' ('nmod')'
+endif
+'draw string 4.25 7.22 'odesc'  'season' ('nobs')  ('climate')'
 'set strsiz .11'
-'draw string 4.25 10.9 EXPID: 'expid'  'expdsc
-'draw string 4.25 10.6 'level'-mb 'desc' 'season' ('nmod')'
-'draw string 4.25 7.2 'obsname'  'season' ('nobs')  ('climate')'
 if( dfact = 1 )
 'draw string 4.25 3.80 'level'-mb  Difference (Top-Middle)'
 else
 'draw string 4.25 3.80 'level'-mb  Difference (Top-Middle) (x 'dfact')'
 endif
 
-'set string 1 c 4'
+'set string 1 l 4'
 'set strsiz .08'
-'draw string 0.52 10  Mean: 'avgmod
-'draw string 0.52 9.8  Std: 'stdmod
-'draw string 0.52 6.6 Mean: 'avgobs
-'draw string 0.52 6.4  Std: 'stdobs
-'draw string 0.52 3.2 Mean: 'avgdif
-'draw string 0.52 3.0  Std: 'stddif
+'draw string 0.050 9.85 Mean: 'avgmod
+'draw string 0.050 9.70  Std: 'stdmod
+'draw string 0.050 6.45 Mean: 'avgobs
+'draw string 0.050 6.30  Std: 'stdobs
+'draw string 0.050 3.05 Mean: 'avgdif
+'draw string 0.050 2.90  Std: 'stddif
 
                 date = getdate (begdate)
 bmnthm = subwrd(date,1)
@@ -637,10 +676,15 @@ else
    'draw string 1.05 5.9 End: 'emntho' 'eyearo
 endif
 
-'myprint -name 'output'/horiz_'anal'_'name'_'level'.'season
+*if( std_dev != 'true' )
+*'myprint -name 'output'/horiz_'oname'_'name'_'level'.'season
+*else
+*'myprint -name 'output'/horiz_'oname'_'name'_'level'_STD.'season
+*endif
+
 'set clab on'
 
-if( std_dev = 'true' )
+if( std_dev = 'true' & 1 = 0 )
 if( debug = "debug" )
     say "Hit ENTER to continue..."
     pull flag
@@ -664,8 +708,8 @@ endif
 'q dims'
 say result
 
-'define qmod = mod'season'std'
-'define qobs = obs'season'std'
+'define qmod = 'mvar''season'std'
+'define qobs = 'ovar''season'std'
 
 'set vpage 0 8.5 0.0 11'
 'set parea 1.5 7.0 7.70 10.50'
@@ -723,9 +767,9 @@ if( blak = 1 ) ; 'black' ;endif
 'set vpage off'
 'set string 1 c 6'
 'set strsiz .11'
-'draw string 4.25 10.9 'expdsc
-'draw string 4.25 10.6 'level'-mb 'desc' 'season' ('nmod') STD.DEV.'
-'draw string 4.25 7.2 'obsname'  'season' ('climate')'
+'draw string 4.25 10.9 'mdesc
+'draw string 4.25 10.6 'level'-mb 'title' 'season' ('nmod') STD.DEV.'
+'draw string 4.25 7.2 'odesc'  'season' ('climate')'
 'draw string 4.25 3.80 'level'-mb  Difference (Top-Middle)'
 
 'set string 1 c 4'
@@ -757,7 +801,7 @@ eyearo = subwrd(date,2)
 'draw string 7.10 6.6 Beg: 'bmntho' 'byearo
 'draw string 7.10 6.4 End: 'emntho' 'eyearo
 
-'myprint -name 'output'/horiz_'anal'_'name'_'level'_std.'season
+'myprint -name 'output'/horiz_'oname'_'name'_'level'_std.'season
 
 endif
 

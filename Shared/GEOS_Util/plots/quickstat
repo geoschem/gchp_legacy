@@ -27,6 +27,7 @@ Usage:
       echo "         [-batch          ]"
       echo "         [-partition PARTITION]"
       echo "         [-qos       QOS]"
+      echo "         [-debug        ]"
       echo " "
       echo "where:    STATS_RC: is the full path (including filename) of the stats resource file to use         "
       echo "              EXPS: Experiment IDs to plot (e.g., 0 1 3 4 )  (Default: ALL experiments in STATS_RC) "
@@ -47,6 +48,7 @@ endif
 # -------------
 set QUEUE     = partition
 set PARTITION = compute
+set debug     = FALSE
 set batch     = NULL
 set statsrc   = NULL
 set output    = NULL
@@ -55,6 +57,7 @@ set exps      = ALL
 set level     = ALL
 set plots     = `echo corcmp pltsys syscmp`
 set fields    = `echo p u v t q h`
+set rms       = NULL
 
 set lcd = `pwd`
 
@@ -71,6 +74,10 @@ while( $n <= $nmax )
                     @ n = $n + 1
              set  level = $argv[$n]
        endif
+       if( "$argv[$n]" =~ \-rms* ) then
+                    @ n = $n + 1
+             set    rms = $argv[$n]
+       endif
        if( "$argv[$n]" =~ \-b* ) then
              set batch  = 'BATCH'
        endif
@@ -86,6 +93,9 @@ while( $n <= $nmax )
        if( "$argv[$n]" == "-gradsx"   ) then
                     @ n = $n + 1
              set gradsx = $argv[$n]
+       endif
+       if( "$argv[$n]" == "-debug"   ) then
+             set  debug = 'TRUE'
        endif
        if( "$argv[$n]" == "-output"   ) then
                     @ n = $n + 1
@@ -191,7 +201,7 @@ endif
 # Determine Experiments to plot
 # -----------------------------
 if( $exps[1] == ALL ) then
- set allexps = `grep "EXP.*:" $statsrc | grep -v \#`
+ set allexps = `grep "EXP.*:" $statsrc | grep -v \# | grep -v \*`
  @   numexps = $#allexps / 2
  set    exps = ''
  @   n = 1
@@ -209,8 +219,15 @@ endif
 # Configure QUICKSTAT to Computing Platform
 # -----------------------------------------
 cd $SOURCE
-if( -e LOCKFILE ) /bin/echo "Waiting for LOCKFILE ... "
-       lockfile LOCKFILE
+
+if(    -e LOCKFILE ) /bin/echo "Waiting for LOCKFILE ... "
+if(    -e LOCKFILE ) set LOCK = `stat -c %Z LOCKFILE`
+while( -e LOCKFILE )
+          set    EPOCH = `date +'%s'`
+          @    LOCKAGE = $EPOCH - $LOCK
+          if( $LOCKAGE > 120 ) /bin/rm -f LOCKFILE
+end
+                                 lockfile LOCKFILE
 $GEOSUTIL/plots/configure
 source $SOURCE/.quickplotrc
      /bin/rm -f LOCKFILE
@@ -266,22 +283,40 @@ set NPLOTS  = $#plots
 set NEXPS   = $#exps
 set NFIELDS = $#fields
 
-echo "      NPLOTS = " $NPLOTS
-echo "       NEXPS = " $NEXPS
-echo "     NFIELDS = " $NFIELDS
+set  FIELDS_PER_TASK_SYS    = 3
+set  FIELDS_PER_TASK_SYSCMP = 1
+
+echo "             NPLOTS     = " $NPLOTS
+echo "             NEXPS      = " $NEXPS
+echo "             NFIELDS    = " $NFIELDS
+echo " FIELDS_PER_TASK_SYS    = " $FIELDS_PER_TASK_SYS
+echo " FIELDS_PER_TASK_SYSCMP = " $FIELDS_PER_TASK_SYSCMP
 echo " "
 
-  @ SUBTASKS = 0
+  @ SUBTASKS_SYS = 0
   @ n = 0
   foreach FIELD ($fields)
   @ n = $n + 1
-    if( $n == 3 ) then
-        @ SUBTASKS = $SUBTASKS + 1
+    if( $n == $FIELDS_PER_TASK_SYS ) then
+        @ SUBTASKS_SYS = $SUBTASKS_SYS + 1
         @ n = 0
     endif
   end
 if( $n != 0 ) then
-    @ SUBTASKS = $SUBTASKS + 1
+    @ SUBTASKS_SYS = $SUBTASKS_SYS + 1
+endif
+
+  @ SUBTASKS_SYSCMP = 0
+  @ n = 0
+  foreach FIELD ($fields)
+  @ n = $n + 1
+    if( $n == $FIELDS_PER_TASK_SYSCMP ) then
+        @ SUBTASKS_SYSCMP = $SUBTASKS_SYSCMP + 1
+        @ n = 0
+    endif
+  end
+if( $n != 0 ) then
+    @ SUBTASKS_SYSCMP = $SUBTASKS_SYSCMP + 1
 endif
 
 set quickstat_corcmp = ''
@@ -299,8 +334,8 @@ foreach plot ($plots)
    if( $plot == 'pltsys' ) then
        set quickstat_pltsys = `echo "./quickstat -rc $statsrc -plots sys    "`
      @ PLTSYSID = $NTASKS + 1
-  MATH NTASKS   = $NTASKS + ( $NEXPS * $SUBTASKS )
-      echo PLTSYS: NTASKS = $NTASKS   \( SUBTASKS:$SUBTASKS x NEXPS: $NEXPS \)
+  MATH NTASKS   = $NTASKS + ( $NEXPS * $SUBTASKS_SYS )
+      echo PLTSYS: NTASKS = $NTASKS   \( SUBTASKS_SYS:$SUBTASKS_SYS x NEXPS: $NEXPS \)
    endif
    if( $plot == 'syscmp' ) then
        set quickstat_syscmp = `echo "./quickstat -rc $statsrc -plots syscmp "`
@@ -310,8 +345,8 @@ foreach plot ($plots)
        end
        set NSYSCMPEXPS = $#syscmpexps
      @ SYSCMPID = $NTASKS + 1
-  MATH NTASKS   = $NTASKS + ( $NSYSCMPEXPS * $SUBTASKS )
-       echo SYSCMP: NTASKS = $NTASKS   \( SUBTASKS:$SUBTASKS x NEXPS:$NSYSCMPEXPS \)
+  MATH NTASKS   = $NTASKS + ( $NSYSCMPEXPS * $SUBTASKS_SYSCMP )
+       echo SYSCMP: NTASKS = $NTASKS   \( SUBTASKS_SYSCMP:$SUBTASKS_SYSCMP x NEXPS:$NSYSCMPEXPS \)
    endif
 end
 echo " "
@@ -329,9 +364,9 @@ if( $#quickstat_pltsys > 1 ) then
       @ IDX = $PLTSYSID
       foreach EXP  ($exps)
       @ TASK = 1
-      while( $TASK <= $SUBTASKS )
-MATH  BEGFIELD = 1 + ( $TASK - 1 ) * 3 
-MATH  ENDFIELD = $BEGFIELD   + 2
+      while( $TASK <= $SUBTASKS_SYS )
+MATH  BEGFIELD = 1 + ( $TASK - 1 ) * $FIELDS_PER_TASK_SYS
+MATH  ENDFIELD = $BEGFIELD         + $FIELDS_PER_TASK_SYS - 1
  if( $ENDFIELD > $NFIELDS ) set ENDFIELD = $NFIELDS
       set FIELDLIST = `echo $fields[${BEGFIELD}-${ENDFIELD}]`
       echo 'if( $ID == '$IDX' ) '$quickstat_pltsys" -field $FIELDLIST -exp $EXP"  >> $SOURCE/gcm_quickstat.tmpl
@@ -345,9 +380,9 @@ if( $#quickstat_syscmp > 1 ) then
       @ IDX = $SYSCMPID
       foreach EXP  ($syscmpexps)
       @ TASK = 1
-      while( $TASK <= $SUBTASKS )
-MATH  BEGFIELD = 1 + ( $TASK - 1 ) * 3 
-MATH  ENDFIELD = $BEGFIELD   + 2
+      while( $TASK <= $SUBTASKS_SYSCMP )
+MATH  BEGFIELD = 1 + ( $TASK - 1 ) * $FIELDS_PER_TASK_SYSCMP
+MATH  ENDFIELD = $BEGFIELD         + $FIELDS_PER_TASK_SYSCMP - 1
  if( $ENDFIELD > $NFIELDS ) set ENDFIELD = $NFIELDS
       set FIELDLIST = `echo $fields[${BEGFIELD}-${ENDFIELD}]`
       echo 'if( $ID == '$IDX' ) '$quickstat_syscmp" -field $FIELDLIST -exp $EXP"  >> $SOURCE/gcm_quickstat.tmpl
@@ -380,11 +415,96 @@ endif
 # --------------------------------------------------------------------
 if( "$plots" =~ *corcmp* ) then
      set       tmpdir = ""
-     set       pltdir = $SOURCE/scratch_corcmp
-     mkdir -p $pltdir
-     cd       $pltdir ; set tmpdir = `echo $tmpdir $pltdir`
-     $GRADS -l -b -c "run $GEOSUTIL/plots/fcst/pltcorcmp -source $SOURCE -rc $rcfile -fields $fields" &
+
+     foreach field ($fields)
+        if( $rms == 'NULL' ) then
+             set rmstypes = `echo 0 1 2 3 4`
+        else
+             set rmstypes = $rms
+        endif
+        foreach rmstype ($rmstypes)
+           set       pltdir = $SOURCE/scratch_corcmp$rmstype/$field.`date +%Y%m%d_%H%M%S`
+           mkdir -p $pltdir
+           cd       $pltdir ; set tmpdir = `echo $tmpdir $pltdir`
+           if( $debug == 'TRUE' ) then
+               $GRADS -l    -c "run $GEOSUTIL/plots/fcst/pltcorcmp -source $SOURCE -rc $statsrc -fields $field -rms $rmstype"
+           else
+               $GRADS -l -b -c "run $GEOSUTIL/plots/fcst/pltcorcmp -source $SOURCE -rc $statsrc -fields $field -rms $rmstype" &
+           endif
+           sleep 5
+        end
+     end
+
+     foreach exp ($exps)
+     if( $exp != 0 ) then
+
+        set DESC = `cat $statsrc | grep DESC:      | grep -v \# | grep -v \* | cut -d: -f2`
+        set EXP0 = `cat $statsrc | grep EXP0:      | grep -v \# | grep -v \* | cut -d: -f2`
+        set DSC0 = `cat $statsrc | grep DSC0:      | grep -v \# | grep -v \* | cut -d: -f2`
+        set EXP1 = `cat $statsrc | grep EXP${exp}: | grep -v \# | grep -v \* | cut -d: -f2`
+        set DSC1 = `cat $statsrc | grep DSC${exp}: | grep -v \# | grep -v \* | cut -d: -f2`
+
+        foreach field ($fields)
+        if( $field != p ) then
+           set       pltdir = $SOURCE/scratch_corcmpz/$field.`date +%Y%m%d_%H%M%S`
+           mkdir -p $pltdir
+           cd       $pltdir ; set tmpdir = `echo $tmpdir $pltdir`
+
+           /bin/rm -f          $pltdir/corcmp_$exp.rc
+           touch               $pltdir/corcmp_$exp.rc
+           echo DESC: $DESC >> $pltdir/corcmp_$exp.rc
+           echo EXP0: $EXP0 >> $pltdir/corcmp_$exp.rc
+           echo DSC0: $DSC0 >> $pltdir/corcmp_$exp.rc
+           echo EXP1: $EXP1 >> $pltdir/corcmp_$exp.rc
+           echo DSC1: $DSC1 >> $pltdir/corcmp_$exp.rc
+
+           if( $debug == 'TRUE' ) then
+               $GRADS -l    -c "run $GEOSUTIL/plots/fcst/pltcorcmpz -source $SOURCE -rc $pltdir/corcmp_$exp.rc -fields $field"
+           else
+               $GRADS -l -b -c "run $GEOSUTIL/plots/fcst/pltcorcmpz -source $SOURCE -rc $pltdir/corcmp_$exp.rc -fields $field" &
+           endif
+
+           sleep 5
+        endif
+        end
+
+        foreach field ($fields)
+        if( $field != p ) then
+           if( $rms == 'NULL' ) then
+                set rmstypes = `echo 0 1 2 3 4`
+           else
+                set rmstypes = $rms
+           endif
+           foreach rmstype ($rmstypes)
+
+           set       pltdir = $SOURCE/scratch_rmscmp${rmstype}z/$field.`date +%Y%m%d_%H%M%S`
+           mkdir -p $pltdir
+           cd       $pltdir ; set tmpdir = `echo $tmpdir $pltdir`
+
+           /bin/rm -f          $pltdir/corcmp_$exp.rc
+           touch               $pltdir/corcmp_$exp.rc
+           echo DESC: $DESC >> $pltdir/corcmp_$exp.rc
+           echo EXP0: $EXP0 >> $pltdir/corcmp_$exp.rc
+           echo DSC0: $DSC0 >> $pltdir/corcmp_$exp.rc
+           echo EXP1: $EXP1 >> $pltdir/corcmp_$exp.rc
+           echo DSC1: $DSC1 >> $pltdir/corcmp_$exp.rc
+           
+           if( $debug == 'TRUE' ) then
+               $GRADS -l    -c "run $GEOSUTIL/plots/fcst/pltrmscmpz -source $SOURCE -rc $pltdir/corcmp_$exp.rc -fields $field -rms $rmstype"
+           else
+               $GRADS -l -b -c "run $GEOSUTIL/plots/fcst/pltrmscmpz -source $SOURCE -rc $pltdir/corcmp_$exp.rc -fields $field -rms $rmstype" &
+           endif
+
+           sleep 5
+           end
+        endif
+        end
+
+     endif
+     end
      wait
+     cd $SOURCE
+    $GEOSUTIL/plots/grads_util/stats_montage $statsrc
     /bin/rm -r $tmpdir
 endif
 
@@ -398,11 +518,25 @@ if( "$plots" =~ *pltsys* ) then
         set       pltdir = $SOURCE/scratch_pltsys/EXP${exp}_$field.`date +%Y%m%d_%H%M%S`
         mkdir -p $pltdir
         cd       $pltdir ; set tmpdir = `echo $tmpdir $pltdir`
-        $GRADS -l -b -c "run pltsys.gs -exp $exp -field $field -rc $rcfile -level $level" &
+        if( $debug == 'TRUE' ) then
+            $GRADS -l    -c "run pltsys.gs -exp $exp -field $field -rc $statsrc -level $level"
+        else
+            $GRADS -l -b -c "run pltsys.gs -exp $exp -field $field -rc $statsrc -level $level" &
+        endif
         sleep 5
      end
      end
      wait
+     set  files = `find $SOURCE/scratch_pltsys -name MONTHLAB.txt`
+     set SEASON = `cat $files[1]`
+     foreach exp   ($exps)
+        set DESC = `cat $statsrc | grep DSC$exp | grep -v \# | grep -v \* | grep : | cut -d: -f2`
+        set   sysfiles = `/bin/ls -1 $SOURCE/$DESC/*fma*.nc3`
+        if( $#sysfiles == 6 ) then
+            $GEOSUTIL/plots/grads_util/make_syserr $SOURCE/$DESC
+            /bin/mv $SOURCE/$DESC/syserr_${DESC}.nc4 $SOURCE/${DESC}_syserr_${SEASON}.nc4
+        endif
+     end
     /bin/rm -r $tmpdir
 endif
 
@@ -414,11 +548,36 @@ if( "$plots" =~ *syscmp* ) then
      foreach exp   ($exps)
      if( $exp != 0 ) then
          foreach field ($fields)
-            set       pltdir = $SOURCE/scratch_syscmp/EXP${exp}_$field.`date +%Y%m%d_%H%M%S`
-            mkdir -p $pltdir
-            cd       $pltdir ; set tmpdir = `echo $tmpdir $pltdir`
-            $GRADS -l -b -c "run $GEOSUTIL/plots/fcst/setup_statd -exps 0 $exp -fields $field -rc $rcfile -levels $level" &
-            sleep 5
+           if( $field == p ) then
+               if( $level == 'NULL' | $level == 1000 ) then
+                   set       pltdir = $SOURCE/scratch_syscmp/EXP${exp}_${field}_1000.`date +%Y%m%d_%H%M%S`
+                   mkdir -p $pltdir
+                   cd       $pltdir ; set tmpdir = `echo $tmpdir $pltdir`
+                   if( $debug == 'TRUE' ) then
+                       $GRADS -l    -c "run $GEOSUTIL/plots/fcst/setup_statd -exps 0 $exp -fields $field -rc $statsrc -levels 1000 "
+                   else
+                       $GRADS -l -b -c "run $GEOSUTIL/plots/fcst/setup_statd -exps 0 $exp -fields $field -rc $statsrc -levels 1000 " &
+                   endif
+                   sleep 5
+               endif
+           else
+               if( $level == 'NULL' ) then
+                   set levels = `echo 1000 975 950 925 900 850 800 750 700 600 500 400 300 250 200 150 100 zonal`
+               else
+                   set levels = $level
+               endif
+               foreach level  ( $levels )
+               set       pltdir = $SOURCE/scratch_syscmp/EXP${exp}_${field}_${level}.`date +%Y%m%d_%H%M%S`
+               mkdir -p $pltdir
+               cd       $pltdir ; set tmpdir = `echo $tmpdir $pltdir`
+               if( $debug == 'TRUE' ) then
+                   $GRADS -l    -c "run $GEOSUTIL/plots/fcst/setup_statd -exps 0 $exp -fields $field -rc $statsrc -levels $level "
+               else
+                   $GRADS -l -b -c "run $GEOSUTIL/plots/fcst/setup_statd -exps 0 $exp -fields $field -rc $statsrc -levels $level " &
+               endif
+               sleep 5
+               end
+           endif
          end
      endif
      end
@@ -427,9 +586,10 @@ if( "$plots" =~ *syscmp* ) then
 endif
 
 
-# Sleep for 1 minutes to ensure all plots are finished
-# ----------------------------------------------------
-sleep 1m
+# Sleep for 30 seconds to ensure all plots are finished
+# -----------------------------------------------------
+sleep 30
+
 
 # Reset Environment
 # -----------------

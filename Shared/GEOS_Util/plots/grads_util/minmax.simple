@@ -1,6 +1,7 @@
 function minmax (args)
 
 field = subwrd(args,1)
+print = subwrd(args,2)
 
 'q gxout'
    gxout = sublin(result,4)
@@ -12,7 +13,21 @@ stuff = sublin(result,8)
 min   = subwrd(stuff,4)
 max   = subwrd(stuff,5)
 
-*say 'The min = 'min
-*say 'The max = 'max
+stuff = sublin(result,11)
+ave   = subwrd(stuff,2)
+rms   = subwrd(stuff,4)
+
+stuff = sublin(result,13)
+std   = subwrd(stuff,2)
+
+if( print = 'print' )
+ say ''field' statistics: 'result
+ say 'The min = 'min
+ say 'The max = 'max
+ say 'The ave = 'ave
+ say 'The rms = 'rms
+ say 'The std = 'std
+endif
+
 'set gxout 'gxout
-return max' 'min
+return max' 'min' 'ave' 'rms' 'std

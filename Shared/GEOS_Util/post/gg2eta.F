@@ -15,45 +15,24 @@ c **********************************************************************
 
 c Set analysis, fvdas, date and time
 c ----------------------------------
-      character*1  hres
-      character*2  clm,cnhms
+      character*2  cnhms
       character*8  cnymd
 
       character*256 ana_data, tag, ext
-
-      real    ::      kappa = 2.0/7.0
 
       integer    nymd,nhms
 
 c fv restart variables and topography
 c -----------------------------------
       real, allocatable ::   dp(:,:,:)
-      real, allocatable ::   pl(:,:,:)
-      real, allocatable ::  ple(:,:,:)
       real, allocatable ::    u(:,:,:)
       real, allocatable ::    v(:,:,:)
-      real, allocatable ::   tv(:,:,:)
       real, allocatable ::  thv(:,:,:)
-      real, allocatable ::  pke(:,:,:)
-      real, allocatable ::  pk (:,:,:)
       real, allocatable ::    q(:,:,:,:)
       real, allocatable :: phis(:,:)
       real, allocatable ::   ps(:,:)
 
-      real,    allocatable ::     ak(:)
-      real,    allocatable ::     bk(:)
-
-      real,    allocatable ::    lat(:)
-      real,    allocatable ::    lon(:)
-      real,    allocatable ::    lev(:)
-      real,    allocatable :: vrange(:,:)
-      real,    allocatable :: prange(:,:)
-      integer, allocatable :: yymmdd(:)
-      integer, allocatable :: hhmmss(:)
-      integer, allocatable ::  kmvar(:)
-
       integer :: timinc = 21600
-      real    undef
 
 c Analysis variables
 c ------------------
@@ -61,18 +40,15 @@ c ------------------
       real, allocatable ::   ps_ana(:,:)
       real, allocatable ::    u_ana(:,:,:)
       real, allocatable ::    v_ana(:,:,:)
-      real, allocatable ::    h_ana(:,:,:)
       real, allocatable ::    q_ana(:,:,:,:)
-      real, allocatable ::    p_ana(:,:,:)
       real, allocatable ::   dp_ana(:,:,:)
       real, allocatable ::    t_ana(:,:,:)
-      integer ID,mlev,rc
-      integer imax,jmax,ntime,nvars,ngatts
+      integer mlev
 
       character*120, allocatable :: arg(:)
 
       integer precision
-      integer L,n,nargs,iargc
+      integer n,nargs,iargc
 
 c NCEP Grads CTL File Variables
 c -----------------------------
@@ -83,21 +59,19 @@ c -----------------------------
       character*256, pointer :: names (:)
       character*256, pointer :: descs (:)
       integer,       pointer :: lmvars(:)
-      real,          pointer ::   levs(:)
       real,          pointer ::   lats(:)
       real,          pointer ::   lons(:)
 
       interface
                 subroutine read_ctl ( ctlfile,imncep,jmncep,lmncep,uncep,format,
      .                                nvncep,names,descs,lmvars,
-     .                                lats,lons,levs,nymd,nhms )
+     .                                lats,lons,nymd,nhms )
                 character*256  ctlfile, format
                 character*256, pointer :: names (:)
                 character*256, pointer :: descs (:)
                 integer,       pointer :: lmvars(:)
                 real,          pointer :: lats(:)
                 real,          pointer :: lons(:)
-                real,          pointer :: levs(:)
                 integer        imncep,jmncep,lmncep,nvncep
                 integer        nymd,nhms
                 real           uncep
@@ -135,7 +109,7 @@ C **********************************************************************
 
           call read_ctl ( ctlfile,imncep,jmncep,lmncep,uncep,format,
      .                    nvncep,names,descs,lmvars,
-     .                    lats,lons,levs,nymd,nhms )
+     .                    lats,lons,nymd,nhms )
 
           print *
           print *, '      NCEP filename: ',trim(ana_data)
@@ -179,7 +153,7 @@ C **********************************************************************
           allocate (phis_ana(im,jm) )
 
           call get_ncep_map ( ana_data,format,ps_ana,dp_ana,u_ana,v_ana,t_ana,q_ana,phis_ana,
-     .                        im,jm,mlev,nq,nymd,nhms,nvncep,names,lmvars )
+     .                        im,jm,mlev,nq,nvncep,names,lmvars )
 
 C **********************************************************************
 C ****               Check for Negative Humidity                    ****
@@ -206,8 +180,8 @@ C **********************************************************************
       phis = phis_ana
         ps =   ps_ana
 
-      call remap  ( ps,dp,u,v,thv,q,phis,lm,
-     .              ps_ana,dp_ana,u_ana,v_ana,t_ana,q_ana,phis_ana,mlev,im,jm,nq )
+      call remap  ( ps,dp,u,v,thv,q,lm,
+     .              ps_ana,dp_ana,u_ana,v_ana,t_ana,q_ana,mlev,im,jm,nq )
 
 
 C **********************************************************************
@@ -260,6 +234,7 @@ C **********************************************************************
      .                       im,jm,lm,nq,nymd,nhms,tag,ext,lonbeg,
      .                       timeinc,precision )
       use MAPL_BaseMod, only: MAPL_UNDEF
+      use m_set_eta, only: set_eta
       implicit  none
 
       integer   im,jm,lm,nq,nymd,nhms
@@ -285,8 +260,8 @@ C **********************************************************************
       real   bk(lm+1)
 
       real  rgas,rvap,eps,kappa,grav
-      real  ptop,dlon,dlat,pref,dpref(lm),undef,lonbeg
-      integer i,j,L,m,n,rc
+      real  ptop,dlon,dlat,pref,dpref(lm),undef,lonbeg,pint
+      integer i,j,L,m,n,rc,ks
       character*256 tag,ext,filename, fname
       integer nvars,fid,precision
 
@@ -319,7 +294,7 @@ C **********************************************************************
       fname = trim(tag) // 'gg2eta.' // trim(cnymd) // '_' // trim(cnhms) // 'z.' // trim(ext)
       print *, 'Creating 32-bit eta file: ',trim(fname)
 
-      call set_eta ( lm,ptop,ak,bk )
+      call set_eta ( lm,ks,ptop,pint,ak,bk )
 
 ! Construct T, TV
 ! ---------------
@@ -492,11 +467,11 @@ c ----------------------------
       endif
       end
 
-      subroutine get_ncep_map ( filename,format,ps,dp,u,v,t,q,phis,im,jm,mlev,nq,nymd,nhms,
+      subroutine get_ncep_map ( filename,format,ps,dp,u,v,t,q,phis,im,jm,mlev,nq,
      .                          nvars,names,lmvars )
       use MAPL_ConstantsMod
       implicit none
-      integer  im,jm,mlev,nq,nymd,nhms,ku
+      integer  im,jm,mlev,nq
       integer              nvars
       integer       lmvars(nvars)
       character*256  names(nvars)
@@ -592,7 +567,7 @@ c --------------------
 
       subroutine read_ctl ( ctlfile,im,jm,lm,undef,format,
      .                      nvars,names,descs,lmvars,
-     .                      lats,lons,levs,nymd,nhms )
+     .                      lats,lons,nymd,nhms )
 C **********************************************************************
 C ****               Read Grads CTL File for Meta Data              ****
 C **********************************************************************
@@ -604,12 +579,11 @@ C **********************************************************************
       integer,       pointer :: lmvars(:)
       real,          pointer ::   lats(:)
       real,          pointer ::   lons(:)
-      real,          pointer ::   levs(:)
 
       character*256 ctlfile, format
       integer       im,jm,lm,nvars
-      real          undef,dx,dy,dz
-      integer       i,j,L,m,n,ndum,len
+      real          undef,dx,dy
+      integer       i,j,m,n,ndum,len
       integer       nymd,nhms
       character*1   c
       character*256 dummy,udummy
@@ -774,8 +748,8 @@ c -----
       return
       end subroutine read_ctl
 
-      subroutine remap  ( ps1,dp1,u1,v1,thv1,q1,phis1,lm1,
-     .                    ps2,dp2,u2,v2,t2  ,q2,phis2,lm2,im,jm,nq )
+      subroutine remap  ( ps1,dp1,u1,v1,thv1,q1,lm1,
+     .                    ps2,dp2,u2,v2,t2  ,q2,lm2,im,jm,nq )
 
 C***********************************************************************
 C
@@ -790,7 +764,6 @@ C     v1 ....... model meridional wind
 C     thv1 ..... model virtual potential  temperature
 C     q1 ....... model specific   humidity
 C     oz1 ...... model ozone
-C     phis1 .... model surface geopotential
 C     lm1 ...... model vertical   dimension
 C
 C     ps2 ...... analysis surface  pressure
@@ -800,7 +773,6 @@ C     v2 ....... analysis meridional wind
 C     t2 . ..... analysis dry-bulb temperature
 C     q2 ....... analysis specific   humidity
 C     oz2 ...... analysis ozone
-C     phis2 .... analysis surface geopotential
 C     lm2 ...... analysis vertical   dimension
 C
 C     im ....... zonal      dimension
@@ -812,6 +784,7 @@ C*                  GODDARD LABORATORY FOR ATMOSPHERES                 *
 C***********************************************************************
 
       use MAPL_ConstantsMod
+      use m_set_eta, only: set_eta
       implicit none
       integer  im,jm,lm1,lm2,nq
 
@@ -824,7 +797,6 @@ c ----------------
       real       q1(im,jm,lm1,nq)
       real      ps1(im,jm)
 
-      real   phis1(im,jm)
       real      ak(lm1+1)
       real      bk(lm1+1)
 
@@ -837,7 +809,6 @@ c -------------------------
       real    thv2(im,jm,lm2)
       real      q2(im,jm,lm2,nq)
       real     ps2(im,jm)
-      real   phis2(im,jm)
 
 c Local variables
 c ---------------
@@ -846,11 +817,10 @@ c ---------------
       real   pk2(im,jm,lm2  )
       real  pke1(im,jm,lm1+1)
       real  pke2(im,jm,lm2+1)
-      real  phi2(im,jm,lm2+1)
 
-      real    kappa,cp,ptop,pl,alf
+      real    kappa,cp,ptop,pl,alf,pint
       real    rgas,pref,tref,pkref,tstar,eps,rvap,grav
-      integer i,j,L,n
+      integer i,j,L,n,ks
 
       kappa = MAPL_KAPPA
       rgas  = MAPL_RGAS
@@ -902,7 +872,7 @@ c ----------------------------------------------
 
 c Construct fv pressure variables using surface pressure and AK & BK
 c ------------------------------------------------------------------
-      call set_eta ( lm1,ptop,ak,bk )
+      call set_eta ( lm1,ks,ptop,pint,ak,bk )
 
       do L=1,lm1+1
       do j=1,jm

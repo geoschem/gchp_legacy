@@ -22,7 +22,7 @@ k = k+1
 endif
 endwhile
 'uppercase 'seasons
-          seasons = result
+            seasons = result
 
 
 * Initialize
@@ -32,7 +32,6 @@ endwhile
 'set csmooth on'
 'c'
 
-
 * Determine Variable Name and Data File
 * -------------------------------------
 if ( EXPORT = "HE" )
@@ -40,7 +39,8 @@ if ( EXPORT = "HE" )
          qname  = subwrd(result,1)
          qfile  = subwrd(result,2)
          scale  = subwrd(result,3)
-         expdsc = subwrd(result,4)
+         qdesc  = subwrd(result,4)
+         qtag   = subwrd(result,5)
 endif
 
 if( EXPORT = "CHI" | EXPORT = "PSI" )
@@ -48,20 +48,27 @@ if( EXPORT = "CHI" | EXPORT = "PSI" )
          uname  = subwrd(result,1)
          ufile  = subwrd(result,2)
          uscale = subwrd(result,3)
-         expdsc = subwrd(result,4)
+         udesc  = subwrd(result,4)
+         utag   = subwrd(result,5)
     'run getvar V DYN'
          vname  = subwrd(result,1)
          vfile  = subwrd(result,2)
          vscale = subwrd(result,3)
+         vdesc  = subwrd(result,4)
+         vtag   = subwrd(result,5)
+
          qfile  = ufile
+         qdesc  = udesc
+         qtag   = utag
 endif
 
 if( EXPORT != "CHI" & EXPORT != "PSI" & EXPORT != "HE" )
-    'run getvar 'EXPORT' 'GC
-         qname  = subwrd(result,1)
-         qfile  = subwrd(result,2)
-         scale  = subwrd(result,3)
-         expdsc = subwrd(result,4)
+   'run getvar 'EXPORT' 'GC
+        qname  = subwrd(result,1)
+        qfile  = subwrd(result,2)
+        scale  = subwrd(result,3)
+        qdesc  = subwrd(result,4)
+         qtag  = subwrd(result,5)
 endif
 
 
@@ -89,9 +96,30 @@ endif
 'run getenv "CMPEXP_ONLY"'
              cmpexp_only = result
 
+'q gxout'
+   gxout = sublin(result,4)
+   gxout = subwrd(gxout,6)
 
 *PLOTS
 *-----
+if( std_dev = 'true' )
+    qname = VAR_''qname
+endif
+
+* Set Plot Names
+* --------------
+if( EXPORT = 'SLP'   ) ; pname = slp   ; endif
+if( EXPORT = 'U'     ) ; pname = uwnd  ; endif
+if( EXPORT = 'V'     ) ; pname = vwnd  ; endif
+if( EXPORT = 'T'     ) ; pname = tmpu  ; endif
+if( EXPORT = 'Q'     ) ; pname = sphu  ; endif
+if( EXPORT = 'RH2'   ) ; pname = rh    ; endif
+if( EXPORT = 'OMEGA' ) ; pname = omega ; endif
+if( EXPORT = 'ZLE'   ) ; pname = hght  ; endif
+if( EXPORT = 'HE'    ) ; pname = hghte ; endif
+if( EXPORT = 'CHI'   ) ; pname = chi   ; endif
+if( EXPORT = 'PSI'   ) ; pname = psi   ; endif
+if( EXPORT = 'O3'    ) ; pname = o3    ; endif
 
 * Set Default EXPORT Model and Observation Scaling Factors
 * --------------------------------------------------------
@@ -102,6 +130,7 @@ if( EXPORT = "T"     ) ; facm = 1    ; faco = 1    ; endif
 if( EXPORT = "Q"     ) ; facm = 1    ; faco = 1    ; endif
 if( EXPORT = "RH2"   ) ; facm = 1    ; faco = 1    ; endif
 if( EXPORT = "SLP"   ) ; facm = 1    ; faco = 1    ; endif
+if( EXPORT = "O3"    ) ; facm = 1    ; faco = 1    ; endif
 
 if( EXPORT = "SLP" & level != 1000  ) ; return ; endif
 
@@ -120,14 +149,6 @@ if( EXPORT = "SLP" & level != 1000  ) ; return ; endif
             undef = result
 'set undef 'undef
 
-* Return for CHI/PSI if resolution is > 0.5-deg
-* ---------------------------------------------
-if( (EXPORT = "CHI" | EXPORT = "PSI") & ( xdim>576 | ydim>361 ) )
-    return
-endif
-
-*'setlons'
-*'setlats'
 'set lon 0 360'
 'set lat -90 90'
 'getinfo lonmin'
@@ -143,23 +164,86 @@ endif
 'run getenv "ENDDATE"'
              enddate  = result
 'sett'
+'getinfo tdim'
+         tdim = result
 
-                                     fact = facm
-if( EXPORT = "Q"   & level < 400 ) ; fact = fact*1000  ; endif
+                                   fact = facm
+if( EXPORT = "Q" & level < 400 ) ; fact = fact*1000  ; endif
 
 * Check for CHI/PSI EXPORTS
 * -------------------------
 if( EXPORT = "CHI" | EXPORT = "PSI" )
+
    'set dfile 'ufile
        'alias 'uname
-        ualias = result
+       ualias = result
    'chckname 'ualias
-   'define umod = 'ualias'*'fact'*'uscale
+
    'set dfile 'vfile
        'alias 'vname
-        valias = result
+       valias = result
    'chckname 'valias
-   'define vmod = 'valias'*'fact'*'vscale
+
+    if( xdim>576 | ydim>361 )
+        'set gxout fwrite'
+        'set fwrite xmod.data'
+        'set lon 0 359.375'
+        'set lat -90 90'
+         t = 1
+         while( t<=tdim ) 
+        'set t 't
+        'set dfile 'ufile
+        'define utmp = regrid2( 'ualias'*'fact'*'uscale',0.625,0.5,bs_p1,0,-90 )'
+        'd      utmp'
+        'set dfile 'vfile
+        'define vtmp = regrid2( 'valias'*'fact'*'vscale',0.625,0.5,bs_p1,0,-90 )'
+        'd      vtmp'
+         t = t + 1
+         endwhile
+        'disable fwrite'
+        'set gxout 'gxout
+
+        '!/bin/cp 'geosutil'/plots/grads_util/make_psichi.tmpl .'
+        '!remove sedfile'
+
+        '!echo "s?DX?0.625?g"         >> sedfile'
+        '!echo "s?DY?0.500?g"         >> sedfile'
+        '!echo "s?DT?1mo?g"           >> sedfile'
+        '!echo "s?LON0?0?g"           >> sedfile'
+        '!echo "s?LAT0?-90?g"         >> sedfile'
+        '!echo "s?XDIM?576?g"         >> sedfile'
+        '!echo "s?YDIM?361?g"         >> sedfile'
+        '!echo "s?ZDIM?1?g"           >> sedfile'
+        '!echo "s?udata?u?g"          >> sedfile'
+        '!echo "s?vdata?v?g"          >> sedfile'
+        '!echo "s?q.data?xmod.data?g" >> sedfile'
+
+        '!echo "s?UNDEF?"'undef'?g    >> sedfile'
+        '!echo "s?TDIM?"'tdim'?g      >> sedfile'
+        '!echo "s?LEVS?"'level'?g     >> sedfile'
+        '!echo "s?BDATE?"'begdate'?g  >> sedfile'
+
+        '!sed -f sedfile make_psichi.tmpl > xmod.ctl'
+
+        'open xmod.ctl'
+        'getinfo  numfiles'
+                    xfile = result
+                    qfile = xfile
+        'set dfile 'xfile
+        'set lon 0 360'
+        'set lat -90 90'
+        'getdates'
+        'seasonal u mod'
+        'seasonal v mod'
+    else
+*        ----------------------------------------
+        'set dfile 'ufile
+        'seasonalf -FUNCTION 'ualias'*'fact'*'uscale' -NAME umod'
+        'set dfile 'vfile
+        'seasonalf -FUNCTION 'valias'*'fact'*'vscale' -NAME vmod'
+        'set dfile 'qfile
+    endif
+
        'getinfo xmin'
                 xmin = result
        'getinfo xmax'
@@ -170,40 +254,68 @@ if( EXPORT = "CHI" | EXPORT = "PSI" )
                 imax = result
        'set x ' imin' 'imax
        'sety'
-        if( EXPORT = "CHI" ) ; 'define mod = fish_chi(umod,vmod)' ; endif
-        if( EXPORT = "PSI" ) ; 'define mod = fish_psi(umod,vmod)' ; endif
-*       'setlons'
-*       'setlats'
        'set lon 0 360'
        'set lat -90 90'
-   'set dfile 'qfile
+       'set dfile 'qfile
 else
        'alias ' qname
         alias = result
-   'chckname 'alias
-   'define mod = 'alias'*'fact'*'scale
+       'chckname 'alias
+       'seasonalf -FUNCTION 'alias'*'fact'*'scale' -NAME mod'
 endif
 
-if( EXPORT = "HE"  ) 
-   'define mod = mod-ave(mod,lon='lonmin',lon='lonmax',-b)'
-endif
 
 'q dims'
  say 'Model Environment:'
  say result
-if( EXPORT = "CHI" | EXPORT = "PSI" ); 'define mod = mod - aave(mod,global)' ; endif
-'seasonal mod'
 
+***********************************************************************************
 
+* Release memory for DEFINEd variables not needed
+* -----------------------------------------------
+      months = 'jan feb mar apr may jun jul aug sep oct nov dec djf jja son mam ann clim'
+           m = 1
+       month = subwrd(months,m)
+while( month != '' )
+            k = 1
+       season = subwrd(seasons,k)
+      'lowercase 'season
+                  season = result
+       needed = FALSE
+       while( season != '' )
+          if( season = month )
+              needed = TRUE
+          endif
+               k = k+1
+          season = subwrd(seasons,k)
+       endwhile
+       if( needed = FALSE )
+           if( EXPORT = "CHI" | EXPORT = "PSI" )
+               if( xdim>576 | ydim>361 )
+                  'undefine u'month'mod'
+                  'undefine v'month'mod'
+               else
+                  'undefine umod'month
+                  'undefine vmod'month
+               endif
+           else
+              'undefine mod'month
+           endif
+       endif
+       m = m+1
+       month = subwrd(months,m)
+endwhile
 
-* Loop over Possible Experiment Datasets for Comparison
-* -----------------------------------------------------
+***********************************************************************************
+*              Loop over Possible Experiment Datasets for Comparison
+***********************************************************************************
+
 '!/bin/mv HISTORY.T HISTORY.Tmp'
 'run getenv "CMPEXP"'
          cmpexp = result
-            num = 1
+         numexp = 1
 
-          dummy = get_cmpexp (cmpexp,num)
+          dummy = get_cmpexp (cmpexp,numexp)
             exp = subwrd(dummy,1)
            type = subwrd(dummy,2)
 
@@ -254,58 +366,146 @@ if( EXPORT = "CHI" | EXPORT = "PSI" ) ; 'run setenv "DIFFTYPE" 'D ; endif
 
 if ( EXPORT = "HE" )
     'run getvar  ZLE DYN 'exp
-         oname  = subwrd(result,1)
-       obsfile  = subwrd(result,2)
-        oscale  = subwrd(result,3)
-        obsdsc  = subwrd(result,4)
-        obsnam  = subwrd(result,5)
+         cname.numexp = subwrd(result,1)
+         cfile.numexp = subwrd(result,2)
+         cscal.numexp = subwrd(result,3)
+         cdesc.numexp = subwrd(result,4)
+          ctag.numexp = subwrd(result,5)
 endif
 
 if( EXPORT = "CHI" | EXPORT = "PSI" )
     'run getvar U DYN 'exp
-         uname  = subwrd(result,1)
-         ufile  = subwrd(result,2)   
-         uscale = subwrd(result,3)   
-        obsdsc  = subwrd(result,4)
-        obsnam  = subwrd(result,5)
+        cuname  = subwrd(result,1)
+        cufile  = subwrd(result,2)   
+        cuscale = subwrd(result,3)   
+        cudesc  = subwrd(result,4)
+        cutag   = subwrd(result,5)
     'run getvar V DYN 'exp
-         vname  = subwrd(result,1)
-         vfile  = subwrd(result,2)
-         vscale = subwrd(result,3)
-       obsfile  = ufile
+        cvname  = subwrd(result,1)
+        cvfile  = subwrd(result,2)
+        cvscale = subwrd(result,3)
+        cvdesc  = subwrd(result,4)
+        cvtag   = subwrd(result,5)
+
+        cfile.numexp = cufile
+        cscal.numexp = cuscale
+        cdesc.numexp = cudesc
+         ctag.numexp = cutag
 endif
 
 if( EXPORT != "CHI" & EXPORT != "PSI" & EXPORT != "HE" )
     'run getvar 'EXPORT' 'GC' 'exp
-         oname  = subwrd(result,1)
-       obsfile  = subwrd(result,2)
-        oscale  = subwrd(result,3)
-        obsdsc  = subwrd(result,4)
-        obsnam  = subwrd(result,5)
+         cname.numexp = subwrd(result,1)
+         cfile.numexp = subwrd(result,2)
+         cscal.numexp = subwrd(result,3)
+         cdesc.numexp = subwrd(result,4)
+          ctag.numexp = subwrd(result,5)
 endif
 
-           'set dfile 'obsfile
-           'getinfo xdim'
-                    xdim  = result
-           'getinfo ydim'
-                    ydim  = result
+if( std_dev = 'true' )
+    cname = VAR_''cname.numexp
+endif
+           'set dfile 'cfile.numexp
+           'getinfo cxdim'
+                    cxdim  = result
+           'getinfo cydim'
+                    cydim  = result
            'set lev 'level
            'getinfo  level'
                      obslev = result
            'getdates'
             begdateo = subwrd(result,1)
             enddateo = subwrd(result,2)
+           'getinfo tmin'
+                    tmin = result
+           'getinfo tmax'
+                    tmax = result
+                    tdim = tmax - tmin + 1
 
            'run setenv   "BEGDATEO" 'begdateo
            'run setenv   "ENDDATEO" 'enddateo
 
+           'set lon 0 360'
+           'set lat -90 90'
+           'getinfo lonmin'
+                   olonmin = result
+           'getinfo lonmax'
+                   olonmax = result
+
 * Check for CHI/PSI EXPORTS
 * -------------------------
 if( EXPORT = "CHI" | EXPORT = "PSI" )
-   'set dfile 'ufile
-   'define uobs = 'uname'*'fact'*'uscale
-   'set dfile 'vfile 
-   'define vobs = 'vname'*'fact'*'vscale
+
+   'set dfile 'cufile
+       'alias 'cuname
+       ualias = result
+   'chckname 'ualias
+
+   'set dfile 'cvfile
+       'alias 'cvname
+       valias = result
+   'chckname 'valias
+
+    if( cxdim>576 | cydim>361 | ctag.numexp = "merra" )
+        'set gxout fwrite'
+        'set fwrite xobs.data'
+        'set lon 0 359.375'
+        'set lat -90 90'
+         t = tmin
+         while( t<=tmax ) 
+        'set t 't
+        'set dfile 'cufile
+        'define utmp = regrid2( 'ualias'*'fact'*'uscale',0.625,0.5,bs_p1,0,-90 )'
+        'd      utmp'
+        'set dfile 'cvfile
+        'define vtmp = regrid2( 'valias'*'fact'*'vscale',0.625,0.5,bs_p1,0,-90 )'
+        'd      vtmp'
+         t = t + 1
+         endwhile
+        'disable fwrite'
+        'set gxout 'gxout
+
+        '!/bin/cp 'geosutil'/plots/grads_util/make_psichi.tmpl .'
+        '!remove sedfile'
+
+        '!echo "s?DX?0.625?g"         >> sedfile'
+        '!echo "s?DY?0.500?g"         >> sedfile'
+        '!echo "s?DT?1mo?g"           >> sedfile'
+        '!echo "s?LON0?0?g"           >> sedfile'
+        '!echo "s?LAT0?-90?g"         >> sedfile'
+        '!echo "s?XDIM?576?g"         >> sedfile'
+        '!echo "s?YDIM?361?g"         >> sedfile'
+        '!echo "s?ZDIM?1?g"           >> sedfile'
+        '!echo "s?udata?u?g"          >> sedfile'
+        '!echo "s?vdata?v?g"          >> sedfile'
+        '!echo "s?q.data?xobs.data?g" >> sedfile'
+
+        '!echo "s?UNDEF?"'undef'?g    >> sedfile'
+        '!echo "s?TDIM?"'tdim'?g      >> sedfile'
+        '!echo "s?LEVS?"'level'?g     >> sedfile'
+        '!echo "s?BDATE?"'begdateo'?g >> sedfile'
+
+        '!sed -f sedfile make_psichi.tmpl > xobs.ctl'
+
+        'open xobs.ctl'
+        'getinfo  numfiles'
+                    xfile = result
+             cfile.numexp = xfile
+        'set dfile 'xfile
+        'set lon 0 360'
+        'set lat -90 90'
+        'getdates'
+        'seasonal u cmp'
+        'seasonal v cmp'
+    else
+*        ----------------------------------------
+        'set dfile 'cufile
+        'seasonalf -FUNCTION  'ualias'*'uscale'*'fact' -NAME ucmp'
+        'set dfile 'cvfile
+        'seasonalf -FUNCTION  'valias'*'vscale'*'fact' -NAME vcmp'
+        'set dfile 'cfile.numexp
+    endif
+
        'getinfo xmin'
                 xmin = result
        'getinfo xmax'
@@ -316,33 +516,65 @@ if( EXPORT = "CHI" | EXPORT = "PSI" )
                 imax = result
        'set x ' imin' 'imax
        'sety'
-        if( xdim<577 & ydim<362 )
-            if( EXPORT = "CHI" ) ; 'define obs = fish_chi(uobs,vobs)' ; endif
-            if( EXPORT = "PSI" ) ; 'define obs = fish_psi(uobs,vobs)' ; endif
-        else
-                                   'define obs = lat-lat+lon-lon+'undef
-        endif
-*       'setlons'
-*       'setlats'
        'set lon 0 360'
        'set lat -90 90'
-   'set dfile 'obsfile
+       'getinfo lonmin'
+               olonmin = result
+       'getinfo lonmax'
+               olonmax = result
+
+       'set dfile 'cfile.numexp
 else
-   'define obs = 'oname'*'oscale'*'fact
+       'seasonalf -FUNCTION  'cname.numexp'*'cscal.numexp'*'fact' -NAME cmp'
 endif
-           if( EXPORT = "HE" ) ; 'define obs = (obs-ave(obs,lon='lonmin',lon='lonmax',-b))' ; endif
+
+***********************************************************************************
+
+* Release memory for DEFINEd variables not needed
+* -----------------------------------------------
+           m = 1
+       month = subwrd(months,m)
+while( month != '' )
+            k = 1
+       season = subwrd(seasons,k)
+      'lowercase 'season
+                  season = result
+       needed = FALSE
+       while( season != '' )
+          if( season = month )
+              needed = TRUE
+          endif
+               k = k+1
+          season = subwrd(seasons,k)
+       endwhile
+       if( needed = FALSE )
+           if( EXPORT = "CHI" | EXPORT = "PSI" )
+               if( cxdim>576 | cydim>361 | ctag.numexp = "merra" )
+                  'undefine u'month'cmp'
+                  'undefine v'month'cmp'
+               else
+                  'undefine ucmp'month
+                  'undefine vcmp'month
+               endif
+           else
+              'undefine cmp'month
+           endif
+       endif
+       m = m+1
+       month = subwrd(months,m)
+endwhile
+
+***********************************************************************************
 
            'q dims'
-            say 'OBS  Environment:'
+            say 'CMPEXP  Environment:'
             say result
-           if( EXPORT = "CHI" | EXPORT = "PSI" ) ; 'define obs = obs - aave(obs,global)';  endif
-           'seasonal obs'
 
                'run getenv "CLIMATE"'
                         climate = result
-                        anafile = obsfile
-                        anadsc  = obsdsc
-                        ananam  = obsnam
+                        anafile = cfile.numexp
+                        anadsc  = cdesc.numexp
+                        ananam  =  ctag.numexp
 
                  k = 1
           while( k > 0 )
@@ -355,17 +587,58 @@ endif
                   'set dfile 'qfile
                   'count "'season'" 'begdate' 'enddate
                    nmod = result
-                  'set dfile 'anafile
-                  'count "'season'"'
-                   nobs = result
+                   if( EXPORT = "CHI" | EXPORT = "PSI" )
+                       if( xdim>576 | ydim>361 )
+                           if( EXPORT = "CHI" ) ; 'define mod'season' = fish_chi(u'season'mod,v'season'mod)' ; endif
+                           if( EXPORT = "PSI" ) ; 'define mod'season' = fish_psi(u'season'mod,v'season'mod)' ; endif
+                       else
+                           if( EXPORT = "CHI" ) ; 'define mod'season' = fish_chi(umod'season',vmod'season')' ; endif
+                           if( EXPORT = "PSI" ) ; 'define mod'season' = fish_psi(umod'season',vmod'season')' ; endif
+                       endif
+                   endif
 
-                                           'define obs'season'    = obs'season
-                  if( std_dev = 'true' ) ; 'define obs'season'std = obs'season'std' ; endif
+                  'set dfile 'anafile
+                  'count "'season'" 'begdateo' 'enddateo
+                   nobs = result
+                   if( EXPORT = "CHI" | EXPORT = "PSI" )
+                       if( cxdim>576 | cydim>361 | ctag.numexp = "merra" )
+                           if( EXPORT = "CHI" )  ; 'define cmp'season' = fish_chi(u'season'cmp,v'season'cmp)' ; endif
+                           if( EXPORT = "PSI" )  ; 'define cmp'season' = fish_psi(u'season'cmp,v'season'cmp)' ; endif
+                       else
+                           if( EXPORT = "CHI" )  ; 'define cmp'season' = fish_chi(ucmp'season',vcmp'season')' ; endif
+                           if( EXPORT = "PSI" )  ; 'define cmp'season' = fish_psi(ucmp'season',vcmp'season')' ; endif
+                       endif
+                   endif
+
+                  if( EXPORT = "CHI" | EXPORT = "PSI" )
+                     'define qmod'season'         =  mod'season' - aave(mod'season',global)'
+                     'define qcmp'numexp''season' =  cmp'season' - aave(cmp'season',global)'
+                  else
+                    if( EXPORT = "HE" )
+                       'set dfile 'cfile.numexp
+                       'define qcmp'numexp''season' = cmp'season'-ave(cmp'season',lon='olonmin',lon='olonmax',-b)'
+                       'set dfile 'qfile
+                       'define qmod'season'         = mod'season'-ave(mod'season',lon= 'lonmin',lon= 'lonmax',-b)'
+                    else
+                       'define qmod'season'         =  mod'season
+                       'define qcmp'numexp''season' =  cmp'season
+                    endif
+                  endif
+
+                  if( std_dev = 'true' )
+                     'define qmod'season'         = sqrt(qmod'season')'
+                     'define qcmp'numexp''season' = sqrt(qcmp'numexp''season')'
+                  endif
+
                  'run setenv "CLIMATE" 'climate
 
                        flag = ""
                while ( flag = "" )
-              'run 'geosutil'/plots/hcmp/hplt 'expid' 'EXPORT' 'season' 'output' 'level' 'nmod' 'nobs' 'qfile' 'anafile' 'ananam' 'anadsc' 'debug' 'expdsc
+
+              'run 'geosutil'/plots/hcmp/hplt -EXPID 'expid' -MNAME 'EXPORT' -SEASON 'season' -OUTPUT 'output' -LEVEL 'level' -NMOD 'nmod' -NOBS 'nobs' -MFILE 'qfile' -OFILE 'anafile' -ONAME 'ananam' -ODESC 'anadsc' -DEBUG 'debug' -MDESC 'qdesc' -MVAR 'qmod' -OVAR 'qcmp''numexp
+
+              'myprint -name 'output'/horiz_'ananam'_'pname'_'level'.'season
+ 
                 if( debug = "debug" )
                     say "Hit  ENTER  to repeat plot"
                     say "Type 'next' for  next plot, 'done' for next field"
@@ -380,21 +653,98 @@ endif
 
 * Check next Comparison Experiment Dataset
 * ----------------------------------------
-    num = num + 1
-  dummy = get_cmpexp (cmpexp,num)
+    numexp = numexp + 1
+  dummy = get_cmpexp (cmpexp,numexp)
     exp = subwrd(dummy,1)
    type = subwrd(dummy,2)
 endwhile
 '!/bin/mv HISTORY.Tmp HISTORY.T'
+    numexp = numexp - 1
 
-if( cmpexp_only = TRUE ) ; return ; endif
+* ---------------------------------------------------------
+* Now that we have computed plots for each experiment,
+* we can compute the Closeness plots to MERRA-2
+* ---------------------------------------------------------
+
+* Find MERRA2 experiment
+* ----------------------
+  MERRA2  = 0
+       n  = 1
+while( n <= numexp )
+if( ctag.n = "MERRA-2" )
+    MERRA2 = n
+endif
+         n = n + 1
+endwhile
+
+if( MERRA2 != 0 )
+
+* Loop over Seasons to Process
+* ----------------------------
+       m = 1
+while( m > 0 )
+    season = subwrd(seasons,m)
+if( season = '' )
+         m = -1
+else
+         m = m+1
+         say 'Processing Season: 'season
+
+'set dfile 'qfile
+'set gxout shaded'
+'rgbset'
+'run getenv "DIFFTYPE"'
+             DIFFTYPE = result
+'run setenv "LEVTYPE" 'DIFFTYPE'LEVS'
+
+* Horizontal Closeness Plot (Experiment_vs_Comparison to MERRA-2)
+* ---------------------------------------------------------------
+       n  = 1
+while( n <= numexp )
+if( ctag.n != "merra" & ctag.n != "MERRA-2" )
+say 'Closeness plot between  exp: 'qtag
+say '                       cexp: 'ctag.n
+say '                        obs: 'ctag.MERRA2
+say '              Total  numexp: 'numexp
+say ''
+        flag = ""
+while ( flag = "" )
+
+'define zcmp'MERRA2''season' = regrid2( qcmp'MERRA2''season',0.25,0.25,bs_p1,0,-90 )'
+'define zcmp'n''season'      = regrid2( qcmp'n''season'     ,0.25,0.25,bs_p1,0,-90 )'
+'define zmod'season'         = regrid2( qmod'season'        ,0.25,0.25,bs_p1,0,-90 )'
+
+'closeness -CVAR 'zcmp''n' -MVAR 'zmod' -OVAR 'zcmp''MERRA2' -CNAME 'ctag.n' -MNAME 'EXPORT' -ONAME 'ctag.MERRA2' -CDESC 'cdesc.n' -MDESC 'qdesc' -ODESC 'cdesc.MERRA2' -MFILE 'qfile' -MBEGDATE 'begdate' -MENDDATE 'enddate' -OFILE 'cfile.MERRA2' -OBEGDATE 'begdateo' -OENDDATE 'enddateo' -EXPID 'expid' -PREFIX 'NULL' -SEASON 'season' -OUTPUT 'output' -CLIMATE 'climate' -GC 'GC' -MATH 'NULL' -LEVEL 'level
+
+'myprint -name 'output'/horiz_'ctag.n'_'pname'_'level'_closeness_'ctag.MERRA2'.'season
+
+ if( debug = "debug" )
+     say "Hit ENTER to repeat plot, or NON-BLANK to continue"
+     pull flag
+ else
+     flag = "next"
+ endif
+'c'
+endwhile ;* END While_FLAG Loop
+endif
+       n  = n + 1
+endwhile ;* END While_N Loop
+
+* End Season Test
+* ---------------
+endif
+* ---------------
+endwhile ;* END While_m>0 Loop
+
+endif ;* END MERRA-2 Test
 
 
+if( cmpexp_only = TRUE | std_dev = 'true' ) ; return ; endif
 
 
-
-* Loop over Possible Verification Datasets for Comparison
-* -------------------------------------------------------
+***********************************************************************************
+*              Loop over Possible Verification Datasets for Comparison
+***********************************************************************************
 
                          facm = 1    ; faco = 1
 if( EXPORT = "U"     ) ; facm = 1    ; faco = 1    ; endif
@@ -403,6 +753,7 @@ if( EXPORT = "T"     ) ; facm = 1    ; faco = 1    ; endif
 if( EXPORT = "Q"     ) ; facm = 1    ; faco = 1    ; endif
 if( EXPORT = "RH2"   ) ; facm = 1    ; faco = 1    ; endif
 if( EXPORT = "SLP"   ) ; facm = 1    ; faco = 1    ; endif
+if( EXPORT = "O3"    ) ; facm = 1    ; faco = 1    ; endif
 
                                      fact = faco
 if( EXPORT = "Q"   & level < 400 ) ; fact = fact*1000  ; endif
@@ -421,23 +772,26 @@ while( num <= numrc )
      if( EXPORT = "CHI" | EXPORT = "PSI" )
         'run getobs U DYN 'rcfile
                   ouname = subwrd(result,1)
-                obsufile = subwrd(result,2)
+                  oufile = subwrd(result,2)
                  ouscale = subwrd(result,3)
                   obsdsc = subwrd(result,4)
                   obsnam = subwrd(result,5)
         'run getobs V DYN 'rcfile
                   ovname = subwrd(result,1)
-                obsvfile = subwrd(result,2)
+                  ovfile = subwrd(result,2)
                  ovscale = subwrd(result,3)
                    oname = ouname
-                 obsfile = obsufile
+
+                   ofile = oufile
+                   odesc = obsdsc
+                    otag = obsnam
      else
         'run getobs 'OBS' 'GC' 'rcfile
                    oname = subwrd(result,1)
-                 obsfile = subwrd(result,2)
-                  oscale = subwrd(result,3)
-                  obsdsc = subwrd(result,4)
-                  obsnam = subwrd(result,5)
+                   ofile = subwrd(result,2)
+                   oscal = subwrd(result,3)
+                   odesc = subwrd(result,4)
+                    otag = subwrd(result,5)
      endif
 
 if( analysis != "false" )
@@ -450,11 +804,11 @@ endif
 * --------------------------
 if( oname != 'NULL' )
             cnt =  cnt + 1
-           'set dfile 'obsfile
+           'set dfile 'ofile
            'getinfo xdim'
-                    xdim  = result
+                   oxdim  = result
            'getinfo ydim'
-                    ydim  = result
+                   oydim  = result
            'set lev 'level
            'getinfo  level'
                obslev = result
@@ -469,16 +823,146 @@ if( oname != 'NULL' )
             begdateo = subwrd(result,1)
             enddateo = subwrd(result,2)
 
+           'getinfo tmin'
+                    tmin = result
+           'getinfo tmax'
+                    tmax = result
+                    tdim = tmax - tmin + 1
+
            'run setenv   "BEGDATEO" 'begdateo
            'run setenv   "ENDDATEO" 'enddateo
+
+           'set lon 0 360'
+           'set lat -90 90'
+           'getinfo lonmin'
+                   olonmin = result
+           'getinfo lonmax'
+                   olonmax = result
+
+if( std_dev = 'true' )
+    oname = VAR_''oname
+endif
 
 * Check for CHI/PSI EXPORTS
 * -------------------------
 if( EXPORT = "CHI" | EXPORT = "PSI" )
-   'set dfile 'obsufile 
-   'define uobs = 'ouname'*'fact'*'ouscale
-   'set dfile 'obsvfile 
-   'define vobs = 'ovname'*'fact'*'ovscale
+   'set dfile 'oufile
+       'alias 'ouname
+        ualias = result
+   'chckname 'ualias
+
+   'set dfile 'ovfile
+       'alias 'ovname
+        valias = result
+   'chckname 'valias
+
+    if( oxdim>576 | oydim>361 )
+        'set gxout fwrite'
+        'set fwrite xobs.data'
+        'set lon 0 359.375'
+        'set lat -90 90'
+         t = tmin
+         while( t<=tmax ) 
+        'set t 't
+        'set dfile 'oufile
+        'define utmp = regrid2( 'ualias'*'fact'*'ouscale',0.625,0.5,bs_p1,0,-90 )'
+        'd      utmp'
+        'set dfile 'ovfile
+        'define vtmp = regrid2( 'valias'*'fact'*'ovscale',0.625,0.5,bs_p1,0,-90 )'
+        'd      vtmp'
+         t = t + 1
+         endwhile
+        'disable fwrite'
+        'set gxout 'gxout
+
+        '!/bin/cp 'geosutil'/plots/grads_util/make_psichi.tmpl .'
+        '!remove sedfile'
+
+        '!echo "s?DX?0.625?g"         >> sedfile'
+        '!echo "s?DY?0.500?g"         >> sedfile'
+        '!echo "s?DT?1mo?g"           >> sedfile'
+        '!echo "s?LON0?0?g"           >> sedfile'
+        '!echo "s?LAT0?-90?g"         >> sedfile'
+        '!echo "s?XDIM?576?g"         >> sedfile'
+        '!echo "s?YDIM?361?g"         >> sedfile'
+        '!echo "s?ZDIM?1?g"           >> sedfile'
+        '!echo "s?udata?u?g"          >> sedfile'
+        '!echo "s?vdata?v?g"          >> sedfile'
+        '!echo "s?q.data?xobs.data?g" >> sedfile'
+
+        '!echo "s?UNDEF?"'undef'?g    >> sedfile'
+        '!echo "s?TDIM?"'tdim'?g      >> sedfile'
+        '!echo "s?LEVS?"'level'?g     >> sedfile'
+        '!echo "s?BDATE?"'begdateo'?g >> sedfile'
+
+        '!sed -f sedfile make_psichi.tmpl > xobs.ctl'
+
+        'open xobs.ctl'
+        'getinfo  numfiles'
+                    xfile = result
+                    ofile = xfile
+        'set dfile 'xfile
+        'set lon 0 360'
+        'set lat -90 90'
+        'getdates'
+        'seasonal u obs'
+        'seasonal v obs'
+    else
+*        ----------------------------------------
+         if( otag = "ecops" )
+            'set dfile 'oufile
+            'define   uecops = 'ualias'*'ouscale'*'fact
+            'seasonal uecops'
+            'define uobsjan = uecopsjan'
+            'define uobsfeb = uecopsfeb'
+            'define uobsmar = uecopsmar'
+            'define uobsapr = uecopsapr'
+            'define uobsmay = uecopsmay'
+            'define uobsjun = uecopsjun'
+            'define uobsjul = uecopsjul'
+            'define uobsaug = uecopsaug'
+            'define uobssep = uecopssep'
+            'define uobsoct = uecopsoct'
+            'define uobsnov = uecopsnov'
+            'define uobsdec = uecopsdec'
+            'define uobsdjf = uecopsdjf'
+            'define uobsmam = uecopsmam'
+            'define uobsjja = uecopsjja'
+            'define uobsson = uecopsson'
+            'define uobsann = uecopsann'
+
+            'set dfile 'ovfile
+            'define   vecops = 'valias'*'ovscale'*'fact
+            'seasonal vecops'
+            'define vobsjan = vecopsjan'
+            'define vobsfeb = vecopsfeb'
+            'define vobsmar = vecopsmar'
+            'define vobsapr = vecopsapr'
+            'define vobsmay = vecopsmay'
+            'define vobsjun = vecopsjun'
+            'define vobsjul = vecopsjul'
+            'define vobsaug = vecopsaug'
+            'define vobssep = vecopssep'
+            'define vobsoct = vecopsoct'
+            'define vobsnov = vecopsnov'
+            'define vobsdec = vecopsdec'
+            'define vobsdjf = vecopsdjf'
+            'define vobsmam = vecopsmam'
+            'define vobsjja = vecopsjja'
+            'define vobsson = vecopsson'
+            'define vobsann = vecopsann'
+
+            'set dfile 'ofile
+         else
+
+             'set dfile 'oufile
+             'seasonalf -FUNCTION  'ualias'*'ouscale'*'fact' -NAME uobs'
+             'set dfile 'ovfile
+             'seasonalf -FUNCTION  'valias'*'ovscale'*'fact' -NAME vobs'
+             'set dfile 'ofile
+         endif
+    endif
+
        'getinfo xmin'
                 xmin = result
        'getinfo xmax'
@@ -489,35 +973,92 @@ if( EXPORT = "CHI" | EXPORT = "PSI" )
                 imax = result
        'set x ' imin' 'imax
        'sety'
-        if( xdim<577 & ydim<362 )
-            if( EXPORT = "CHI" ) ; 'define obs'cnt' = fish_chi(uobs,vobs)' ; endif
-            if( EXPORT = "PSI" ) ; 'define obs'cnt' = fish_psi(uobs,vobs)' ; endif
-        else
-                                   'define obs'cnt' = lat-lat+lon-lon+'undef
-        endif
-*       'setlons'
-*       'setlats'
        'set lon 0 360'
        'set lat -90 90'
-   'set dfile 'obsfile 
+       'getinfo lonmin'
+               olonmin = result
+       'getinfo lonmax'
+               olonmax = result
+       'set dfile 'ofile
 else
-   'define obs'cnt' = 'oname'*'oscale'*'fact
+* Compute ECOPS differently due to missing monthly means
+* ------------------------------------------------------
+
+    if( otag = "ecops" )
+       'define   qecops = 'oname'*'oscal'*'fact
+       'seasonal qecops'
+       'define obsjan = qecopsjan'
+       'define obsfeb = qecopsfeb'
+       'define obsmar = qecopsmar'
+       'define obsapr = qecopsapr'
+       'define obsmay = qecopsmay'
+       'define obsjun = qecopsjun'
+       'define obsjul = qecopsjul'
+       'define obsaug = qecopsaug'
+       'define obssep = qecopssep'
+       'define obsoct = qecopsoct'
+       'define obsnov = qecopsnov'
+       'define obsdec = qecopsdec'
+       'define obsdjf = qecopsdjf'
+       'define obsmam = qecopsmam'
+       'define obsjja = qecopsjja'
+       'define obsson = qecopsson'
+       'define obsann = qecopsann'
+    else
+       'seasonalf -FUNCTION 'oname'*'oscal'*'fact' -NAME obs'
+        ofile = subwrd(result,1)
+    endif
+
 endif
 
-           if( EXPORT = "HE" ) ; 'define obs'cnt' = (obs'cnt'-ave(obs'cnt',lon='lonmin',lon='lonmax',-b))' ; endif
+***********************************************************************************
+
+* Release memory for DEFINEd variables not needed
+* -----------------------------------------------
+           m = 1
+       month = subwrd(months,m)
+while( month != '' )
+            k = 1
+       season = subwrd(seasons,k)
+      'lowercase 'season
+                  season = result
+       needed = FALSE
+       while( season != '' )
+          if( season = month )
+              needed = TRUE
+          endif
+               k = k+1
+          season = subwrd(seasons,k)
+       endwhile
+       if( needed = FALSE )
+           if( EXPORT = "CHI" | EXPORT = "PSI" )
+               if( cxdim>576 | cydim>361 | otag = "merra" )
+                  'undefine u'month'obs'
+                  'undefine v'month'obs'
+               else
+                  'undefine uobs'month
+                  'undefine vobs'month
+               endif
+           else
+              'undefine obs'month
+           endif
+       endif
+       m = m+1
+       month = subwrd(months,m)
+endwhile
+
+***********************************************************************************
 
            'q dims'
             say 'OBS'cnt'  Environment:'
             say result
-            if( EXPORT = "CHI" | EXPORT = "PSI" ); 'define obs'cnt' = obs'cnt' - aave(obs'cnt',global)' ; endif
-           'seasonal obs'cnt
 
                'run getenv "CLIMATE"'
                         climate = result
                         anaindx = cnt
-                        anafile = obsfile
-                        anadsc  = obsdsc
-                        ananam  = obsnam
+                        anafile = ofile
+                        anadsc  = odesc
+                        ananam  = otag
 
                  k = 1
           while( k > 0 )
@@ -530,17 +1071,58 @@ endif
                   'set dfile 'qfile
                   'count "'season'" 'begdate' 'enddate
                    nmod = result
-                  'set dfile 'anafile
-                  'count "'season'"'
-                   nobs = result
+                   if( EXPORT = "CHI" | EXPORT = "PSI" )
+                       if( xdim>576 | ydim>361 )
+                           if( EXPORT = "CHI" ) ; 'define mod'season' = fish_chi(u'season'mod,v'season'mod)' ; endif
+                           if( EXPORT = "PSI" ) ; 'define mod'season' = fish_psi(u'season'mod,v'season'mod)' ; endif
+                       else
+                           if( EXPORT = "CHI" ) ; 'define mod'season' = fish_chi(umod'season',vmod'season')' ; endif
+                           if( EXPORT = "PSI" ) ; 'define mod'season' = fish_psi(umod'season',vmod'season')' ; endif
+                       endif
+                   endif
 
-                                           'define obs'season'    = obs'anaindx''season
-                  if( std_dev = 'true' ) ; 'define obs'season'std = obs'anaindx''season'std' ; endif
+                  'set dfile 'anafile
+                  'count "'season'" 'begdateo' 'enddateo
+                   nobs = result
+                   if( EXPORT = "CHI" | EXPORT = "PSI" )
+                       if( oxdim>576 | oydim>361 | otag = "merra" )
+                           if( EXPORT = "CHI" )  ; 'define obs'season' = fish_chi(u'season'obs,v'season'obs)' ; endif
+                           if( EXPORT = "PSI" )  ; 'define obs'season' = fish_psi(u'season'obs,v'season'obs)' ; endif
+                       else
+                           if( EXPORT = "CHI" )  ; 'define obs'season' = fish_chi(uobs'season',vobs'season')' ; endif
+                           if( EXPORT = "PSI" )  ; 'define obs'season' = fish_psi(uobs'season',vobs'season')' ; endif
+                       endif
+                   endif
+
+                  if( EXPORT = "CHI" | EXPORT = "PSI" )
+                     'define qmod'season' =  mod'season' - aave(mod'season',global)'
+                     'define qobs'season' =  obs'season' - aave(obs'season',global)'
+                  else
+                    if( EXPORT = "HE" )
+                       'set dfile 'ofile
+                       'define qobs'season' = obs'season'-ave(obs'season',lon='olonmin',lon='olonmax',-b)'
+                       'set dfile 'qfile
+                       'define qmod'season' = mod'season'-ave(mod'season',lon= 'lonmin',lon= 'lonmax',-b)'
+                    else
+                       'define qmod'season' =  mod'season
+                       'define qobs'season' =  obs'season
+                    endif
+                  endif
+
+                  if( std_dev = 'true' )
+                     'define qobs'season' = sqrt(qobs'season')'
+                  endif
                  'run setenv "CLIMATE" 'climate
 
+* Standard Horizontal Plot (Experiment_vs_Verification)
+* -----------------------------------------------------
                        flag = ""
                while ( flag = "" )
-              'run 'geosutil'/plots/hcmp/hplt 'expid' 'EXPORT' 'season' 'output' 'level' 'nmod' 'nobs' 'qfile' 'anafile' 'ananam' 'anadsc' 'debug' 'expdsc
+
+              'run 'geosutil'/plots/hcmp/hplt -EXPID 'expid' -MNAME 'EXPORT' -SEASON 'season' -OUTPUT 'output' -LEVEL 'level' -NMOD 'nmod' -NOBS 'nobs' -MFILE 'qfile' -OFILE 'anafile' -ONAME 'ananam' -ODESC 'anadsc' -DEBUG 'debug' -MDESC 'qdesc' -MVAR 'qmod' -OVAR 'qobs
+
+              'myprint -name 'output'/horiz_'ananam'_'pname'_'level'.'season
+ 
                 if( debug = "debug" )
                     say "Hit  ENTER  to repeat plot"
                     say "Type 'next' for  next plot, 'done' for next field"
@@ -548,10 +1130,44 @@ endif
                 else
                     flag = "next"
                 endif
-               endwhile
-              'c'
-          endif
-          endwhile
+                'c'
+               endwhile ;* End While-FLAG Loop
+
+* Horizontal Closeness Plot (Experiment_vs_Comparison to Verification)
+* --------------------------------------------------------------------
+       n  = 1
+while( n <= numexp )
+if( ctag.n != "merra" & ctag.n != "MERRA-2" & ctag.n != "NULL" )
+say 'Closeness plot between  exp: 'qtag
+say '                       cexp: 'ctag.n
+say '                        obs: 'otag
+say '              Total  numexp: 'numexp
+say ''
+        flag = ""
+while ( flag = "" )
+
+'define zobs'season' = regrid2( qobs'season',0.25,0.25,bs_p1,0,-90 )'
+
+'closeness -CVAR 'zcmp''n' -MVAR 'zmod' -OVAR 'zobs' -CNAME 'ctag.n' -MNAME 'EXPORT' -ONAME 'otag' -CDESC 'cdesc.n' -MDESC 'qdesc' -ODESC 'odesc' -MFILE 'qfile' -MBEGDATE 'begdate' -MENDDATE 'enddate' -OFILE 'ofile' -OBEGDATE 'begdateo' -OENDDATE 'enddateo' -EXPID 'expid' -PREFIX 'NULL' -SEASON 'season' -OUTPUT 'output' -CLIMATE 'climate' -GC 'GC' -MATH 'NULL' -LEVEL 'level
+
+'myprint -name 'output'/horiz_'ctag.n'_'pname'_'level'_closeness_'otag'.'season
+
+ if( debug = "debug" )
+     say "Hit ENTER to repeat plot, or NON-BLANK to continue"
+     pull flag
+ else
+     flag = "next"
+ endif
+'c'
+endwhile ;* END While_FLAG Loop
+endif    ;* END CTAG IF-Test
+       n  = n + 1
+endwhile ;* END While_N Loop
+
+* -----------------------
+
+          endif    ;* END Season IF-TEST
+          endwhile ;* END Season Loop
 
 * End check for valid Level within OBS
 * ------------------------------------

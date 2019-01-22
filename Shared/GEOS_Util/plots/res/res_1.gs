@@ -35,7 +35,7 @@ function  res_1 (args)
 'd str'season'mod'
 'set strsiz .15'
 'set string 1 c'
-'draw title Meridional Streamfunction  'season' ('nmod')'
+'draw title EXP: Meridional Streamfunction  'season' ('nmod')'
 'draw ylab Pressure (mb)'
  
 'set vpage 5.20 10.30 4.1 7.8'
@@ -54,7 +54,7 @@ function  res_1 (args)
 'd str'season'obs'
 'set strsiz .15'
 'set string 1 c'
-'draw title 'obsdes' Streamfunction  'season' ('nobs')'
+'draw title CMP: Streamfunction  'season' ('nobs')'
 
 * Residual Circulation
 * --------------------
@@ -74,7 +74,7 @@ function  res_1 (args)
 'set ccolor 1'
 'set clevs -50 -40 -30 -20 -10 -5 -4 -3 -2 -1 -0.5 -0.4 -0.3 -0.2 -0.1 -.05 0 0.05 .1 .2 .3 .4 .5 1 2 3 4 5 10 20 30 40 50'
 'd res'season'mod'
-'draw title Residual Circulation Streamfunction  'season' ('nmod')'
+'draw title EXP: Residual Circulation Streamfunction  'season' ('nmod')'
 'draw ylab Pressure (mb)'
  
 'set vpage 5.20 10.30 0.5 4.2'
@@ -91,13 +91,14 @@ function  res_1 (args)
 'set ccolor 1'
 'set clevs -50 -40 -30 -20 -10 -5 -4 -3 -2 -1 -0.5 -0.4 -0.3 -0.2 -0.1 -.05 0 0.05 .1 .2 .3 .4 .5 1 2 3 4 5 10 20 30 40 50'
 'd res'season'obs'
-'draw title 'obsdes' Residual Circulation  'season' ('nobs') '
+'draw title CMP: Residual Circulation  'season' ('nobs') '
  
 'set vpage off'
 'set string 1 c 6'
 'set strsiz .11'
 'xlabel 1 5.4 8.1'
-'draw string 5.43666 0.375552 Experiment:  'expid
+'draw string 5.43666 0.5 EXP:  'expid
+'draw string 5.43666 0.3 CMP:  'obsdes
 
 'myprint -name 'output'/zonal_'obsid'_str_res.'season
 'set clab on'

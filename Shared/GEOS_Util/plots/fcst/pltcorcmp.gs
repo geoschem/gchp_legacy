@@ -9,6 +9,7 @@ function pltcorcmp (args)
 
 SOURCE = NULL
 DESC   = ''
+rms    = 0
 rcfile = 'stats.rc'
 fields = 'p u v t q h'
 
@@ -19,6 +20,7 @@ while ( num < numargs )
 if( subwrd(args,num) = '-source' ) ; SOURCE = subwrd(args,num+1) ; endif
 if( subwrd(args,num) = '-desc'   ) ; DESC   = subwrd(args,num+1) ; endif
 if( subwrd(args,num) = '-rc'     ) ; rcfile = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-rms'    ) ; rms    = subwrd(args,num+1) ; endif
 
 if( subwrd(args,num) = '-fields' )
      fields = ''
@@ -58,9 +60,9 @@ endif
             geosutil = result
 
 if( DESC = '' )
-   'getresource 'SOURCE'/'rcfile' DESC'
-                                  DESC = result
-            if( DESC = "NULL" ) ; DESC = 'Forecast_Statisitcs' ; endif
+   'getresource 'rcfile' DESC'
+                         DESC = result
+   if( DESC = "NULL" ) ; DESC = 'Forecast_Statisitcs' ; endif
 endif
 
 *******************************************************
@@ -78,8 +80,8 @@ if( SOURCE = "NULL" )
    'run setenv "SOURCE" 'SOURCE
 endif
 
-'getresource 'SOURCE'/'rcfile' EXP'n ;  exp.n = result
-'getresource 'SOURCE'/'rcfile' DSC'n ; desc.n = result
+'getresource 'rcfile' EXP'n ;  exp.n = result
+'getresource 'rcfile' DSC'n ; desc.n = result
  if( exp.n != NULL | desc.n  != NULL )
      n = n+1
  else
@@ -89,8 +91,8 @@ endif
  endif
 
 while( n >= 0 )
-'getresource 'SOURCE'/'rcfile' EXP'n ;  exp.n = result
-'getresource 'SOURCE'/'rcfile' DSC'n ; desc.n = result
+'getresource 'rcfile' EXP'n ;  exp.n = result
+'getresource 'rcfile' DSC'n ; desc.n = result
  if( exp.n != NULL | desc.n  != NULL )
      n = n+1
  else
@@ -110,6 +112,8 @@ endwhile
 say 'ctlinfo 'result
 'getinfo nvars'
          nvars = result
+'getinfo zdim'
+         zdim  = result
 m=0
 n=1
 while(n<=nvars)
@@ -120,6 +124,7 @@ while(n<=nvars)
     var  = result
    name  = subwrd(result,1)
    levs  = subwrd(result,2)
+if(levs  = 0 ) ; levs = 1 ; endif
    len   = strlen(name)
    root  = substr(name,1,len-lstring)
  suffix  = substr(name,len-lstring+1,len)
@@ -132,43 +137,38 @@ n = n + 1
 endwhile
 numflds = m
 
+z = 1
+while( z<=zdim )
+'set z 'z
+'getinfo level'
+         level.z = result
+z = z + 1
+endwhile
+
 'reinit'
 
 *******************************************************
-****                    Begin ...                  ****
+****    Make Plots Hardwired for Web Page Levels   ****
 *******************************************************
-
-level.1  = 1000
-level.2  =  850
-level.3  =  700
-level.4  =  500
-level.5  =  400
-level.6  =  300
-level.7  =  250
-level.8  =  200
-level.9  =  150
-level.10 =  100
 
 n = 1
 while ( n<=numflds )
               field = field.n
-               name = field
             numlevs = levs.n
-
-                    zmax = 1
-if( numlevs > 1 ) ; zmax = 10 ; endif
 
        j = 1
 while( j<=numfields )
 if( field = subwrd(fields,j) )
     z = 1
-    while ( z<=zmax )
-    x = 1
-    while ( x<=10 )
-    'run 'geosutil'/plots/grads_util/corcmp -x 'x' -lev 'level.z' -field 'field' -rc 'rcfile' -desc 'DESC' -debug FALSE'
-    'c'
-    x = x + 1
-    endwhile
+    while ( z<=numlevs )
+    if( level.z = 100 | level.z = 150 | level.z = 200 | level.z = 250 | level.z = 300 | level.z = 400 | level.z = 500 | level.z = 600 | level.z = 700 | level.z = 750 | level.z = 800 | level.z = 850 | level.z = 900 | level.z = 925 | level.z = 950 | level.z = 975 | level.z = 1000 )
+      x = 1
+      while ( x<=10 )
+      'run 'geosutil'/plots/grads_util/corcmp -x 'x' -lev 'level.z' -field 'field' -rc 'rcfile' -rms 'rms' -desc 'DESC' -debug FALSE'
+      'c'
+      x = x + 1
+      endwhile
+    endif
     z = z + 1
     endwhile
     j = numfields + 1

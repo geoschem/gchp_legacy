@@ -8,6 +8,7 @@ function zquad (args)
  numargs = result
 
 DEBUG  = FALSE
+CMPEXP = NULL
 
         num = 0
 while ( num < numargs )
@@ -18,6 +19,28 @@ if( subwrd(args,num) = '-OUTPUT'  ) ; OUTPUT  = subwrd(args,num+1) ; endif
 if( subwrd(args,num) = '-DEBUG'   ) ; DEBUG   = subwrd(args,num+1) ; endif
 if( subwrd(args,num) = '-EXPORT1' ) ; EXPORT1 = subwrd(args,num+1) ; endif
 if( subwrd(args,num) = '-EXPORT2' ) ; EXPORT2 = subwrd(args,num+1) ; endif
+
+* Read CMPEXP
+* -----------
+if( subwrd(args,num) = '-CMPEXP' )
+     CMPEXP = ''
+           k = 1
+    while( k > 0 )
+           L = num + k
+        dummy  = subwrd(args,L)
+    if( dummy  = '' )
+        k = -1
+    else
+        bit = substr(dummy,1,1)
+        if( bit = '-' )
+              k = -1
+        else
+              CMPEXP = CMPEXP % ' ' % dummy
+              k = k+1
+        endif
+    endif
+    endwhile
+endif
 
 * Read SEASONS
 * -----------
@@ -250,10 +273,19 @@ endif
 *********************************************************************
 
 '!/bin/mv HISTORY.T HISTORY.Tmp'
-'run getenv "CMPEXP"'
-         cmpexp = result
-         numexp = 1
 
+'numargs  'CMPEXP
+ numexps = result
+
+if( numexps = 1 )
+    if( CMPEXP = NULL )
+       'run getenv "CMPEXP"'
+            cmpexp = result
+    endif
+else
+            cmpexp = CMPEXP
+endif
+         numexp = 1
           dummy = get_cmpexp (cmpexp,numexp)
             exp = subwrd(dummy,1)
            type = subwrd(dummy,2)

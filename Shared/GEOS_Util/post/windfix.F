@@ -12,8 +12,6 @@
       real    vb(im,jm,lm)
       real  pleb(im,jm,lm+1)
 
-      real     u(im,jm,lm)
-      real     v(im,jm,lm)
       real   dpa(im,jm,lm)
       real   dpb(im,jm,lm)
       real  diva(im,jm,lm)

@@ -57,15 +57,14 @@
       real*4, allocatable :: dumnew(:,:)
 
       real    kappa, grav, beta, delp
-      real    undef,rgas,rvap,eps
-      real    qmin1,qmax1,qmin2,qmax2
+      real    undef
 
       character*256, allocatable :: arg(:)
       character*1    char
       character*8    date
       character*2    hour
       character*4    xdim ,ydim
-      integer m,n,nmax,nargs,iargc,i,j,L,ID,rc
+      integer m,n,nmax,nargs,iargc,i,j,L,rc
       integer nlots,nrem,num,num_other_rst
       type(MAPL_NCIO) :: InNCIO, OutNCIO
       integer :: filetype,nDims,dimSizes(3),counter,nVars
@@ -803,8 +802,8 @@ c ----------------
       real, allocatable       ::    old_dlam(:)
       real, allocatable       ::    old_dphi(:)
 
-      real    ux, ap1, ap0, am1, am2
-      real    uy, bp1, bp0, bm1, bm2
+      real    ap1, ap0, am1, am2
+      real    bp1, bp0, bm1, bm2
 
       real    lon_cmp(im)
       real    lat_cmp(jm)

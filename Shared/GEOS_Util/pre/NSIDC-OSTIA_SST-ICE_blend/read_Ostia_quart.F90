@@ -15,10 +15,8 @@
           REAL, PARAMETER :: ice_FillValue       = -9.99e+33
           
 ! netCDF ID for the file and data variable.
-          INTEGER :: ncid, varid1, varid2, varid3, varid4
+          INTEGER :: ncid, varid3
           REAL    :: FillValue
-          REAL    :: offset
-          REAL    :: scale_factor
 !---------------------------------------------------------------------------
 ! Open the file. NF90_NOWRITE tells netCDF we want read-only access.
 ! http://www.unidata.ucar.edu/software/netcdf/docs/netcdf-f90/NF90_005fOPEN.html#NF90_005fOPEN

@@ -7,19 +7,13 @@ set arch  = `uname`
 set host  = `hostname`
 set cdir  = `pwd`
 
-set name  = `echo $host`; if ( ($name =~ pfe*) || ($name =~ p4fe*) || ($name =~ r[0-9]*i[0-9]*n[0-9]*) || ($name =~ bridge*) ) set host = pleiades
+set name  = `echo $host`; if ( ($name =~ pfe*) || ($name =~ r[0-9]*i[0-9]*n[0-9]*) ) set host = pleiades
 
-set name  = `echo $host | cut -b 1-8` ; if( $name == 'columbia' ) set host = $name
 set name  = `echo $host | cut -b 1-8` ; if( $name == 'discover' ) set host = $name
 set name  = `echo $host | cut -b 1-3` ; if( $name == 'vis'      ) set host = discover
 set name  = `echo $host | cut -b 1-4` ; if( $name == 'borg'     ) set host = discover
 set name  = `echo $host | cut -b 1-4` ; if( $name == 'warp'     ) set host = discover
 set name  = `echo $host | cut -b 1-4` ; if( $name == 'dali'     ) set host = discover
-                                        if( $name == 'cfe1'     ) set host = columbia
-                                        if( $name == 'cfe2'     ) set host = columbia
-                                        if( $name == 'e1'       ) set host = palm
-                                        if( $name == 'e2'       ) set host = palm
-                                        if( $name == 'e3'       ) set host = palm
 
 if( $arch == 'Linux'    ) then
     if( $host == 'pleiades' ) then
@@ -34,12 +28,10 @@ if( $arch == 'Linux'    ) then
                               setenv GRADS      `which grads`
                               setenv GXYAT      `which gxyat`
 
-                              setenv ImagMag_lib  /nasa/imagemagick/6.4.0-3/lib
-                              setenv ImagMag_bin  /nasa/imagemagick/6.4.0-3/bin
+                              setenv ImagMag_bin  /nasa/pkgsrc/sles12/2016Q4/bin
                               setenv PATH         ${PATH}:${ImagMag_bin}
                               set    path =     ( ${path} ${ImagMag_bin} )
-    endif
-    if( $host == 'discover' ) then
+    else if( $host == 'discover' ) then
                               setenv TOPODIR      /discover/nobackup/ltakacs/bcs/Ganymed-4_0/TOPO
                               setenv NCCS_SHARE   ${SHARE}/gmao_ops/
                               setenv VERIFICATION ${NCCS_SHARE}/verification
@@ -52,10 +44,27 @@ if( $arch == 'Linux'    ) then
                               setenv GRADS      `which grads`
                               setenv GXYAT      `which gxyat`
 
-                              setenv ImagMag_lib  ${NCCS_SHARE}/lib
                               setenv ImagMag_bin  ${NCCS_SHARE}/bin
                               setenv PATH         ${PATH}:${ImagMag_bin}
                               set    path =     ( ${path} ${ImagMag_bin} )
+    else
+                              # Here we assume GEOS-5 desktop. These edits are mainly to enable use of the
+                              # dc script to view native cube-sphere output. They do not enable the complete
+                              # plotting package of GEOS-5.
+
+                              setenv TOPODIR      /ford1/share/gmao_SIteam/ModelData/bcs/Ganymed-4_0/TOPO
+                              setenv VERIFICATION /ford1/share/gmao_SIteam/ModelData/verification # Note: A dead link, but needed
+                              setenv OPENGADIR    /ford1/local/opengrads/Contents/opengrads
+                              setenv GRADS_LOC    ${OPENGADIR}
+                           
+                              setenv PATH         ${OPENGADIR}:${PATH}
+                              set    path =     ( ${OPENGADIR} ${path} )
+                              setenv GRADS      `which grads`
+                              setenv GXYAT      `which gxyat`
+
+                              # For ImageMagick, assume any desktop will have it. If not, GMAO Support
+                              # can install it
+
     endif
 endif
 
@@ -109,3 +118,4 @@ echo   "  "                                                      >> .quickplotrc
 echo "set path = ( $path $GRADS_LOC $GASCRP )"                   >> .quickplotrc
 
 chmod 755 .quickplotrc
+source ./.quickplotrc

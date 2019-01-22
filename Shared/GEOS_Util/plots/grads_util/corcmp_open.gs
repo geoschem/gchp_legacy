@@ -10,6 +10,7 @@ while( n <= numargs-1 )
        loc2 = loc1 + 1
    EXPDIR.n = subwrd(args,loc1)
    EXPDSC.n = subwrd(args,loc2)
+   EXPDSC.n = checkname( EXPDSC.n )
    EXPDIRS  = EXPDIRS' 'EXPDIR.n
           n = n + 1
 endwhile
@@ -28,7 +29,7 @@ say ''
             n  = 1
     while ( n <= CTLFILES )
            file  = sublin( read(SETCTL),2 )
-    say 'Opening CTL: 'file
+    say 'Opening CTL 0: 'file
     'open 'file
             n = n + 1
     endwhile
@@ -42,6 +43,7 @@ while( L <= numargs-1 )
        loc2 = loc1 + 1
    EXPDIR.L = subwrd(args,loc1)
    EXPDSC.L = subwrd(args,loc2)
+   EXPDSC.L = checkname( EXPDSC.L )
 
        close = close(SETCTL)
     CTLFILES = sublin( read(SETCTL),2 )
@@ -122,7 +124,7 @@ while( L <= numargs-1 )
 
              if( expdate = ctldate )
                 'open 'file
-                 say 'Opening EXP: 'file
+                 say 'Opening EXP 'L': 'file
                      n = NUMFILES 
                 status = 0
              endif
@@ -152,3 +154,51 @@ while( L <= numargs-1 )
 L = L + 1
 endwhile
 return
+
+function checkname (name)
+
+* Remove possible BLANKS from Experiment Description
+* --------------------------------------------------
+NAME = ''
+length = getlength(name)
+i = 1
+while( i<=length )
+  bit = substr(name,i,1)
+  if( bit != ' ' )
+      if( NAME = '' )
+          NAME = bit
+      else
+          NAME = NAME''bit
+      endif
+  endif
+i = i+1
+endwhile
+
+* Ensure NAME has no ()
+* ---------------------
+length = getlength(NAME)
+alias  = ""
+     i = 1
+while ( i<=length )
+      bit = substr(NAME,i,1)
+  if( bit != "(" & bit != ")" ) ; alias = alias % bit ; endif
+i = i+1
+endwhile
+NAME = alias
+
+return NAME
+
+function getlength (string)
+tb = ""
+i = 1
+while (i<=80)
+blank = substr(string,i,1)
+if( blank = tb )
+length = i-1
+i = 81
+else
+i = i + 1
+endif
+endwhile
+return length
+

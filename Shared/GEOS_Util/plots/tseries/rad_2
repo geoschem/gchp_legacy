@@ -11,6 +11,11 @@ output = subwrd(args,3)
          year = result
 'set time JAN'year' DEC'year
 
+'run getenv "RADLWAVE"'
+'define radlwave = 'result
+'run getenv "RADSWAVE"'
+'define radswave = 'result
+
 'run minmax radlwgclim'
        radmax = subwrd(result,1)
        radmin = subwrd(result,2)
@@ -39,7 +44,6 @@ radmin = radave - raddif
 'set ccolor 2'
 'set cthick 6'
 'd radlwgclim'
-'define radlwave = ave(radlwgclim,t=1,t=12)'
 'set cmark  0'
 'set cstyle 1'
 'set ccolor 2'
@@ -51,7 +55,6 @@ radmin = radave - raddif
 'set ccolor 4'
 'set cthick 6'
 'd radswgclim'
-'define radswave = ave(radswgclim,t=1,t=12)'
 'set cmark  0'
 'set cstyle 1'
 'set ccolor 4'
@@ -96,15 +99,23 @@ endif
 * Plot NET
 * --------
 'set time JAN'year' DEC'year
+
+'define net = -(radlwgclim-radswgclim)'
+'run minmax net'
+     netmax = subwrd(result,1)
+     netmin = subwrd(result,2)
+     netmax = netmax * 1.1
+     netmin = netmin * 1.1
+
 'set vpage 0 11 0 4.5'
 'set grads off'
-'set axlim -15 15'
+'set axlim 'netmin' 'netmax
 'set cmark  0'
 'set cstyle 1'
 'set ccolor 3'
 'set cthick 6'
-'d -(radlwgclim-radswgclim)'
-'define radave = -ave( radlwgclim-radswgclim ,t=1,t=12)'
+'d net'
+'define radave = ave( net ,time=JAN'year',time=DEC'year')'
 'set cmark  0'
 'set cstyle 1'
 'set ccolor 3'

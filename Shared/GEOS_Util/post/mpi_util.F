@@ -1,3 +1,4 @@
+#include "unused_dummy.H"
 C **********************************************************************
       subroutine init_dynamics_lattice ( lattice,comm,imglobal,jmglobal,lm )
 C **********************************************************************
@@ -10,7 +11,6 @@ C **********************************************************************
 
 #if mpi
       include 'mpif.h'
-      integer  status(mpi_status_size)
 #else
       integer mpi_real,mpi_double_precision
 #endif
@@ -849,8 +849,8 @@ C **********************************************************************
       integer  myid, nx, comm, ierror, mpi_rkind
       character*(*) flag
 
-      integer im,jm,lm,shift,m,n,i,j,L,i0,req(im)
-      integer north,south,imx,ibeg,npes,request,msgn
+      integer im,jm,lm,shift,n,i,j,L
+      integer north,south,request,msgn
       real    undef
 
       real a(1:im,  1:jm  ,lm)
@@ -867,6 +867,7 @@ C **********************************************************************
       nx        = lattice%nx
       undef     = MAPL_UNDEF
 
+      _UNUSED_DUMMY(msgn)
       if( (lattice%pej.eq.0            .and. n.gt.jm-1) .or.  ! Pole values cannot be used for ghosting
      .    (lattice%pej.eq.lattice%ny-1 .and. n.gt.jm-1) .or.  ! Pole values cannot be used for ghosting
      .                                      (n.gt.jm) ) then
@@ -1453,6 +1454,7 @@ c -------------
 
       integer npes,maxt,i,j,n,k, mpi_rkind
 
+      _UNUSED_DUMMY(ku)
       mpi_rkind = lattice%mpi_rkind
 
 #if mpi

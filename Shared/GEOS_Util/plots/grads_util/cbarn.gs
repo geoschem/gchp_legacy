@@ -22,6 +22,7 @@
 *                 < -xmid   nn >
 *                 < -ymid   nn >
 *                 < -horz  >
+*                 < -abs   >
 *                 < -vert l or r (Default r:right) >
 *
 *       scale  - scales both the colorbar and the numbers
@@ -29,6 +30,7 @@
 *       scaley - scales the y-dimension of the colorbar
 *       sbar   - scales only the colorbar
 *       snum   - scales only the numbers
+*       abs    - Uses absolute values
 *       horz   - FORCES a horizontal bar
 *       vert   - FORCES a vertical   bar (left or right, default:right)
 *       xmid   - the x position on the virtual page the center the bar
@@ -43,6 +45,7 @@ function colorbar (args)
 'numargs  'args
  numargs = result
 
+      abs  = FALSE
     scale  = 1
     scalex = 1
     scaley = 1
@@ -55,6 +58,7 @@ function colorbar (args)
        num = 0
 while( num < numargs )
        num = num + 1
+if( subwrd(args,num)='-abs'   ) ; abs    = TRUE               ; endif
 if( subwrd(args,num)='-sbar'  ) ; sbar   = subwrd(args,num+1) ; endif
 if( subwrd(args,num)='-snum'  ) ; snum   = subwrd(args,num+1) ; endif
 if( subwrd(args,num)='-xmid'  ) ; xmid   = subwrd(args,num+1) ; endif
@@ -199,6 +203,10 @@ endwhile
     rec = sublin(shdinfo,num+2)
     col = subwrd(rec,1)
     val = subwrd(rec,3)
+    if( abs = TRUE & val < 0 & num < cint-1 ) 
+       'd -1 * 'val
+      val = subwrd(result,4)
+    endif
 
     if( val < 0 )
         offset = 1

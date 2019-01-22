@@ -29,9 +29,15 @@ echo    PWD $pwd
 
 # Link GLOBAL datasets to TMPDIR
 # ------------------------------
-/bin/rm -f $tmpdir/*globl*data
-/bin/rm -f $tmpdir/*globl*ctl
-/bin/rm -f $tmpdir/*globl*ctl1
+echo "Removing Files ..."
+set  num =     `/bin/ls -1 $tmpdir   | grep globl | grep data | wc -l`
+if( $num != 0 ) /bin/rm -f $tmpdir/*globl*data
+set  num =     `/bin/ls -1 $tmpdir   | grep globl | grep ctl1 | wc -l`
+if( $num != 0 ) /bin/rm -f $tmpdir/*globl*ctl1
+set  num =     `/bin/ls -1 $tmpdir   | grep globl | grep ctl  | wc -l`
+if( $num != 0 ) /bin/rm -f $tmpdir/*globl*ctl
+
+echo "Linking & Processing Files ..."
 /bin/ln -s `/bin/ls -1 $expdir/*globl*data | grep -v aerosol ` $tmpdir
 /bin/ln -s `/bin/ls -1 $expdir/*globl*ctl  | grep -v aerosol ` $tmpdir
  
@@ -70,6 +76,7 @@ set nymdf = `echo $files[$num] | cut -d. -f$dnode | cut -c2-9`
 
 set nymd   = $nymdb
 set year   = `echo $nymd | cut -c1-4`
+set year0  = `echo $nymd | cut -c1-4`
 set month  = `echo $nymd | cut -c5-6`
 set month0 = `echo $nymd | cut -c5-6`
 
@@ -82,7 +89,7 @@ set TINC = `echo $TDEF | cut -d'.' -f5`
 MATH  TINC = ${TINC}
 MATH  NDAY = (${TMAX}-1)*${TINC}/24
 set   NDAY =  `echo ${NDAY} | cut -d. -f1`
-@     SDAY =  ${NDAY} * 86400
+@    SFCST =  ${NDAY} * 86400
 
 if( $month == "01" ) set MM0 = JAN
 if( $month == "02" ) set MM0 = FEB
@@ -99,6 +106,9 @@ if( $month == "12" ) set MM0 = DEC
 
 # Loop over Days
 # --------------
+set months = $MM0
+set dumMM  = $MM0
+
 while( $nymd <= $nymdf )
 
 if( $month == "01" ) set MM = JAN
@@ -114,25 +124,36 @@ if( $month == "10" ) set MM = OCT
 if( $month == "11" ) set MM = NOV
 if( $month == "12" ) set MM = DEC
 
-set date  = `$GEOSUTIL/post/tick $nymd 0 $SDAY`
+if( $MM != $dumMM ) then
+    set months = `echo ${months}-$MM`
+    set dumMM  = $MM
+endif
+
+set date  = `$GEOSUTIL/post/tick $nymd 0 $SFCST`
 set nymde = $date[1]
 set day   = `echo $nymd | cut -b 7-8`
 
-set   tmpfile  = `/bin/ls -1 *globl.b${nymd}_00z.e${nymde}_00z.ctl`
-set   tmpfile1 = `/bin/ls -1 *globl.b${nymd}_00z.e${nymde}_00z.ctl1`
-
-if( $#tmpfile  > 1 ) then
-      echo 'NON-Standard Stats GLOBL Filenames' 
-      exit
+set  num  = `/bin/ls -1 | grep globl.b${nymd}_00z.e${nymde}_00z.ctl1 | wc -l`
+if( $num != 0 ) then
+     set tmpfile1 = `/bin/ls -1 *globl.b${nymd}_00z.e${nymde}_00z.ctl1`
+   if( $#tmpfile1 > 1 ) then
+       echo 'NON-Standard Stats GLOBL Filenames' 
+       exit
+   endif
+   if( $#tmpfile1 == 1 ) /bin/rm -f $tmpfile1
 endif
-if( $#tmpfile1 > 1 ) then
-      echo 'NON-Standard Stats GLOBL Filenames' 
-      exit
-endif
-if( $#tmpfile1 == 1 ) /bin/rm -f $tmpfile1
 
-# Create Filename for Each Day
-# ----------------------------
+set  num  = `/bin/ls -1 | grep -v globl.b${nymd}_00z.e${nymde}_00z.ctl1 | grep globl.b${nymd}_00z.e${nymde}_00z.ctl | wc -l`
+if( $num != 0 ) then
+
+     set tmpfile  = `/bin/ls -1 *globl.b${nymd}_00z.e${nymde}_00z.ctl`
+   if( $#tmpfile  > 1 ) then
+       echo 'NON-Standard Stats GLOBL Filenames' 
+       exit
+   endif
+
+# Create Filename for Each Day that Exists
+# ----------------------------------------
 @ enode = 1
 set dummy = `echo $tmpfile | cut -d. -f$enode`
 set fname = $dummy
@@ -149,7 +170,7 @@ end
 
     echo "#\!/bin/csh -f"      >> zzz
     echo "cat $fname.tmp1 | \" >> zzz
-    echo  "awk '{ sub(/00:00Z${day}${MM}${year}/,@00:00Z01${MM0}${year}@) ; print }' > \" >> zzz
+    echo  "awk '{ sub(/00:00Z${day}${MM}${year}/,@00:00Z01${MM0}${year0}@) ; print }' > \" >> zzz
     echo  "$fname.ctl1" >> zzz
 
     /bin/rm -f sedfile
@@ -161,9 +182,18 @@ chmod +x zz2
 ./zz2
 
 /bin/rm $fname.tmp1
+# End $num test
+# -------------
+endif
 
 set date  = `$GEOSUTIL/post/tick $nymd 0 86400`
 set nymd  = $date[1]
+set year  = `echo $nymd | cut -c1-4`
 set month = `echo $nymd | cut -c5-6`
 
 end
+
+echo 'Months Used in Forecasts: '$months
+/bin/rm -rf     ../MONTHLAB.txt
+touch           ../MONTHLAB.txt
+echo $months >> ../MONTHLAB.txt

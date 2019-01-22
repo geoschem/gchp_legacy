@@ -22,8 +22,8 @@ if( subwrd(args,num) = '-DEBUG'  ) ; DEBUG  = subwrd(args,num+1) ; endif
 if( subwrd(args,num) = '-NAME'   ) ; NAME   = subwrd(args,num+1) ; endif
 if( subwrd(args,num) = '-LEVEL'  ) ; LEVEL  = subwrd(args,num+1) ; endif
 
-* Read EXPORTS
-* ------------
+* Read EXPORTS with format  EXPORT:GC[:OPT]
+* -----------------------------------------
 if( subwrd(args,num) = '-EXPORT' )
               n = n + 1
        EXPORT.n = subwrd(args,num+n   )
@@ -63,31 +63,40 @@ endwhile
 
 *******************************************************
 
-* Construct GCs from Input EXPORTS
-* --------------------------------
+* Construct GCs from Input EXPORTS, Check for OPTIONAL EXPORTS
+* ------------------------------------------------------------
         m  = 0
         k  = 1
 while ( k <= n )
-        EX = ''
+
+        dummy = EXPORT.k
+        EXPORT.k = ''
          j = 1
-       bit = substr(EXPORT.k,j,1)
+       bit = substr(dummy,j,1)
        while(bit != ':' & bit != '')
-        EX = EX''bit
+        EXPORT.k = EXPORT.k''bit
          j = j + 1
-       bit = substr(EXPORT.k,j,1)
+       bit = substr(dummy,j,1)
        endwhile
-       if( EX != EXPORT.k )
+
+       if( bit != '' )
          m = m + 1
          j = j + 1
        GC.m = ''
-       bit = substr(EXPORT.k,j,1)
-       while(bit != '')
+         bit = substr(dummy,j,1)
+         while(bit != ':' & bit != '')
        GC.m = GC.m''bit
          j = j + 1
-       bit = substr(EXPORT.k,j,1)
+         bit = substr(dummy,j,1)
        endwhile
-       EXPORT.k = EX
        endif
+
+       if( bit != '' )
+           OPT.m = TRUE
+       else
+           OPT.m = FALSE
+       endif
+
 k = k + 1
 endwhile
 
@@ -104,24 +113,39 @@ endwhile
 * Set number of EXPORTS & GCs
 * ---------------------------
 if( n = m )
-    nexp = n
+    numGCs = n
 else
     say 'Number of EXPORTS does not equal number of GCs!'
     say 'Number of EXPORTS: 'n
     say '              GCS: 'm
     return
 endif
+say ' '
+n = 1
+while( n<=numGCs )
+say 'n = 'n'  EXPORT: 'EXPORT.n'   GC: 'GC.n'  Optional: 'OPT.n
+n = n + 1
+endwhile
+
 
 * Get Model Variables
 * -------------------
+      mexp = 0
         n  = 1
-while ( n <= nexp )
+while ( n <= numGCs )
 'run getvar 'EXPORT.n' 'GC.n
         qname.n = subwrd(result,1)
         qfile.n = subwrd(result,2)
        qscale.n = subwrd(result,3)
-       expdsc.n = subwrd(result,4)
-    if( qfile.n = 'NULL' ) ; return ; endif
+        qdesc.n = subwrd(result,4)
+         qtag.n = subwrd(result,5)
+    if( qfile.n != 'NULL' )
+            mexp = mexp + 1
+    else
+      if( OPT.n = 'FALSE' )
+          return
+      endif
+    endif
          n  = n + 1
 endwhile
 
@@ -174,7 +198,7 @@ endif
 * Ensure NAME has no underscores
 * ------------------------------
         m=1
-while ( m<nexp+1 )
+while ( m<mexp+1 )
 'fixname 'qname.m
           alias.m = result
      say 'Alias #'m' = 'alias.m
@@ -193,7 +217,7 @@ endwhile
  say 'Model Environment:'
  say result
 
-if( nexp = 1 )
+if( numGCs = 1 )
       NAME = EXPORT.1
         GC =     GC.1
     EXPORT = EXPORT.1
@@ -206,7 +230,7 @@ if( nexp = 1 )
 else
     mstring = mod
     m  = 1
-    while ( m <= nexp )
+    while ( m <= mexp )
        if( qname.m != alias.m )
            mstring = mstring' 'alias.m''qfile.m'*'qscale.m
        else
@@ -221,14 +245,16 @@ else
 endif
 
 
-* Loop over Possible Experiment Datasets for Comparison
-* -----------------------------------------------------
+***********************************************************************************
+*              Loop over Possible Experiment Datasets for Comparison
+***********************************************************************************
+
 '!/bin/mv HISTORY.T HISTORY.Tmp'
 'run getenv "CMPEXP"'
          cmpexp = result
-            num = 1
+         numexp = 1
 
-          dummy = get_cmpexp (cmpexp,num)
+          dummy = get_cmpexp (cmpexp,numexp)
             exp = subwrd(dummy,1)
            type = subwrd(dummy,2)
 
@@ -270,23 +296,30 @@ endif
 * Get CMPEXP Variables
 * --------------------
      found = TRUE
-        n  = 1
-while ( n <= nexp )
-'run getvar 'EXPORT.n' 'GC.n' 'exp
-        oname.n = subwrd(result,1)
-      obsfile.n = subwrd(result,2)
-       oscale.n = subwrd(result,3)
-       obsdsc.n = subwrd(result,4)
-       obsnam.n = subwrd(result,5)
-   if(  oname.n = "NULL" ) ; found = FALSE ; endif
-         n  = n + 1
+      oexp = 0
+        m  = 1
+while ( m <= numGCs )
+'run getvar 'EXPORT.m' 'GC.m' 'exp
+        oname.numexp.m = subwrd(result,1)
+      obsfile.numexp.m = subwrd(result,2)
+       oscale.numexp.m = subwrd(result,3)
+       obsdsc.numexp.m = subwrd(result,4)
+       obsnam.numexp.m = subwrd(result,5)
+    if( obsfile.numexp.m != 'NULL' )
+            oexp = oexp + 1
+    else
+      if( OPT.numexp.m = 'FALSE' )
+                 found =  FALSE
+      endif
+    endif
+         m  = m + 1
 endwhile
 
 * Continue if all EXPORT(s) are found
 * -----------------------------------
 if( found = "TRUE" )
 
-           'set dfile 'obsfile.1
+           'set dfile 'obsfile.numexp.1
             if( LEVEL = 0 )
                'set z 1'
             else
@@ -304,12 +337,13 @@ if( found = "TRUE" )
 * Ensure NAME has no underscores
 * ------------------------------
         m=1
-while ( m<nexp+1 )
-'fixname 'oname.m
-          olias.m = result
-      if( oname.m != olias.m )
+while ( m<oexp+1 )
+'fixname 'oname.numexp.m
+          olias.numexp.m = result
+     say 'Olias #'m' = 'olias.numexp.m
+      if( oname.numexp.m != olias.numexp.m )
          'set lon -180 360'
-         'rename 'oname.m ' 'olias.m''obsfile.m
+         'rename 'oname.numexp.m ' 'olias.numexp.m''obsfile.numexp.m
          'setlons'
       endif
       m = m+1
@@ -322,24 +356,24 @@ endwhile
  say 'CMPEXP Environment:'
  say result
 
-if( nexp = 1 )
+if( numGCs = 1 )
       NAME = EXPORT.1
         GC =     GC.1
     EXPORT = EXPORT.1
-    if( oname.1 != olias.1 )
-       'seasonalf -FUNCTION 'olias.1''obsfile.1'*'oscale.1' -NAME 'obs
+    if( oname.numexp.1 != olias.numexp.1 )
+       'seasonalf -FUNCTION 'olias.numexp.1''obsfile.numexp.1'*'oscale.numexp.1'  -NAME obs'numexp
     else
-       'seasonalf -FUNCTION 'olias.1'.'obsfile.1'*'oscale.1' -NAME 'obs
+       'seasonalf -FUNCTION 'olias.numexp.1'.'obsfile.numexp.1'*'oscale.numexp.1' -NAME obs'numexp
     endif
     climfile = result
 else
-    mstring = obs
+    mstring = obs''numexp
     m  = 1
-    while ( m <= nexp )
-       if( oname.m != olias.m )
-           mstring = mstring' 'olias.m''obsfile.m'*'oscale.m
+    while ( m <= oexp )
+       if( oname.numexp.m != olias.numexp.m )
+           mstring = mstring' 'olias.numexp.m''obsfile.numexp.m'*'oscale.numexp.m
        else
-           mstring = mstring' 'olias.m'.'obsfile.m'*'oscale.m
+           mstring = mstring' 'olias.numexp.m'.'obsfile.numexp.m'*'oscale.numexp.m
        endif
            m  = m + 1
     endwhile
@@ -351,9 +385,9 @@ endif
 
                'run getenv "CLIMATE"'
                         climate = result
-                        anafile = obsfile.1
-                        anadsc  = obsdsc.1
-                        ananam  = obsnam.1
+                        anafile = obsfile.numexp.1
+                        anadsc  =  obsdsc.numexp.1
+                        ananam  =  obsnam.numexp.1
 
                  k = 1
           while( k > 0 )
@@ -367,15 +401,15 @@ endif
                   'count "'season'" 'begdate' 'enddate
                    nmod = result
                   'set dfile 'anafile
-                  'count "'season'"'
-                   nobs = result
+                  'count "'season'" 'begdateo' 'enddateo
+                   nobs.numexp = result
 
-                 'define obs'season' = obs'season
+                 'define obs'season' = obs'numexp''season
                  'run setenv "CLIMATE" 'climate
 
                        flag = ""
                while ( flag = "" )
-              'run genplt.gs 'EXPID' 'EXPORT' 'GC' 'season' 'OUTPUT' 'LEVEL' 'nmod' 'nobs' 'qfile.1' 'anafile' 'ananam' 'anadsc' 'DEBUG' 'expdsc.1
+              'run genplt.gs 'EXPID' 'EXPORT' 'GC' 'season' 'OUTPUT' 'LEVEL' 'nmod' 'nobs.numexp' 'qfile.1' 'anafile' 'ananam' 'anadsc' 'DEBUG' 'qdesc.1
                 if( DEBUG = "debug" )
                     say "Hit  ENTER  to repeat plot"
                     say "Type 'next' for  next plot, 'done' for next field"
@@ -392,13 +426,93 @@ endif
 * ----------------------------------------
 endif
 
-    num = num + 1
-  dummy = get_cmpexp (cmpexp,num)
+ numexp = numexp + 1
+  dummy = get_cmpexp (cmpexp,numexp)
     exp = subwrd(dummy,1)
    type = subwrd(dummy,2)
 
 endwhile
+ numexp = numexp - 1
+
 '!/bin/mv HISTORY.Tmp HISTORY.T'
+
+* ---------------------------------------------------------
+* Now that we have computed plots for each experiment,
+* we can compute the Closeness plots to MERRA-2
+* ---------------------------------------------------------
+
+* Find MERRA2 experiment
+* ----------------------
+  MERRA2  = 0
+       n  = 1
+while( n <= numexp )
+say "obsnam.numexp.1 = "n"  "obsnam.numexp.1
+if( obsnam.numexp.1 = "MERRA-2" )
+    MERRA2 = n
+endif
+         n = n + 1
+endwhile
+say "MERRA2 = "MERRA2
+
+if( MERRA2 != 0 )
+
+* Loop over Seasons to Process
+* ----------------------------
+       m = 1
+while( m > 0 )
+    season = subwrd(seasons,m)
+if( season = '' )
+         m = -1
+else
+         m = m+1
+         say 'Processing Season: 'season
+
+'set dfile 'qfile.1
+'set gxout shaded'
+'rgbset'
+'run setenv "LEVTYPE" 'DLEVS
+
+* Closeness Plot (Experiment_vs_Comparison to MERRA-2)
+* ----------------------------------------------------
+       n  = 1
+while( n <= numexp )
+if( obsnam.n.1 != "NULL" & obsnam.n.1 != "merra" & obsnam.n.1 != "MERRA-2" )
+say 'Closeness plot between  exp: 'qtag.1
+say '                       cexp: 'obsnam.n.1
+say '                        obs: 'obsnam.MERRA2.1
+say ''
+
+'define zobs'MERRA2''season' = regrid2( obs'MERRA2''season',0.25,0.25,bs_p1,0,-90 )'
+'define zobs'n''season'      = regrid2( obs'n''season'     ,0.25,0.25,bs_p1,0,-90 )'
+'define zmod'season'         = regrid2( mod'season'        ,0.25,0.25,bs_p1,0,-90 )'
+
+        flag = ""
+while ( flag = "" )
+
+'closeness -CVAR 'zobs''n' -MVAR 'zmod' -OVAR 'zobs''MERRA2' -CNAME 'obsnam.n.1' -MNAME 'NAME' -ONAME 'obsnam.MERRA2.1' -CDESC 'obsdsc.n.1' -MDESC 'qdesc.1' -ODESC 'obsdsc.MERRA2.1' -MFILE 'qfile.1' -MBEGDATE 'begdate' -MENDDATE 'enddate' -OFILE 'obsfile.MERRA2.1' -OBEGDATE 'begdateo' -OENDDATE 'enddateo' -EXPID 'EXPID' -PREFIX 'NULL' -SEASON 'season' -OUTPUT 'OUTPUT' -CLIMATE 'climate' -GC 'GC.1' -MATH 'NULL' -LEVEL 'LEVEL
+
+'myprint -name 'OUTPUT'/hdiag_'obsnam.n.1'_'NAME'.'GC.1'_'LEVEL'_closeness_'obsnam.MERRA2.1'.'season
+
+
+ if( DEBUG = "debug" )
+     say "Hit ENTER to repeat plot, or NON-BLANK to continue"
+     pull flag
+ else
+     flag = "next"
+ endif
+'c'
+endwhile ;* END While_FLAG Loop
+endif
+       n  = n + 1
+endwhile ;* END While_N Loop
+
+* End Season Test
+* ---------------
+endif
+* ---------------
+endwhile ;* END While_m>0 Loop
+
+endif ;* END MERRA-2 Test
 
 return
 

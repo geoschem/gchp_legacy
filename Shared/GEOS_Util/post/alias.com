@@ -1,5 +1,4 @@
 
-      logical         match
       character*256,  parameter :: c_slp  = 'slp'
       character*256,  parameter :: c_ps   = 'ps'
       character*256,  parameter :: c_dp   = 'dp'

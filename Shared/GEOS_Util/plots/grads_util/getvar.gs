@@ -15,7 +15,11 @@ SOURCE = subwrd(args,3)
 * -----------------------------
 'run getenv "GEOSUTIL"'
              geosutil = result
+
+'run getenv "PLOTS_DIR"'
+             PLOTS_DIR = result
 '!./chckhist 'EXPORT' 'GC' 'SOURCE
+
 expdsc = sublin( read(hist.txt),2 )
 qname  = sublin( read(hist.txt),2 )
 qfile  = sublin( read(hist.txt),2 )
@@ -38,10 +42,10 @@ say 'Opening: 'qfile
 say '   Desc: 'expdsc
 say '         '
 
-if( file   = "NULL" )
-if( format = "flat" ) ; '   open 'qfile ; endif
-if( format = "CFIO" ) ; 'xdfopen 'qfile ; endif
-if( format = "HDF"  ) ; 'sdfopen 'qfile ; endif
+if( file               = "NULL" )
+if( substr(format,1,4) = "flat" ) ; '   open 'qfile ; endif
+if( substr(format,1,4) = "CFIO" ) ; 'xdfopen 'qfile ; endif
+if( substr(format,1,3) = "HDF"  ) ; 'sdfopen 'qfile ; endif
 
 'getinfo numfiles'
          numfiles = result

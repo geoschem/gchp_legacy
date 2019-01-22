@@ -6,11 +6,13 @@ label = field
 'numargs  'args
  numargs = result
 
+       flag = 1
         num = 0
 while ( num < numargs )
         num = num + 1
 if( subwrd(args,num) = '-desc'   ) ; DESC0 = subwrd(args,num+1) ; endif
 if( subwrd(args,num) = '-nfcst'  ) ; nfcst = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-flag'   ) ; flag  = subwrd(args,num+1) ; endif
 endwhile
 'fixname 'DESC0
           DESC = result
@@ -611,10 +613,16 @@ endif
 ****                                       Make Plots
 **********************************************************************************************
 
+sbar = 0.32
+
 * Forecast (MEAN)
 * ---------------
+*'set vpage 0 8.5 0 11'
 'set vpage 0 11 0 8.5'
-'set parea 0.4 5.4 4.0 8.5'
+'parea 1 1 3 2'
+ xmid = subwrd(result,1)
+ ybot = subwrd(result,2)
+ ytop = subwrd(result,3)
 'set grads off'
 'set grid  off'
 'set gxout shaded'
@@ -639,6 +647,9 @@ Fmean_scale = subwrd(dummy,2)
 'set cmin    'cmin
 'set cmax    'cmax
 'd 'field'fm'DESC'*'Fmean_scale
+'set string 1 c 6'
+'set strsiz .08'
+'draw string 'xmid' 'ytop' Forecast  (x 10**'fm')  CINT: 'Fmean_CINT'  CMIN: 'cmin
 
 
 * Forecast-Climatology (MEAN)
@@ -658,9 +669,10 @@ FmCmean_scale = subwrd(dummy,2)
 
 'define diff = regrid2( 'string', .25, .25, bs_p1, 'lon', 'lat' )*'FmCmean_scale
 
-'set parea off'
-'set vpage 0 11 0 8.5'
-'set parea 5.9 10.9  4.0 8.5'
+'parea 2 1 3 2'
+ xmid = subwrd(result,1)
+ ybot = subwrd(result,2)
+ ytop = subwrd(result,3)
 'set grads off'
 'set grid  off'
 'set gxout shaded'
@@ -676,7 +688,10 @@ else
    'shades    'FmCmean_CINT
 endif
    'd maskout( diff,abs(diff)-'FmCmean_CINT')'
-'cbarn -scalex 0.55 -scaley 0.4 -xmid 8.45 -ymid 4.4 -snum 0.5'
+'cbarn -sbar 'sbar' -snum 0.45 -xmid 'xmid' -ymid 'ybot' -scaley 0.4'
+'set string 1 c 6'
+'set strsiz .08'
+'draw string 'xmid' 'ytop' Forecast-Climatology  (x 10**'fmcm')'
 
 
 * Forecast-Analysis (MEAN)
@@ -690,9 +705,10 @@ FmAmean_scale = subwrd(dummy,2)
 
 'define diff = regrid2( 'field'fm'DESC'-'field'am'DESC', .25, .25, bs_p1, 'lon', 'lat' )*'FmAmean_scale
 
-'set parea off'
-'set vpage 0 11 0 8.5'
-'set parea 0.4 5.4  0.2 4.7'
+'parea 3 1 3 2'
+ xmid = subwrd(result,1)
+ ybot = subwrd(result,2)
+ ytop = subwrd(result,3)
 'set grads off'
 'set grid  off'
 'set gxout shaded'
@@ -702,40 +718,116 @@ FmAmean_scale = subwrd(dummy,2)
 'set gxout shaded'
 'shades 'FmAmean_CINT
 'd maskout( diff,abs(diff)-'FmAmean_CINT')'
-'cbarn -scale 0.55 -xmid 2.95'
+'cbarn -sbar 'sbar' -snum 0.45 -xmid 'xmid' -ymid 'ybot' -scaley 0.4'
+'set string 1 c 6'
+'set strsiz .08'
+'draw string 'xmid' 'ytop' Mean Error (Forecast-Analysis)  (x 10**'fmam')'
 
 
-* Forecast-Analysis (STD)
+* Forecast-Analysis (RMS)
 * -----------------------
 'set t 'tdim
-dummy = getstuff( field'std'DESC )
-FmAstd_CINT  = subwrd(dummy,1)
-FmAstd_scale = subwrd(dummy,2)
-        stdm = subwrd(dummy,3)
+dummy = getstuff( field'rms'DESC )
+FmArms_CINT  = subwrd(dummy,1)
+FmArms_scale = subwrd(dummy,2)
+        rmsm = subwrd(dummy,3)
 'set t 'time
 
-'define diff = regrid2( 'field'std'DESC', .25, .25, bs_p1, 'lon', 'lat' )*'FmAstd_scale
+'define diff = regrid2( 'field'rms'DESC', .25, .25, bs_p1, 'lon', 'lat' )*'FmArms_scale
 
-'set parea off'
-'set vpage 0 11 0 8.5'
-'set parea 5.9 10.9  0.2 4.7'
+'parea 1 2 3 2'
+ xmid = subwrd(result,1)
+ ybot = subwrd(result,2)
+ ytop = subwrd(result,3)
 'set grads off'
 'set grid  off'
 'set gxout shaded'
 'set ccols 92 0'
 'set clevs 0.5'
 'd mask'
-'shades diff 0 -cint 'FmAstd_CINT' -minval 0'
-'d maskout( diff,abs(diff)-'FmAstd_CINT')'
-'cbarn -sbar 0.55 -snum 0.45 -xmid 8.45'
+'shades diff 0 -cint 'FmArms_CINT' -minval 0'
+'d maskout( diff,abs(diff)-'FmArms_CINT')'
+'cbarn -sbar 'sbar' -snum 0.45 -xmid 'xmid' -ymid 'ybot' -scaley 0.4'
+'set string 1 c 6'
+'set strsiz .08'
+'draw string 'xmid' 'ytop' Root Mean Square Error (F-A)  (x 10**'rmsm')'
 
+
+* Forecast-Analysis (root AMP or MES)
+* -----------------------------------
+'set t 'tdim
+if( flag = 1 ) ; dummy = getstuff( field'ramp'DESC ) ; endif
+if( flag = 2 ) ; dummy = getstuff( field'rmes'DESC ) ; endif
+FmAramp_CINT  = subwrd(dummy,1)
+FmAramp_scale = subwrd(dummy,2)
+        rampm = subwrd(dummy,3)
+'set t 'time
+
+if( flag = 1 ) ; 'define diff = regrid2( 'field'ramp'DESC', .25, .25, bs_p1, 'lon', 'lat' )*'FmArms_scale ; endif
+if( flag = 2 ) ; 'define diff = regrid2( 'field'rmes'DESC', .25, .25, bs_p1, 'lon', 'lat' )*'FmArms_scale ; endif
+
+'parea 2 2 3 2'
+ xmid = subwrd(result,1)
+ ybot = subwrd(result,2)
+ ytop = subwrd(result,3)
+'set grads off'
+'set grid  off'
+'set gxout shaded'
+'set ccols 92 0'
+'set clevs 0.5'
+'d mask'
+'shades diff 0 -cint 'FmArms_CINT' -minval 0'
+'d maskout( diff,abs(diff)-'FmArms_CINT')'
+'cbarn -sbar 'sbar' -snum 0.45 -xmid 'xmid' -ymid 'ybot' -scaley 0.4'
+'set string 1 c 6'
+'set strsiz .08'
+
+if( flag = 1 ) ; 'draw string 'xmid' 'ytop' Root Amplitude Error (F-A)  (x 10**'rmsm')' ; endif
+if( flag = 2 ) ; 'draw string 'xmid' 'ytop' Root Mean Error Squared (F-A)  (x 10**'rmsm')' ; endif
+
+
+* Forecast-Analysis (root PHZ or RND)
+* -----------------------------------
+'set t 'tdim
+if( flag = 1 ) ; dummy = getstuff( field'rphz'DESC ) ; endif
+if( flag = 2 ) ; dummy = getstuff( field'std'DESC )  ; endif
+FmArphz_CINT  = subwrd(dummy,1)
+FmArphz_scale = subwrd(dummy,2)
+        rphzm = subwrd(dummy,3)
+'set t 'time
+
+if( flag = 1 ) ; 'define diff = regrid2( 'field'rphz'DESC', .25, .25, bs_p1, 'lon', 'lat' )*'FmArms_scale ; endif
+if( flag = 2 ) ; 'define diff = regrid2( 'field'std'DESC' , .25, .25, bs_p1, 'lon', 'lat' )*'FmArms_scale ; endif
+
+'parea 3 2 3 2'
+ xmid = subwrd(result,1)
+ ybot = subwrd(result,2)
+ ytop = subwrd(result,3)
+'set grads off'
+'set grid  off'
+'set gxout shaded'
+'set ccols 92 0'
+'set clevs 0.5'
+'d mask'
+'shades diff 0 -cint 'FmArms_CINT' -minval 0'
+'d maskout( diff,abs(diff)-'FmArms_CINT')'
+'cbarn -sbar 'sbar' -snum 0.45 -xmid 'xmid' -ymid 'ybot' -scaley 0.4'
+'set string 1 c 6'
+'set strsiz .08'
+if( flag = 1 ) ; 'draw string 'xmid' 'ytop' Root Phase Error (F-A)  (x 10**'rmsm')'   ; endif
+if( flag = 2 ) ; 'draw string 'xmid' 'ytop' Standard Deviation (F-A)  (x 10**'rmsm')' ; endif
+say 'xmid: 'xmid
+say 'ybot: 'ybot
+say 'ytop: 'ytop
 
 'set vpage off'
 'set string 1 c 6'
 'set strsiz .13'
 
-'getinfo month'
-         month = result
+'run getenv MONTHLAB'
+            month = result
+say 'MONTH_LABEL: 'month
+
 'getinfo year'
          year  = result
 'getinfo time'
@@ -744,20 +836,16 @@ FmAstd_scale = subwrd(dummy,2)
          tinc  = result
          hour  = (time-1)*tinc
 
-'draw string 5.5  8.4 'DESC0'   'month' 'year'   'nfcst'-member Ensemble'
-'draw string 5.5  8.12 Field: 'name'  Level: 'level' mb   Hour: 'hour
+'draw string 5.50 8.40 'DESC0'   'month' 'year'   'nfcst'-member Ensemble'
+'draw string 5.50 8.12 Field: 'name'  Level: 'level' mb   Hour: 'hour
 
-'set strsiz .10'
-'draw string 2.8  7.85 Forecast  (x 10**'fm')  CINT: 'Fmean_CINT'  CMIN: 'cmin
-'draw string 2.8  4.10 Mean (Forecast-Analysis)  (x 10**'fmam')'
-'draw string 8.2  4.10 Standard Deviation (F-A)  (x 10**'stdm')'
+'set strsiz .08'
 if( aerosol = 'true' )
-   'draw string 8.2  7.85 Aerosol: EXP(x)-0.01'
+*   'draw string 8.2  7.85 Aerosol: EXP(x)-0.01'
 else
-   'draw string 8.2  7.85 Forecast-Climatology  (x 10**'fmcm')'
 endif
 *    say 'Hit ENTER to continue'
-*    pull flag
+*    pull dummy
 return
 
 function getstuff( q )

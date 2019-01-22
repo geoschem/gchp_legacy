@@ -1,4 +1,5 @@
       program  main
+      use m_set_eta, only: set_eta
       implicit none
 
 c **********************************************************************
@@ -10,7 +11,7 @@ c **********************************************************************
 c **********************************************************************
 
       integer  im,jm,lm,nq
-      real     pbelow,pabove,ptop
+      real     pbelow,pabove,ptop,pint
 
 c Set analysis, fvdas, date and time
 c ----------------------------------
@@ -86,6 +87,7 @@ c ------------------
       integer ID,mlev,rc
       integer imax,jmax,ntime,nvars,ngatts
       integer ianal,imethod,igrid,irst
+      integer ks
 
       character*120, allocatable :: arg(:)
       character*120  eta_fname
@@ -258,7 +260,7 @@ c         call gfio_getvar ( id,'qitot'  ,nymd,nhms,im,jm,1,lm,q(1,1,1,4),rc )
       allocate ( bk(lm+1) )
       allocate ( ple(im,jm,lm+1) )
 
-      call set_eta ( lm,ptop,ak,bk )
+      call set_eta ( lm,ks,ptop,pint,ak,bk )
 
       do L=1,lm+1
       ple(:,:,L) = ak(L) + ps(:,:)*bk(L)
@@ -339,7 +341,7 @@ c ------------------------------------------------------------------------------
           do L=1,mlev ; read (55,rec=lrec) u_ana(:,:,L)   ; lrec = lrec+1 ; enddo
           do L=1,mlev ; read (55,rec=lrec) v_ana(:,:,L)   ; lrec = lrec+1 ; enddo
 
-          call set_eta ( mlev,ptop,ak,bk )
+          call set_eta ( mlev,ks,ptop,pint,ak,bk )
 
 c         call gfio_getvar ( id,'phis',nymd,nhms,im,jm,0,1   ,phis_ana,rc )
 c         call gfio_getvar ( id,'lnps',nymd,nhms,im,jm,0,1   ,  ps_ana,rc )
@@ -404,6 +406,7 @@ C **********************************************************************
      .                       im,jm,lm,nq,nymd,nhms,tag,ext,lonbeg,
      .                       timeinc,precision,dgrid,tvflag )
       use MAPL_BaseMod, only: MAPL_UNDEF
+      use m_set_eta, only: set_eta
       implicit  none
 
       integer   im,jm,lm,nq,nymd,nhms
@@ -470,7 +473,7 @@ C **********************************************************************
       fname = trim(tag) // trim(filename) // '.' // trim(ext)
       print *, 'Creating 32-bit eta file: ',trim(fname)
 
-      call set_eta ( lm,ptop,ak,bk )
+      call set_eta ( lm,ks,ptop,pint,ak,bk )
 
 ! Construct D-Grid Winds (if necessary)
 ! -------------------------------------
@@ -594,8 +597,6 @@ c Compute grid
 c ------------
       dlon = 360.0/ im
       dlat = 180.0/(jm-1)
-        ks = 41
-      pint = ak(ks+1)
 
       do j=1,jm
       lats(j) = -90.0 + (j-1)*dlat
@@ -1084,6 +1085,7 @@ C*                  GODDARD LABORATORY FOR ATMOSPHERES                 *
 C***********************************************************************
 
       use MAPL_ConstantsMod
+      use m_set_eta, only: set_eta
       implicit none
       integer  im,jm,nq,lm1,lm2
 
@@ -1122,9 +1124,9 @@ c ---------------
       real  pke2(im,jm,lm2+1)
       real  phi2(im,jm,lm2+1)
 
-      real    kappa,cp,ptop,pbelow,pabove,pl,alf
+      real    kappa,cp,ptop,pbelow,pabove,pl,alf,pint
       real    rgas,pref,tref,pkref,tstar,eps,rvap,grav
-      integer i,j,L,n
+      integer i,j,L,n,ks
 
       kappa = MAPL_KAPPA
       rgas  = MAPL_RGAS
@@ -1133,7 +1135,7 @@ c ---------------
       cp    = MAPL_CP
       eps   = rvap/rgas-1.0
 
-      call set_eta ( lm1,ptop,ak,bk )
+      call set_eta ( lm1,ks,ptop,pint,ak,bk )
 
 c Compute edge-level pressures
 c ----------------------------

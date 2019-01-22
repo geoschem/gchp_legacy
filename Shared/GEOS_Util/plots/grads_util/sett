@@ -1,11 +1,5 @@
 function sett (args)
 
-'getinfo desc'
-         desc = result
-'!froot 'desc
-'run getenv FROOT'
-     basename = result
-
 * Initialize Time based on Existance of Pre-Set Environment Variables
 * -------------------------------------------------------------------
 'run getenv "TBEG"'
@@ -50,14 +44,29 @@ else
 endif
 
 
-* Set Time
-* --------
-if( basename != clim.tabl )
-   'set time 'tmin' 'tmax
-    say 'Setting Time Dates: 'tmin' to 'tmax
-else
+* Set TIME Boundaries based on Climatology dates (if active)
+* ----------------------------------------------------------
+        begYYYYMM = 'NULL'
+        endYYYYMM = 'NULL'
+        'q ctlinfo'
+        title = sublin(result,2)
+        n = 1
+        word = subwrd(title,n)
+        while( word != '' )
+        n = n + 1
+        word = subwrd(title,n)
+        if(    word = "Climatology:" )
+            begYYYYMM = subwrd(title,n+1)
+            endYYYYMM = subwrd(title,n+3)
+        endif
+        endwhile
+
+if( begYYYYMM != 'NULL' & endYYYYMM != 'NULL' )
    'set t 1 'tdim
     say 'Setting T 1 to 'tdim
+else
+   'set time 'tmin' 'tmax
+    say 'Setting Time Dates: 'tmin' to 'tmax
 endif
 
 return

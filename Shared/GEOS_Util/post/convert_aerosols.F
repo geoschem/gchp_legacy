@@ -1,5 +1,6 @@
       program convert_aerosols
 
+      use m_set_eta, only: set_eta
       implicit none
 
 c **********************************************************************
@@ -77,7 +78,7 @@ c -----------------------------
       integer n,m,nargs,iargc,L,nbeg,nfiles,npfiles,mlev
 
       real    undef,psmax,psmin
-      integer i,j,ndt
+      integer i,j,ndt,ks
       integer imout,jmout,lmout
       logical hdfcreate
       logical flip
@@ -424,6 +425,7 @@ c ----------------
       subroutine convert ( q2d,q3d,name2d,titl2d,unit2d,name3d,titl3d,unit3d,n2d,n3d,undef,
      .                     levunits,im,jm,lm,nt,lat,lon,lev,nymd,nhms,ninc,
      .                     id,create,filename,imo,jmo,lmo,ps,flip )
+      use m_set_eta, only: set_eta
       implicit none
 
 c Input Variables
@@ -465,10 +467,11 @@ c ---------------
 
 c Local Variables
 c ---------------
-      integer i,j,k,L,n,m
+      integer i,j,k,L,n,m,ks
       integer nu,nv
 
-      real    undef, pi,dx,dy, ptop
+      real    undef, pi,dx,dy
+      real*8  ptop,pint
       integer precision,id,timeinc,rc,nhmsf
 
       character*256  title
@@ -487,8 +490,8 @@ c ---------------
       real, allocatable ::    ple(:,:,:)
       real, allocatable ::  logpl(:,:,:)
       real, allocatable :: logplo(:,:,:)
-      real, allocatable ::     ak(:)
-      real, allocatable ::     bk(:)
+      real*8, allocatable ::   ak(:)
+      real*8, allocatable ::   bk(:)
       real, allocatable :: levsout(:)
 
       real   dpref 
@@ -542,7 +545,7 @@ C **********************************************************************
 
           allocate( ak(lmo+1) )
           allocate( bk(lmo+1) )
-          call set_eta ( lmo,ptop,ak,bk )
+          call set_eta ( lmo,ks,ptop,pint,ak,bk )
 
           ptop    = ak(1)
           levs(1) = ptop + 0.5 * dpref(1)
@@ -2606,6 +2609,7 @@ c****6***0*********0*********0*********0*********0*********0**********72
       subroutine gmap ( im,jm,nq, ps, km, q_m, kn, q_n, flip  )
 c****6***0*********0*********0*********0*********0*********0**********72
 
+      use m_set_eta, only: set_eta
       implicit none
 
       integer im, jm
@@ -2623,7 +2627,7 @@ c ---------------------------
 
 c local (private)
 c ---------------
-      integer i, j, k, ic, n
+      integer i, j, k, ic, n, ks
 
       real   ak_m(km+1), bk_m(km+1)
       real   ak_n(kn+1), bk_n(kn+1)
@@ -2633,8 +2637,8 @@ c ---------------
       real  q1(im,km)  , q2(im,kn)
       real dum
 
-      call set_eta ( km,dum,ak_m,bk_m )
-      call set_eta ( kn,dum,ak_n,bk_n )
+      call set_eta ( km,ks,dum,dum,ak_m,bk_m )
+      call set_eta ( kn,ks,dum,dum,ak_n,bk_n )
 
       do 2000 j=1,jm
 

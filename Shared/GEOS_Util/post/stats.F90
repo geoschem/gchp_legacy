@@ -1,29 +1,34 @@
-      program stats
+      module stats_mod
+         implicit none
 
+         type fields
+            integer                    ::  msgn
+            character*256              ::  name
+            character*256              ::  desc
+            character*256              ::  type
+            character*256, allocatable ::  alias(:)
+            real,          allocatable ::   anal(:,:,:)
+            real,          allocatable ::   fcst(:,:,:)
+            real,          allocatable ::   clim(:,:,:)
+            real,          allocatable ::   serr(:,:,:)
+         endtype fields
+         
+         type collection
+            integer                    ::  n2d
+            integer                    ::  n3d
+            character*256              ::  name
+            type(fields),  allocatable :: fields_2d(:)
+            type(fields),  allocatable :: fields_3d(:)
+         endtype collection
+         
+      end module stats_mod
+
+      program stats
+      use stats_mod
       use ESMF
       implicit none
 
       type(ESMF_Config) :: config
-
-      type fields
-           integer                    ::  msgn
-           character*256              ::  name
-           character*256              ::  desc
-           character*256              ::  type
-           character*256, allocatable ::  alias(:)
-           real,          allocatable ::   anal(:,:,:)
-           real,          allocatable ::   fcst(:,:,:)
-           real,          allocatable ::   clim(:,:,:)
-           real,          allocatable ::   serr(:,:,:)
-      endtype fields
-
-      type collection
-           integer                    ::  n2d
-           integer                    ::  n3d
-           character*256              ::  name
-           type(fields),  allocatable :: fields_2d(:)
-           type(fields),  allocatable :: fields_3d(:)
-      endtype collection
 
       type(fields),       pointer     ::   fields_2d(:)
       type(fields),       pointer     ::   fields_3d(:)
@@ -37,7 +42,7 @@
 
       integer,parameter :: luout = 90 ! output file unit for formatted datafile w/ results
 
-      integer        rc, fcst_file, iii
+      integer        rc, iii
       logical        gmaopy,failed
       character*256  record
       character*20   cstnm,cdate,cstat,czlev,cstep,ceast,cwest,cnorth,csouth
@@ -82,8 +87,6 @@
       character*256                  tag,expid
       character*256                  dummy
       character*256, allocatable ::    arg(:)
-      character*256, allocatable :: name2d(:)
-      character*256, allocatable :: name3d(:)
       character*256, allocatable ::  fname(:)
       character*256, allocatable ::  aname(:)
       character*256, allocatable ::  cname(:)
@@ -102,11 +105,8 @@
       real    eundef
       real    aundef
       real    cundef
-      integer fcst_im,fcst_jm,nargs
-      integer n,nt,time,ntimes,nvars
-      integer       yymmdd(100)
-      integer       hhmmss(100)
-      character*256  vname(500)
+      integer nargs
+      integer n,nt
       logical check_names
       logical printout
       logical defined
@@ -117,8 +117,8 @@
       real    r1,r2,r3
       real    c1,c2,c3
       real    fmean, amean, cmean, area,phi,cosp
-      integer nymdb, nhmsb, nymdc
-      integer nymde, nhmse, nhmsc
+      integer nymdb, nhmsb
+      integer nymde, nhmse
       integer month, day, year, hour, minute, fhour, timinc, nfreq, ndt0, ndt, num
 
       character*7   xdate
@@ -740,6 +740,8 @@
             call timeend ('__read_serr')
 
             do n=1,n2d
+          ! print *, '2D n: ',n
+          ! call minmax (fields_2d(n)%serr(1,1,1),im,jm,eundef)
             do j=1,jm
             do i=1,im
             if( defined( fields_2d(n)%fcst(i,j,1),fundef ) .and.  &
@@ -751,6 +753,8 @@
 
             do n=1,n3d
             do L=1,nl
+          ! print *, '3D n: ',n,' L: ',L
+          ! call minmax (fields_3d(n)%serr(1,1,L),im,jm,eundef)
             do j=1,jm
             do i=1,im
             if( defined( fields_3d(n)%fcst(i,j,L),fundef ) .and.  &
@@ -1278,18 +1282,8 @@
       end 
 
       subroutine read_clim_hdf ( nymd,nhms,fields_2d,fields_3d,n2d,n3d,idim,jdim,nl,zlev,cli_files,num,undef )
+      use stats_mod
       implicit none
-      type fields
-           integer                    ::  msgn
-           character*256              ::  name
-           character*256              ::  desc
-           character*256              ::  type
-           character*256, allocatable ::  alias(:)
-           real,          allocatable ::   anal(:,:,:)
-           real,          allocatable ::   fcst(:,:,:)
-           real,          allocatable ::   clim(:,:,:)
-           real,          allocatable ::   serr(:,:,:)
-      endtype fields
       integer n2d,n3d
       type(fields) :: fields_2d(n2d)
       type(fields) :: fields_3d(n3d)
@@ -1299,11 +1293,11 @@
       integer          idim,jdim,nl
       real                  zlev(nl)
 
-      real, allocatable, save :: var2d_1( :,:,:   )
-      real, allocatable, save :: var3d_1( :,:,:,: )
+      real, allocatable :: var2d_1( :,:,:   )
+      real, allocatable :: var3d_1( :,:,:,: )
 
-      real, allocatable, save :: var2d_2( :,:,:   )
-      real, allocatable, save :: var3d_2( :,:,:,: )
+      real, allocatable :: var2d_2( :,:,:   )
+      real, allocatable :: var3d_2( :,:,:,: )
 
       integer       nid,ncl,im,jm,lm,nvars,rc
       integer       ntime,ngatts,timinc
@@ -1327,12 +1321,12 @@
       real,    allocatable :: prange(:,:)
       integer, allocatable ::  kmvar(:)
 
-      integer, allocatable, save :: id(:)
-      integer, allocatable, save :: yymmdd(:,:)
-      integer, allocatable, save :: hhmmss(:,:)
+      integer, allocatable :: id(:)
+      integer, allocatable :: yymmdd(:,:)
+      integer, allocatable :: hhmmss(:,:)
 
       logical check_names
-      logical first, found, shift, defined
+      logical first, shift, defined
       integer LL, i,j,k,kk, loc, len
       data shift /.false./
       data first /.true./ 
@@ -1345,7 +1339,7 @@
       integer   IMONP,    IMONM
       DATA      IMONP/0/, IMONM/0/
 
-      INTEGER   YEAR, MONTH, DAY, SEC
+      INTEGER   MONTH, DAY, SEC
       INTEGER   DAYS(12)
       DATA      DAYS /31,28,31,30,31,30,31,31,30,31,30,31/
 
@@ -1661,7 +1655,6 @@
       real, allocatable, save :: q2( :,:,: )                                                  
       real, allocatable, save :: h2( :,:,: )                                                  
 
-      integer LL
       real    undef
       logical first
       data    first /.true./
@@ -1862,8 +1855,8 @@
 
       subroutine minmax (q,im,jm,undef)
       real   q(im,jm)
-      qmin = q(1,1)
-      qmax = q(1,1)
+      qmin =  1e33
+      qmax = -1e33
       do j=1,jm
       do i=1,im
       if(q(i,j).ne.undef) qmin = min( qmin,q(i,j) )
@@ -2288,7 +2281,7 @@
 
       integer i,j,ii,jj,ibeg,iend,jbeg,jend
       real    zlatc,zlonc
-      real    lonbeg,lonend,lat
+      real    lonbeg,lonend
       real    latbeg,latend
       real    pi,dl,dp,dz 
 
@@ -2352,18 +2345,8 @@
       end
 
       subroutine read_anal( nymd,nhms,fields_2d,fields_3d,n2d,n3d,idim,jdim,nl,zlev,ana_files,num_ana_files,undef )
+      use stats_mod
       implicit none
-      type fields
-           integer                    ::  msgn
-           character*256              ::  name
-           character*256              ::  desc
-           character*256              ::  type
-           character*256, allocatable ::  alias(:)
-           real,          allocatable ::   anal(:,:,:)
-           real,          allocatable ::   fcst(:,:,:)
-           real,          allocatable ::   clim(:,:,:)
-           real,          allocatable ::   serr(:,:,:)
-      endtype fields
       type(fields) :: fields_2d(n2d)
       type(fields) :: fields_3d(n3d)
 
@@ -2596,11 +2579,9 @@
       character*256 fname
       real, pointer :: lev(:)
 
-      integer       n2d,n3d
       integer       id,im,jm,lm,nvars,rc
-      integer       ntime,ngatts,timinc,nfiles
+      integer       ntime,ngatts,timinc
       real          undef
-      integer       j,k,L,m,n,len
                                                                                                           
       character*256  title
       character*256  source
@@ -2650,34 +2631,16 @@
       end
 
       subroutine init_fcst( fname,nfiles,dates,ndates,timinc,undef,collections,ncoll )
+      use stats_mod
       implicit none
       integer  ncoll
-      type fields
-           integer                    ::  msgn
-           character*256              ::  name
-           character*256              ::  desc
-           character*256              ::  type
-           character*256, allocatable ::  alias(:)
-           real,          allocatable ::   anal(:,:,:)
-           real,          allocatable ::   fcst(:,:,:)
-           real,          allocatable ::   clim(:,:,:)
-           real,          allocatable ::   serr(:,:,:)
-      endtype fields
-      type collection
-           integer                    ::  n2d
-           integer                    ::  n3d
-           character*256              ::  name
-           type(fields),  allocatable :: fields_2d(:)
-           type(fields),  allocatable :: fields_3d(:)
-      endtype collection
 
       type(collection) :: collections(ncoll)
 
-      integer       n2d,n3d
       integer       id,im,jm,lm,nvars,rc
       integer       ntime,ngatts,timinc,nfiles
       real          undef
-      integer       j,k,L,m,n,len
+      integer       j,k,m,n,len
       character*256 fname(nfiles)
                                                                                                           
       character*256  title
@@ -2770,18 +2733,8 @@
       end
 
       subroutine read_fcst( fname,nfiles,dates,ndates,nymd,nhms,fields_2d,fields_3d,n2d,n3d,idim,jdim,nl,zlev,undef )
+      use stats_mod
       implicit none
-      type fields
-           integer                    ::  msgn
-           character*256              ::  name
-           character*256              ::  desc
-           character*256              ::  type
-           character*256, allocatable ::  alias(:)
-           real,          allocatable ::   anal(:,:,:)
-           real,          allocatable ::   fcst(:,:,:)
-           real,          allocatable ::   clim(:,:,:)
-           real,          allocatable ::   serr(:,:,:)
-      endtype fields
       integer         n2d,n3d
       type(fields) :: fields_2d(n2d)
       type(fields) :: fields_3d(n3d)
@@ -2951,19 +2904,9 @@
       end
 
       subroutine read_syserr( fields_2d,fields_3d,n2d,n3d,idim,jdim,nl,zlev,efile,ndt,undef )
+      use stats_mod
       implicit none
 
-      type fields
-           integer                    ::  msgn
-           character*256              ::  name
-           character*256              ::  desc
-           character*256              ::  type
-           character*256, allocatable ::  alias(:)
-           real,          allocatable ::   anal(:,:,:)
-           real,          allocatable ::   fcst(:,:,:)
-           real,          allocatable ::   clim(:,:,:)
-           real,          allocatable ::   serr(:,:,:)
-      endtype fields
       integer      ::  n2d,n3d
       type(fields) :: fields_2d(n2d)
       type(fields) :: fields_3d(n3d)
@@ -2973,12 +2916,6 @@
       integer       nymd ,nhms
       integer       nymd0,nhms0
       integer       idim,jdim,nl
-      real          pa(idim,jdim)
-      real          ua(idim,jdim,nl)
-      real          va(idim,jdim,nl)
-      real          ta(idim,jdim,nl)
-      real          qa(idim,jdim,nl)
-      real          ha(idim,jdim,nl)
       real          zlev(nl)
 
       integer       id,im,jm,lm,nvars,rc
@@ -3042,12 +2979,18 @@
                               vname,vtitle,vunits,kmvar,  &
                               vrange,prange,rc )
 
+        ! print *, 'SYSERR TIMINC: ',timinc
+        ! print *, 'SYSERR  UNDEF: ',undef
           if( ndt .ne. nsecf(timinc) ) then
-              print *, 'Error!'
+          !   print *, 'Error!'
+              print *, 'Warning!'
               print *, 'Forecast         File Frequency: ',ndt,' (sec)'
               print *, 'Systematic Error File Frequency: ',nsecf(timinc),' (sec)'
-              stop
+          !   stop
           endif
+
+        ! print *, 'YYMMDD: ',yymmdd
+        ! print *, 'HHMMSS: ',hhmmss
 
           if( lon(1).eq.0.0 ) then
           !   print *, 'Systematic Error data begins at lon: ',lon(1)
@@ -3395,7 +3338,7 @@
       implicit none
       logical  check_names
       character(*)   name1,name2
-      integer  len,i,j
+      integer  len,i
       character*256 uname1,uname2
       character*1   c
 

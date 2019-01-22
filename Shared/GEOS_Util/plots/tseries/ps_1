@@ -123,12 +123,18 @@ totmin = totave - 0.6*ddif
    qdryend = subwrd(result,4)
 'set t 1 'tdim
    delqdry = (qdryend-qdrybeg)/tdim
+
+* Convert delqdry to mb/decade
+* ----------------------------
+   delqdry = delqdry * 120
+
 say '       QDYRBEG: 'qdrybeg
 say '       QDYREND: 'qdryend
 say 'ORIG   DELQDRY: 'delqdry
 
 * Convert delqdry to SCI.NOTATION
 * -------------------------------
+if( 1>2 )
 if( delqdry != 0 )
    'd log10(abs('delqdry'))'
     n = subwrd(result,4)
@@ -155,11 +161,12 @@ say ' delqdry = 'delqdry' * 'scaling
    'd 'delqdry
     delqdry = subwrd(result,4)
 say 'Scaled DELQDRY: 'delqdry
+endif
 
 * Note:  Only take NDOT values after decimal point
 * ------------------------------------------------
          val = delqdry
-         ndot    = 6
+         ndot    = 3
          dotloc  = 0
          counter = 1
          while ( counter<20 )
@@ -231,15 +238,20 @@ wetmin = wetave - 0.6* ddif
  'draw string 0.78 'ytot ' 'qwetave
                     ytot =  ytot-0.4
 
- 'set  string 4 l 6'
+ 'set  string 1 c 6'
+ 'set  strsiz .12'
  if( delqdry < 0 )
- 'draw string 0.40 'ytot' loss (/'tunit')'
+*'draw string 0.40 'ytot' loss (/'tunit')'
+*'draw string 6.15 0.23 Dry Mass Loss: 'delqdry' x10`a-`n'n' (mb/decade)'
+ 'draw string 6.15 0.23 Dry Mass Trend: 'delqdry' (mb/decade)'
  else
- 'draw string 0.40 'ytot' gain (/'tunit')'
+*'draw string 0.40 'ytot' gain (/'tunit')'
+*'draw string 6.15 0.23 Dry Mass Gain: 'delqdry' x10`a-`n'n' (mb/decade)'
+ 'draw string 6.15 0.23 Dry Mass Trend: 'delqdry' (mb/decade)'
  endif
                     ytot =  ytot-0.2
  'set  string 4 r 6'
- 'draw string 1.30 'ytot' 'delqdry' x10`a-`n'n
+*'draw string 1.30 'ytot' 'delqdry' x10`a-`n'n
 
 'set vpage off'
 'set string 1 c 6'

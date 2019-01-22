@@ -3,6 +3,8 @@ function genpltz (args)
 'numargs  'args
  numargs = result
 
+USE_PLOTRC = FALSE
+
 dqmax = NULL
 dqmin = NULL
 
@@ -32,6 +34,8 @@ if( subwrd(args,num) = '-ZLOG'    ) ; zlog     = subwrd(args,num+1) ; endif
 
 endwhile
 
+'run getlevs 'alias
+     numlevs = result
 
 * Check for Contour Level Type
 * ----------------------------
@@ -105,12 +109,17 @@ if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'EXPORT'_'GC'_CCOLS' ; endif
 if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'EXPORT'_'GC'_DCOLS' ; endif
                                                              dcols = result
 
+if( zlog = 'ON' & ptop < 10 )
+                        'getresource 'PLOTRC' 'EXPORT'_'GC'_ZLOG_CLEVS'
+if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'EXPORT'_'GC'_Z_CLEVS' ; endif
+else
                         'getresource 'PLOTRC' 'EXPORT'_'GC'_Z_CLEVS'
+endif
 if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'EXPORT'_'GC'_CLEVS' ; endif
                                                             clevs = result
 
-                        'getresource 'PLOTRC' 'EXPORT'_'GC'_Z_'LEVTYPE'LEVS'
-if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'EXPORT'_'GC'_'LEVTYPE'LEVS' ; endif
+                        'getresource 'PLOTRC' 'EXPORT'_'GC'_Z_'LEVTYPE
+if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'EXPORT'_'GC'_'LEVTYPE ; endif
                                                              dlevs = result
 
                         'getresource 'PLOTRC' 'EXPORT'_'GC'_DIFFMAX'
@@ -124,18 +133,25 @@ if( title   = 'NULL' )
      title  = alias': 'result
 endif
 
-'getenv "CINTDIFF"'
+'run getenv "CINTDIFF"'
          CINTDIFF = result
 
 say ''
 say 'TITLE: 'title
+say 'LEVTPYE: 'LEVTYPE
 say ' FACT: 'fact
 say 'CLEVS: 'clevs
 say 'CCOLS: 'ccols
 say 'DLEVS: 'dlevs
 say 'DCOLS: 'dcols
+say 'DIFFMAX: 'diffmax
+say 'DIFFMIN: 'diffmin
 
+if( zlog = 'OFF' )
     oname = '/hdiag_'obsnam'_'EXPORT'.'GC'_z'
+else
+    oname = '/hdiag_'obsnam'_'EXPORT'.'GC'_zlog'ptop
+endif
 
 * Remove possible BLANKS from FACTOR
 * ----------------------------------
@@ -161,7 +177,11 @@ fact = DESC
 'set dfile 'qfile
 'set lat -90 90'
 'set lon 0'
-'set lev 1000 'ptop
+if( numlevs = 1 )
+   'set z 1'
+else
+   'set lev 1000 'ptop
+endif
 'set t 1'
 
   gg = xyz (xmin,xmax,ymin,ymax,zmin,zmax)
@@ -257,15 +277,22 @@ endif
 'set dfile 'qfile
 'set lat -90 90'
 'set lon 0'
-'set lev 1000 'ptop
 'set t 1'
 
 'set vpage 0 8.5 0.0 11'
-'set parea 1.5 7.0 7.70 10.50'
 'set grads off'
 'set gxout shaded'
-'set zlog 'zlog
- if( zlog = ON ) ; 'setlevs' ; endif
+if( numlevs = 1 )
+   'set parea 1.5 7.0 4.30 10.50'
+   'set z 1'
+   'set zlog off'
+   'set ccolor 4'
+else
+   'set parea 1.5 7.0 7.70 10.50'
+   'set lev 1000 'ptop
+   'set zlog 'zlog
+    if( zlog = ON ) ; 'setlevs' ; endif
+endif
 say ' '
 say 'Top Plot:'
 say '---------'
@@ -325,6 +352,7 @@ endif
 
 'set_clevs'
 
+if( numlevs > 1 )
 if( ccols = NULL )
     if( qn>0 )
        'd modz*'fact'/1e'qm
@@ -335,10 +363,8 @@ else
    'd modz*'fact
 endif
 'draw ylab Pressure (mb)'
+endif
 
-'set parea 0 8.5 7.0 11'
-'cbarn -vert'
-'set parea off'
 
 ************************************************************
 *                        Middle Plot
@@ -347,17 +373,26 @@ endif
 'set dfile 'ofile
 'set lat -90 90'
 'set lon 0'
-'set lev 1000 'ptop
 'set t 1'
-'set vpage 0 8.5 0.0 11'
-'set parea 1.5 7.0 4.30 7.10'
-'set grads off'
 'set gxout shaded'
-'set zlog 'zlog
- if( zlog = ON ) ; 'setlevs' ; endif
+if( numlevs = 1 )
+   'set z 1'
+   'set zlog off'
+   'set ccolor 1'
+else
+   'set parea 0 8.5 7.0 11'
+   'cbarn -vert'
+   'set parea off'
+   'set vpage 0 8.5 0.0 11'
+   'set parea 1.5 7.0 4.30 7.10'
+   'set lev 1000 'ptop
+   'set zlog 'zlog
+    if( zlog = ON ) ; 'setlevs' ; endif
+endif
 say ' '
 say 'Middle Plot:'
 say '------------'
+'set grads off'
 
 if( ccols = NULL )
     if( qn>0 )
@@ -375,6 +410,7 @@ endif
 
 'set_clevs'
 
+if( numlevs > 1 )
 if( ccols = NULL )
     if( qn>0 )
        'd obsz*'fact'/1e'qm
@@ -385,6 +421,8 @@ else
    'd obsz*'fact
 endif
 'draw ylab Pressure (mb)'
+endif
+
 'set parea off'
 
 ************************************************************
@@ -394,14 +432,19 @@ endif
 'set dfile 'qfile
 'set lat -90 90'
 'set lon 0'
-'set lev 1000 'ptop
 'set t 1'
 'set vpage 0 8.5 0.0 11'
 'set parea 1.5 7.0 0.90 3.70'
 'set grads off'
 'set gxout shaded'
-'set zlog 'zlog
- if( zlog = ON ) ; 'setlevs' ; endif
+if( numlevs = 1 )
+   'set z 1'
+   'set zlog off'
+else
+   'set lev 1000 'ptop
+   'set zlog 'zlog
+    if( zlog = ON ) ; 'setlevs' ; endif
+endif
 say ' '
 say 'Bottom Plot:'
 say '------------'
@@ -409,8 +452,8 @@ say '------------'
        dn = 0
        dm = 0
 
-if( dcols = NULL | CINTDIFF != NULL )
-* -----------------------------------
+if( dcols = NULL | CINTDIFF != NULL | USE_PLOTRC = TRUE )
+* -------------------------------------------------------
 
   if( diffmax = NULL ) 
    'd 'dqmax'*'fact
@@ -483,12 +526,14 @@ else
 endif
 * -------------------------------------------
 
-'cbarn -snum 0.55'
+'cbarn -snum 0.55 -xmid 4.25 -ymid 0.4'
 
+if( numlevs > 1 )
 'draw ylab Pressure (mb)'
+endif
 'set gxout contour'
 'set ccolor 1'
-if( dcols = NULL | CINTDIFF != NULL )
+if( dcols = NULL | CINTDIFF != NULL | USE_PLOTRC = TRUE )
    'set clevs -'cint' 'cint
     if( dn>0 )
       'd qz*'fact'/1e'dm
@@ -504,24 +549,40 @@ endif
 ************************************************************
 
 'set vpage off'
+'set string 1 l 4'
+'set strsiz 0.065'
+'draw string 0.05 0.08 ( EXPID:  'expid' )'
+
 'set string 1 c 6'
 'set strsiz .13'
 'draw string 4.25 10.85 'title
-
 'set strsiz .11'
 
+if( numlevs > 1 )
+'set string 1 c 6'
 if( qn != 0 )
-'draw string 4.25 10.635 EXPID: 'expid'  'qdesc' 'season' ('nmod') (x 10**'qn')'
+'draw string 4.25 10.64 'qdesc' 'season' ('nmod') (x 10**'qn')'
 else
-'draw string 4.25 10.635 EXPID: 'expid'  'qdesc' 'season' ('nmod')'
+'draw string 4.25 10.64 'qdesc' 'season' ('nmod')'
+endif
+'draw string 4.25  7.24 'odesc' 'season' ('nobs') ('climate')'
+
+else
+
+'set string 4 c 6'
+if( qn != 0 )
+'draw string 4.25 10.64 'qdesc' 'season' ('nmod') (x 10**'qn')'
+else
+'draw string 4.25 10.64 'qdesc' 'season' ('nmod')'
+endif
+'set string 1 c 6'
+'draw string 4.25 7.24 'odesc' 'season' ('nobs') ('climate')'
 endif
 
-'draw string 4.25  7.235 'odesc' 'season' ('nobs') ('climate')'
-
 if( dn != 0 )
-'draw string 4.25  3.850 Difference (Top-Middle) (x 10**'dn')'
+'draw string 4.25  3.80 Difference (Top-Middle) (x 10**'dn')'
 else
-'draw string 4.25  3.850 Difference (Top-Middle)'
+'draw string 4.25  3.80 Difference (Top-Middle)'
 endif
 
                 date = getdate (begdate)
@@ -537,12 +598,23 @@ byearo = subwrd(date,2)
 emntho = subwrd(date,1)
 eyearo = subwrd(date,2)
 
+if( numlevs > 1 )
 'set string 1 l 4'
 'set strsiz .08'
 'draw string 0.10 10.37 Beg: 'bmnthm' 'byearm
 'draw string 0.10 10.24 End: 'emnthm' 'eyearm
 'draw string 0.10  6.97 Beg: 'bmntho' 'byearo
 'draw string 0.10  6.84 End: 'emntho' 'eyearo
+else
+'set string 4 l 4'
+'set strsiz .08'
+'draw string 0.10 10.37 Beg: 'bmnthm' 'byearm
+'draw string 0.10 10.24 End: 'emnthm' 'eyearm
+'set string 1 r 4'
+'draw string 8.30 10.37 Beg: 'bmntho' 'byearo
+'draw string 8.30 10.24 End: 'emntho' 'eyearo
+endif
+
 'set string 1 c 6'
 
 'myprint -name 'output'/'oname'.'season

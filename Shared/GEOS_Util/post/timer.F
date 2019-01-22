@@ -18,7 +18,7 @@ C***********************************************************************
 
       integer n
       real    wclk
-      logical first,  set
+      logical first
       data    first /.true./
 
       if(first) then

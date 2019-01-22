@@ -1,23 +1,39 @@
 function makplot (args)
-                            k = 1
-name     = subwrd(args,k) ; k = k+1
-expid    = subwrd(args,k) ; k = k+1
-prefix   = subwrd(args,k) ; k = k+1
-season   = subwrd(args,k) ; k = k+1
-output   = subwrd(args,k) ; k = k+1
-mfile    = subwrd(args,k) ; k = k+1
-mdesc    = subwrd(args,k) ; k = k+1
-ofile    = subwrd(args,k) ; k = k+1
-oname    = subwrd(args,k) ; k = k+1
-odesc    = subwrd(args,k) ; k = k+1
-bdate    = subwrd(args,k) ; k = k+1
-edate    = subwrd(args,k) ; k = k+1
-bdateo   = subwrd(args,k) ; k = k+1
-edateo   = subwrd(args,k) ; k = k+1
-climate  = subwrd(args,k) ; k = k+1
-gridcomp = subwrd(args,k) ; k = k+1
-math     = subwrd(args,k) ; k = k+1
 
+'numargs  'args
+ numargs = result
+
+* Initialize INPUT Parameters
+* ---------------------------
+        num = 0
+while ( num < numargs )
+        num = num + 1
+
+if( subwrd(args,num) = '-MVAR'     ) ; mvar     = subwrd(args,num+1) ; say 'mvar  = 'mvar  ; endif
+if( subwrd(args,num) = '-MNAME'    ) ; mname    = subwrd(args,num+1) ; say 'mname = 'mname ; endif
+if( subwrd(args,num) = '-MFILE'    ) ; mfile    = subwrd(args,num+1) ; say 'mfile = 'mfile ; endif
+if( subwrd(args,num) = '-MDESC'    ) ; mdesc    = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-MBEGDATE' ) ; bdate    = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-MENDDATE' ) ; edate    = subwrd(args,num+1) ; endif
+
+if( subwrd(args,num) = '-OVAR'     ) ; ovar     = subwrd(args,num+1) ; say 'ovar  = 'ovar  ; endif
+if( subwrd(args,num) = '-ONAME'    ) ; oname    = subwrd(args,num+1) ; say 'oname = 'oname ; endif
+if( subwrd(args,num) = '-OFILE'    ) ; ofile    = subwrd(args,num+1) ; say 'ofile = 'ofile ; endif
+if( subwrd(args,num) = '-ODESC'    ) ; odesc    = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-OBEGDATE' ) ; bdateo   = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-OENDDATE' ) ; edateo   = subwrd(args,num+1) ; endif
+
+if( subwrd(args,num) = '-EXPID'    ) ; expid    = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-PREFIX'   ) ; prefix   = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-SEASON'   ) ; season   = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-OUTPUT'   ) ; output   = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-CLIMATE'  ) ; climate  = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-GC'       ) ; gridcomp = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-MATH'     ) ; math     = subwrd(args,num+1) ; endif
+
+endwhile
+
+* ---------------------------
 if(     math = NULL ) ;     math = '' ; endif
 if(   season = NULL ) ;   season = '' ; endif
 if( gridcomp = NULL ) ; gridcomp = '' ; endif
@@ -46,7 +62,7 @@ ccint = 'NULL'
 
 * Check for Existance of NAME Specific plot.rc
 * --------------------------------------------
-PLOTRC = geosutil'/plots/'name'/plot.rc'
+PLOTRC = geosutil'/plots/'mname'/plot.rc'
 
 '!remove   grads.txt'
 '!listfile 'PLOTRC' > grads.txt'
@@ -84,31 +100,31 @@ else
 * ---------------------------------------------
 PLOTRC = geosutil'/plots/grads_util/plot.rc'
 
-                        'getresource 'PLOTRC' 'name'_'gridcomp'_'level'_CBSCALE'
-if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'name'_'gridcomp'_CBSCALE' ; endif
+                        'getresource 'PLOTRC' 'mname'_'gridcomp'_'level'_CBSCALE'
+if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'mname'_'gridcomp'_CBSCALE' ; endif
                                                                 cbscale = result
 
-                        'getresource 'PLOTRC' 'name'_'gridcomp'_'level'_FACTOR'
-if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'name'_'gridcomp'_FACTOR' ; endif
+                        'getresource 'PLOTRC' 'mname'_'gridcomp'_'level'_FACTOR'
+if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'mname'_'gridcomp'_FACTOR' ; endif
                                                                 factor = result
 
-                        'getresource 'PLOTRC' 'name'_'gridcomp'_'level'_TITLE'
-if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'name'_'gridcomp'_TITLE' ; endif
+                        'getresource 'PLOTRC' 'mname'_'gridcomp'_'level'_TITLE'
+if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'mname'_'gridcomp'_TITLE' ; endif
                                                                 title = result
 
-                        'getresource 'PLOTRC' 'name'_'gridcomp'_'level'_CINT'
-if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'name'_'gridcomp'_CINT' ; endif
+                        'getresource 'PLOTRC' 'mname'_'gridcomp'_'level'_CINT'
+if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'mname'_'gridcomp'_CINT' ; endif
                                                                 ccint = result
 
-                        'getresource 'PLOTRC' 'name'_'gridcomp'_'level'_CCOLS'
-if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'name'_'gridcomp'_CCOLS' ; endif
+                        'getresource 'PLOTRC' 'mname'_'gridcomp'_'level'_CCOLS'
+if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'mname'_'gridcomp'_CCOLS' ; endif
                                                                 ccols = result
 
-                        'getresource 'PLOTRC' 'name'_'gridcomp'_'level'_CLEVS'
-if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'name'_'gridcomp'_CLEVS' ; endif
+                        'getresource 'PLOTRC' 'mname'_'gridcomp'_'level'_CLEVS'
+if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'mname'_'gridcomp'_CLEVS' ; endif
                                                                 clevs = result
 
-                        'getresource 'PLOTRC' 'name'_'gridcomp'_REGRID'
+                        'getresource 'PLOTRC' 'mname'_'gridcomp'_REGRID'
                                                                 method = result
 endif
 
@@ -119,9 +135,9 @@ endif
 say ''
 if( factor = 'NULL' ) ; factor = 1 ; endif
 if( title  = 'NULL' )
-   'getdesc 'name
+   'getdesc 'mname
              desc = result
-    title = name':'gridcomp'  'desc
+    title = mname':'gridcomp'  'desc
    "rmstring '"title"' '[column]'"
     title = result
    "rmstring '"title"' '__ENSEMBLE__'"
@@ -131,8 +147,8 @@ endif
 
 * Perform Mathematics if necessary
 * --------------------------------
-'define qmod = qmod'season'*'factor
-'define qobs = qobs'season'*'factor
+'define qmod = 'mvar''season'*'factor
+'define qobs = 'ovar''season'*'factor
 
 'd log10('factor')'
         m = subwrd(result,4)
@@ -199,7 +215,7 @@ endif
 * Count Seasons
 * -------------
 'set dfile 'ofile
-'count "'season'"'
+'count "'season'" 'bdateo' 'edateo
  nobs = result
 
 'set dfile 'mfile
@@ -294,7 +310,7 @@ else
       'define difg = difg/1e'n
       'd difg'
 endif
-'cbarn -snum 0.55'
+'cbarn -snum 0.55 -xmid 4.25 -ymid 0.4'
 
 'stats maskout(modg,abs(obsg))'
  avgmod = subwrd(result,1)
@@ -307,21 +323,25 @@ endif
  stddif = subwrd(result,2)
 
 'set vpage off'
+'set string 1 l 4'
+'set strsiz .065'
+'draw string 0.05 0.08 ( EXPID:  'expid' )'
+
 'set string 1 c 6'
-'set strsiz .11'
-*'xlabel 1 4.25 10.9'
-'draw string 4.25 10.9 EXPID: 'expid'  'mdesc
+'set strsiz .14'
+'draw string 4.25 10.85 'math' 'title
+'set strsiz .10'
 
 if( m != 0 )
    if( m>0 )
-      'draw string 4.25 10.64 'math' 'title'  'season' ('nmod')  (x 10** -'m')'
+      'draw string 4.25 10.62 'mdesc'  'season' ('nmod')  (x 10** -'m')'
    else
-      'draw string 4.25 10.64 'math' 'title'  'season' ('nmod')  (x 10**'m')'
+      'draw string 4.25 10.62 'mdesc'  'season' ('nmod')  (x 10**'m')'
    endif
 else
-   'draw string 4.25 10.64 'math' 'title'  'season' ('nmod')'
+   'draw string 4.25 10.62 'mdesc'  'season' ('nmod')'
 endif
-   'draw string 4.25 7.23 'odesc'  'season' ('nobs')  ('climate')'
+   'draw string 4.25 7.22 'odesc'  'season' ('nobs')  ('climate')'
 
 if( n != 0 )
    'draw string 4.25 3.80 Difference (Top-Middle)  (x 10**'n')'
@@ -344,26 +364,29 @@ byearo = subwrd(date,2)
 emntho = subwrd(date,1)
 eyearo = subwrd(date,2)
 
-'set string 1 l 4'
-'set strsiz .08'
-'draw string 0.10 10.37 Beg: 'bmnthm' 'byearm
-'draw string 0.10 10.24 End: 'emnthm' 'eyearm
-'draw string 0.10  6.97 Beg: 'bmntho' 'byearo
-'draw string 0.10  6.84 End: 'emntho' 'eyearo
-'set string 1 c 6'
 * --------------------------------
 
-'set string 1 c 4'
+'set string 1 l 4'
 'set strsiz .08'
-'draw string 0.52 10  Mean: 'avgmod
-'draw string 0.52 9.8  Std: 'stdmod
-'draw string 0.52 6.6 Mean: 'avgobs
-'draw string 0.52 6.4  Std: 'stdobs
-'draw string 0.52 3.2 Mean: 'avgdif
-'draw string 0.52 3.0  Std: 'stddif
+'draw string 0.050 10.50 Beg: 'bmnthm' 'byearm
+'draw string 0.050 10.35 End: 'emnthm' 'eyearm
+'draw string 0.050 7.10 Beg: 'bmntho' 'byearo
+'draw string 0.050 6.95 End: 'emntho' 'eyearo
+
+'draw string 0.050 9.85 Mean: 'avgmod
+'draw string 0.050 9.70  Std: 'stdmod
+'draw string 0.050 6.45 Mean: 'avgobs
+'draw string 0.050 6.30  Std: 'stdobs
+'draw string 0.050 3.05 Mean: 'avgdif
+'draw string 0.050 2.90  Std: 'stddif
 
 if( output != 'NULL' )
-'myprint -name 'output'/'name'_'PFX''oname'.'season
+if( math = LOG )
+    mathparm = '_LOG'
+else
+    mathparm = ''
+endif
+'myprint -name 'output'/'mname''mathparm'_'PFX''oname'.'season
 endif
 
 'set mproj latlon'

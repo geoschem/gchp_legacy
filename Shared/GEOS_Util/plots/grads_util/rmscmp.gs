@@ -32,6 +32,7 @@ debug  = TRUE
 field  = h
   lev  = 500
     x  = 2
+  rms  = 0
 
        num = 0
 while( num < numargs )
@@ -42,6 +43,7 @@ if( subwrd(args,num)='-lev'    ) ; lev    = subwrd(args,num+1) ; endif
 if( subwrd(args,num)='-desc'   ) ; desc   = subwrd(args,num+1) ; endif
 if( subwrd(args,num)='-rc'     ) ; rcfile = subwrd(args,num+1) ; endif
 if( subwrd(args,num)='-debug'  ) ; debug  = subwrd(args,num+1) ; endif
+if( subwrd(args,num)='-rms'    ) ; rms    = subwrd(args,num+1) ; endif
 
 endwhile
 
@@ -60,23 +62,23 @@ if( SOURCE = "NULL" )
 endif
 
 if( desc = '' )
-'getresource 'SOURCE'/'rcfile' DESC' ;   desc = result
+'getresource 'rcfile' DESC' ;   desc = result
 if( desc = "NULL" ) ; desc = '' ; endif
 endif
 
-'getresource 'SOURCE'/'rcfile' EXP'n ;  exp.n = result
-'getresource 'SOURCE'/'rcfile' DSC'n ; desc.n = result
+'getresource 'rcfile' EXP'n ;  exp.n = result
+'getresource 'rcfile' DSC'n ; desc.n = result
  if( exp.n != NULL | desc.n  != NULL )
      n = n+1
  else
      say 'You must supply a CONTROL and COMPARISON experiment list'
-     say 'in the file:  stats.rc'
+     say 'in a stats rc file using the -rc option.'
      return
  endif
 
 while( n >= 0 )
-'getresource 'SOURCE'/'rcfile' EXP'n ;  exp.n = result
-'getresource 'SOURCE'/'rcfile' DSC'n ; desc.n = result
+'getresource 'rcfile' EXP'n ;  exp.n = result
+'getresource 'rcfile' DSC'n ; desc.n = result
  if( exp.n != NULL | desc.n  != NULL )
      n = n+1
  else
@@ -127,6 +129,6 @@ endwhile
 'set lev 'lev
 'set x   'x
 
-'rmscmp_plot.gs -field 'field' -numexp 'ntot' 'dsc' -desc 'desc' -debug 'debug
+'rmscmp_plot.gs -field 'field' -numexp 'ntot' 'dsc' -desc 'desc' -rms 'rms' -debug 'debug
 
 return

@@ -3,7 +3,7 @@
           SUBROUTINE hflip( q, im, jm)
 !---------------------------------------------------------------------------
           IMPLICIT NONE
-          INTEGER  im,jm,i,j,L
+          INTEGER  im,jm,i,j
           REAL   q(im,jm), dum(im)
 
             DO j=1,jm
