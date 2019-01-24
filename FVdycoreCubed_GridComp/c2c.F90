@@ -15,7 +15,7 @@ program gmao_regrid
 
   use ESMF
   use MAPL_Mod
-
+  use CubedSphereGridFactoryMod
   implicit none
 
   integer, parameter :: GridType_Unknown = 0
@@ -54,7 +54,7 @@ program gmao_regrid
   type(Regrid_GridInfo)         :: gi
   type(Regrid_GridInfo)         :: gout
   type(ESMF_Config)             :: config
-  type(MAPL_HorzTransform)      :: Trans
+  class (AbstractRegridder), pointer :: regridder
   integer                       :: nargs
 
   integer                       :: unit_r, unit_w
@@ -89,6 +89,7 @@ program gmao_regrid
 
   type(MAPL_NCIO) :: inNCIO,outNCIO
   integer           :: nDims, dimSizes(4),nSpatialDims
+  type (ESMF_Grid) :: gridIn, gridOut
 
 ! Begin
    
@@ -208,9 +209,12 @@ program gmao_regrid
 
   if (changeResolution) then
 
-     ! create horz transform
-     call MAPL_HorzTransformCreate (Trans, im_in=gi%im, jm_in=gi%jm, &
-          im_out=gout%im, jm_out=gout%jm, rc=STATUS)
+     ! create horz regridder
+
+     gridIn = grid_manager%make_grid(CubedSphereGridFactory(im_world=gi%im,lm=1,nx=1,ny=1))
+     gridOut = grid_manager%make_grid(LatLonGridFactory(im_world=gout%im, jm_world=gout%jm, lm=1, nx=1, ny=1))
+
+     regridder => regridder_manager%make_regridder(gridIn, gridOut, REGRID_METHOD_BILINEAR, rc=status)
      VERIFY_(STATUS)
 
      ! allocate buffers
@@ -230,13 +234,13 @@ program gmao_regrid
  
            if (nSpatialDims == 2) then
               call MAPL_VarRead(InNCIO,InNCIO%vars(n)%name,var_in)
-              call MAPL_HorzTransformRun(Trans, var_in, var_out, RC=status)
+              call regridder%regrid(var_in, var_out, rc=status)
               VERIFY_(STATUS)
               call MAPL_VarWrite(OutNCIO,InNCIO%vars(n)%name,var_out)
            else if (nSpatialDims ==3) then
               do i=1,dimSizes(3) 
                  call MAPL_VarRead(InNCIO,InNCIO%vars(n)%name,var_in,lev=i)
-                 call MAPL_HorzTransformRun(Trans, var_in, var_out, RC=status)
+                 call regridder%regrid(var_in, var_out, rc=status)
                  VERIFY_(STATUS)
                  call MAPL_VarWrite(OutNCIO,InNCIO%vars(n)%name,var_out,lev=i)
               end do
@@ -261,7 +265,7 @@ program gmao_regrid
         !  if not VertOnly
         !    transform
         !  write
-           call MAPL_HorzTransformRun(Trans, var_in, var_out, RC=status)
+           call regridder%regrid(var_in, var_out, rc=status)
            VERIFY_(STATUS)
            write(unit_w) var_out
    !        print *,'record ',i
@@ -286,8 +290,6 @@ program gmao_regrid
 
      deallocate(var_out, var_in)
 
-     call MAPL_HorzTransformDestroy(Trans,rc=STATUS)
-     VERIFY_(STATUS)
   else
      print *, 'No change in resolution! Nothing to be done. Copy input to output yourself!'
   end if

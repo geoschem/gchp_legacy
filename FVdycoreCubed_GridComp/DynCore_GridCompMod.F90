@@ -2,19 +2,17 @@
 
 #include "MAPL_Generic.h"
 
-#define DynCore_GridCompMod FVdycoreCubed_GridComp
-
 !#define SCALAR_WINDS
 !#define INC_WINDS
 
 !-----------------------------------------------------------------------
 !              ESMA - Earth System Modeling Applications
 !-----------------------------------------------------------------------
-   Module DynCore_GridCompMod
+   Module FVdycoreCubed_GridComp
 
 !BOP
 !
-! !MODULE: DynCore_GridCompMod --- Dynamical Core Grid Component
+! !MODULE: FVdycoreCubed_GridComp --- Dynamical Core Grid Component
 !
 
 ! !USES:
@@ -25,11 +23,12 @@
    use m_chars,         only: uppercase
 
 ! FV Specific Module
-   use fv_arrays_mod,  only: REAL4, REAL8
+   use fv_arrays_mod,  only: REAL4, REAL8, FVPRC
    use fv_control_mod, only: comm_timer, dyn_timer
-   use fv_mp_mod,      only: gid
-   use fv_grid_tools_mod, only: grid_type
-   use FV_StateMod, only : DynTracers      => T_TRACERS,             &
+   !use fv_grid_tools_mod, only: grid_type
+   use FV_StateMod, only : FV_Atm,                                   &
+                           FV_To_State, State_To_FV, DEBUG_FV_STATE, &
+                           DynTracers      => T_TRACERS,             &
                            DynVars         => T_FVDYCORE_VARS,       &
                            DynGrid         => T_FVDYCORE_GRID,       &
                            DynState        => T_FVDYCORE_STATE,      &
@@ -55,8 +54,11 @@
                            DYN_DEBUG       => DEBUG,                 &
                            HYDROSTATIC     => FV_HYDROSTATIC,        &
                            ADIABATIC, SW_DYNAMICS, AdvCore_Advection
-   use FV_Mapz_Mod, only : ana_remap
    use m_topo_remap, only: dyn_topo_remap
+   use MAPL_GridManagerMod
+   use MAPL_RegridderManagerMod
+   use MAPL_AbstractRegridderMod
+   use MAPL_RegridderSpecMod
 
 ! !PUBLIC MEMBER FUNCTIONS:
 
@@ -1581,6 +1583,14 @@ contains
      VERIFY_(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
+         SHORT_NAME = 'VORT500',                                   &
+         LONG_NAME  = 'vorticity_at_500_hPa',                      &
+         UNITS      = 's-1',                                       &
+         DIMS       = MAPL_DimsHorzOnly,                           &
+         VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
+     VERIFY_(STATUS)
+
+    call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'VORT200',                                   &
          LONG_NAME  = 'vorticity_at_200_hPa',                      &
          UNITS      = 's-1',                                       &
@@ -1607,6 +1617,14 @@ contains
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'DIVG700',                                   &
          LONG_NAME  = 'divergence_at_700_hPa',                     &
+         UNITS      = 's-1',                                       &
+         DIMS       = MAPL_DimsHorzOnly,                           &
+         VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
+     VERIFY_(STATUS)
+
+    call MAPL_AddExportSpec ( gc,                             &
+         SHORT_NAME = 'DIVG500',                                   &
+         LONG_NAME  = 'divergence_at_500_hPa',                     &
          UNITS      = 's-1',                                       &
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
@@ -2039,6 +2057,92 @@ contains
        VLOCATION          = MAPL_VLocationNone,          RC=STATUS )
     VERIFY_(STATUS)
 
+!-srf-gf-scheme
+    call MAPL_AddExportSpec(GC,                                                    &
+         SHORT_NAME = 'DYNF_Q',                                                    &
+         LONG_NAME  = 'dynamics_forcing_to_convection_for_specific_humidity',      &
+         UNITS      = 'kg kg-1 s-1',                                               &
+         DIMS       =  MAPL_DimsHorzVert,                                          &
+         VLOCATION  =  MAPL_VLocationCenter,                                       &
+         RC=STATUS  )
+    VERIFY_(STATUS)
+
+    call MAPL_AddExportSpec(GC,                                                    &
+         SHORT_NAME = 'DYNF_T',                                                    &
+         LONG_NAME  = 'dynamics_forcing_to_convection_for_air_temperature',        &
+         UNITS      = 'K s-1',                                                     &
+         DIMS       =  MAPL_DimsHorzVert,                                          &
+         VLOCATION  =  MAPL_VLocationCenter,                                       &
+         RC=STATUS  )
+    VERIFY_(STATUS)
+
+    call MAPL_AddExportSpec(GC,                                                    &
+         SHORT_NAME = 'DYNF_PLE',                                                  &
+        LONG_NAME  = 'dynamics_forcing_to_convection_for_pressure',               &
+         UNITS      = 'Pa s-1',                                                    &
+         DIMS       =  MAPL_DimsHorzVert,                                          &
+         VLOCATION  =  MAPL_VLocationEdge,                                         &
+         RC=STATUS  )
+    VERIFY_(STATUS)
+
+    call MAPL_AddExportSpec(GC,                                                    &
+         SHORT_NAME = 'DYNF_UA',                                                    &
+         LONG_NAME  = 'dynamics_forcing_to_convection_for_eastward_wind_Agrid',        &
+         UNITS      = 'm s-2',                                                     &
+         DIMS       =  MAPL_DimsHorzVert,                                          &
+         VLOCATION  =  MAPL_VLocationCenter,                                       &
+         RC=STATUS  )
+    VERIFY_(STATUS)
+
+    call MAPL_AddExportSpec(GC,                                                    &
+         SHORT_NAME = 'DYNF_VA',                                                    &
+         LONG_NAME  = 'dynamics_forcing_to_convection_for_norhtward_wind_Agrid',        &
+         UNITS      = 'm s-2',                                                     &
+         DIMS       =  MAPL_DimsHorzVert,                                          &
+         VLOCATION  =  MAPL_VLocationCenter,                                       &
+         RC=STATUS  )
+    VERIFY_(STATUS)
+!    call MAPL_AddExportSpec ( gc,                                  &
+!         SHORT_NAME = 'T_N',                                       &
+!         LONG_NAME  = 'air_temperature at begin of time step',     &
+!         UNITS      = 'K',                                         &
+!         DIMS       = MAPL_DimsHorzVert,                           &
+!         VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
+!     VERIFY_(STATUS)
+     call MAPL_AddExportSpec ( gc,                                 &
+         SHORT_NAME = 'Q_N',                                       &
+         LONG_NAME  = 'spec_humidity_at_begin_of_time_step',       &
+         UNITS      = 'kg kg-1',                                   &
+         DIMS       = MAPL_DimsHorzVert,                           &
+         VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
+     VERIFY_(STATUS)
+!     call MAPL_AddExportSpec ( gc,                                 &
+!         SHORT_NAME = 'PLE_N',                                     &
+!         LONG_NAME  = 'edge_pressure at begin of time step',       &
+!         UNITS      = 'Pa',                                        &
+!         DIMS       = MAPL_DimsHorzVert,                           &
+!         VLOCATION  = MAPL_VLocationEdge,               RC=STATUS  )
+!     VERIFY_(STATUS)
+!     call MAPL_AddExportSpec ( gc,                                 &
+!         SHORT_NAME = 'U_N',                                       &
+!         LONG_NAME  = 'eastward_wind at begin of time step',       &
+!         UNITS      = 'm s-1',                                     &
+!         DIMS       = MAPL_DimsHorzVert,                           &
+!         FIELD_TYPE = MAPL_VectorField,                            &
+!         VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
+!     VERIFY_(STATUS)
+
+!    call MAPL_AddExportSpec ( gc,                                  &
+!         SHORT_NAME = 'V_N',                                       &
+!         LONG_NAME  = 'northward_wind at begin of time step',      &
+!         UNITS      = 'm s-1',                                     &
+!         DIMS       = MAPL_DimsHorzVert,                           &
+!         FIELD_TYPE = MAPL_VectorField,                            &
+!         VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
+!     VERIFY_(STATUS)
+!-srf-gf-scheme
+
+
 ! !INTERNAL STATE:
 
 !ALT: technically the first 2 records of "old" style FV restart have 
@@ -2149,6 +2253,8 @@ contains
     VERIFY_(STATUS)
     call MAPL_TimerAdd(GC,    name="-DYN_CORE"     ,RC=STATUS)
     VERIFY_(STATUS)
+    call MAPL_TimerAdd(GC,    name="--MASS_FIX"     ,RC=STATUS)
+    VERIFY_(STATUS)
     call MAPL_TimerAdd(GC,    name="FINALIZE"    ,RC=STATUS)
     VERIFY_(STATUS)
 
@@ -2182,7 +2288,12 @@ contains
         call MAPL_GridCreate(GC, rc=status) 
         VERIFY_(STATUS)
     endif
- 
+
+! Register prototype of cubed sphere grid and associated regridders
+!------------------------------------------------------------------
+    call register_grid_and_regridders()
+
+
 ! Generic SetServices
 !--------------------
 
@@ -2512,8 +2623,8 @@ subroutine Run(gc, import, export, clock, rc)
     type (ESMF_Grid)                                 :: ANAgrid
     type (ESMF_Time)                                 :: currentTime
     type (ESMF_Time)                                 :: RefTime
-    type (MAPL_HorzTransform)                        :: L2C
-    type (MAPL_HorzTransform)                        :: C2L
+    class (AbstractRegridder), pointer :: L2C
+    class (AbstractRegridder), pointer :: C2L
 
     type (MAPL_MetaComp), pointer :: mapl 
 
@@ -2558,13 +2669,14 @@ subroutine Run(gc, import, export, clock, rc)
     real(r8), allocatable ::     zl(:,:,:) ! temporary array
     real(r8), allocatable ::    zle(:,:,:) ! temporary array
     real(r8), allocatable ::   delp(:,:,:) ! temporary array
+    real(r8), allocatable ::delpold(:,:,:) ! temporary array
     real(r8), allocatable ::   dudt(:,:,:) ! temporary array
     real(r8), allocatable ::   dvdt(:,:,:) ! temporary array
     real(r8), allocatable ::   dtdt(:,:,:) ! temporary array
     real(r8), allocatable ::   dqdt(:,:,:) ! temporary array
     real(r8), allocatable ::  dthdt(:,:,:) ! temporary array
     real(r8), allocatable ::  ddpdt(:,:,:) ! temporary array
-    real(r8), allocatable :: tmp3d (:,:,:) ! temporary array
+    real(FVPRC), allocatable :: tmp3d (:,:,:) ! temporary array
     real(r8), allocatable ::     dmdt(:,:) ! temporary array
     real(r8), allocatable ::   tmp2d (:,:) ! temporary array
     real(r8), allocatable ::    gze(:,:,:) ! temporary array
@@ -2573,7 +2685,7 @@ subroutine Run(gc, import, export, clock, rc)
     real(r8), allocatable, target :: cpt   (:,:,:) ! Internal   Energy
     real(r8), allocatable, target :: phi   (:,:,:) ! Potential  Energy
     real(r8), allocatable :: qsum1 (:,:)   ! Vertically Integrated Variable
-    real(r8), allocatable :: qsum2 (:,:)   ! Vertically Integrated Variable
+    real(r4), allocatable :: qsum2 (:,:)   ! Vertically Integrated Variable
 
     real(r8), allocatable :: phi00 (:,:)   ! Vertically Integrated phi
 
@@ -2643,7 +2755,7 @@ subroutine Run(gc, import, export, clock, rc)
     real(r8), allocatable :: mfyxyz(:,:,:) ! Accumulated northward mass flux
     real(r8), allocatable :: mfzxyz(:,:,:) ! Accumulated vertical mass flux
 
-    real(r8)              :: dt            ! Dynamics time step
+    real(FVPRC)              :: dt            ! Dynamics time step
     real(r8), allocatable :: trsum1(:)     ! Global Sum of Tracers before Add_Incs
     real(r8), allocatable :: trsum2(:)     ! Global Sum of Tracers after  Add_Incs
 
@@ -2661,6 +2773,7 @@ subroutine Run(gc, import, export, clock, rc)
     real(kind=4), pointer ::      doxana (:,:,:)
     real(kind=4), pointer ::       temp3d(:,:,:)
     real(kind=4), pointer ::       vtmp3d(:,:,:)
+    real(kind=4), pointer ::         area(:,:)
     real(kind=4), pointer ::       temp2d(:,:)
     real(kind=4), pointer ::       tempu (:,:)
     real(kind=4), pointer ::       tempv (:,:)
@@ -2673,7 +2786,7 @@ subroutine Run(gc, import, export, clock, rc)
     real(r8),     allocatable ::   vdtmp(:,:,:)
 
     character(len=ESMF_MAXSTR), ALLOCATABLE       :: NAMES (:)
-    character(len=ESMF_MAXSTR), ALLOCATABLE, save :: NAMES0(:)
+    character(len=ESMF_MAXSTR), ALLOCATABLE       :: NAMES0(:)
     character(len=ESMF_MAXSTR) :: IAm
     character(len=ESMF_MAXSTR) :: COMP_NAME
     character(len=ESMF_MAXSTR) :: STRING
@@ -2703,6 +2816,23 @@ subroutine Run(gc, import, export, clock, rc)
     integer  CONSV,  FILL
     integer nx_ana, ny_ana
 
+    type(ESMF_FieldBundle), save        :: bundleAdv
+    logical, save                       :: firstime=.true.
+    integer, save                       :: nq_saved = 0
+    logical                             :: adjustTracers
+    type(ESMF_Alarm)                    :: predictorAlarm
+    type(ESMF_Grid)                     :: bgrid
+    integer                             :: j
+    integer                             :: nqt
+    logical                             :: tend
+    logical                             :: found
+    character(len=ESMF_MAXSTR)          :: tmpstring
+    character(len=ESMF_MAXSTR)          :: fieldname
+    character(len=ESMF_MAXSTR)          :: adjustTracerMode
+    character(len=ESMF_MAXSTR), allocatable :: xlist(:)
+    character(len=ESMF_MAXSTR), allocatable :: biggerlist(:)
+    integer, parameter                  :: XLIST_MAX = 32
+    
   Iam = "Run"
   call ESMF_GridCompGet( GC, name=COMP_NAME, CONFIG=CF, grid=ESMFGRID, RC=STATUS )
   VERIFY_(STATUS)
@@ -2758,6 +2888,7 @@ subroutine Run(gc, import, export, clock, rc)
 ! ---------------
       ALLOCATE(  dummy(ifirstxy:ilastxy,jfirstxy:jlastxy,km) )
       ALLOCATE(   delp(ifirstxy:ilastxy,jfirstxy:jlastxy,km) )
+      ALLOCATE(delpold(ifirstxy:ilastxy,jfirstxy:jlastxy,km) )
       ALLOCATE(   dudt(ifirstxy:ilastxy,jfirstxy:jlastxy,km) )
       ALLOCATE(   dvdt(ifirstxy:ilastxy,jfirstxy:jlastxy,km) )
       ALLOCATE(   dtdt(ifirstxy:ilastxy,jfirstxy:jlastxy,km) )
@@ -2870,23 +3001,121 @@ subroutine Run(gc, import, export, clock, rc)
 
       call ESMF_StateGet ( IMPORT, 'TRADV' , BUNDLE,   RC=STATUS )
       VERIFY_(STATUS)
+
+      !-------------------------------------------------------------------
+      ! ALT: this section attempts to limit the amount of advected tracers
+      !-------------------------------------------------------------------
+      adjustTracers = .false.
+      call MAPL_GetResource ( MAPL, adjustTracerMode, &
+           'EXCLUDE_ADVECTION_TRACERS:', &
+           default='PREDICTOR', rc=status )
+      VERIFY_(STATUS)
+      if (adjustTracerMode == 'ALWAYS') then
+         adjustTracers = .true.
+      else if (adjustTracerMode == 'PREDICTOR') then
+         !get PredictorAlarm from clock
+         call ESMF_ClockGetAlarm(clock, alarmName='PredictorAlarm', &
+              alarm=PredictorAlarm, rc=status)
+         if (status == ESMF_SUCCESS) then
+            !check if ringing
+            if (ESMF_AlarmIsRinging(predictorAlarm)) then
+               adjustTracers = .true.
+            end if
+         end if
+      else
+         call WRITE_PARALLEL('Invalid option, ignored')
+         adjustTracers = .false.
+      end if
+      if (adjustTracers) then
+         if (firstime) then
+            firstime=.false.
+            ! get the list of excluded tracers from resource
+            n = 0
+            call ESMF_ConfigFindLabel ( CF,'EXCLUDE_ADVECTION_TRACERS_LIST:',rc=STATUS )
+            if(STATUS==ESMF_SUCCESS) then
+
+               tend  = .false.
+               allocate(xlist(XLIST_MAX), stat=status)
+               VERIFY_(STATUS)
+               do while (.not.tend)
+                  call ESMF_ConfigGetAttribute (CF,value=tmpstring,default='',rc=STATUS) !ALT: we don't check return status!!!
+                  if (tmpstring /= '')  then
+                     n = n + 1
+                     if (n > size(xlist)) then
+                        allocate( biggerlist(2*n), stat=status )
+                        VERIFY_(STATUS)
+                        biggerlist(1:n-1)=xlist
+                        call move_alloc(from=biggerlist, to=xlist)
+                     end if
+                     xlist(n) = tmpstring
+                  end if
+                  call ESMF_ConfigNextLine(CF,tableEnd=tend,rc=STATUS )
+                  VERIFY_(STATUS)
+               enddo
+            end if
+
+            ! Count the number of tracers
+            !---------------------
+            call ESMF_FieldBundleGet(BUNDLE, grid=bgrid,fieldCount=nqt,  RC=STATUS)
+            VERIFY_(STATUS)
+            BundleAdv = ESMF_FieldBundleCreate ( name='xTRADV', rc=STATUS )
+            VERIFY_(STATUS)
+            call ESMF_FieldBundleSet ( BundleAdv, grid=bgrid, rc=STATUS )
+            VERIFY_(STATUS)
+            !loop over NQ in TRADV
+            do i = 1, nqt
+               !get field from TRADV and its name
+               call ESMF_FieldBundleGet(bundle, fieldIndex=i, field=field, rc=status)
+               VERIFY_(STATUS)
+               call ESMF_FieldGet(FIELD, name=fieldname, RC=STATUS)
+               VERIFY_(STATUS)
+               
+               found = .false.
+               !loop over exclude_list
+               do j = 1, n
+                  if (fieldname == xlist(j)) then
+                     found = .true.
+                     exit
+                  end if
+               end do
+               if (.not. found) then
+                  call MAPL_FieldBundleAdd(BundleAdv, FIELD, RC=STATUS)
+                  VERIFY_(STATUS)
+               end if
+            end do
+
+            call ESMF_FieldBundleRemove(BUNDLE, fieldNameList=xlist, &
+                 relaxedFlag=.true., rc=status)
+            VERIFY_(STATUS)
+            if (allocated(xlist)) deallocate(xlist)
+         end if ! firstime
+!         BUNDLE = bundleAdv
+      end if ! adjustTracers
+
+
       call ESMF_FieldBundleGet ( BUNDLE, fieldCount=NQ, RC=STATUS )
       VERIFY_(STATUS)
+
+
 
     if (NQ > 0) then
       allocate( NAMES(NQ),STAT=STATUS )
       VERIFY_(STATUS)
-      call ESMF_FieldBundleGet ( BUNDLE, fieldNameList=NAMES, rc=STATUS )
+      call ESMF_FieldBundleGet ( BUNDLE, itemorderflag=ESMF_ITEMORDER_ADDORDER, fieldNameList=NAMES, rc=STATUS )
       VERIFY_(STATUS)
+
+      if (NQ /= NQ_SAVED) then
+         NQ_SAVED = NQ
+         write(STRING,'(A,I5,A)') "Advecting the following ", nq, " tracers in FV:"
+         call WRITE_PARALLEL( trim(STRING)   )
+         do k=1,nq
+            call WRITE_PARALLEL( trim(NAMES(K)) )
+         end do
+      end if
 
       if( .not.allocated( names0 ) ) then
            allocate( NAMES0(NQ),STAT=STATUS )
            VERIFY_(STATUS)
-           write(STRING,'(A,I5,A)') "Advecting the following ", nq, " tracers in FV:"
-              call WRITE_PARALLEL( trim(STRING)   )
-           do k=1,nq
-              call WRITE_PARALLEL( trim(NAMES(K)) )
-           end do
            NAMES0 = NAMES
       endif
 
@@ -2915,6 +3144,14 @@ subroutine Run(gc, import, export, clock, rc)
 !---------------------------------------------------------------------
 
       call PULL_Q ( STATE, IMPORT, qqq, NXQ, RC=rc )
+!      if (adjustTracers) then
+!         call PULL_Q ( STATE, IMPORT, qqq, NXQ, bAdv=bundleAdv, RC=rc )
+!      else
+!         call PULL_Q ( STATE, IMPORT, qqq, NXQ, RC=rc )
+!      end if
+      !-----------------------------
+      ! end of fewer_tracers-section
+      !-----------------------------
 
       do k=1,size(names)
          if    (names(k)=='OX') then
@@ -3006,13 +3243,15 @@ subroutine Run(gc, import, export, clock, rc)
             VERIFY_(STATUS)
 
             ! create lat-lon grid to hold input-replay field before L2C
-            ANAgrid = MAPL_LatLonGridCreate (Name='ANAgrid',      &
-                                             Nx = nx_ana, Ny = ny_ana, &
-                                             IM_World = IM_REPLAY,&
-                                             JM_World = JM_REPLAY,&
-                                             LM_World = km,       &
-                                             RC=STATUS )
-            VERIFY_(STATUS)
+            block
+              use MAPL_LatLonGridFactoryMod
+
+              ANAgrid = grid_manager%make_grid( &
+                   & LatLonGridFactory(im_world=IM_REPLAY, jm_world=JM_REPLAY, lm=km, &
+                   & nx=nx_ana, ny=ny_ana, rc=status))
+              VERIFY_(STATUS)
+            end block
+            
 
             ANA_Bundle = ESMF_FieldBundleCreate( RC=STATUS)
             VERIFY_(STATUS)
@@ -3024,7 +3263,7 @@ subroutine Run(gc, import, export, clock, rc)
 
 !           Create transform from lat-lon to cubed
 !           --------------------------------------
-            call MAPL_HorzTransformCreate(L2C, ANAGrid, ESMFGRID, RC=STATUS )
+            l2c => regridder_manager%make_regridder(ANAGrid, ESMFGRID, REGRID_METHOD_BILINEAR, RC=STATUS)
             VERIFY_(STATUS)
 
 !           Fill the state variables from the bundle only if
@@ -3047,9 +3286,6 @@ subroutine Run(gc, import, export, clock, rc)
 
 !           Done with replay; clean-up
 !           --------------------------
-
-            call MAPL_HorzTransformDestroy(L2C, RC=STATUS )
-            VERIFY_(STATUS)
 
             call ESMF_FieldBundleGet(ANA_Bundle , FieldCount=NUMVARS,      RC=STATUS)
             VERIFY_(STATUS)
@@ -3142,12 +3378,8 @@ subroutine Run(gc, import, export, clock, rc)
       QLOLD = QL-DQLANA
       QIOLD = QI-DQIANA
 
-      QDOLD = 1.0 - (QVOLD+QLOLD+QIOLD)
-      QDNEW = 1.0 - (QV   +QL   +QI   )
-
-! Get A-grid winds
-! ----------------
-
+!! Get A-grid winds
+!! ----------------
       call getAgridWinds(vars%u, vars%v, ua, va, rotate=.true.)
 
       delp   = vars%pe(:,:,2:)  -vars%pe(:,:,:km)   ! Pressure Thickness
@@ -3265,27 +3497,63 @@ subroutine Run(gc, import, export, clock, rc)
 ! Add Diabatic Forcing from Analysis to State Variables
 ! -----------------------------------------------------
 
-      call MAPL_GetPointer(export, temp2d, 'AREA', rc=status)
+      QDOLD = 1.0 - (QVOLD+QLOLD+QIOLD)
+      QDNEW = 1.0 - (QV   +QL   +QI   )
+
+      call MAPL_GetPointer(export, area, 'AREA', rc=status)
       VERIFY_(STATUS)
 
       allocate( trsum1(nq) )
       allocate( trsum2(nq) )
 
-      ! Compute Global Mass of Aerosol Constituents Before ANA Updates
-      ! --------------------------------------------------------------
-      call glosum   ( STATE,TEMP2D,ESMFGRID,NQ,TRSUM1 )
-
-      call MAPL_GetResource(MAPL, ANA_IS_WEIGHTED, Label="ANA_IS_WEIGHTED:", default='YES', RC=STATUS)
+      call MAPL_GetResource(MAPL, ANA_IS_WEIGHTED, Label="ANA_IS_WEIGHTED:", default='NO', RC=STATUS)
       VERIFY_(STATUS)
            ANA_IS_WEIGHTED = uppercase(ANA_IS_WEIGHTED)
                IS_WEIGHTED =   adjustl(ANA_IS_WEIGHTED)=="YES" .or. adjustl(ANA_IS_WEIGHTED)=="NO"
       ASSERT_( IS_WEIGHTED )
                IS_WEIGHTED =   adjustl(ANA_IS_WEIGHTED)=="YES"
 
+      ! Add Analysis Tendencies
+      ! -----------------------
+      delpold = delp                            ! Old Pressure Thickness
+
       call ADD_INCS ( STATE,IMPORT,DT,IS_WEIGHTED=IS_WEIGHTED )
+
+      if (DYN_DEBUG) call DEBUG_FV_STATE('ANA ADD_INCS',STATE)
+
+      delp = vars%pe(:,:,2:)-vars%pe(:,:,:km)   ! Updated Pressure Thickness
+
+      ! Compute Old Global Sums of Tracers over Locations where Mass has changed
+      ! ------------------------------------------------------------------------
+      if ((.not. ADIABATIC)) then
+      do n=1,NQ
+             qsum1(:,:) = 0.0_r8
+         if( STATE%VARS%TRACER(N)%IS_R4 ) then
+             do k=1,km
+             where( delp(:,:,k).ne.delpold(:,:,k) )
+                   qsum1(:,:) = qsum1(:,:) + state%vars%tracer(n)%content_r4(:,:,k)*delpold(:,:,k)
+             end where
+             enddo
+         else
+             do k=1,km
+             where( delp(:,:,k).ne.delpold(:,:,k) )
+                   qsum1(:,:) = qsum1(:,:) + state%vars%tracer(n)%content   (:,:,k)*delpold(:,:,k)
+             end where
+             enddo
+         endif
+         where( qsum1.ne.0.0_r8 )
+                qsum2 = qsum1
+         elsewhere
+                qsum2 = MAPL_UNDEF
+         end where
+         call MAPL_AreaMean( TRSUM1(n), qsum2, area, esmfgrid, rc=STATUS )
+         VERIFY_(STATUS)
+      enddo
+      endif
 
       ! Update Specific Mass of Aerosol Constituents Keeping Mixing_Ratio Constant WRT_Dry_Air After ANA Updates
       ! --------------------------------------------------------------------------------------------------------
+      if ((.not. ADIABATIC)) then
       do n=1,NQ
       if( (trim(names(n)).ne.'Q'   ) .and. &
           (trim(names(n)).ne.'QLLS') .and. &
@@ -3301,13 +3569,39 @@ subroutine Run(gc, import, export, clock, rc)
            endif
       endif
       enddo
+      endif
 
-      ! Compute Global Mass of Aerosol Constituents After ANA Updates
-      ! -------------------------------------------------------------
-      call glosum   ( STATE,TEMP2D,ESMFGRID,NQ,TRSUM2 )
+      ! Compute New Global Sums of Tracers over Locations where Mass has changed
+      ! ------------------------------------------------------------------------
+      if ((.not. ADIABATIC)) then
+      do n=1,NQ
+             qsum1(:,:) = 0.0_r8
+         if( STATE%VARS%TRACER(N)%IS_R4 ) then
+             do k=1,km
+             where( delp(:,:,k).ne.delpold(:,:,k) )
+                   qsum1(:,:) = qsum1(:,:) + state%vars%tracer(n)%content_r4(:,:,k)*delp(:,:,k)
+             end where
+             enddo
+         else
+             do k=1,km
+             where( delp(:,:,k).ne.delpold(:,:,k) )
+                   qsum1(:,:) = qsum1(:,:) + state%vars%tracer(n)%content   (:,:,k)*delp(:,:,k)
+             end where
+             enddo
+         endif
+         where( qsum1.ne.0.0_r8 )
+                qsum2 = qsum1
+         elsewhere
+                qsum2 = MAPL_UNDEF
+         end where
+         call MAPL_AreaMean( TRSUM2(n), qsum2, area, esmfgrid, rc=STATUS )
+         VERIFY_(STATUS)
+      enddo
+      endif
 
       ! Ensure Conservation of Global Mass of Aerosol Constituents After ANA Updates
       ! ----------------------------------------------------------------------------
+      if ((.not. ADIABATIC)) then
       do n=1,NQ
       if( (trim(names(n)).ne.'Q'   ) .and. &
           (trim(names(n)).ne.'QLLS') .and. &
@@ -3317,20 +3611,30 @@ subroutine Run(gc, import, export, clock, rc)
           (trim(names(n)).ne.'CLLS') .and. &
           (trim(names(n)).ne.'CLCN')       ) then
 
-           if( trsum2(n).ne.0.0d0 ) then
-               trsum2(n) = trsum1(n)/trsum2(n)
+           if( real(trsum1(n),kind=4).ne.MAPL_UNDEF .and. &
+               real(trsum2(n),kind=4).ne.MAPL_UNDEF       ) then
+                    trsum2(n) = real( trsum1(n)/trsum2(n),kind=4)
            else
-               trsum2(n) = 1.0d0
+                    trsum2(n) = 1.0d0
            endif
-          !IF (MAPL_AM_I_ROOT()) print *, trim(names(n)),' ratio is: ',trsum2(n)
+         ! IF (MAPL_AM_I_ROOT()) print *, trim(names(n)),' ratio is: ',trsum2(n)
 
            if( STATE%VARS%TRACER(N)%IS_R4 ) then
-               state%vars%tracer(n)%content_r4 = state%vars%tracer(n)%content_r4 * trsum2(n)
+               do k=1,km
+                  where( delp(:,:,k).ne.delpold(:,:,k) )
+                         state%vars%tracer(n)%content_r4(:,:,k) = state%vars%tracer(n)%content_r4(:,:,k) * trsum2(n)
+                  end where
+               enddo
            else
-               state%vars%tracer(n)%content    = state%vars%tracer(n)%content    * trsum2(n)
+               do k=1,km
+                  where( delp(:,:,k).ne.delpold(:,:,k) )
+                         state%vars%tracer(n)%content   (:,:,k) = state%vars%tracer(n)%content   (:,:,k) * trsum2(n)
+                  end where
+               enddo
            endif
       endif
       enddo
+      endif
 
       deallocate( trsum1 )
       deallocate( trsum2 )
@@ -3364,7 +3668,6 @@ subroutine Run(gc, import, export, clock, rc)
 
       call getAgridWinds(vars%u, vars%v, ua, va, rotate=.true.)
 
-      delp = vars%pe(:,:,2:)  -vars%pe(:,:,:km)   ! Pressure Thickness
       dmdt = vars%pe(:,:,km+1)-vars%pe(:,:,1)     ! Psurf-Ptop
 
 ! DUDTANA
@@ -3492,12 +3795,12 @@ subroutine Run(gc, import, export, clock, rc)
 ! Initialize Diagnostic Dynamics Tendencies
 ! -----------------------------------------
 
-      ddpdt  =   delp       ! Pressure Thickness Tendency
+      ddpdt  =    delp       ! Pressure Thickness Tendency
       dudt   =     ua       ! U-Wind on A-Grid   Tendency
       dvdt   =     va       ! V-Wind on A-Grid   Tendency
       dtdt   = tempxy       ! Dry Temperature    Tendency
-      dqdt   =     qv       ! Specific Humidity  Tendency
-      dthdt  = vars%pt*(1.0+eps*qv)*delp
+      dqdt   =      qv       ! Specific Humidity  Tendency
+      dthdt  =  vars%pt*(1.0+eps*qv)*delp
 
 ! Initialize 3-D Tracer Dynamics Tendencies
 ! -----------------------------------------
@@ -3696,7 +3999,7 @@ subroutine Run(gc, import, export, clock, rc)
 !-------------------------------------------------------
 
       call MAPL_TimerOn(MAPL,"-DYN_CORE")
-      call DynRun (STATE, CLOCK, RC=STATUS)
+      call DynRun (STATE, CLOCK, GC, RC=STATUS)
       VERIFY_(STATUS)
       call MAPL_TimerOff(MAPL,"-DYN_CORE")
 
@@ -3775,7 +4078,7 @@ subroutine Run(gc, import, export, clock, rc)
 ! Compute absolute vorticity on the D grid
 ! -------------------------------------------------
       call getVorticity(vars%u, vars%v, tmp3d)
-      call getEPV(vars%pt,tmp3d,epvxyz)
+      call getEPV(vars%pt,tmp3d,ua,va,epvxyz)
       call MAPL_GetPointer(export, temp3D, 'EPV', rc=status)
       VERIFY_(STATUS)
       if(associated(temp3d)) temp3d = epvxyz*(p00**kappa)
@@ -3833,8 +4136,8 @@ subroutine Run(gc, import, export, clock, rc)
 
       dudt = (    ua-dudt )/dt
       dvdt = (    va-dvdt )/dt
-      dtdt = (tempxy-dtdt )/dt
-      dqdt = (    qv-dqdt )/dt
+      dtdt = (  tempxy-dtdt )/dt
+      dqdt = (      qv-dqdt )/dt
 
       ddpdt = ( delp - ddpdt )/dt ! Pressure Thickness Tendency
 
@@ -4349,21 +4652,28 @@ subroutine Run(gc, import, export, clock, rc)
       call MAPL_GetPointer(export,temp2d,'DIVG200',  rc=status)
       VERIFY_(STATUS)
       if(associated(temp2d)) then
-         call VertInterp(temp2d,tmp3d,zle,log(20000.)  ,  status)
+         call VertInterp(temp2d,dble(tmp3d),zle,log(20000.)  ,  status)
+         VERIFY_(STATUS)
+      end if
+
+      call MAPL_GetPointer(export,temp2d,'DIVG500',  rc=status)
+      VERIFY_(STATUS)
+      if(associated(temp2d)) then
+         call VertInterp(temp2d,dble(tmp3d),zle,log(50000.)  ,  status)
          VERIFY_(STATUS)
       end if
 
       call MAPL_GetPointer(export,temp2d,'DIVG700',  rc=status)
       VERIFY_(STATUS)
       if(associated(temp2d)) then
-         call VertInterp(temp2d,tmp3d,zle,log(70000.)  ,  status)
+         call VertInterp(temp2d,dble(tmp3d),zle,log(70000.)  ,  status)
          VERIFY_(STATUS)
       end if
 
       call MAPL_GetPointer(export,temp2d,'DIVG850',  rc=status)
       VERIFY_(STATUS)
       if(associated(temp2d)) then
-         call VertInterp(temp2d,tmp3d,zle,log(85000.)  ,  status)
+         call VertInterp(temp2d,dble(tmp3d),zle,log(85000.)  ,  status)
          VERIFY_(STATUS)
        end if
 
@@ -4378,21 +4688,28 @@ subroutine Run(gc, import, export, clock, rc)
       call MAPL_GetPointer(export,temp2d,'VORT200',  rc=status)
       VERIFY_(STATUS)
       if(associated(temp2d)) then
-         call VertInterp(temp2d,tmp3d,zle,log(20000.)  ,  status)
+         call VertInterp(temp2d,dble(tmp3d),zle,log(20000.)  ,  status)
+         VERIFY_(STATUS)
+      end if
+
+      call MAPL_GetPointer(export,temp2d,'VORT500',  rc=status)
+      VERIFY_(STATUS)
+      if(associated(temp2d)) then
+         call VertInterp(temp2d,dble(tmp3d),zle,log(50000.)  ,  status)
          VERIFY_(STATUS)
       end if
  
       call MAPL_GetPointer(export,temp2d,'VORT700',  rc=status)
       VERIFY_(STATUS)
       if(associated(temp2d)) then
-         call VertInterp(temp2d,tmp3d,zle,log(70000.)  ,  status)
+         call VertInterp(temp2d,dble(tmp3d),zle,log(70000.)  ,  status)
          VERIFY_(STATUS)
       end if
 
       call MAPL_GetPointer(export,temp2d,'VORT850',  rc=status)
       VERIFY_(STATUS)
       if(associated(temp2d)) then
-         call VertInterp(temp2d,tmp3d,zle,log(85000.)  ,  status)
+         call VertInterp(temp2d,dble(tmp3d),zle,log(85000.)  ,  status)
          VERIFY_(STATUS)
        end if
 
@@ -4564,6 +4881,7 @@ subroutine Run(gc, import, export, clock, rc)
       DEALLOCATE( qiold  )
       DEALLOCATE( ox     )
       DEALLOCATE( delp   )
+      DEALLOCATE( delpold)
       DEALLOCATE( dmdt   )
       DEALLOCATE( dudt   )
       DEALLOCATE( dvdt   )
@@ -4573,6 +4891,7 @@ subroutine Run(gc, import, export, clock, rc)
       DEALLOCATE( ddpdt  )
       DEALLOCATE( phisxy )
       if (allocated(names)) DEALLOCATE( names  )
+      if (allocated(names0)) DEALLOCATE( names0  )
       DEALLOCATE( phi00  )
 
       call freeTracers(state)
@@ -4588,64 +4907,6 @@ subroutine Run(gc, import, export, clock, rc)
   RETURN_(ESMF_SUCCESS)
 
 contains
-
-subroutine glosum (STATE,AREA,GRID,NQ,QG)
-
-      type(DynState),  intent(IN)    :: STATE
-      real, pointer,   intent(IN)    :: AREA(:,:)
-      integer,         intent(IN)    :: NQ
-      real(r8),        intent(OUT)   :: QG(NQ)
-      type(ESMF_Grid), intent(INOUT) :: GRID 
-
-      character(len=ESMF_MAXSTR) :: IAm
-      integer   :: im,jm,km
-      integer   :: k,n
-      integer   :: RC,STATUS
-
-      real (r8), allocatable ::    dp(:,:,:)
-      real (r8), allocatable :: qsum1(:,:)
-      real     , allocatable :: qsum2(:,:)
-
-      im = size( state%vars%pe,1 )
-      jm = size( state%vars%pe,2 )
-      km = size( state%vars%pe,3 )-1
-
-      allocate(    dp(im,jm,km) )
-      allocate( qsum1(im,jm)    )
-      allocate( qsum2(im,jm)    )
-
-! Compute Pressure Thickness
-! --------------------------
-      do k=1,km
-         dp(:,:,k) = state%vars%pe(:,:,k+1)-state%vars%pe(:,:,k)
-      enddo
-
-! Loop over Tracers
-! -----------------
-  do n=1,NQ
-         qsum1(:,:) = 0.0_r8
-     if( STATE%VARS%TRACER(N)%IS_R4 ) then
-         do k=1,km
-         qsum1(:,:) = qsum1(:,:) + state%vars%tracer(n)%content_r4(:,:,k)*dp(:,:,k)
-         enddo
-     else
-         do k=1,km
-         qsum1(:,:) = qsum1(:,:) + state%vars%tracer(n)%content   (:,:,k)*dp(:,:,k)
-         enddo
-     endif
-     qsum2 = qsum1
-     call MAPL_AreaMean( qg(n), qsum2, area, grid, rc=STATUS )
-     VERIFY_(STATUS)
-    !IF (MAPL_AM_I_ROOT()) then
-    !    print *, 'The global sum for Tracer ',n,' is: ',qg(n)
-    !ENDIF
-  enddo
-
-  deallocate( dp )
-  deallocate( qsum1 )
-  deallocate( qsum2 )
-
-end subroutine glosum
 
 subroutine check_replay_time_(lring)
 
@@ -4784,14 +5045,13 @@ subroutine dump_n_splash_
           allocate(cubeVTMP3D(grid%is:grid%ie,grid%js:grid%je,km) )
 #ifdef SCALAR_WINDS
           call WRITE_PARALLEL('Replaying winds as scalars')
-          call MAPL_HorzTransformRun (L2C, XTMP3d, cubeTEMP3D, RC=STATUS )
+          call l2c%regrid(XTMP3d, cubeTEMP3D, RC=STATUS )
           VERIFY_(STATUS)
-          call MAPL_HorzTransformRun (L2C, YTMP3D, cubeVTMP3D, RC=STATUS )
+          call l2c%regrid(YTMP3d, cubeVTMP3D, RC=STATUS )
           VERIFY_(STATUS)
 #else
           call WRITE_PARALLEL('Replaying winds')
-          call MAPL_HorzTransformRun(L2C,     XTMP3d,     YTMP3d, &
-                                          cubeTEMP3d, cubeVTMP3d, rotate=.false., RC=STATUS)
+          call l2c%regrid(XTMP3d, YTMP3d, cubeTEMP3d, cubeVTMP3d, rc=status)
 #endif /* SCALAR_WINDS */
           allocate( UAtmp(grid%is:grid%ie  ,grid%js:grid%je  ,km) )
           allocate( VAtmp(grid%is:grid%ie  ,grid%js:grid%je  ,km) )
@@ -4815,22 +5075,18 @@ subroutine dump_n_splash_
           ! get background A-grid winds 
           call getAgridWinds (vars%u,vars%v,ana_u,ana_v,rotate=.true.)
           ! transform background A-grid winds to lat-lon
-          call MAPL_HorzTransformCreate(C2L, ESMFGRID, ANAGrid, RC=STATUS )
+          call regridder_manager%make_regridder(ESMFGRID, ANAGrid, REGRID_METHOD_BILINEAR, RC=STATUS)
           VERIFY_(STATUS)
           cubeTEMP3d = ana_u(grid%is:grid%ie,grid%js:grid%je,1:km) ! copy to satisfy interface below
           cubeVTMP3d = ana_v(grid%is:grid%ie,grid%js:grid%je,1:km) ! copy to satisfy interface below
-          call MAPL_HorzTransformRun(C2L, cubeTEMP3d, cubeVTMP3d, &
-                                             UAtmpR4,    VAtmpR4, rotate=.false., RC=STATUS)
+          call c2l%regrid(cubeTEMP3d, cubeVTMP3d, UAtmpR4,    VAtmpR4, RC=STATUS)
           VERIFY_(STATUS)
-          call MAPL_HorzTransformDestroy(C2L, RC=STATUS )
-          VERIFY_(STATUS) 
           ! calculate unrotated analysis increments of lat-lon U/V-A-grid winds
           UAtmpR4 = XTMP3d-UAtmpR4
           UAtmpR4 = VTMP3d-VAtmpR4
           ! convert the lat-lon A-grid wind increment back to the cubed
           call WRITE_PARALLEL('Replaying winds')
-          call MAPL_HorzTransformRun(L2C,   UAtmpR4,    VAtmpR4, &
-                                         cubeTEMP3d, cubeVTMP3d, rotate=.false., RC=STATUS)
+          call l2c%regrid(UAtmpR4,    VAtmpR4, cubeTEMP3d, cubeVTMP3d, RC=STATUS)
           ! convert cubed wind increment to D-grid
           allocate( UDtmp(grid%is:grid%ie  ,grid%js:grid%je+1,km) )
           allocate( VDtmp(grid%is:grid%ie+1,grid%js:grid%je  ,km) )
@@ -4864,7 +5120,7 @@ subroutine dump_n_splash_
        call WRITE_PARALLEL('Replaying '//trim(dpname))
        if ( iapproach == 1 ) then ! convert lat-lon delp to cubed and proceed
           allocate(cubeTEMP3D(size(vars%pe,1),size(vars%pe,2),km))
-          call MAPL_HorzTransformRun (L2C, XTMP3d, cubeTEMP3D, RC=STATUS )
+          call l2c%regrid(XTMP3d, cubeTEMP3D, RC=STATUS )
           VERIFY_(STATUS)
           ana_dp=cubeTEMP3D
           deallocate(cubeTEMP3D)
@@ -4876,15 +5132,13 @@ subroutine dump_n_splash_
             ! delp on the cube
             cubeTEMP3D(:,:,:) = vars%pe(:,:,2:)-vars%pe(:,:,:km)
             ! transform cubed delp
-            call MAPL_HorzTransformCreate(C2L, ESMFGRID, ANAGrid, RC=STATUS )
+            c2l => regridder_manager%make_regridder(ESMFGRID, ANAGrid, REGRID_METHOD_BILINEAR, RC=STATUS )
             VERIFY_(STATUS)
-            call MAPL_HorzTransformRun (C2L, cubeTEMP3D, aux3d, RC=STATUS )
+            call c2l%regrid(cubeTEMP3D, aux3d, RC=STATUS )
             VERIFY_(STATUS)
-            call MAPL_HorzTransformDestroy(C2L, RC=STATUS )
-            VERIFY_(STATUS) 
             ! calculate delp increment on lat-lon and transform it to cubed
             aux3d = XTMP3d - aux3d
-            call MAPL_HorzTransformRun (L2C, aux3d, cubeTEMP3D, RC=STATUS )
+            call l2c%regrid(aux3d, cubeTEMP3D, RC=STATUS )
             VERIFY_(STATUS)
             ! delp analysis on the cube (careful since want to preserve
             ! precision in delp to the best extent possible)
@@ -4910,21 +5164,19 @@ subroutine dump_n_splash_
           allocate(     aux3D(size(XTMP2d ,1),size(XTMP2d ,2),1))
           if ( iapproach == 1 ) then ! convert lat-lon delp to cubed and proceed
              aux3d(:,:,1)=XTMP2D ! rank-2 interface to HorzT does not work
-             call MAPL_HorzTransformRun (L2C, aux3d, cubeTEMP3D, RC=STATUS )
+             call l2c%regrid(aux3d, cubeTEMP3D, RC=STATUS )
              VERIFY_(STATUS)
           else ! operate on increment to ps
              ! transform cubed delp
              cubeTEMP3D(:,:,1) = vars%pe(:,:,km+1) ! cubed ps
-             call MAPL_HorzTransformCreate(C2L, ESMFGRID, ANAGrid, RC=STATUS )
+             c2l => regridder_manager%make_regridder(ESMFGRID, ANAGrid, REGRID_METHOD_BILINEAR, RC=STATUS )
              VERIFY_(STATUS)
-             call MAPL_HorzTransformRun (C2L, cubeTEMP3D, aux3d, RC=STATUS )
+             call c2l%regrid(cubeTEMP3D, aux3d, RC=STATUS )
              VERIFY_(STATUS)
-             call MAPL_HorzTransformDestroy(C2L, RC=STATUS )
-             VERIFY_(STATUS) 
              ! increment to ps on the lat-lon
              aux3d(:,:,1) = XTMP2D - aux3d(:,:,1)
              ! lat-lon increment to ps converted to the cube
-             call MAPL_HorzTransformRun (L2C, aux3d, cubeTEMP3D, RC=STATUS )
+             call l2c%regrid(aux3d, cubeTEMP3D, RC=STATUS )
              ! ps update on the cube
              cubeTEMP3d(:,:,1) = vars%pe(:,:,km+1) + cubeTEMP3D(:,:,1)
           endif
@@ -4952,7 +5204,7 @@ subroutine dump_n_splash_
        call ESMFL_BundleGetPointertoData(ANA_Bundle,trim(o3name),XTMP3d, RC=STATUS)
        VERIFY_(STATUS)
        allocate(cubeTEMP3D(size(vars%pe,1),size(vars%pe,2),km))
-       call MAPL_HorzTransformRun (L2C, XTMP3d, cubeTEMP3D, RC=STATUS )
+       call l2c%regrid(XTMP3d, cubeTEMP3D, RC=STATUS )
        VERIFY_(STATUS)
 
 !      Ozone needs to be adjusted to OX
@@ -4994,7 +5246,7 @@ subroutine dump_n_splash_
        call ESMFL_BundleGetPointertoData(ANA_Bundle,trim(qname),XTMP3d, RC=STATUS)
        VERIFY_(STATUS)
        allocate(cubeTEMP3D(size(vars%pe,1),size(vars%pe,2),km))
-       call MAPL_HorzTransformRun (L2C, XTMP3d, cubeTEMP3D, RC=STATUS )
+       call l2c%regrid(XTMP3d, cubeTEMP3D, RC=STATUS )
        VERIFY_(STATUS)
        call WRITE_PARALLEL('Replaying '//trim(qname))
        if( qqq%is_r4 ) then
@@ -5015,7 +5267,7 @@ subroutine dump_n_splash_
        call ESMFL_BundleGetPointertoData(ANA_Bundle,trim(tname),XTMP3d, RC=STATUS)
        VERIFY_(STATUS)
        allocate(cubeTEMP3D(size(ana_thv,1),size(ana_thv,2),km))
-       call MAPL_HorzTransformRun (L2C, XTMP3d, cubeTEMP3D, RC=STATUS )
+       call l2c%regrid(XTMP3d, cubeTEMP3D, RC=STATUS )
        VERIFY_(STATUS)
        call WRITE_PARALLEL('Replaying '//trim(tname)// '; treated as '//trim(tvar))
        if( trim(tvar).eq.'THETAV' ) ana_thv = cubeTEMP3D
@@ -5123,14 +5375,13 @@ subroutine incremental_
        allocate(cubeVTMP3D(grid%is:grid%ie,grid%js:grid%je,km) )
 #ifdef SCALAR_WINDS
        call WRITE_PARALLEL('Replaying increment of winds as scalars')
-       call MAPL_HorzTransformRun (L2C, TEMP3D, cubeTEMP3D, RC=STATUS )
+       call l2c%regrid(TEMP3D, cubeTEMP3D, RC=STATUS )
        VERIFY_(STATUS)
-       call MAPL_HorzTransformRun (L2C, VTMP3D, cubeVTMP3D, RC=STATUS )
+       call l2c%regrid(VTMP3D, cubeVTMP3D, RC=STATUS )
        VERIFY_(STATUS)
 #else
        call WRITE_PARALLEL('Replaying increment of winds')
-       call MAPL_HorzTransformRun(L2C,     TEMP3d,     VTMP3d, &
-                                       cubeTEMP3d, cubeVTMP3d, rotate=.false., RC=STATUS)
+       call l2c%regrid(TEMP3d,     VTMP3d, cubeTEMP3d, cubeVTMP3d, RC=STATUS)
 #endif /* SCALAR_WINDS */
        allocate( UAtmp(grid%is:grid%ie  ,grid%js:grid%je  ,km) )
        allocate( VAtmp(grid%is:grid%ie  ,grid%js:grid%je  ,km) )
@@ -5148,7 +5399,7 @@ subroutine incremental_
        VERIFY_(STATUS)
        call WRITE_PARALLEL('Replaying increment of '//trim(dpname))
        allocate(cubeTEMP3D(size(vars%pe,1),size(vars%pe,2),km))
-       call MAPL_HorzTransformRun (L2C, TEMP3D, cubeTEMP3D, RC=STATUS )
+       call l2c%regrid(TEMP3D, cubeTEMP3D, RC=STATUS )
        VERIFY_(STATUS)
        dpe(:,:,1) = 0.0
        do k=2,km+1
@@ -5177,7 +5428,7 @@ subroutine incremental_
        allocate(cubeTEMP3D(size(vars%pe,1),size(vars%pe,2),1))
        allocate(     aux3D(size( TEMP2D,1),size( TEMP2D,2),1))
        aux3d(:,:,1) = TEMP2D ! same trick of putting in rank-3 array for transforms
-       call MAPL_HorzTransformRun (L2C, aux3d, cubeTEMP3D, RC=STATUS )
+       call l2c%regrid(aux3d, cubeTEMP3D, RC=STATUS )
        VERIFY_(STATUS)
        do k=2,km+1
           dpe(:,:,k-1) =  grid%ak(k) - grid%ak(k-1) + cubeTEMP3d(:,:,1)*(grid%bk(k)-grid%bk(k-1))
@@ -5203,7 +5454,7 @@ subroutine incremental_
        call ESMFL_BundleGetPointertoData(ANA_Bundle,trim(o3name),TEMP3D, RC=STATUS)
        VERIFY_(STATUS)
        allocate(cubeTEMP3D(size(vars%pe,1),size(vars%pe,2),km))
-       call MAPL_HorzTransformRun (L2C, TEMP3D, cubeTEMP3D, RC=STATUS )
+       call l2c%regrid(TEMP3D, cubeTEMP3D, RC=STATUS )
        VERIFY_(STATUS)
 
 !      Ozone needs to be adjusted to OX
@@ -5235,7 +5486,7 @@ subroutine incremental_
        call ESMFL_BundleGetPointertoData(ANA_Bundle,trim(qname),TEMP3D, RC=STATUS)
        VERIFY_(STATUS)
        allocate(cubeTEMP3D(size(vars%pe,1),size(vars%pe,2),km))
-       call MAPL_HorzTransformRun (L2C, TEMP3D, cubeTEMP3D, RC=STATUS )
+       call l2c%regrid(TEMP3D, cubeTEMP3D, RC=STATUS )
        VERIFY_(STATUS)
        call WRITE_PARALLEL('Replaying increment of '//trim(qname))
        dqqv = cubeTEMP3D
@@ -5257,7 +5508,7 @@ subroutine incremental_
        call ESMFL_BundleGetPointertoData(ANA_Bundle,trim(tname),TEMP3D, RC=STATUS)
        VERIFY_(STATUS)
        allocate(cubeTEMP3D(size(vars%pe,1),size(vars%pe,2),km))
-       call MAPL_HorzTransformRun (L2C, TEMP3D, cubeTEMP3D, RC=STATUS )
+       call l2c%regrid(TEMP3D, cubeTEMP3D, RC=STATUS )
        VERIFY_(STATUS)
        call WRITE_PARALLEL('Replaying increment of '//trim(tname))
        ! have an incremental change to virtual temperature; 
@@ -5368,7 +5619,7 @@ subroutine state_remap_
     allocate(cubeTEMP3D(size(vars%pe,1),size(vars%pe,2),1))
     allocate(     aux3D(size(XTMP2D ,1),size(XTMP2D ,2),1))
     aux3d(:,:,1)=XTMP2D ! this is a trick since the 2d interface to the transform has not worked for me (RT)
-    call MAPL_HorzTransformRun (L2C, aux3D, cubeTEMP3D, RC=STATUS )
+    call l2c%regrid(aux3D, cubeTEMP3D, RC=STATUS )
     VERIFY_(STATUS)
     ana_phis=cubeTEMP3D(:,:,1)
     deallocate(     aux3D)
@@ -5474,13 +5725,14 @@ end subroutine RUN
 
 !-----------------------------------------------------------------------
 
-  subroutine PULL_Q(STATE, IMPORT, QQQ, iNXQ, InFieldName, RC)
+  subroutine PULL_Q(STATE, IMPORT, QQQ, iNXQ, InFieldName, BADV, RC)
 
     type (DynState)        :: STATE
     type (ESMF_State)              :: IMPORT
     type (DynTracers)               :: QQQ       ! Specific Humidity
     integer,           intent(IN)  :: iNXQ
     character(len=*), optional, intent(IN) :: InFieldName
+    type(ESMF_FieldBundle), optional, intent(IN) :: BADV
     integer, optional, intent(OUT) :: RC
 
     integer                          :: STATUS
@@ -5507,8 +5759,12 @@ end subroutine RUN
     jm = state%grid%npy
     km = state%grid%npz
 
-    call ESMF_StateGet(IMPORT, 'TRADV' , BUNDLE,   RC=STATUS)
-    VERIFY_(STATUS)
+    if (present(BADV)) then
+       BUNDLE = BADV
+    else
+       call ESMF_StateGet(IMPORT, 'TRADV' , BUNDLE,   RC=STATUS)
+       VERIFY_(STATUS)
+    end if
 
 ! Count the friendlies
 !---------------------
@@ -5522,6 +5778,10 @@ end subroutine RUN
 !
 ! Tracer pointer array
 !
+    IF( ASSOCIATED( STATE%VARS%tracer ) ) then
+        call freeTracers(state)
+    ENDIF
+
     ALLOCATE(STATE%VARS%tracer(nq), STAT=STATUS)
     VERIFY_(STATUS)
 
@@ -5638,7 +5898,7 @@ end subroutine RUN
     real(r8), allocatable ::  logpe(:,:,:)
     real(r8), allocatable ::  logps(:,:)
 
-    real(r8)              :: dt
+    real(FVPRC)              :: dt
 
     real(r4), pointer     :: QOLD(:,:,:)
     real(r4), pointer     :: temp3d(:,:,:)
@@ -5781,6 +6041,8 @@ end subroutine RUN
 ! Add Diabatic Forcing to State Variables
 ! ---------------------------------------
     call ADD_INCS ( STATE,IMPORT,DT )
+
+    if (DYN_DEBUG) call DEBUG_FV_STATE('PHYSICS ADD_INCS',STATE)
 
 ! Update Mid-Layer Pressure and Pressure Thickness
 ! ------------------------------------------------
@@ -6217,7 +6479,7 @@ end subroutine RUN
 
     call MAPL_GetPointer(export,temp2d,'PID',rc=status)
     VERIFY_(STATUS)
-    if(associated(temp2d)) temp2d = gid
+    if(associated(temp2d)) temp2d = 0 !WMP need to get from MAPL gid
 
 ! Deallocate Memory
 ! -----------------
@@ -6250,7 +6512,8 @@ end subroutine RUN
     DEALLOCATE(    zle )
     DEALLOCATE( dthdtphyint1 )
     DEALLOCATE( dthdtphyint2 )
-    DEALLOCATE( STATE%VARS%tracer, STAT=STATUS )   ! Allocated by call to PULL_Q
+
+    call freeTracers(state)
 
     end if ! .not. SW_DYNAMICS
 
@@ -6263,14 +6526,16 @@ end subroutine RunAddIncs
 !-----------------------------------------------------------------------
   subroutine ADD_INCS ( STATE,IMPORT,DT,IS_WEIGHTED,RC )
 
+   use fms_mod, only: set_domain, nullify_domain
    use fv_diagnostics_mod, only: prt_maxmin
-
+   use time_manager_mod,   only: time_type
+   use fv_update_phys_mod, only: fv_update_phys 
 !
 ! !INPUT PARAMETERS:
 
-   type(DynState), intent(INOUT)  :: STATE
+   type(DynState), pointer                :: STATE
    type(ESMF_State),       intent(INOUT)  :: IMPORT
-   real(r8),               intent(IN   )  :: DT
+   real(FVPRC),            intent(IN   )  :: DT
    integer,  optional,     intent(OUT  )  :: RC
    logical,  optional,     intent(IN   )  :: is_weighted
 
@@ -6284,18 +6549,25 @@ end subroutine RunAddIncs
     integer               :: status
     logical               :: is_weighted_
 
-    integer               :: is,ie, js,je, km
+    integer               :: is ,ie , js ,je , km
+    integer               :: isd,ied, jsd,jed
     real(r4), allocatable :: fvQOLD(:,:,:), QTEND(:,:,:)
-    real(r8), allocatable :: DUM(:,:,:)
     real(r8), allocatable :: DPNEW(:,:,:),DPOLD(:,:,:)
-    real(r8), allocatable :: tend_ua(:,:,:), tend_va(:,:,:)
-    real(r8), allocatable :: tend_un(:,:,:), tend_vn(:,:,:)
+
+    real(REAL8), allocatable :: tend_ua(:,:,:), tend_va(:,:,:)
+    real(REAL8), allocatable :: tend_un(:,:,:), tend_vn(:,:,:)
+
+    real(FVPRC), allocatable :: u_dt(:,:,:), v_dt(:,:,:), t_dt(:,:,:)
+
     real(kind=4), pointer :: tend(:,:,:)
 
     type(DynTracers)      :: qqq       ! Specific Humidity
-    real(r8), allocatable :: Q(:,:,:)
+    real(FVPRC), allocatable :: Q(:,:,:)
 
     character(len=ESMF_MAXSTR)         :: IAm="ADD_INCS"
+    real(FVPRC) :: fac
+
+    type (time_type) :: Time_Nudge
 
     if(present(is_weighted)) then
        is_weighted_ = is_weighted
@@ -6309,6 +6581,10 @@ end subroutine RunAddIncs
     je = state%grid%je
     km = state%grid%npz
 
+    isd = state%grid%isd
+    ied = state%grid%ied
+    jsd = state%grid%jsd
+    jed = state%grid%jed
 
 ! **********************************************************************
 ! ****  Use QV from FV3 init when coldstarting idealized cases      ****
@@ -6316,12 +6592,13 @@ end subroutine RunAddIncs
 
     ALLOCATE( Q(is:ie,js:je,1:km) )
     call PULL_Q ( STATE, IMPORT, qqq, NXQ, InFieldName='Q', RC=rc )
-    if (DYN_COLDSTART .and. overwrite_Q) then
+    if (DYN_COLDSTART .and. overwrite_Q .and. (.not. ADIABATIC)) then
       ! USE Q computed by FV3
        call getQ(Q, 'Q')
        overwrite_Q=.false.
        call WRITE_PARALLEL("Using QV from FV3 Initial Conditions")
-       call prt_maxmin('AI Q', Q,  is, ie, js, je, 0, km, 1.d00, MAPL_AM_I_ROOT())
+       fac = 1.0
+       call prt_maxmin('AI Q', Q,  is, ie, js, je, 0, km, fac)
        if ( (qqq%is_r4) .and. (associated(qqq%content_r4)) ) then
           if (size(Q)==size(qqq%content_r4)) qqq%content_r4 = Q
        elseif (associated(qqq%content)) then
@@ -6463,114 +6740,16 @@ end subroutine RunAddIncs
        DEALLOCATE (DPOLD)
     endif ! .not. Adiabatic
 
+
+
+
     DEALLOCATE( Q )
 
    return
 
  end subroutine ADD_INCS
 
-  subroutine del2_diffusion(ptend, pe, w, is, ie, js, je, km)
-   use         fv_mp_mod, only: domain
-   use   mpp_domains_mod, only: mpp_update_domains
-   use fv_grid_utils_mod, only: sina_u, sina_v, da_min, sin_sg
-   use fv_grid_tools_mod, only: dx, dy, rdxc, rdyc, rarea
-   use    fv_control_mod, only: npx, npy
-! This routine is for 2nd order filtering the physics tendencies
-   integer , intent(in   ):: is, ie, js, je, km
-   real(r8), intent(in   )::    pe(is:ie,js:je,km+1)
-   real(r8), intent(in   )::     w(is:ie,js:je,km)
-   real(r4), intent(inout):: ptend(is:ie,js:je,km)
-!
-   integer, parameter :: ngc=3
-   real(r8) :: delp(is:ie,js:je,km)
-   real(r8) :: q(is-ngc:ie+ngc,js-ngc:je+ngc,km)
-   real(r8) :: fx(is:ie+1,js:je), fy(is:ie,js:je+1)
-   real(r8) :: mask(is:ie+1,js:je+1)
-   real(r8) :: f1(is:ie+1), f2(js:je+1)
-   real(r8) :: damp
-   logical  :: updraft(is:ie,js:je)
-   integer i,j,k
 
-!  Compute DELP & find strong updrafts > 1 m/s
-   updraft(:,:) = .false.
-   do k=1,km
-      delp(:,:,k) = 1.0/( pe(:,:,k+1)-pe(:,:,k) )
-      do j=js,je
-         do i=is,ie
-            if (w(i,j,k) > 1.0) updraft(i,j) = .true.
-         enddo
-      enddo
-   enddo
-
-! Applying mask to the damping coefficient?
-   damp = 0.25 * 0.2 * da_min
-
-! Mask defined at corners
-
-!$omp parallel do default(shared)
-   do i=is,ie+1
-      f1(i) = (1. - sin(real(i-1)/real(npx-1)*pi))**2
-   enddo
-
-!$omp parallel do default(shared)
-   do j=js,je+1
-      f2(j) = (1. - sin(real(j-1)/real(npy-1)*pi))**2
-      do i=is,ie+1
-         mask(i,j) = damp * (f1(i) + f2(j))
-      enddo
-   enddo
-
-! mass weighted tendency from physics is filtered
-
-!$omp parallel do default(shared)
-   do k=1,km
-      do j=js,je
-         do i=is,ie
-            q(i,j,k) = ptend(i,j,k)*delp(i,j,k)
-         enddo
-      enddo
-   enddo
-   call mpp_update_domains(q, domain, complete=.true.)
-
-!$omp parallel do default(shared) private(fx, fy)
-   do k=1,km
-      do j=js,je
-         do i=is,ie+1
-            fx(i,j) = &
-                 (mask(i,j)+mask(i,j+1))*dy(i,j)*sina_u(i,j)* &
-                 (q(i-1,j,k)-q(i,j,k))*rdxc(i,j)
-         enddo
-         if (is == 1)   fx(i,j) = &
-              (mask(is,j)+mask(is,j+1))*dy(is,j)*(q(is-1,j,k)-q(is,j,k))*rdxc(is,j)* &
-            0.5*(sin_sg(1,j,1) + sin_sg(0,j,3))
-         if (ie+1==npx) fx(i,j) = &
-              (mask(ie+1,j)+mask(ie+1,j+1))*dy(ie+1,j)*(q(ie,j,k)-q(ie+1,j,k))*rdxc(ie+1,j)* & 
-            0.5*(sin_sg(npx,j,1) + sin_sg(npx-1,j,3))
-      enddo
-      do j=js,je+1
-         if (j == 1 .OR. j == npy) then
-            do i=is,ie
-               fy(i,j) = (mask(i,j)+mask(i+1,j))*dx(i,j)*&
-                    (q(i,j-1,k)-q(i,j,k))*rdyc(i,j) &
-                    *0.5*(sin_sg(i,j,2) + sin_sg(i,j-1,4) )
-            enddo
-         else
-            do i=is,ie
-               fy(i,j) = (mask(i,j)+mask(i+1,j))*dx(i,j)*sina_v(i,j)*&
-                    (q(i,j-1,k)-q(i,j,k))*rdyc(i,j)
-            enddo
-         end if
-      enddo
-      do j=js,je
-         do i=is,ie
-            if (updraft(i,j)) then
-               ptend(i,j,k) = ptend(i,j,k) + rarea(i,j)*(fx(i,j)-fx(i+1,j)+fy(i,j)-fy(i,j+1))/delp(i,j,k)
-            endif
-         enddo
-      enddo
-   enddo
-
-  end subroutine del2_diffusion
 
 
 
@@ -7007,7 +7186,7 @@ subroutine Coldstart(gc, import, export, clock, rc)
                                RC=STATUS )
     VERIFY_(STATUS)
 
-   if (grid_type == 4) then
+   if (FV_Atm(1)%flagstruct%grid_type == 4) then
     ! Doubly-Period setup based on first LAT/LON coordinate
      LONS(:,:) =  0.0
      LATS(:,:) = 15.0*PI/180.0
@@ -7772,7 +7951,7 @@ subroutine Coldstart(gc, import, export, clock, rc)
 
      CASE DEFAULT
 
-        print*, 'Bad KM in DynCore_GridCompMod:set_eta', km
+        print*, 'Bad KM in FVdycoreCubed_GridComp:set_eta', km
 
      END SELECT
 
@@ -7888,6 +8067,7 @@ subroutine freeTracers(state)
 
   if (associated(STATE%VARS%tracer)) then
      DEALLOCATE( STATE%VARS%tracer)   ! Comment out to output tracer to checkpoint file
+        NULLIFY( STATE%VARS%tracer)
   end if
 
   return
@@ -8118,5 +8298,28 @@ end subroutine freeTracers
         enddo
   end function
 
+  subroutine register_grid_and_regridders()
+    use MAPL_GridManagerMod, only: grid_manager
+    use CubedSphereGridFactoryMod, only: CubedSphereGridFactory
+    use MAPL_RegridderManagerMod, only: regridder_manager
+    use MAPL_RegridderSpecMod, only: REGRID_METHOD_BILINEAR
+    use LatLonToCubeRegridderMod
+    use CubeToLatLonRegridderMod
+    use CubeToCubeRegridderMod
+    
+    type (CubedSphereGridFactory) :: factory
+    
+    type (CubeToLatLonRegridder) :: cube_to_latlon_prototype
+    type (LatLonToCubeRegridder) :: latlon_to_cube_prototype
+    type (CubeToCubeRegridder) :: cube_to_cube_prototype
+    
+    call grid_manager%add_prototype('Cubed-Sphere',factory)
+    associate (method => REGRID_METHOD_BILINEAR, mgr => regridder_manager)
+      call mgr%add_prototype('Cubed-Sphere', 'LatLon', method, cube_to_latlon_prototype)
+      call mgr%add_prototype('LatLon', 'Cubed-Sphere', method, latlon_to_cube_prototype)
+      call mgr%add_prototype('Cubed-Sphere', 'Cubed-Sphere', method, cube_to_cube_prototype)
+    end associate
 
-end module DynCore_GridCompMod
+  end subroutine register_grid_and_regridders
+  
+end module FVdycoreCubed_GridComp

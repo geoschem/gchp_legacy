@@ -1,29 +1,14 @@
 #
-# System dependent FLAGS for FVdycoreCubed.
+# System dependent FLAGS for FVdycore.
 #
 
-ifneq ($(ESMA_FC), pgfortran)
-  FCNAME = $(word 1,$(shell $(FC) --version))
-endif
 
-# Intel Fortran Compiler
-# ----------------------
-ifeq ($(FCNAME),ifort)
+  ifeq ($(ESMA_FC), gfortran)
 
-  USER_FFLAGS = -safe_cray_ptr -assume byterecl -fp-model source
+        USER_FFLAGS = -fcray-pointer
 
-endif
+  endif
 
-ifeq ($(ESMA_FC), gfortran)  # gfortran
-
-        USER_FFLAGS = -DNO_R16 -fcray-pointer -DNO_QUAD_PRECISION
-
-endif
-
-ifeq ($(ESMA_FC), ftn)
-      USER_FFLAGS = -DNO_R16 -DNO_QUAD_PRECISION
-endif
-
-ifeq ($(ESMA_FC), pgfortran)
-      USER_FFLAGS = -DNO_R16 -DNO_QUAD_PRECISION
-endif
+  ifeq ($(ESMA_FC), pgfortran)
+        USER_FFLAGS = -DNO_QUAD_PRECISION
+  endif

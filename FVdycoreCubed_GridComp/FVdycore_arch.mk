@@ -3,23 +3,12 @@
 #
 
 
-ifeq ($(ARCH),Linux)
-
-  ifeq ($(FC), ifort)
-
-#       USER_FFLAGS = -mp -stack_temps -fno-alias -ftz -auto
-        USER_FFLAGS = -fp-model source
-
-  endif
-
   ifeq ($(ESMA_FC), gfortran)
 
-        USER_FFLAGS = -DNO_R16 -fcray-pointer
+        USER_FFLAGS = -fcray-pointer
 
   endif
 
-  ifeq ($(FC), pgfortran)
-        USER_FFLAGS = -DNO_R16
+  ifeq ($(ESMA_FC), pgfortran)
+        USER_FFLAGS = -DNO_QUAD_PRECISION
   endif
-
-endif

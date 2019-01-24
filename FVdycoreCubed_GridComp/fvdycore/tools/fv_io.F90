@@ -1,26 +1,27 @@
-module fv_io_mod
-  !-----------------------------------------------------------------------
-  !                   GNU General Public License                        
-  !                                                                      
-  ! This program is free software; you can redistribute it and/or modify it and  
-  ! are expected to follow the terms of the GNU General Public License  
-  ! as published by the Free Software Foundation; either version 2 of   
-  ! the License, or (at your option) any later version.                 
-  !                                                                      
-  ! MOM is distributed in the hope that it will be useful, but WITHOUT    
-  ! ANY WARRANTY; without even the implied warranty of MERCHANTABILITY  
-  ! or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public    
-  ! License for more details.                                           
-  !                                                                      
-  ! For the full text of the GNU General Public License,                
-  ! write to: Free Software Foundation, Inc.,                           
-  !           675 Mass Ave, Cambridge, MA 02139, USA.                   
-  ! or see:   http://www.gnu.org/licenses/gpl.html                      
-  !-----------------------------------------------------------------------
-  ! 
-  ! <CONTACT EMAIL= "Jeffrey.Durachta@noaa.gov">Jeffrey Durachta </CONTACT>
+!***********************************************************************
+!*                   GNU General Public License                        *
+!* This file is a part of fvGFS.                                       *
+!*                                                                     *
+!* fvGFS is free software; you can redistribute it and/or modify it    *
+!* and are expected to follow the terms of the GNU General Public      *
+!* License as published by the Free Software Foundation; either        *
+!* version 2 of the License, or (at your option) any later version.    *
+!*                                                                     *
+!* fvGFS is distributed in the hope that it will be useful, but        *
+!* WITHOUT ANY WARRANTY; without even the implied warranty of          *
+!* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU   *
+!* General Public License for more details.                            *
+!*                                                                     *
+!* For the full text of the GNU General Public License,                *
+!* write to: Free Software Foundation, Inc.,                           *
+!*           675 Mass Ave, Cambridge, MA 02139, USA.                   *
+!* or see:   http://www.gnu.org/licenses/gpl.html                      *
+!***********************************************************************
+!!!NOTE: Merging in the seasonal forecast initialization code
+!!!!     has proven problematic in the past, since many conflicts
+!!!!     occur. Leaving this for now --- lmh 10aug15
 
-  ! <HISTORY SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/"/>
+module fv_io_mod
 
   !<OVERVIEW>
   ! Restart facilities for FV core
@@ -31,46 +32,49 @@ module fv_io_mod
   ! for the model.
   !</DESCRIPTION>
 
-  use fms_mod,                 only: file_exist, read_data, write_data, field_exist    
+  use fms_mod,                 only: file_exist
   use fms_io_mod,              only: fms_io_exit, get_tile_string, &
                                      restart_file_type, register_restart_field, &
-                                     save_restart, restore_state
-  use mpp_mod,                 only: mpp_error, FATAL, NOTE
-  use mpp_domains_mod,         only: domain2d, EAST, NORTH, mpp_get_tile_id, &
-                                     mpp_get_compute_domain, mpp_get_data_domain, &
-                                     mpp_get_ntile_count
+                                     save_restart, restore_state, &
+                                     set_domain, nullify_domain, set_filename_appendix, &
+                                     get_mosaic_tile_file, get_instance_filename, & 
+                                     save_restart_border, restore_state_border, free_restart_type, &
+                                     field_exist
+  use mpp_mod,                 only: mpp_error, FATAL, NOTE, WARNING, mpp_root_pe, &
+                                     mpp_sync, mpp_pe, mpp_declare_pelist
+  use mpp_domains_mod,         only: domain2d, EAST, WEST, NORTH, CENTER, SOUTH, CORNER, &
+                                     mpp_get_compute_domain, mpp_get_data_domain, & 
+                                     mpp_get_layout, mpp_get_ntile_count, &
+                                     mpp_get_global_domain
   use tracer_manager_mod,      only: tr_get_tracer_names=>get_tracer_names, &
                                      get_tracer_names, get_number_tracers, &
                                      set_tracer_profile, &
                                      get_tracer_index
   use field_manager_mod,       only: MODEL_ATMOS  
-#ifndef DYCORE_SOLO
-! use external_sst_mod,        only: sst_ncep, sst_anom
-  use amip_interp_mod,        only: sst_ncep, sst_anom, use_ncep_sst
-#endif
-  use fv_arrays_mod,           only: fv_atmos_type
+  use external_sst_mod,        only: sst_ncep, sst_anom, use_ncep_sst
+  use fv_arrays_mod,           only: fv_atmos_type, fv_nest_BC_type_3D
+  use fv_eta_mod,              only: set_eta
+
+  use fv_mp_mod,               only: ng, mp_gather, is_master
+  use fms_io_mod,              only: set_domain
 
   implicit none
   private
 
   public :: fv_io_init, fv_io_exit, fv_io_read_restart, remap_restart, fv_io_write_restart
-  public :: fv_io_read_tracers, fv_io_register_restart
+  public :: fv_io_read_tracers, fv_io_register_restart, fv_io_register_nudge_restart
+  public :: fv_io_register_restart_BCs, fv_io_register_restart_BCs_NH
+  public :: fv_io_write_BCs, fv_io_read_BCs
 
   logical                       :: module_is_initialized = .FALSE.
 
-  !--- for restart file writing
-  type(restart_file_type),        save :: Fv_restart
-  type(restart_file_type),        save :: SST_restart
-  type(restart_file_type), allocatable :: Fv_tile_restart(:)
-  type(restart_file_type), allocatable :: Rsf_restart(:)
-  type(restart_file_type), allocatable :: Mg_restart(:)
-  type(restart_file_type), allocatable :: Lnd_restart(:)
-  type(restart_file_type), allocatable :: Tra_restart(:)
 
+!---- version number -----
+  character(len=128) :: version = '$Id$'
+  character(len=128) :: tagname = '$Name$'
 
-  !--- version information variables ----
-  character(len=128) :: version = '$Id: fv_io.F90,v 1.2.2.1.2.1.120.1 2014-02-21 21:00:40 wputman Exp $'
-  character(len=128) :: tagname = '$Name: Heracles-UNSTABLE $'
+  integer ::grid_xtdimid, grid_ytdimid, haloid, pfullid !For writing BCs
+  integer ::grid_xtstagdimid, grid_ytstagdimid, oneid
 
 contains 
 
@@ -111,113 +115,73 @@ contains
     type(domain2d),      intent(inout) :: fv_domain
     type(fv_atmos_type), intent(inout) :: Atm(:)
 
-    character(len=64)    :: fname, fname_nd, tracer_name
+    character(len=64)    :: fname, tracer_name
+    character(len=6)  :: stile_name
     integer              :: isc, iec, jsc, jec, n, nt, nk, ntracers
     integer              :: ntileMe
-    integer, allocatable :: tile_id(:)
+    integer              :: ks, ntiles
+    real                 :: ptop
 
     character(len=128)           :: tracer_longname, tracer_units
 
-    ntileMe = size(Atm(:))  ! This will have to be modified for mult tiles per PE
-    allocate(tile_id(ntileMe))
-    tile_id = mpp_get_tile_id(fv_domain)
- 
-!   call get_number_tracers(MODEL_ATMOS, num_tracers=ntracers)
-    ntracers = size(Atm(1)%q,4)  ! Temporary until we get tracer manager integrated
+    ntileMe = size(Atm(:))  ! This will need mods for more than 1 tile per pe
 
-#ifndef DYCORE_SOLO
-    fname_nd = 'INPUT/sst_ncep.res.nc'
-    if(file_exist(fname_nd))then
-! sst_ncep may be used in free-running forecast mode
-       call read_data(fname_nd, 'sst_ncep', sst_ncep)
-       if (field_exist(fname_nd,'sst_anom')) then
-           call read_data(fname_nd, 'sst_anom', sst_anom)
-       else
-           sst_anom(:,:) = 1.E35   ! make it big enough to cause blowup if used
-       endif
-    elseif ( use_ncep_sst .and. (.not. Atm(1)%nudge) ) then
-       call mpp_error(FATAL,'==> Error:'//trim(fname_nd)//' does not exist')
+    call restore_state(Atm(1)%Fv_restart)
+
+    if ( use_ncep_sst .or. Atm(1)%flagstruct%nudge .or. Atm(1)%flagstruct%ncep_ic ) then
+       call mpp_error(NOTE, 'READING FROM SST_RESTART DISABLED')
+       !call restore_state(Atm(1)%SST_restart)
     endif
-#endif
+
+! fix for single tile runs where you need fv_core.res.nc and fv_core.res.tile1.nc
+    ntiles = mpp_get_ntile_count(fv_domain)
+    if(ntiles == 1 .and. .not. Atm(1)%neststruct%nested) then
+       stile_name = '.tile1'
+    else
+       stile_name = ''
+    endif
  
-    fname_nd = 'INPUT/fv_core.res.nc'
-  ! write_data does not (yet?) support vector data and tiles
-    call read_data(fname_nd, 'ak', Atm(1)%ak(:))
-    call read_data(fname_nd, 'bk', Atm(1)%bk(:))
- 
-   
     do n = 1, ntileMe
-       isc = Atm(n)%isc; iec = Atm(n)%iec; jsc = Atm(n)%jsc; jec = Atm(n)%jec
-       call get_tile_string(fname, 'INPUT/fv_core.res.tile', tile_id(n), '.nc' )
-       if(file_exist(fname))then
-         call read_data(fname, 'u', Atm(n)%u(isc:iec,jsc:jec+1,:), domain=fv_domain, position=NORTH,tile_count=n)
-         call read_data(fname, 'v', Atm(n)%v(isc:iec+1,jsc:jec,:), domain=fv_domain, position=EAST,tile_count=n)
+       call restore_state(Atm(n)%Fv_tile_restart)
 
-         if ( (.not.Atm(n)%hydrostatic) .and. (.not.Atm(n)%make_nh) ) then
-              call read_data(fname, 'W',     Atm(n)%w(isc:iec,jsc:jec,:), domain=fv_domain, tile_count=n)
-              call read_data(fname, 'DZ', Atm(n)%delz(isc:iec,jsc:jec,:), domain=fv_domain, tile_count=n)
-              if ( Atm(n)%hybrid_z .and. (.not. Atm(n)%make_hybrid_z) )   &
-              call read_data(fname, 'ZE0', Atm(n)%ze0(isc:iec,jsc:jec,:), domain=fv_domain, tile_count=n)
+!--- restore data for fv_tracer - if it exists
+       fname = 'INPUT/fv_tracer.res'//trim(stile_name)//'.nc'
+       if (file_exist(fname)) then
+         call restore_state(Atm(n)%Tra_restart)
+       else
+         call mpp_error(NOTE,'==> Warning from fv_read_restart: Expected file '//trim(fname)//' does not exist')
+       endif
+
+!--- restore data for surface winds - if it exists
+       fname = 'INPUT/fv_srf_wnd.res'//trim(stile_name)//'.nc'
+       if (file_exist(fname)) then
+         call restore_state(Atm(n)%Rsf_restart)
+         Atm(n)%flagstruct%srf_init = .true.
+       else
+         call mpp_error(NOTE,'==> Warning from fv_read_restart: Expected file '//trim(fname)//' does not exist')
+         Atm(n)%flagstruct%srf_init = .false.
+       endif
+
+       if ( Atm(n)%flagstruct%fv_land ) then
+!--- restore data for mg_drag - if it exists
+         fname = 'INPUT/mg_drag.res'//trim(stile_name)//'.nc'
+         if (file_exist(fname)) then
+           call restore_state(Atm(n)%Mg_restart)
+         else
+           call mpp_error(NOTE,'==> Warning from fv_read_restart: Expected file '//trim(fname)//' does not exist')
          endif
-
-         call read_data(fname, 'T', Atm(n)%pt(isc:iec,jsc:jec,:), domain=fv_domain, tile_count=n)
-         call read_data(fname, 'delp', Atm(n)%delp(isc:iec,jsc:jec,:), domain=fv_domain, tile_count=n)
-         call read_data(fname, 'phis', Atm(n)%phis(isc:iec,jsc:jec), domain=fv_domain, tile_count=n)
-       else
-         call mpp_error(FATAL,'==> Error from fv_read_restart: Expected file '//trim(fname)//' does not exist')
+!--- restore data for fv_land - if it exists
+         fname = 'INPUT/fv_land.res'//trim(stile_name)//'.nc'
+         if (file_exist(fname)) then
+           call restore_state(Atm(n)%Lnd_restart)
+         else
+           call mpp_error(NOTE,'==> Warning from fv_read_restart: Expected file '//trim(fname)//' does not exist')
+         endif
        endif
-
-       call get_tile_string(fname, 'INPUT/fv_srf_wnd.res.tile', tile_id(n), '.nc' )
-       if(file_exist(fname))then
-         call read_data(fname, 'u_srf', Atm(n)%u_srf(isc:iec,jsc:jec), domain=fv_domain, tile_count=n)
-         call read_data(fname, 'v_srf', Atm(n)%v_srf(isc:iec,jsc:jec), domain=fv_domain, tile_count=n)
-         if (field_exist(fname,'ts'))   &
-               call read_data(fname, 'ts', Atm(n)%ts(isc:iec,jsc:jec), domain=fv_domain, tile_count=n)
-         Atm(n)%srf_init = .true.
-       else
-         call mpp_error(NOTE,'==> Warning from fv_read_restart: Expected file '//trim(fname)//' does not exist')
-         Atm(n)%srf_init = .false.
-       endif
-
-  if ( Atm(n)%fv_land ) then
-!----------------------------------------------------------------------------------------------------------------
-! Optional terrain deviation (sgh) and land fraction (oro)
-       call get_tile_string(fname, 'INPUT/mg_drag.res.tile', tile_id(n), '.nc' )
-       if(file_exist(fname))then
-         call read_data(fname, 'ghprime', Atm(n)%sgh(isc:iec,jsc:jec), domain=fv_domain, tile_count=n)
-       else
-         call mpp_error(NOTE,'==> Warning from fv_read_restart: Expected file '//trim(fname)//' does not exist')
-       endif
-! Land-water mask:
-       call get_tile_string(fname, 'INPUT/fv_land.res.tile', tile_id(n), '.nc' )
-       if(file_exist(fname))then
-         call read_data(fname, 'oro', Atm(n)%oro(isc:iec,jsc:jec), domain=fv_domain, tile_count=n)
-       else
-         call mpp_error(NOTE,'==> Warning from fv_read_restart: Expected file '//trim(fname)//' does not exist')
-       endif
-!----------------------------------------------------------------------------------------------------------------
-  endif
-       call get_tile_string(fname, 'INPUT/fv_tracer.res.tile', tile_id(n), '.nc' )
-
-         DO nt = 1, ntracers
-           call get_tracer_names(MODEL_ATMOS, nt, tracer_name)
-
-           if (file_exist(fname)) then
-              if (field_exist(fname,tracer_name)) then
-                 call read_data(fname, tracer_name, Atm(n)%q(isc:iec,jsc:jec,:,nt), &
-                                                      domain=fv_domain, tile_count=n)
-                 call mpp_error(NOTE,'==>  Have read tracer '//trim(tracer_name)//' from fv_tracer.res')
-                 cycle
-              endif
-           endif
-
-           call set_tracer_profile (MODEL_ATMOS, nt, Atm(n)%q(isc:iec,jsc:jec,:,nt)  )
-           call mpp_error(NOTE,'==>  Setting tracer '//trim(tracer_name)//' from set_tracer')
-         ENDDO
 
     end do
- 
-    deallocate(tile_id)
+
+    return
 
   end subroutine  fv_io_read_restart
   ! </SUBROUTINE> NAME="fv_io_read_restart"
@@ -227,43 +191,48 @@ contains
   subroutine fv_io_read_tracers(fv_domain,Atm)
     type(domain2d),      intent(inout) :: fv_domain
     type(fv_atmos_type), intent(inout) :: Atm(:)
+    integer :: n, ntracers, ntprog, nt, isc, iec, jsc, jec, id_restart
+    character(len=6) :: stile_name
+    character(len=64):: fname, tracer_name
+    type(restart_file_type) :: Tra_restart_r
+    integer :: ntiles
 
-    character(len=64)    :: fname, fname_nd, tracer_name
-    integer              :: isc, iec, jsc, jec, n, nt, nk, ntracers
-    integer              :: ntileMe
-    integer, allocatable :: tile_id(:)
+    n = 1
+    isc = Atm(n)%bd%isc
+    iec = Atm(n)%bd%iec
+    jsc = Atm(n)%bd%jsc
+    jec = Atm(n)%bd%jec
+    call get_number_tracers(MODEL_ATMOS, num_tracers=ntracers, num_prog=ntprog)
 
-    character(len=128)           :: tracer_longname, tracer_units
+! fix for single tile runs where you need fv_core.res.nc and fv_core.res.tile1.nc
+    ntiles = mpp_get_ntile_count(fv_domain)
+    if(ntiles == 1 .and. .not. Atm(1)%neststruct%nested) then
+       stile_name = '.tile1'
+    else
+       stile_name = ''
+    endif
 
-    ntileMe = size(Atm(:))  ! This will have to be modified for mult tiles per PE
-    allocate(tile_id(ntileMe))
-    tile_id = mpp_get_tile_id(fv_domain)
+    fname = 'fv_tracer.res'//trim(stile_name)//'.nc'
+    do nt = 2, ntprog
+       call get_tracer_names(MODEL_ATMOS, nt, tracer_name)
+       call set_tracer_profile (MODEL_ATMOS, nt, Atm(n)%q(isc:iec,jsc:jec,:,nt)  )
+       id_restart = register_restart_field(Tra_restart_r, fname, tracer_name, Atm(n)%q(:,:,:,nt), &
+                    domain=fv_domain, mandatory=.false., tile_count=n)
+    enddo
+    do nt = ntprog+1, ntracers
+       call get_tracer_names(MODEL_ATMOS, nt, tracer_name)
+       call set_tracer_profile (MODEL_ATMOS, nt, Atm(n)%qdiag(isc:iec,jsc:jec,:,nt)  )
+       id_restart = register_restart_field(Tra_restart_r, fname, tracer_name, Atm(n)%qdiag(:,:,:,nt), &
+                    domain=fv_domain, mandatory=.false., tile_count=n)
+    enddo
+    if (file_exist('INPUT'//trim(fname))) then
+      call restore_state(Tra_restart_r)
+      call free_restart_type(Tra_restart_r)
+    else
+      call mpp_error(NOTE,'==> Warning from fv_io_read_tracers: Expected file '//trim(fname)//' does not exist')
+    endif
 
-!   call get_number_tracers(MODEL_ATMOS, num_tracers=ntracers)
-    ntracers = size(Atm(1)%q,4)  ! Temporary until we get tracer manager integrated
-
-! skip the first tracer, which is sphum
-    do n = 1, ntileMe
-       isc = Atm(n)%isc; iec = Atm(n)%iec; jsc = Atm(n)%jsc; jec = Atm(n)%jec
-       call get_tile_string(fname, 'INPUT/fv_tracer.res.tile', tile_id(n), '.nc' )
-         DO nt = 2, ntracers
-           call get_tracer_names(MODEL_ATMOS, nt, tracer_name)
-
-           if (file_exist(fname)) then
-              if (field_exist(fname,tracer_name)) then
-                 call read_data(fname, tracer_name, Atm(n)%q(isc:iec,jsc:jec,:,nt), &
-                                                      domain=fv_domain, tile_count=n)
-                 call mpp_error(NOTE,'==>  Have read tracer '//trim(tracer_name)//' from fv_tracer.res')
-                 cycle
-              endif
-           endif
-
-           call set_tracer_profile (MODEL_ATMOS, nt, Atm(n)%q(isc:iec,jsc:jec,:,nt)  )
-           call mpp_error(NOTE,'==>  Setting tracer '//trim(tracer_name)//' from set_tracer')
-         ENDDO
-    end do
-
-    deallocate(tile_id)
+    return
 
   end subroutine  fv_io_read_tracers
 
@@ -274,23 +243,26 @@ contains
     type(domain2d),      intent(inout) :: fv_domain
     type(fv_atmos_type), intent(inout) :: Atm(:)
 
-    character(len=64)    :: fname, fname_nd, tracer_name
-    integer              :: isc, iec, jsc, jec, n, nt, nk, ntracers
+    character(len=64)    :: fname, tracer_name
+    character(len=6)     :: stile_name
+    integer              :: isc, iec, jsc, jec, n, nt, nk, ntracers, ntprog, ntdiag
     integer              :: isd, ied, jsd, jed
-    integer              :: ntileMe
-    integer, allocatable :: tile_id(:)
+    integer              :: ntiles
+    type(restart_file_type) :: FV_restart_r, FV_tile_restart_r, Tra_restart_r
+    integer :: id_restart
+
 !
 !-------------------------------------------------------------------------
     real, allocatable:: ak_r(:), bk_r(:)
     real, allocatable:: u_r(:,:,:), v_r(:,:,:), pt_r(:,:,:), delp_r(:,:,:)
     real, allocatable:: w_r(:,:,:), delz_r(:,:,:), ze0_r(:,:,:)
-    real, allocatable:: q_r(:,:,:,:)
+    real, allocatable:: q_r(:,:,:,:), qdiag_r(:,:,:,:)
 !-------------------------------------------------------------------------
     integer npz, npz_rst, ng
 
     npz     = Atm(1)%npz       ! run time z dimension
-    npz_rst = Atm(1)%npz_rst   ! restart z dimension
-    isc = Atm(1)%isc; iec = Atm(1)%iec; jsc = Atm(1)%jsc; jec = Atm(1)%jec
+    npz_rst = Atm(1)%flagstruct%npz_rst   ! restart z dimension
+    isc = Atm(1)%bd%isc; iec = Atm(1)%bd%iec; jsc = Atm(1)%bd%jsc; jec = Atm(1)%bd%jec
     ng = Atm(1)%ng
 
     isd = isc - ng;  ied = iec + ng
@@ -298,11 +270,11 @@ contains
 
 
 !   call get_number_tracers(MODEL_ATMOS, num_tracers=ntracers)
-    ntracers = size(Atm(1)%q,4)  ! Temporary until we get tracer manager integrated
+    ntprog = size(Atm(1)%q,4)  ! Temporary until we get tracer manager integrated
+    ntdiag = size(Atm(1)%qdiag,4)
+    ntracers = ntprog+ntdiag
 
-    ntileMe = size(Atm(:))  ! This will have to be modified for mult tiles per PE
-    allocate(tile_id(ntileMe))
-    tile_id = mpp_get_tile_id(fv_domain)
+!    ntileMe = size(Atm(:))  ! This will have to be modified for mult tiles per PE
 
 
 ! Allocate arrays for reading old restart file:
@@ -314,94 +286,109 @@ contains
 
     allocate (   pt_r(isc:iec, jsc:jec,  npz_rst) )
     allocate ( delp_r(isc:iec, jsc:jec,  npz_rst) )
-    allocate (    q_r(isc:iec, jsc:jec,  npz_rst, ntracers) )
+    allocate (    q_r(isc:iec, jsc:jec,  npz_rst, ntprog) )
+    allocate (qdiag_r(isc:iec, jsc:jec,  npz_rst, ntprog+1:ntracers) )
 
-    if ( (.not.Atm(1)%hydrostatic) .and. (.not.Atm(1)%make_nh) ) then
+    if ( (.not.Atm(1)%flagstruct%hydrostatic) .and. (.not.Atm(1)%flagstruct%make_nh) ) then
            allocate (    w_r(isc:iec, jsc:jec,  npz_rst) )
            allocate ( delz_r(isc:iec, jsc:jec,  npz_rst) )
-           if ( Atm(1)%hybrid_z )   &
+           if ( Atm(1)%flagstruct%hybrid_z )   &
            allocate ( ze0_r(isc:iec, jsc:jec,  npz_rst+1) )
     endif
 
-    fname_nd = 'INPUT/fv_core.res.nc'
+    fname = 'fv_core.res.nc'
+    id_restart = register_restart_field(Fv_restart_r, fname, 'ak', ak_r(:), no_domain=.true.)
+    id_restart = register_restart_field(Fv_restart_r, fname, 'bk', bk_r(:), no_domain=.true.)
+    call restore_state(Fv_restart_r)
+    call free_restart_type(Fv_restart_r)
 
-  ! write_data does not (yet?) support vector data and tiles
-    call read_data(fname_nd, 'ak', ak_r(1:npz_rst+1))
-    call read_data(fname_nd, 'bk', bk_r(1:npz_rst+1))
+! fix for single tile runs where you need fv_core.res.nc and fv_core.res.tile1.nc
+    ntiles = mpp_get_ntile_count(fv_domain)
+    if(ntiles == 1 .and. .not. Atm(1)%neststruct%nested) then
+       stile_name = '.tile1'
+    else
+       stile_name = ''
+    endif
 
-    do n = 1, ntileMe
-       call get_tile_string(fname, 'INPUT/fv_core.res.tile', tile_id(n), '.nc' )
-       if(file_exist(fname))then
-         call read_data(fname, 'u', u_r(isc:iec,jsc:jec+1,:), domain=fv_domain, position=NORTH,tile_count=n)
-         call read_data(fname, 'v', v_r(isc:iec+1,jsc:jec,:), domain=fv_domain, position=EAST,tile_count=n)
-
-         if ( (.not.Atm(n)%hydrostatic) .and. (.not.Atm(n)%make_nh) ) then
-              call read_data(fname, 'W',     w_r(isc:iec,jsc:jec,:), domain=fv_domain, tile_count=n)
-              call read_data(fname, 'DZ', delz_r(isc:iec,jsc:jec,:), domain=fv_domain, tile_count=n)
-              if ( Atm(n)%hybrid_z )   &
-              call read_data(fname, 'ZE0', ze0_r(isc:iec,jsc:jec,:), domain=fv_domain, tile_count=n)
-         endif
-
-         call read_data(fname, 'T', pt_r(isc:iec,jsc:jec,:), domain=fv_domain, tile_count=n)
-         call read_data(fname, 'delp', delp_r(isc:iec,jsc:jec,:), domain=fv_domain, tile_count=n)
-         call read_data(fname, 'phis', Atm(n)%phis(isc:iec,jsc:jec), domain=fv_domain, tile_count=n)
-       else
-         call mpp_error(FATAL,'==> Error from fv_read_restart: Expected file '//trim(fname)//' does not exist')
-       endif
-
-       call get_tile_string(fname, 'INPUT/fv_srf_wnd.res.tile', tile_id(n), '.nc' )
-       if(file_exist(fname))then
-         call read_data(fname, 'u_srf', Atm(n)%u_srf(isc:iec,jsc:jec), domain=fv_domain, tile_count=n)
-         call read_data(fname, 'v_srf', Atm(n)%v_srf(isc:iec,jsc:jec), domain=fv_domain, tile_count=n)
-         if (field_exist(fname,'ts'))   &
-               call read_data(fname, 'ts', Atm(n)%ts(isc:iec,jsc:jec), domain=fv_domain, tile_count=n)
-         Atm(n)%srf_init = .true.
-       else
-         call mpp_error(NOTE,'==> Warning from fv_read_restart: Expected file '//trim(fname)//' does not exist')
-         Atm(n)%srf_init = .false.
-       endif
-
-     if ( Atm(n)%fv_land ) then
-! Optional terrain deviation (sgh)
-       call get_tile_string(fname, 'INPUT/mg_drag.res.tile', tile_id(n), '.nc' )
-       if(file_exist(fname))then
-         call read_data(fname, 'ghprime', Atm(n)%sgh(isc:iec,jsc:jec), domain=fv_domain, tile_count=n)
-       else
-         call mpp_error(NOTE,'==> Warning from fv_read_restart: Expected file '//trim(fname)//' does not exist')
-       endif
-! Land-water mask
-       call get_tile_string(fname, 'INPUT/fv_land.res.tile', tile_id(n), '.nc' )
-       if(file_exist(fname))then
-         call read_data(fname, 'oro', Atm(n)%oro(isc:iec,jsc:jec), domain=fv_domain, tile_count=n)
-       else
-         call mpp_error(NOTE,'==> Warning from fv_read_restart: Expected file '//trim(fname)//' does not exist')
-       endif
-     endif
-
-       call get_tile_string(fname, 'INPUT/fv_tracer.res.tile', tile_id(n), '.nc' )
-
-       do nt = 1, ntracers
-           call get_tracer_names(MODEL_ATMOS, nt, tracer_name)
-
-          if(file_exist(fname))then
-              if (field_exist(fname,tracer_name)) then
-                 call read_data(fname, tracer_name, q_r(isc:iec,jsc:jec,:,nt), domain=fv_domain, tile_count=n)
-                 call mpp_error(NOTE,'==>  Have read tracer '//trim(tracer_name)//' from fv_tracer.res')
-                 cycle
-              endif
+!    do n = 1, ntileMe
+    n = 1
+       fname = 'fv_core.res'//trim(stile_name)//'.nc'
+       id_restart =  register_restart_field(Fv_tile_restart_r, fname, 'u', u_r, &
+                     domain=fv_domain, position=NORTH,tile_count=n)
+       id_restart =  register_restart_field(Fv_tile_restart_r, fname, 'v', v_r, &
+                     domain=fv_domain, position=EAST,tile_count=n)
+       if (.not.Atm(n)%flagstruct%hydrostatic) then
+          id_restart =  register_restart_field(Fv_tile_restart_r, fname, 'W', w_r, &
+                        domain=fv_domain, mandatory=.false., tile_count=n)
+          id_restart =  register_restart_field(Fv_tile_restart_r, fname, 'DZ', delz_r, &
+                        domain=fv_domain, mandatory=.false., tile_count=n)
+          if ( Atm(n)%flagstruct%hybrid_z ) then
+             id_restart =  register_restart_field(Fv_tile_restart_r, fname, 'ZE0', ze0_r, &
+                           domain=fv_domain, mandatory=.false., tile_count=n)
           endif
+       endif
+       id_restart =  register_restart_field(Fv_tile_restart_r, fname, 'T', pt_r, &
+                     domain=fv_domain, tile_count=n)
+       id_restart =  register_restart_field(Fv_tile_restart_r, fname, 'delp', delp_r, &
+                     domain=fv_domain, tile_count=n)
+       id_restart =  register_restart_field(Fv_tile_restart_r, fname, 'phis', Atm(n)%phis, &
+                     domain=fv_domain, tile_count=n)
+       call restore_state(FV_tile_restart_r)
+       call free_restart_type(FV_tile_restart_r)
+       fname = 'INPUT/fv_srf_wnd.res'//trim(stile_name)//'.nc'
+       if (file_exist(fname)) then
+         call restore_state(Atm(n)%Rsf_restart)
+         Atm(n)%flagstruct%srf_init = .true.
+       else
+         call mpp_error(NOTE,'==> Warning from remap_restart: Expected file '//trim(fname)//' does not exist')
+         Atm(n)%flagstruct%srf_init = .false.
+       endif
 
-          call set_tracer_profile (MODEL_ATMOS, nt, q_r(isc:iec,jsc:jec,:,nt)  )
-          call mpp_error(NOTE,'==>  Setting tracer '//trim(tracer_name)//' from set_tracer')
-       enddo
+       if ( Atm(n)%flagstruct%fv_land ) then
+!--- restore data for mg_drag - if it exists
+         fname = 'INPUT/mg_drag.res'//trim(stile_name)//'.nc'
+         if (file_exist(fname)) then
+           call restore_state(Atm(n)%Mg_restart)
+         else
+           call mpp_error(NOTE,'==> Warning from remap_restart: Expected file '//trim(fname)//' does not exist')
+         endif
+!--- restore data for fv_land - if it exists
+         fname = 'INPUT/fv_land.res'//trim(stile_name)//'.nc'
+         if (file_exist(fname)) then
+           call restore_state(Atm(n)%Lnd_restart)
+         else
+           call mpp_error(NOTE,'==> Warning from remap_restart: Expected file '//trim(fname)//' does not exist')
+         endif
+       endif
 
-       call rst_remap(npz_rst, npz, isc, iec, jsc, jec, isd, ied, jsd, jed, ntracers,              &
-                      delp_r,      u_r,      v_r,      w_r,      delz_r,      pt_r,      q_r,      &
+       fname = 'fv_tracer.res'//trim(stile_name)//'.nc'
+       if (file_exist('INPUT'//trim(fname))) then
+         do nt = 1, ntprog
+            call get_tracer_names(MODEL_ATMOS, nt, tracer_name)
+            call set_tracer_profile (MODEL_ATMOS, nt, q_r(isc:iec,jsc:jec,:,nt)  )
+            id_restart = register_restart_field(Tra_restart_r, fname, tracer_name, q_r(:,:,:,nt), &
+                         domain=fv_domain, mandatory=.false., tile_count=n)
+         enddo
+         do nt = ntprog+1, ntracers
+            call get_tracer_names(MODEL_ATMOS, nt, tracer_name)
+            call set_tracer_profile (MODEL_ATMOS, nt, qdiag_r(isc:iec,jsc:jec,:,nt)  )
+            id_restart = register_restart_field(Tra_restart_r, fname, tracer_name, qdiag_r(:,:,:,nt), &
+                         domain=fv_domain, mandatory=.false., tile_count=n)
+         enddo
+         call restore_state(Tra_restart_r)
+         call free_restart_type(Tra_restart_r)
+       else
+         call mpp_error(NOTE,'==> Warning from remap_restart: Expected file '//trim(fname)//' does not exist')
+       endif
+
+       call rst_remap(npz_rst, npz, isc, iec, jsc, jec, isd, ied, jsd, jed, ntracers, ntprog,      &
+                      delp_r,      u_r,      v_r,      w_r,      delz_r,      pt_r,  q_r,  qdiag_r,&
                       Atm(n)%delp, Atm(n)%u, Atm(n)%v, Atm(n)%w, Atm(n)%delz, Atm(n)%pt, Atm(n)%q, &
-                      ak_r,  bk_r, Atm(n)%ak, Atm(n)%bk, Atm(n)%hydrostatic)
-    end do
+                      Atm(n)%qdiag, ak_r,  bk_r, Atm(n)%ptop, Atm(n)%ak, Atm(n)%bk,                &
+                      Atm(n)%flagstruct%hydrostatic, Atm(n)%flagstruct%make_nh, Atm(n)%domain,     &
+                      Atm(n)%gridstruct%square_domain)
+    !end do
 
-    deallocate(tile_id)
     deallocate( ak_r )
     deallocate( bk_r )
     deallocate( u_r )
@@ -409,15 +396,38 @@ contains
     deallocate( pt_r )
     deallocate( delp_r )
     deallocate( q_r )
+    deallocate( qdiag_r )
 
-    if ( (.not.Atm(1)%hydrostatic) .and. (.not.Atm(1)%make_nh) ) then
+    if ( (.not.Atm(1)%flagstruct%hydrostatic) .and. (.not.Atm(1)%flagstruct%make_nh) ) then
          deallocate ( w_r )
          deallocate ( delz_r )
-         if ( Atm(1)%hybrid_z ) deallocate ( ze0_r )
+         if ( Atm(1)%flagstruct%hybrid_z ) deallocate ( ze0_r )
     endif
 
   end subroutine  remap_restart
 
+
+  !#####################################################################
+  ! <SUBROUTINE NAME="fv_io_register_nudge_restart">
+  !
+  ! <DESCRIPTION>
+  !   register restart nudge field to be written out to restart file. 
+  ! </DESCRIPTION>
+  subroutine  fv_io_register_nudge_restart(Atm)
+    type(fv_atmos_type), intent(inout) :: Atm(:)
+    character(len=64) :: fname
+    integer           :: id_restart
+
+! use_ncep_sst may not be initialized at this point?
+    call mpp_error(NOTE, 'READING FROM SST_restart DISABLED')
+!!$    if ( use_ncep_sst .or. Atm(1)%nudge .or. Atm(1)%ncep_ic ) then
+!!$       fname = 'sst_ncep.res.nc'
+!!$       id_restart = register_restart_field(Atm(1)%SST_restart, fname, 'sst_ncep', sst_ncep)
+!!$       id_restart = register_restart_field(Atm(1)%SST_restart, fname, 'sst_anom', sst_anom)
+!!$    endif
+
+  end subroutine  fv_io_register_nudge_restart
+  ! </SUBROUTINE> NAME="fv_io_register_nudge_restart"
 
 
   !#####################################################################
@@ -430,80 +440,113 @@ contains
     type(domain2d),      intent(inout) :: fv_domain
     type(fv_atmos_type), intent(inout) :: Atm(:)
 
-    character(len=64) :: fname_nd, tracer_name
+    character(len=64) :: fname, tracer_name
+    character(len=6)  :: gn, stile_name
     integer           :: id_restart
-    integer           :: n, nt, ntracers, ntileMe, ntiles
+    integer           :: n, nt, ntracers, ntprog, ntdiag, ntileMe, ntiles
 
     ntileMe = size(Atm(:)) 
-    ntracers = size(Atm(1)%q,4) 
+    ntprog = size(Atm(1)%q,4) 
+    ntdiag = size(Atm(1)%qdiag,4) 
+    ntracers = ntprog+ntdiag
 
-    fname_nd = 'fv_core.res.nc'
-    id_restart = register_restart_field(Fv_restart, fname_nd, 'ak', Atm(1)%ak(:))
-    id_restart = register_restart_field(Fv_restart, fname_nd, 'bk', Atm(1)%bk(:)) 
+!--- set the 'nestXX' appendix for all files using fms_io
+    if (Atm(1)%grid_number > 1) then
+       write(gn,'(A4, I2.2)') "nest", Atm(1)%grid_number
+    else
+       gn = ''
+    end if
+    call set_filename_appendix(gn)
+
+!--- fix for single tile runs where you need fv_core.res.nc and fv_core.res.tile1.nc
+    ntiles = mpp_get_ntile_count(fv_domain)
+    if(ntiles == 1 .and. .not. Atm(1)%neststruct%nested) then
+       stile_name = '.tile1'
+    else
+       stile_name = ''
+    endif
 
 ! use_ncep_sst may not be initialized at this point?
 #ifndef DYCORE_SOLO
-!   if ( use_ncep_sst .or. Atm(1)%nudge .or. Atm(1)%ncep_ic ) then
-       fname_nd = 'sst_ncep.res.nc'
-       id_restart = register_restart_field(SST_restart, fname_nd, 'sst_ncep', sst_ncep)
-       id_restart = register_restart_field(SST_restart, fname_nd, 'sst_anom', sst_anom)
-!   endif
+    call mpp_error(NOTE, 'READING FROM SST_RESTART DISABLED')
+!!$   if ( use_ncep_sst .or. Atm(1)%flagstruct%nudge .or. Atm(1)%flagstruct%ncep_ic ) then
+!!$       fname = 'sst_ncep'//trim(gn)//'.res.nc'
+!!$       id_restart = register_restart_field(Atm(1)%SST_restart, fname, 'sst_ncep', sst_ncep)
+!!$       id_restart = register_restart_field(Atm(1)%SST_restart, fname, 'sst_anom', sst_anom)
+!!$   endif
 #endif
 
-    allocate(Fv_tile_restart(ntileMe), Rsf_restart(ntileMe) )
-    allocate(Mg_restart(ntileMe), Lnd_restart(ntileMe), Tra_restart(ntileMe) )
-
-! fix for single tile runs where you need fv_core.res.nc and fv_core.res.tile1.nc
-    fname_nd = 'fv_core.res.nc'
-    ntiles = mpp_get_ntile_count(fv_domain)
-    if(ntiles == 1) fname_nd =  'fv_core.res.tile1.nc'
+    fname = 'fv_core.res.nc'
+    id_restart = register_restart_field(Atm(1)%Fv_restart, fname, 'ak', Atm(1)%ak(:), no_domain=.true.)
+    id_restart = register_restart_field(Atm(1)%Fv_restart, fname, 'bk', Atm(1)%bk(:), no_domain=.true.) 
 
     do n = 1, ntileMe
-       id_restart =  register_restart_field(Fv_tile_restart(n), fname_nd, 'u', Atm(n)%u, &
+       fname = 'fv_core.res'//trim(stile_name)//'.nc'
+       id_restart =  register_restart_field(Atm(n)%Fv_tile_restart, fname, 'u', Atm(n)%u, &
                      domain=fv_domain, position=NORTH,tile_count=n)
-       id_restart =  register_restart_field(Fv_tile_restart(n), fname_nd, 'v', Atm(n)%v, &
+       id_restart =  register_restart_field(Atm(n)%Fv_tile_restart, fname, 'v', Atm(n)%v, &
                      domain=fv_domain, position=EAST,tile_count=n)
-       if (.not.Atm(n)%hydrostatic) then
-          id_restart =  register_restart_field(Fv_tile_restart(n), fname_nd, 'W', Atm(n)%w, &
-                        domain=fv_domain, tile_count=n, mandatory=.false.)
-          id_restart =  register_restart_field(Fv_tile_restart(n), fname_nd, 'DZ', Atm(n)%delz, &
-                        domain=fv_domain, tile_count=n, mandatory=.false.)
-          if ( Atm(n)%hybrid_z ) then
-             id_restart =  register_restart_field(Fv_tile_restart(n), fname_nd, 'ZE0', Atm(n)%ze0, &
-                           domain=fv_domain, tile_count=n, mandatory=.false.)
+       if (.not.Atm(n)%flagstruct%hydrostatic) then
+          id_restart =  register_restart_field(Atm(n)%Fv_tile_restart, fname, 'W', Atm(n)%w, &
+                        domain=fv_domain, mandatory=.false., tile_count=n)
+          id_restart =  register_restart_field(Atm(n)%Fv_tile_restart, fname, 'DZ', Atm(n)%delz, &
+                        domain=fv_domain, mandatory=.false., tile_count=n)
+          if ( Atm(n)%flagstruct%hybrid_z ) then
+             id_restart =  register_restart_field(Atm(n)%Fv_tile_restart, fname, 'ZE0', Atm(n)%ze0, &
+                           domain=fv_domain, mandatory=.false., tile_count=n)
           endif
        endif
-       id_restart =  register_restart_field(Fv_tile_restart(n), fname_nd, 'T', Atm(n)%pt, &
+       id_restart =  register_restart_field(Atm(n)%Fv_tile_restart, fname, 'T', Atm(n)%pt, &
                      domain=fv_domain, tile_count=n)
-       id_restart =  register_restart_field(Fv_tile_restart(n), fname_nd, 'delp', Atm(n)%delp, &
+       id_restart =  register_restart_field(Atm(n)%Fv_tile_restart, fname, 'delp', Atm(n)%delp, &
                      domain=fv_domain, tile_count=n)
-       id_restart =  register_restart_field(Fv_tile_restart(n), fname_nd, 'phis', Atm(n)%phis, &
-                     domain=fv_domain, tile_count=n)
-
-       fname_nd = 'fv_srf_wnd.res.nc'
-       if(ntiles == 1) fname_nd = 'fv_srf_wnd.res.tile1.nc'
-       id_restart =  register_restart_field(Rsf_restart(n), fname_nd, 'u_srf', Atm(n)%u_srf, &
-                     domain=fv_domain, tile_count=n)
-       id_restart =  register_restart_field(Rsf_restart(n), fname_nd, 'v_srf', Atm(n)%v_srf, &
+       id_restart =  register_restart_field(Atm(n)%Fv_tile_restart, fname, 'phis', Atm(n)%phis, &
                      domain=fv_domain, tile_count=n)
 
-       if ( Atm(n)%fv_land ) then
+       !--- include agrid winds in restarts for use in data assimilation 
+       if (Atm(n)%flagstruct%agrid_vel_rst) then
+         id_restart =  register_restart_field(Atm(n)%Fv_tile_restart, fname, 'ua', Atm(n)%ua, &
+                       domain=fv_domain, tile_count=n, mandatory=.false.)
+         id_restart =  register_restart_field(Atm(n)%Fv_tile_restart, fname, 'va', Atm(n)%va, &
+                       domain=fv_domain, tile_count=n, mandatory=.false.)
+       endif
+
+       fname = 'fv_srf_wnd.res'//trim(stile_name)//'.nc'
+       id_restart =  register_restart_field(Atm(n)%Rsf_restart, fname, 'u_srf', Atm(n)%u_srf, &
+                     domain=fv_domain, tile_count=n)
+       id_restart =  register_restart_field(Atm(n)%Rsf_restart, fname, 'v_srf', Atm(n)%v_srf, &
+                     domain=fv_domain, tile_count=n)
+#ifdef SIM_PHYS
+       id_restart =  register_restart_field(Rsf_restart(n), fname, 'ts', Atm(n)%ts, &
+                     domain=fv_domain, tile_count=n)
+#endif
+
+       if ( Atm(n)%flagstruct%fv_land ) then
           !-------------------------------------------------------------------------------------------------
           ! Optional terrain deviation (sgh) and land fraction (oro)
-          fname_nd = 'mg_drag.res.nc'
-          id_restart =  register_restart_field(Mg_restart(n), fname_nd, 'ghprime', Atm(n)%sgh, &
+          fname = 'mg_drag.res'//trim(stile_name)//'.nc'
+          id_restart =  register_restart_field(Atm(n)%Mg_restart, fname, 'ghprime', Atm(n)%sgh, &
                         domain=fv_domain, tile_count=n)  
 
-          fname_nd = 'fv_land.res.nc'
-          id_restart = register_restart_field(Lnd_restart(n), fname_nd, 'oro', Atm(n)%oro, &
+          fname = 'fv_land.res'//trim(stile_name)//'.nc'
+          id_restart = register_restart_field(Atm(n)%Lnd_restart, fname, 'oro', Atm(n)%oro, &
                         domain=fv_domain, tile_count=n)
        endif
-       fname_nd = 'fv_tracer.res.nc'
-       if(ntiles == 1) fname_nd = 'fv_tracer.res.tile1.nc'
-       do nt = 1, ntracers
+
+       fname = 'fv_tracer.res'//trim(stile_name)//'.nc'
+       do nt = 1, ntprog
           call get_tracer_names(MODEL_ATMOS, nt, tracer_name)
-          id_restart = register_restart_field(Tra_restart(n), fname_nd, tracer_name, Atm(n)%q(:,:,:,nt), &
-                       domain=fv_domain, tile_count=n, mandatory=.false.)
+          ! set all tracers to an initial profile value
+          call set_tracer_profile (MODEL_ATMOS, nt, Atm(n)%q(:,:,:,nt)  )
+          id_restart = register_restart_field(Atm(n)%Tra_restart, fname, tracer_name, Atm(n)%q(:,:,:,nt), &
+                       domain=fv_domain, mandatory=.false., tile_count=n)
+       enddo
+       do nt = ntprog+1, ntracers
+          call get_tracer_names(MODEL_ATMOS, nt, tracer_name)
+          ! set all tracers to an initial profile value
+          call set_tracer_profile (MODEL_ATMOS, nt, Atm(n)%qdiag(:,:,:,nt)  )
+          id_restart = register_restart_field(Atm(n)%Tra_restart, fname, tracer_name, Atm(n)%qdiag(:,:,:,nt), &
+                       domain=fv_domain, mandatory=.false., tile_count=n)
        enddo
 
     enddo
@@ -519,35 +562,442 @@ contains
   ! <DESCRIPTION>
   ! Write the fv core restart quantities 
   ! </DESCRIPTION>
-  subroutine  fv_io_write_restart(Atm, timestamp)
-    type(fv_atmos_type),        intent(in) :: Atm(:)
+  subroutine  fv_io_write_restart(Atm, grids_on_this_pe, timestamp)
+
+    type(fv_atmos_type),        intent(inout) :: Atm(:)
+    logical, intent(IN) :: grids_on_this_pe(:)
     character(len=*), optional, intent(in) :: timestamp
     integer                                :: n, ntileMe
 
     ntileMe = size(Atm(:))  ! This will need mods for more than 1 tile per pe
 
-    call save_restart(Fv_restart, timestamp)
-
-#ifndef DYCORE_SOLO
-    if ( use_ncep_sst .or. Atm(1)%nudge .or. Atm(1)%ncep_ic ) then
-       call save_restart(SST_restart, timestamp)
+    if ( use_ncep_sst .or. Atm(1)%flagstruct%nudge .or. Atm(1)%flagstruct%ncep_ic ) then
+       call mpp_error(NOTE, 'READING FROM SST_RESTART DISABLED')
+       !call save_restart(Atm(1)%SST_restart, timestamp)
     endif
-#endif
  
     do n = 1, ntileMe
-       call save_restart(Fv_tile_restart(n), timestamp)
-       call save_restart(Rsf_restart(n), timestamp)
+       if (.not. grids_on_this_pe(n)) cycle
 
-       if ( Atm(n)%fv_land ) then
-          call save_restart(Mg_restart(n), timestamp)
-          call save_restart(Lnd_restart(n), timestamp)
+       if ( (use_ncep_sst .or. Atm(n)%flagstruct%nudge) .and. .not. Atm(n)%gridstruct%nested ) then
+          call save_restart(Atm(n)%SST_restart, timestamp)
+       endif
+ 
+       call save_restart(Atm(n)%Fv_restart, timestamp)
+       call save_restart(Atm(n)%Fv_tile_restart, timestamp)
+       call save_restart(Atm(n)%Rsf_restart, timestamp)
+
+       if ( Atm(n)%flagstruct%fv_land ) then
+          call save_restart(Atm(n)%Mg_restart, timestamp)
+          call save_restart(Atm(n)%Lnd_restart, timestamp)
        endif
 
-       call save_restart(Tra_restart(n), timestamp)
+       call save_restart(Atm(n)%Tra_restart, timestamp)
+
     end do
 
   end subroutine  fv_io_write_restart
-  ! </SUBROUTINE> NAME="fv_io_write_restart"
+
+  subroutine register_bcs_2d(Atm, BCfile_ne, BCfile_sw, fname_ne, fname_sw, &
+                             var_name, var, var_bc, istag, jstag)
+    type(fv_atmos_type),      intent(in)    :: Atm
+    type(restart_file_type),  intent(inout) :: BCfile_ne, BCfile_sw
+    character(len=120),       intent(in)    :: fname_ne, fname_sw
+    character(len=*),         intent(in)    :: var_name
+    real, dimension(:,:),     intent(in), optional :: var
+    type(fv_nest_BC_type_3D), intent(in), optional :: var_bc
+    integer,                  intent(in), optional :: istag, jstag
+
+    integer :: npx, npy, i_stag, j_stag
+    integer :: is, ie, js, je, isd, ied, jsd, jed, n
+    integer :: x_halo, y_halo, x_halo_ns, id_restart
+    integer :: layout(2), global_size(2), indices(4)
+    integer, allocatable, dimension(:) :: x1_pelist, y1_pelist
+    integer, allocatable, dimension(:) :: x2_pelist, y2_pelist
+    logical :: is_root_pe
+
+    i_stag = 0 
+    j_stag = 0 
+    if (present(istag)) i_stag = i_stag
+    if (present(jstag)) j_stag = j_stag
+    call mpp_get_global_domain(Atm%domain, xsize = npx, ysize = npy, position=CORNER )
+    call mpp_get_data_domain(Atm%domain, isd, ied, jsd, jed )
+    call mpp_get_compute_domain(Atm%domain, is, ie, js, je )
+    call mpp_get_layout(Atm%domain, layout)
+    allocate (x1_pelist(layout(1)))
+    allocate (y1_pelist(layout(2)))
+    allocate (x2_pelist(layout(1)))
+    allocate (y2_pelist(layout(2)))
+    x_halo = is-isd
+    y_halo = js-jsd
+! define west and east pelist
+    do n = 1,layout(2)
+      y1_pelist(n)=mpp_root_pe()+layout(1)*n-1
+      y2_pelist(n)=mpp_root_pe()+layout(1)*(n-1)
+    enddo
+! define south and north pelist
+    do n = 1,layout(1)
+      x1_pelist(n)=mpp_root_pe()+layout(1)*(layout(2)-1)+(n-1)
+      x2_pelist(n)=mpp_root_pe()+(n-1)
+    enddo
+! declare the pelists inside of mpp (creates the MPI communicator)
+    call mpp_declare_pelist(x1_pelist)
+    call mpp_declare_pelist(x2_pelist)
+    call mpp_declare_pelist(y1_pelist)
+    call mpp_declare_pelist(y2_pelist)
+
+!EAST & WEST
+!set defaults for west/east halo regions
+    indices(1) = 1
+    indices(2) = x_halo
+    indices(3) = jsd
+    indices(4) = jed+j_stag
+    global_size(1) = x_halo
+    global_size(2) = npy-1+2*y_halo+j_stag
+
+!define west root_pe
+    is_root_pe = .FALSE.
+    if (is.eq.1 .and. js.eq.1) is_root_pe = .TRUE.
+!register west halo data in t1
+    if (present(var_bc)) id_restart = register_restart_field(BCfile_sw, trim(fname_sw), &
+                                        trim(var_name)//'_west_t1', &
+                                        var_bc%west_t1, & 
+                                        indices, global_size, y2_pelist, &
+                                        is_root_pe, jshift=y_halo)
+!register west prognostic halo data
+    if (present(var)) id_restart = register_restart_field(BCfile_sw, trim(fname_sw), &
+                                        trim(var_name)//'_west', &
+                                        var, indices, global_size, &
+                                        y2_pelist, is_root_pe, jshift=y_halo)
+
+!define east root_pe
+    is_root_pe = .FALSE.
+    if (ie.eq.npx-1 .and. je.eq.npy-1) is_root_pe = .TRUE.
+!register east halo data in t1
+    if (present(var_bc)) id_restart = register_restart_field(BCfile_ne, trim(fname_ne), &
+                                        trim(var_name)//'_east_t1', &
+                                        var_bc%east_t1, & 
+                                        indices, global_size, y1_pelist, &
+                                        is_root_pe, jshift=y_halo)
+
+!reset indices for prognostic variables in the east halo
+    indices(1) = ied-x_halo+1+i_stag
+    indices(2) = ied+i_stag
+!register east prognostic halo data
+    if (present(var)) id_restart = register_restart_field(BCfile_ne, trim(fname_ne), &
+                                        trim(var_name)//'_east', &
+                                        var, indices, global_size, &
+                                        y1_pelist, is_root_pe, jshift=y_halo, &
+                                        x_halo=(size(var,1)-x_halo), ishift=-(ie+i_stag))
+
+!NORTH & SOUTH
+!set defaults for north/south halo regions
+    indices(1) = isd
+    indices(2) = ied+i_stag
+    indices(3) = 1
+    indices(4) = y_halo
+    global_size(1) = npx-1+i_stag
+    global_size(2) = y_halo
+!modify starts and ends for certain pes
+    if (is.eq.1)     indices(1) = is
+    if (ie.eq.npx-1) indices(2) = ie+i_stag
+    x_halo_ns = 0
+    if (is.eq.1) x_halo_ns=x_halo
+
+!define south root_pe
+    is_root_pe = .FALSE.
+    if (is.eq.1 .and. js.eq.1) is_root_pe = .TRUE.
+!register south halo data in t1
+    if (present(var_bc)) id_restart = register_restart_field(BCfile_sw, trim(fname_sw), &
+                                        trim(var_name)//'_south_t1', &
+                                        var_bc%south_t1, & 
+                                        indices, global_size, x2_pelist, &
+                                        is_root_pe, x_halo=x_halo_ns)
+!register south prognostic halo data
+    if (present(var)) id_restart = register_restart_field(BCfile_sw, trim(fname_sw), &
+                                        trim(var_name)//'_south', &
+                                        var, indices, global_size, &
+                                        x2_pelist, is_root_pe, x_halo=x_halo_ns)
+
+!define north root_pe
+    is_root_pe = .FALSE.
+    if (ie.eq.npx-1 .and. je.eq.npy-1) is_root_pe = .TRUE.
+!register north halo data in t1
+    if (present(var_bc)) id_restart = register_restart_field(BCfile_ne, trim(fname_ne), &
+                                        trim(var_name)//'_north_t1', &
+                                        var_bc%north_t1, & 
+                                        indices, global_size, x1_pelist, &
+                                        is_root_pe, x_halo=x_halo_ns)
+
+!reset indices for prognostic variables in the north halo
+    indices(3) = jed-y_halo+1+j_stag
+    indices(4) = jed+j_stag
+!register north prognostic halo data
+    if (present(var)) id_restart = register_restart_field(BCfile_ne, trim(fname_ne), &
+                                        trim(var_name)//'_north', &
+                                        var, indices, global_size, &
+                                        x1_pelist, is_root_pe, x_halo=x_halo_ns, &
+                                        y_halo=(size(var,2)-y_halo), jshift=-(je+j_stag))
+
+  end subroutine register_bcs_2d
+
+
+  subroutine register_bcs_3d(Atm, BCfile_ne, BCfile_sw, fname_ne, fname_sw, &
+                             var_name, var, var_bc, istag, jstag, mandatory)
+    type(fv_atmos_type),      intent(in)    :: Atm
+    type(restart_file_type),  intent(inout) :: BCfile_ne, BCfile_sw
+    character(len=120),       intent(in)    :: fname_ne, fname_sw
+    character(len=*),         intent(in)    :: var_name
+    real, dimension(:,:,:),   intent(in), optional :: var
+    type(fv_nest_BC_type_3D), intent(in), optional :: var_bc
+    integer,                  intent(in), optional :: istag, jstag
+    logical,                  intent(IN), optional :: mandatory
+
+    integer :: npx, npy, i_stag, j_stag
+    integer :: is, ie, js, je, isd, ied, jsd, jed, n
+    integer :: x_halo, y_halo, x_halo_ns, id_restart
+    integer :: layout(2), global_size(3), indices(4)
+    integer, allocatable, dimension(:) :: x1_pelist, y1_pelist
+    integer, allocatable, dimension(:) :: x2_pelist, y2_pelist
+    logical :: is_root_pe
+
+    i_stag = 0
+    j_stag = 0
+    if (present(istag)) i_stag = istag
+    if (present(jstag)) j_stag = jstag
+    call mpp_get_global_domain(Atm%domain, xsize = npx, ysize = npy, position=CORNER )
+    call mpp_get_data_domain(Atm%domain, isd, ied, jsd, jed )
+    call mpp_get_compute_domain(Atm%domain, is, ie, js, je )
+    call mpp_get_layout(Atm%domain, layout)
+    allocate (x1_pelist(layout(1)))
+    allocate (y1_pelist(layout(2)))
+    allocate (x2_pelist(layout(1)))
+    allocate (y2_pelist(layout(2)))
+    x_halo = is-isd
+    y_halo = js-jsd
+! define west and east pelist
+    do n = 1,layout(2)
+      y1_pelist(n)=mpp_root_pe()+layout(1)*n-1
+      y2_pelist(n)=mpp_root_pe()+layout(1)*(n-1)
+    enddo
+! define south and north pelist
+    do n = 1,layout(1)
+      x1_pelist(n)=mpp_root_pe()+layout(1)*(layout(2)-1)+(n-1)
+      x2_pelist(n)=mpp_root_pe()+(n-1)
+    enddo
+! declare the pelists inside of mpp (creates the MPI communicator)
+    call mpp_declare_pelist(x1_pelist)
+    call mpp_declare_pelist(x2_pelist)
+    call mpp_declare_pelist(y1_pelist)
+    call mpp_declare_pelist(y2_pelist)
+
+!EAST & WEST
+!set defaults for west/east halo regions
+    indices(1) = 1
+    indices(2) = x_halo
+    indices(3) = jsd
+    indices(4) = jed + j_stag
+    global_size(1) = x_halo
+    global_size(2) = npy-1+2*y_halo + j_stag
+    global_size(3) = Atm%npz
+
+!define west root_pe
+    is_root_pe = .FALSE.
+    if (is.eq.1 .and. js.eq.1) is_root_pe = .TRUE.
+!register west halo data in t1
+    if (present(var_bc)) id_restart = register_restart_field(BCfile_sw, trim(fname_sw), &
+                                        trim(var_name)//'_west_t1', &
+                                        var_bc%west_t1, & 
+                                        indices, global_size, y2_pelist, &
+                                        is_root_pe, jshift=y_halo, mandatory=mandatory)
+!register west prognostic halo data
+    if (present(var)) id_restart = register_restart_field(BCfile_sw, trim(fname_sw), &
+                                        trim(var_name)//'_west', &
+                                        var, indices, global_size, &
+                                        y2_pelist, is_root_pe, jshift=y_halo, mandatory=mandatory)
+
+!define east root_pe
+    is_root_pe = .FALSE.
+    if (ie.eq.npx-1 .and. je.eq.npy-1) is_root_pe = .TRUE.
+!register east halo data in t1
+    if (present(var_bc)) id_restart = register_restart_field(BCfile_ne, trim(fname_ne), &
+                                        trim(var_name)//'_east_t1', &
+                                        var_bc%east_t1, & 
+                                        indices, global_size, y1_pelist, &
+                                        is_root_pe, jshift=y_halo, mandatory=mandatory)
+
+!reset indices for prognostic variables in the east halo
+    indices(1) = ied-x_halo+1+i_stag
+    indices(2) = ied+i_stag
+!register east prognostic halo data
+    if (present(var)) id_restart = register_restart_field(BCfile_ne, trim(fname_ne), &
+                                        trim(var_name)//'_east', &
+                                        var, indices, global_size, &
+                                        y1_pelist, is_root_pe, jshift=y_halo, &
+                                        x_halo=(size(var,1)-x_halo), ishift=-(ie+i_stag), mandatory=mandatory)
+
+!NORTH & SOUTH
+!set defaults for north/south halo regions
+    indices(1) = isd
+    indices(2) = ied+i_stag
+    indices(3) = 1
+    indices(4) = y_halo
+    global_size(1) = npx-1+i_stag
+    global_size(2) = y_halo
+    global_size(3) = Atm%npz
+!modify starts and ends for certain pes
+    if (is.eq.1)     indices(1) = is
+    if (ie.eq.npx-1) indices(2) = ie+i_stag
+    x_halo_ns = 0
+    if (is.eq.1) x_halo_ns=x_halo
+
+!define south root_pe
+    is_root_pe = .FALSE.
+    if (is.eq.1 .and. js.eq.1) is_root_pe = .TRUE.
+!register south halo data in t1
+    if (present(var_bc)) id_restart = register_restart_field(BCfile_sw, trim(fname_sw), &
+                                        trim(var_name)//'_south_t1', &
+                                        var_bc%south_t1, & 
+                                        indices, global_size, x2_pelist, &
+                                        is_root_pe, x_halo=x_halo_ns, mandatory=mandatory)
+!register south prognostic halo data
+    if (present(var)) id_restart = register_restart_field(BCfile_sw, trim(fname_sw), &
+                                        trim(var_name)//'_south', &
+                                        var, indices, global_size, &
+                                        x2_pelist, is_root_pe, x_halo=x_halo_ns, mandatory=mandatory)
+
+!define north root_pe
+    is_root_pe = .FALSE.
+    if (ie.eq.npx-1 .and. je.eq.npy-1) is_root_pe = .TRUE.
+!register north halo data in t1
+    if (present(var_bc)) id_restart = register_restart_field(BCfile_ne, trim(fname_ne), &
+                                        trim(var_name)//'_north_t1', &
+                                        var_bc%north_t1, & 
+                                        indices, global_size, x1_pelist, &
+                                        is_root_pe, x_halo=x_halo_ns, mandatory=mandatory)
+
+!reset indices for prognostic variables in the north halo
+    indices(3) = jed-y_halo+1+j_stag
+    indices(4) = jed+j_stag
+!register north prognostic halo data
+    if (present(var)) id_restart = register_restart_field(BCfile_ne, trim(fname_ne), &
+                                        trim(var_name)//'_north', &
+                                        var, indices, global_size, &
+                                        x1_pelist, is_root_pe, x_halo=x_halo_ns, &
+                                        y_halo=(size(var,2)-y_halo), jshift=-(je+j_stag), mandatory=mandatory)
+
+  end subroutine register_bcs_3d
+
+
+  ! </SUBROUTINE> NAME="fv_io_regsiter_restart_BCs"
   !#####################################################################
+
+  subroutine fv_io_register_restart_BCs(Atm)
+    type(fv_atmos_type),        intent(inout) :: Atm
+
+    integer :: n, ntracers, ntprog, ntdiag
+    character(len=120) :: tname, fname_ne, fname_sw
+
+    fname_ne = 'fv_BC_ne.res.nc'
+    fname_sw = 'fv_BC_sw.res.nc'
+
+    ntprog=size(Atm%q,4)
+    ntdiag=size(Atm%qdiag,4)
+    ntracers=ntprog+ntdiag
+
+    call set_domain(Atm%domain)
+
+    call register_bcs_2d(Atm, Atm%neststruct%BCfile_ne, Atm%neststruct%BCfile_sw, &
+                         fname_ne, fname_sw, 'phis', var=Atm%phis)
+    call register_bcs_3d(Atm, Atm%neststruct%BCfile_ne, Atm%neststruct%BCfile_sw, &
+                         fname_ne, fname_sw, 'delp', Atm%delp, Atm%neststruct%delp_BC)
+    do n=1,ntprog
+       call get_tracer_names(MODEL_ATMOS, n, tname)
+       call register_bcs_3d(Atm, Atm%neststruct%BCfile_ne, Atm%neststruct%BCfile_sw, &
+                            fname_ne, fname_sw, trim(tname), Atm%q(:,:,:,n), Atm%neststruct%q_BC(n), mandatory=.false.)
+    enddo
+    do n=ntprog+1,ntracers
+       call get_tracer_names(MODEL_ATMOS, n, tname)
+       call register_bcs_3d(Atm, Atm%neststruct%BCfile_ne, Atm%neststruct%BCfile_sw, &
+                            fname_ne, fname_sw, trim(tname), var=Atm%qdiag(:,:,:,n), mandatory=.false.)
+    enddo
+#ifndef SW_DYNAMICS
+    call register_bcs_3d(Atm, Atm%neststruct%BCfile_ne, Atm%neststruct%BCfile_sw, &
+                         fname_ne, fname_sw, 'pt', Atm%pt, Atm%neststruct%pt_BC)
+    if ((.not.Atm%flagstruct%hydrostatic) .and. (.not.Atm%flagstruct%make_nh)) then
+       if (is_master()) print*, 'fv_io_register_restart_BCs: REGISTERING NH BCs', Atm%flagstruct%hydrostatic, Atm%flagstruct%make_nh
+      call register_bcs_3d(Atm, Atm%neststruct%BCfile_ne, Atm%neststruct%BCfile_sw, &
+                           fname_ne, fname_sw, 'w', Atm%w, Atm%neststruct%w_BC, mandatory=.false.)
+      call register_bcs_3d(Atm, Atm%neststruct%BCfile_ne, Atm%neststruct%BCfile_sw, &
+                           fname_ne, fname_sw, 'delz', Atm%delz, Atm%neststruct%delz_BC, mandatory=.false.)
+    endif
+#ifdef USE_COND
+       call register_bcs_3d(Atm, Atm%neststruct%BCfile_ne, Atm%neststruct%BCfile_sw, &
+                            fname_ne, fname_sw,'q_con', var_bc=Atm%neststruct%q_con_BC, mandatory=.false.)
+#ifdef MOIST_CAPPA
+       call register_bcs_3d(Atm, Atm%neststruct%BCfile_ne, Atm%neststruct%BCfile_sw, &
+            fname_ne, fname_sw, 'cappa', var_bc=Atm%neststruct%cappa_BC, mandatory=.false.)
+#endif
+#endif
+#endif
+    call register_bcs_3d(Atm, Atm%neststruct%BCfile_ne, Atm%neststruct%BCfile_sw, &
+                         fname_ne, fname_sw, 'u', Atm%u, Atm%neststruct%u_BC, jstag=1)
+    call register_bcs_3d(Atm, Atm%neststruct%BCfile_ne, Atm%neststruct%BCfile_sw, &
+                         fname_ne, fname_sw, 'v', Atm%v, Atm%neststruct%v_BC, istag=1)
+    call register_bcs_3d(Atm, Atm%neststruct%BCfile_ne, Atm%neststruct%BCfile_sw, &
+                         fname_ne, fname_sw, 'uc', var_bc=Atm%neststruct%uc_BC, istag=1)
+    call register_bcs_3d(Atm, Atm%neststruct%BCfile_ne, Atm%neststruct%BCfile_sw, &
+                         fname_ne, fname_sw, 'vc', var_bc=Atm%neststruct%vc_BC, jstag=1)
+    call register_bcs_3d(Atm, Atm%neststruct%BCfile_ne, Atm%neststruct%BCfile_sw, &
+                         fname_ne, fname_sw, 'divg', var_bc=Atm%neststruct%divg_BC, istag=1,jstag=1, mandatory=.false.)
+    Atm%neststruct%divg_BC%initialized = field_exist(fname_ne, 'divg_north_t1', Atm%domain)
+
+
+    return
+  end subroutine fv_io_register_restart_BCs
+
+
+  subroutine fv_io_register_restart_BCs_NH(Atm)
+    type(fv_atmos_type),        intent(inout) :: Atm
+
+    integer :: n
+    character(len=120) :: tname, fname_ne, fname_sw
+
+    fname_ne = 'fv_BC_ne.res.nc'
+    fname_sw = 'fv_BC_sw.res.nc'
+
+    call set_domain(Atm%domain)
+
+    if (is_master()) print*, 'fv_io_register_restart_BCs_NH: REGISTERING NH BCs', Atm%flagstruct%hydrostatic, Atm%flagstruct%make_nh
+#ifndef SW_DYNAMICS
+    call register_bcs_3d(Atm, Atm%neststruct%BCfile_ne, Atm%neststruct%BCfile_sw, &
+         fname_ne, fname_sw, 'w', Atm%w, Atm%neststruct%w_BC)
+    call register_bcs_3d(Atm, Atm%neststruct%BCfile_ne, Atm%neststruct%BCfile_sw, &
+         fname_ne, fname_sw, 'delz', Atm%delz, Atm%neststruct%delz_BC)
+#endif
+
+    return
+  end subroutine fv_io_register_restart_BCs_NH
+
+
+  subroutine fv_io_write_BCs(Atm, timestamp)
+    type(fv_atmos_type), intent(inout) :: Atm
+    character(len=*),    intent(in), optional :: timestamp
+
+    call save_restart_border(Atm%neststruct%BCfile_ne, timestamp)
+    call save_restart_border(Atm%neststruct%BCfile_sw, timestamp)
+
+    return
+  end subroutine fv_io_write_BCs
+
+
+  subroutine fv_io_read_BCs(Atm)
+    type(fv_atmos_type), intent(inout) :: Atm
+
+    call restore_state_border(Atm%neststruct%BCfile_ne)
+    call restore_state_border(Atm%neststruct%BCfile_sw)
+
+    return
+  end subroutine fv_io_read_BCs
 
 end module fv_io_mod
