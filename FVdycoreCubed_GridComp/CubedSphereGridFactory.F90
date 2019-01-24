@@ -183,6 +183,10 @@ contains
 
       integer :: i,nTile
       integer, allocatable :: ims(:,:), jms(:,:)
+
+      ! Customize for compatibility with ESMF v7.1.0r (ewl, 1/24/2019)
+      integer :: decomptile(2,6)
+
       integer :: status
       character(len=*), parameter :: Iam = MOD_NAME // 'create_basic_grid'
 
@@ -195,11 +199,23 @@ contains
       do i=1,nTile
          ims(:,i)=this%ims
          jms(:,i)=this%jms
+
+         ! Customize for compatibility with ESMF v7.1.0r (ewl, 1/24/2019)
+         decomptile(:,i) = (/this%ims,this%jms/)
+
       end do
       if (this%grid_type <= 3) then
-         grid = ESMF_GridCreateCubedSPhere(this%im_world,countsPerDEDim1PTile=ims, &
-                   countsPerDEDim2PTile=jms ,name=this%grid_name, &
-                   staggerLocList=[ESMF_STAGGERLOC_CENTER,ESMF_STAGGERLOC_CORNER], coordSys=ESMF_COORDSYS_SPH_RAD, rc=status)
+
+         ! Customize for compatibility with ESMF v7.1.0r (ewl, 1/24/2019)
+         !grid = ESMF_GridCreateCubedSPhere(this%im_world,countsPerDEDim1PTile=ims, &
+         !          countsPerDEDim2PTile=jms ,name=this%grid_name, &
+         !          staggerLocList=[ESMF_STAGGERLOC_CENTER,ESMF_STAGGERLOC_CORNER], coordSys=ESMF_COORDSYS_SPH_RAD, rc=status)
+         grid = ESMF_GridCreateCubedSPhere(this%im_world, &
+              regDecompPTile=decomptile, &
+              name=this%grid_name,      &
+              staggerLocList=[ESMF_STAGGERLOC_CENTER,ESMF_STAGGERLOC_CORNER], &
+              coordSys=ESMF_COORDSYS_SPH_RAD, rc=status)
+
          _VERIFY(status)
          call ESMF_AttributeSet(grid, 'GridType', 'Cubed-Sphere', rc=status)
       else
