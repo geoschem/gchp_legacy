@@ -17,3 +17,9 @@ log.*
 ESMF/lib
 ESMF/Linux
 Shared/Linux
+Shared/Config/bin
+Shared/Config/ESMA
+Shared/Config/GrADS
+Shared/Config/Net
+Shared/Config/Time
+Shared/Config/XML
