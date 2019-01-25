@@ -7263,7 +7263,8 @@ module MAPL_IOMod
              if (STATUS /= ESMF_SUCCESS) then
                 RST = MAPL_RestartOptional
              end if
-             skipReading = (RST == MAPL_RestartSkip)
+             skipReading = (RST == MAPL_RestartSkip .or.   &
+                            RST == MAPL_RestartSkipInitial)
              if (skipReading) cycle
              bootstrapable_ = bootstrapable .and. (RST == MAPL_RestartOptional)
 
@@ -7311,6 +7312,10 @@ module MAPL_IOMod
                else
                   if (bootStrapable_ .and. (RST == MAPL_RestartOptional)) then
                      call WRITE_PARALLEL("  Bootstrapping Variable: "//trim(FieldName)//" in "//trim(filename))
+
+                     ! Set restart attr to indicate bootstrapped (ewl, 1/25/19)
+                     call ESMF_AttributeSet ( field, name='RESTART', &
+                          value=MAPL_RestartBootstrap, rc=status)
                   else
                      call WRITE_PARALLEL("  Could not find field "//trim(FieldName)//" in "//trim(filename))
                      ASSERT_(.false.)
@@ -7357,6 +7362,11 @@ module MAPL_IOMod
              else
                 if (bootStrapable .and. (RST == MAPL_RestartOptional)) then
                     call WRITE_PARALLEL("  Bootstrapping Variable: "//trim(FieldName)//" in "//trim(filename))
+
+                    ! Set restart attr to indicate bootstrapped (ewl, 1/25/19)
+                    call ESMF_AttributeSet ( field, name='RESTART', &
+                         value=MAPL_RestartBootstrap, rc=status)
+
                 else
                     call WRITE_PARALLEL("  Could not find field "//trim(Fieldname)//" in "//trim(filename))
                     ASSERT_(.false.)
