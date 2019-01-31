@@ -213,30 +213,30 @@ INC_ESMF = $(DIR_ESMF)/$(ARCH)/include/
 MOD_ESMF = $(DIR_ESMF)/$(ARCH)/mod/
 LIB_ESMF = $(DIR_ESMF)/$(ARCH)/lib/libesmf.so
 
-# Customize for GCHP (ewl, 1/23/19)
-#INC_MPI = /usr/include
-#LIB_MPI = -lmpi
-FC := mpif90
-ifeq ($(ESMF_COMM),mvapich2)
-   INC_MPI := $(MPI_ROOT)/include
-   LIB_MPI := -L$(MPI_ROOT)/lib  -lmpich
-else ifeq ($(ESMF_COMM),mpich)
-   INC_MPI := $(MPI_ROOT)/include
-   LIB_MPI := -L$(MPI_ROOT)/lib  -lmpich
-else ifeq ($(ESMF_COMM),mpich2)
-   INC_MPI := $(MPI_ROOT)/include
-   LIB_MPI := -L$(MPI_ROOT)/lib  -lmpich
-else ifeq ($(ESMF_COMM),openmpi)
-   INC_MPI := $(shell mpif90 --showme:incdirs)
-   LIB_MPI := $(shell mpif90 --showme:link)
-   LIB_MPI += $(shell mpicxx --showme:link)
-else ifeq ($(ESMF_COMM),mpi)
-   # Generic MPI
-   INC_MPI := $(MPI_ROOT)/include
-   LIB_MPI := -L$(MPI_ROOT)/lib  -lmpi -lmpi++
-else
-   $(error Bad ESMF_COMM in ESMA_base.mk)
-endif
+## Customize for GCHP (ewl, 1/23/19)
+##INC_MPI = /usr/include
+##LIB_MPI = -lmpi
+#FC := mpif90
+#ifeq ($(ESMF_COMM),mvapich2)
+#   INC_MPI := $(MPI_ROOT)/include
+#   LIB_MPI := -L$(MPI_ROOT)/lib  -lmpich
+#else ifeq ($(ESMF_COMM),mpich)
+#   INC_MPI := $(MPI_ROOT)/include
+#   LIB_MPI := -L$(MPI_ROOT)/lib  -lmpich
+#else ifeq ($(ESMF_COMM),mpich2)
+#   INC_MPI := $(MPI_ROOT)/include
+#   LIB_MPI := -L$(MPI_ROOT)/lib  -lmpich
+#else ifeq ($(ESMF_COMM),openmpi)
+#   INC_MPI := $(shell mpif90 --showme:incdirs)
+#   LIB_MPI := $(shell mpif90 --showme:link)
+#   LIB_MPI += $(shell mpicxx --showme:link)
+#else ifeq ($(ESMF_COMM),mpi)
+#   # Generic MPI
+#   INC_MPI := $(MPI_ROOT)/include
+#   LIB_MPI := -L$(MPI_ROOT)/lib  -lmpi -lmpi++
+#else
+#   $(error Bad ESMF_COMM in ESMA_base.mk)
+#endif
 
 DIR_THIS := $(shell basename `pwd`)
 INC_THIS = $(ESMAINC)/$(DIR_THIS)
