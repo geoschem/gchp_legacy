@@ -117,7 +117,9 @@ module time_interp_external_mod
   type(ext_fieldtype), save, private, pointer :: field(:) => NULL()
   type(filetype),      save, private, pointer :: opened_files(:) => NULL()
 !Balaji: really should use field%missing
-  real(DOUBLE_KIND), private, parameter :: time_interp_missing=-1e99
+  ! Prevent overflow error in GCHP (ewl, 1/31/19)
+  !real(DOUBLE_KIND), private, parameter :: time_interp_missing=-1e99
+  real(DOUBLE_KIND), private, parameter :: time_interp_missing=-1e32
   contains
 
 ! <SUBROUTINE NAME="time_interp_external_init">
