@@ -318,7 +318,7 @@ wipeout_mapl:
 	@echo '%%%%%  Wiping out the MAPL installation    %%%%%'
 	@echo '%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%'
 	rm -f $(ESMADIR)/mapl.install
-	rm -f $(ESMADIR)/$(ARCH)/lib/*.a
+	rm -rf $(ESMADIR)/$(ARCH)
 	rm -f $(ESMADIR)/Config/bin/*.x
 	rm -f ./*___.*
 	@$(MAKE) -C $(ESMADIR) distclean
