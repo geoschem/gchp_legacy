@@ -38,14 +38,30 @@ esma_help :
 #                   Recurse Make in Sub-directories
 #                  --------------------------------
 
+# Customize for GCHP (ewl, 1/30/19)
+#ALLDIRS = arpack pnagpack \
+#          GMAO_mpeu GMAO_pilgrim GMAO_mfhdf3 \
+#          GMAO_gfio GMAO_gfioeos GMAO_perllib \
+#          GMAO_ods  MAPL_cfio GMAO_pFIO \
+#          MAPL_Base GEOS_Shared Chem_Base Chem_Shared\
+#          GMAO_etc  GMAO_hermes GMAO_transf GMAO_psas GMAO_gems \
+#          GMAO_mpeu GMAO_pilgrim\
+#          GMAO_gfio GMAO_perllib \
+#          MAPL_cfio GMAO_pFIO \
+#          MAPL_Base GEOS_Shared \
+#          GMAO_etc  GMAO_hermes \
+#          GFDL_fms LANL_Shared \
+#          GMAO_iret GEOS_Util GMAO_pyobs GMAO_radmon GMAO_stoch \
+#          GMAO_ncdiag \
+#          GEOS_Pert
+#          GEOS_Util
 ALLDIRS = arpack pnagpack \
           GMAO_mpeu GMAO_pilgrim\
           GMAO_gfio GMAO_perllib \
           MAPL_cfio GMAO_pFIO \
           MAPL_Base GEOS_Shared \
           GMAO_etc  GMAO_hermes \
-          GFDL_fms LANL_Shared \
-          GEOS_Util
+          GFDL_fms  GEOS_Util
 
 SUBDIRS = $(wildcard $(ALLDIRS) )
 
