@@ -99,7 +99,7 @@ MAPL_INC      := -I$(ESMADIR)/$(ARCH)/include/MAPL_Base
 MAPL_INC      += -I$(ESMADIR)/$(ARCH)/include/GMAO_mpeu
 MAPL_INC      += -I$(ESMADIR)/$(ARCH)/include/GMAO_pilgrim
 MAPL_INC      += -I$(ESMADIR)/$(ARCH)/include/GMAO_hermes
-MAPL_LIB      := -L$(ESMADIR)/$(ARCH)/lib -lMAPL_Base -lMAPL_cfio -lGMAO_mpeu -lGMAO_pilgrim
+MAPL_LIB      := -L$(ESMADIR)/$(ARCH)/lib -lMAPL_Base -lMAPL_cfio -lGMAO_mpeu -lGMAO_pilgrim -lGMAO_pFIO
 
 # %%%%% Link command %%%%%
 LINK          := -lGIGC  $(MAPL_LIB) $(FV_LIB) $(ESMF_LIB) $(MPI_LIB)  $(LINK) -lGIGC 
