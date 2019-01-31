@@ -102,11 +102,17 @@
 
   FULLFC    = $(shell which $(FC))
 
+  # Customize for GCHP (ewl, 1/31/19)
+  #CFLAGS   += $(FPIC)
+  #fFLAGS   += $(FPIC) $(EXTENDED_SOURCE) $(FPE) $(OVERRIDE_LIMITS) $(ALIGNCOM)
+  #FFLAGS   += $(FPIC) $(EXTENDED_SOURCE) $(FPE) $(OVERRIDE_LIMITS) $(ALIGNCOM)
+  #f90FLAGS += $(FPIC) $(FPE) $(OVERRIDE_LIMITS) $(ALIGNCOM)
+  #F90FLAGS += $(FPIC) $(FPE) $(OVERRIDE_LIMITS) $(ALIGNCOM)
   CFLAGS   += $(FPIC)
-  fFLAGS   += $(FPIC) $(EXTENDED_SOURCE) $(FPE) $(OVERRIDE_LIMITS) $(ALIGNCOM)
-  FFLAGS   += $(FPIC) $(EXTENDED_SOURCE) $(FPE) $(OVERRIDE_LIMITS) $(ALIGNCOM)
-  f90FLAGS += $(FPIC) $(FPE) $(OVERRIDE_LIMITS) $(ALIGNCOM)
-  F90FLAGS += $(FPIC) $(FPE) $(OVERRIDE_LIMITS) $(ALIGNCOM)
+  fFLAGS   += $(EXTENDED_SOURCE) $(FPIC)
+  FFLAGS   += $(EXTENDED_SOURCE) $(FPIC)
+  f90FLAGS += -ffree-line-length-none $(FPIC)
+  F90FLAGS += -ffree-line-length-none $(FPIC)
 
   # -------------
   # F2PY Defaults
@@ -119,4 +125,3 @@
   ifdef ESMA_F2PY_FLAGS
      F2PY_FLAGS += $(ESMA_F2PY_FLAGS)
   endif
-

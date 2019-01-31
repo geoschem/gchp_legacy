@@ -35,7 +35,9 @@
   ifdef MPI_HOME
       FC := mpif90
       INC_MPI := $(MPI_HOME)/include
-      LIB_MPI := -L$(MPI_HOME)/lib  -lmpich
+      # Customize for GCHP (ewl, 1/31/19)
+      #LIB_MPI := -L$(MPI_HOME)/lib  -lmpich
+      LIB_MPI := -L$(MPI_HOME)/lib  -lmpi -lmpi++
   else
   # This detects the MPT setup at NCCS
   ifdef MPT_VERSION
