@@ -58,7 +58,8 @@ endif
   ESMAMOD = $(ESMADIR)/$(ARCH)/include
   ESMAETC = $(ESMADIR)/$(ARCH)/etc
   ESMADOC = $(ESMADIR)/$(ARCH)/doc
-  ESMACFG = $(ESMADIR)/$(ARCH)/Config
+  #ESMACFG = $(ESMADIR)/$(ARCH)/Config
+  ESMACFG = $(ESMADIR)/Config
   ESMATST = $(ESMAETC)/testsuites
   ESMAWFL = $(ESMADIR)/$(ARCH)/workflow
 
