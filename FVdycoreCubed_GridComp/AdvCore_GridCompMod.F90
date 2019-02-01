@@ -212,6 +212,37 @@ contains
                                                       RC=STATUS  )
      VERIFY_(STATUS)
 
+    ! Add for GCHP (ewl, 12/1/19)
+    call MAPL_AddImportSpec ( gc,                                  &
+         SHORT_NAME = 'DryPLE0',                                   &
+         LONG_NAME  = 'dry_pressure_at_layer_edges_before_advection',&
+         UNITS      = 'Pa',                                        &
+         PRECISION  = ESMF_KIND_R8,                                &
+         DIMS       = MAPL_DimsHorzVert,                           &
+         VLOCATION  = MAPL_VLocationEdge,             RC=STATUS  )
+     VERIFY_(STATUS)
+
+    ! Add for GCHP (ewl, 12/1/19)
+    call MAPL_AddImportSpec ( gc,                                  &
+         SHORT_NAME = 'DryPLE1',                                   &
+         LONG_NAME  = 'dry_pressure_at_layer_edges_after_advection',&               
+         UNITS      = 'Pa',                                        &
+         PRECISION  = ESMF_KIND_R8,                                &
+         DIMS       = MAPL_DimsHorzVert,                           &
+         VLOCATION  = MAPL_VLocationEdge,             RC=STATUS  )
+     VERIFY_(STATUS)
+
+    ! Add for GCHP (ewl, 12/1/19)
+    call MAPL_AddImportSpec(GC,                                  &
+       SHORT_NAME         = 'TRACERS',                           &
+       LONG_NAME          = 'advected_quantities',               &
+       units              = 'X',                                 &
+       DIMS               = MAPL_DimsHorzVert,                   &
+       VLOCATION          = MAPL_VLocationCenter,                &
+       DATATYPE           = MAPL_BundleItem,                     &
+                                                      RC=STATUS  )
+     VERIFY_(STATUS)
+
 ! !EXPORT STATE:
      call MAPL_AddExportSpec ( gc,                                  &
           SHORT_NAME = 'AREA',                                      &
@@ -219,6 +250,26 @@ contains
           UNITS      = 'm+2'  ,                                     &
           DIMS       = MAPL_DimsHorzOnly,                           &
           VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
+     VERIFY_(STATUS)
+
+     ! Add for GCHP (ewl, 12/1/19)
+     call MAPL_AddExportSpec ( gc,                                  &
+          SHORT_NAME = 'PLE',                                       &
+          LONG_NAME  = 'pressure_at_layer_edges',                   &
+          UNITS      = 'Pa'   ,                                     &
+          PRECISION  = ESMF_KIND_R8,                                &
+          DIMS       = MAPL_DimsHorzVert,                           &
+          VLOCATION  = MAPL_VLocationEdge,               RC=STATUS  )
+     VERIFY_(STATUS)
+
+     ! Add for GCHP (ewl, 12/1/19)
+     call MAPL_AddExportSpec ( gc,                                  &
+          SHORT_NAME = 'DryPLE',                                    &
+          LONG_NAME  = 'dry_pressure_at_layer_edges',               &
+          UNITS      = 'Pa'   ,                                     &
+          PRECISION  = ESMF_KIND_R8,                                &
+          DIMS       = MAPL_DimsHorzVert,                           &
+          VLOCATION  = MAPL_VLocationEdge,               RC=STATUS  )
      VERIFY_(STATUS)
 
 
