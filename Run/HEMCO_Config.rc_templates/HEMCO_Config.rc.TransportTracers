@@ -13,7 +13,7 @@
 #\\
 #\\
 # !REMARKS:
-#  Customized for the Rn-Pb-Be simulation. 
+#  Customized for the Transport Tracers simulation. 
 #
 #  The following tokens will be replaced:
 #  (1) ROOT    : Filepath to HEMCO root directory
@@ -97,12 +97,12 @@ Warnings:                    1
 #==============================================================================
 # SF6 emissions from EDGAR v4.2
 #==============================================================================
-0 EDGAR_SF6tracer  $ROOT/SF6/v2019-01/EDGAR_v42_SF6_IPCC_2.generic.01x01.nc emi_sf6 1970-2008/1-12/1/0 C xy kg/m2/s SF6tracer - 1 1
+0 EDGAR_SF6  $ROOT/SF6/v2019-01/EDGAR_v42_SF6_IPCC_2.generic.01x01.nc emi_sf6 1970-2008/1-12/1/0 C xy kg/m2/s SF6Tracer - 1 1
 
 #==============================================================================
 # CH3I emitted over the oceans at rate of 1 molec/cm2/s
 #==============================================================================
-0 SRC_2D_CH3Itracer 1.0 - - - xy molec/cm2/s CH3Itracer 1000 1 1
+0 SRC_2D_CH3I 1.0 - - - xy molec/cm2/s CH3ITracer 1000 1 1
 
 #==============================================================================
 # Anthropogenic CO 25-day and 50-day tracers
@@ -110,71 +110,64 @@ Warnings:                    1
 # Choose EDGAR v4.3, HTAP, or CEDS
 #==============================================================================
 (((EDGARv43
-0  EDGAR_COtrc25d_POW $ROOT/EDGARv43/v2016-11/EDGAR_v43.CO.POW.0.1x0.1.nc  emi_co  1970-2010/1/1/0 C xy kg/m2/s COtracer25days 1201/26/52 1/2 2
-0  EDGAR_COtrc50d_POW -                                                    -       -               - -  -       COtracer50days 1201/26/52 1/2 2
-0  EDGAR_COtrc25d_ENG $ROOT/EDGARv43/v2016-11/EDGAR_v43.CO.ENG.0.1x0.1.nc  emi_co  1970-2010/1/1/0 C xy kg/m2/s COtracer25days 1202/26/52 1/2 2
-0  EDGAR_COtrc50d_ENG -                                                    -       -               - -  -       COtracer50days 1202/26/52 1/2 2
-0  EDGAR_COtrc25d_IND $ROOT/EDGARv43/v2016-11/EDGAR_v43.CO.IND.0.1x0.1.nc  emi_co  1970-2010/1/1/0 C xy kg/m2/s COtracer25days 1203/26/52 1/2 2
-0  EDGAR_COtrc50d_IND -                                                    -       -               - -  -       COtracer50days 1203/26/52 1/2 2
-0  EDGAR_COtrc25d_TRO $ROOT/EDGARv43/v2016-11/EDGAR_v43.CO.TRO.0.1x0.1.nc  emi_co  1970-2010/1/1/0 C xy kg/m2/s COtracer25days 1204/26/52 1/2 2
-0  EDGAR_COtrc50d_TRO -                                                    -       -               - -  -       COtracer50days 1204/26/52 1/2 2
-0  EDGAR_COtrc25d_TNG $ROOT/EDGARv43/v2016-11/EDGAR_v43.CO.TNG.0.1x0.1.nc  emi_co  1970-2010/1/1/0 C xy kg/m2/s COtracer25days 1205/26/52 1/2 2
-0  EDGAR_COtrc50d_TNG -                                                    -       -               - -  -       COtracer50days 1205/26/52 1/2 2
-0  EDGAR_COtrc25d_RCO $ROOT/EDGARv43/v2016-11/EDGAR_v43.CO.RCO.0.1x0.1.nc  emi_co  1970-2010/1/1/0 C xy kg/m2/s COtracer25days 1206/26/52 1/2 2
-0  EDGAR_COtrc50d_RCO -                                                    -       -               - -  -       COtracer50days 1206/26/52 1/2 2
-0  EDGAR_COtrc25d_PPA $ROOT/EDGARv43/v2016-11/EDGAR_v43.CO.PPA.0.1x0.1.nc  emi_co  1970-2010/1/1/0 C xy kg/m2/s COtracer25days 1207/26/52 1/2 2
-0  EDGAR_COtrc50d_PPA -                                                    -       -               - -  -       COtracer50days 1207/26/52 1/2 2
-#0 EDGAR_COtrc25d_AWB $ROOT/EDGARv43/v2016-11/EDGAR_v43.CO.AWB.0.1x0.1.nc  emi_co  1970-2010/1/1/0 C xy kg/m2/s COtracer25days 1209/26/52 1/2 2
-#0 EDGAR_COtrc50d_AWB -                                                    -       -               - -  -       COtracer50days 1209/26/52 1/2 2
-0  EDGAR_COtrc25d_SWD $ROOT/EDGARv43/v2016-11/EDGAR_v43.CO.SWD.0.1x0.1.nc  emi_co  1970-2010/1/1/0 C xy kg/m2/s COtracer25days 1211/26/52 1/2 2
-0  EDGAR_COtrc50d_SWD -                                                    -       -               - -  -       COtracer50days 1211/26/52 1/2 2
-0  EDGAR_COtrc25d_FFF $ROOT/EDGARv43/v2016-11/EDGAR_v43.CO.FFF.0.1x0.1.nc  emi_co  1970-2010/1/1/0 C xy kg/m2/s COtracer25days 1212/26/52 1/2 2
-0  EDGAR_COtrc50d_FFF -                                                    -       -               - -  -       COtracer50days 1211/26/52 1/2 2
+0  EDGAR_CO25d_POW $ROOT/EDGARv43/v2016-11/EDGAR_v43.CO.POW.0.1x0.1.nc  emi_co  1970-2010/1/1/0 C xy kg/m2/s COAnthroEmis25dayTracer 1201/26/52 1/2 2
+0  EDGAR_CO50d_POW -                                                    -       -               - -  -       COAnthroEmis50dayTracer 1201/26/52 1/2 2
+0  EDGAR_CO25d_ENG $ROOT/EDGARv43/v2016-11/EDGAR_v43.CO.ENG.0.1x0.1.nc  emi_co  1970-2010/1/1/0 C xy kg/m2/s COAnthroEmis25dayTracer 1202/26/52 1/2 2
+0  EDGAR_CO50d_ENG -                                                    -       -               - -  -       COAnthroEmis50dayTracer 1202/26/52 1/2 2
+0  EDGAR_CO25d_IND $ROOT/EDGARv43/v2016-11/EDGAR_v43.CO.IND.0.1x0.1.nc  emi_co  1970-2010/1/1/0 C xy kg/m2/s COAnthroEmis25dayTracer 1203/26/52 1/2 2
+0  EDGAR_CO50d_IND -                                                    -       -               - -  -       COAnthroEmis50dayTracer 1203/26/52 1/2 2
+0  EDGAR_CO25d_TRO $ROOT/EDGARv43/v2016-11/EDGAR_v43.CO.TRO.0.1x0.1.nc  emi_co  1970-2010/1/1/0 C xy kg/m2/s COAnthroEmis25dayTracer 1204/26/52 1/2 2
+0  EDGAR_CO50d_TRO -                                                    -       -               - -  -       COAnthroEmis50dayTracer 1204/26/52 1/2 2
+0  EDGAR_CO25d_TNG $ROOT/EDGARv43/v2016-11/EDGAR_v43.CO.TNG.0.1x0.1.nc  emi_co  1970-2010/1/1/0 C xy kg/m2/s COAnthroEmis25dayTracer 1205/26/52 1/2 2
+0  EDGAR_CO50d_TNG -                                                    -       -               - -  -       COAnthroEmis50dayTracer 1205/26/52 1/2 2
+0  EDGAR_CO25d_RCO $ROOT/EDGARv43/v2016-11/EDGAR_v43.CO.RCO.0.1x0.1.nc  emi_co  1970-2010/1/1/0 C xy kg/m2/s COAnthroEmis25dayTracer 1206/26/52 1/2 2
+0  EDGAR_CO50d_RCO -                                                    -       -               - -  -       COAnthroEmis50dayTracer 1206/26/52 1/2 2
+0  EDGAR_CO25d_PPA $ROOT/EDGARv43/v2016-11/EDGAR_v43.CO.PPA.0.1x0.1.nc  emi_co  1970-2010/1/1/0 C xy kg/m2/s COAnthroEmis25dayTracer 1207/26/52 1/2 2
+0  EDGAR_CO50d_PPA -                                                    -       -               - -  -       COAnthroEmis50dayTracer 1207/26/52 1/2 2
+#0 EDGAR_CO25d_AWB $ROOT/EDGARv43/v2016-11/EDGAR_v43.CO.AWB.0.1x0.1.nc  emi_co  1970-2010/1/1/0 C xy kg/m2/s COAnthroEmis25dayTracer 1209/26/52 1/2 2
+#0 EDGAR_CO50d_AWB -                                                    -       -               - -  -       COAnthroEmis50dayTracer 1209/26/52 1/2 2
+0  EDGAR_CO25d_SWD $ROOT/EDGARv43/v2016-11/EDGAR_v43.CO.SWD.0.1x0.1.nc  emi_co  1970-2010/1/1/0 C xy kg/m2/s COAnthroEmis25dayTracer 1211/26/52 1/2 2
+0  EDGAR_CO50d_SWD -                                                    -       -               - -  -       COAnthroEmis50dayTracer 1211/26/52 1/2 2
+0  EDGAR_CO25d_FFF $ROOT/EDGARv43/v2016-11/EDGAR_v43.CO.FFF.0.1x0.1.nc  emi_co  1970-2010/1/1/0 C xy kg/m2/s COAnthroEmis25dayTracer 1212/26/52 1/2 2
+0  EDGAR_CO50d_FFF -                                                    -       -               - -  -       COAnthroEmis50dayTracer 1211/26/52 1/2 2
 )))EDGARv43
 
 (((HTAP
-0 HTAP_COtrc25d_IND   $ROOT/HTAP/v2015-03/CO/EDGAR_HTAP_CO_INDUSTRY.generic.01x01.nc      emi_co  2008-2010/1-12/1/0 C xy kg/m2/s COtracer25days 6/28/26 1/2 4
-0 HTAP_COtrc50d_IND   -                                                                   -       -                  - -  -       COtracer50days 6/28/26 1/2 4
-0 HTAP_COtrc25d_POW   $ROOT/HTAP/v2015-03/CO/EDGAR_HTAP_CO_ENERGY.generic.01x01.nc        emi_co  2008-2010/1-12/1/0 C xy kg/m2/s COtracer25days 6/28/26 1/2 4
-0 HTAP_COtrc50d_POW   -                                                                   -       -                  - -  -       COtracer50days 6/28/26 1/2 4
-0 HTAP_COtrc25d_RES   $ROOT/HTAP/v2015-03/CO/EDGAR_HTAP_CO_RESIDENTIAL.generic.01x01.nc   emi_co  2008-2010/1-12/1/0 C xy kg/m2/s COtracer25days 6/28/26 1/2 4
-0 HTAP_COtrc50d_RES   -                                                                   -       -                  - -  -       COtracer50days 6/28/26 1/2 4
-0 HTAP_COtrc25d_TRA   $ROOT/HTAP/v2015-03/CO/EDGAR_HTAP_CO_TRANSPORT.generic.01x01.nc     emi_co  2008-2010/1-12/1/0 C xy kg/m2/s COtracer25days 6/28/26 1/2 4
-0 HTAP_COtrc50d_TRA   -                                                                   -       -                  - -  -       COtracer50days 6/28/26 1/2 4
-#0 HTAP_COtrc25d_AIR1 $ROOT/HTAP/v2015-03/CO/EDGAR_HTAP_CO_AIR_LTO.generic.01x01.nc       emi_co  2008-2010/1/1/0    C xy kg/m2/s COtracer25days 6/28/26 1/2 4
-#0 HTAP_COtrc50d_AIR1 -                                                                   -       -                  - -  -       COtracer50days 6/28/26 1/2 4
-#0 HTAP_COtrc25d_AIR2 $ROOT/HTAP/v2015-03/CO/EDGAR_HTAP_CO_AIR_CDS.generic.01x01.nc       emi_co  2008-2010/1/1/0    C xy kg/m2/s COtracer25days 6/28/26 1/2 4
-#0 HTAP_COtrc50d_AIR2 -                                                                   -       -                  - -  -       COtracer50days 6/28/26 1/2 4
-#0 HTAP_COtrc25d_AIR3 $ROOT/HTAP/v2015-03/CO/EDGAR_HTAP_CO_AIR_CRS.generic.01x01.nc       emi_co  2008-2010/1/1/0    C xy kg/m2/s COtracer25days 6/28/26 1/2 4
-#0 HTAP_COtrc50d_AIR3 -                                                                   -       -                  - -  -       COtracer50days 6/28/26 1/2 4
+0 HTAP_CO25d_IND   $ROOT/HTAP/v2015-03/CO/EDGAR_HTAP_CO_INDUSTRY.generic.01x01.nc      emi_co  2008-2010/1-12/1/0 C xy kg/m2/s COAnthroEmis25dayTracer 6/28/26 1/2 4
+0 HTAP_CO50d_IND   -                                                                   -       -                  - -  -       COAnthroEmis50dayTracer 6/28/26 1/2 4
+0 HTAP_CO25d_POW   $ROOT/HTAP/v2015-03/CO/EDGAR_HTAP_CO_ENERGY.generic.01x01.nc        emi_co  2008-2010/1-12/1/0 C xy kg/m2/s COAnthroEmis25dayTracer 6/28/26 1/2 4
+0 HTAP_CO50d_POW   -                                                                   -       -                  - -  -       COAnthroEmis50dayTracer 6/28/26 1/2 4
+0 HTAP_CO25d_RES   $ROOT/HTAP/v2015-03/CO/EDGAR_HTAP_CO_RESIDENTIAL.generic.01x01.nc   emi_co  2008-2010/1-12/1/0 C xy kg/m2/s COAnthroEmis25dayTracer 6/28/26 1/2 4
+0 HTAP_CO50d_RES   -                                                                   -       -                  - -  -       COAnthroEmis50dayTracer 6/28/26 1/2 4
+0 HTAP_CO25d_TRA   $ROOT/HTAP/v2015-03/CO/EDGAR_HTAP_CO_TRANSPORT.generic.01x01.nc     emi_co  2008-2010/1-12/1/0 C xy kg/m2/s COAnthroEmis25dayTracer 6/28/26 1/2 4
+0 HTAP_CO50d_TRA   -                                                                   -       -                  - -  -       COAnthroEmis50dayTracer 6/28/26 1/2 4
+#0 HTAP_CO25d_AIR1 $ROOT/HTAP/v2015-03/CO/EDGAR_HTAP_CO_AIR_LTO.generic.01x01.nc       emi_co  2008-2010/1/1/0    C xy kg/m2/s COAnthroEmis25dayTracer 6/28/26 1/2 4
+#0 HTAP_CO50d_AIR1 -                                                                   -       -                  - -  -       COAnthroEmis50dayTracer 6/28/26 1/2 4
+#0 HTAP_CO25d_AIR2 $ROOT/HTAP/v2015-03/CO/EDGAR_HTAP_CO_AIR_CDS.generic.01x01.nc       emi_co  2008-2010/1/1/0    C xy kg/m2/s COAnthroEmis25dayTracer 6/28/26 1/2 4
+#0 HTAP_CO50d_AIR2 -                                                                   -       -                  - -  -       COAnthroEmis50dayTracer 6/28/26 1/2 4
+#0 HTAP_CO25d_AIR3 $ROOT/HTAP/v2015-03/CO/EDGAR_HTAP_CO_AIR_CRS.generic.01x01.nc       emi_co  2008-2010/1/1/0    C xy kg/m2/s COAnthroEmis25dayTracer 6/28/26 1/2 4
+#0 HTAP_CO50d_AIR3 -                                                                   -       -                  - -  -       COAnthroEmis50dayTracer 6/28/26 1/2 4
 )))HTAP
 
 (((CEDS
-0 CEDS_COtrc25d_ENE   $ROOT/CEDS/v2018-08/$YYYY/CO-em-anthro_CMIP_CEDS_$YYYY.nc  CO_ene  1950-2014/1-12/1/0 C xy kg/m2/s COtracer25days  26 1/2/12 5
-0 CEDS_COtrc50d_ENE   -                                                          -       -                  - -  -       COtracer50days  26 1/2/12 5
-0 CEDS_COtrc25d_IND   $ROOT/CEDS/v2018-08/$YYYY/CO-em-anthro_CMIP_CEDS_$YYYY.nc  CO_ind  1950-2014/1-12/1/0 C xy kg/m2/s COtracer25days  26 1/2/12 5
-0 CEDS_COtrc50d_IND   -                                                          -       -                  - -  -       COtracer50days  26 1/2/12 5
-0 CEDS_COtrc25d_TRA   $ROOT/CEDS/v2018-08/$YYYY/CO-em-anthro_CMIP_CEDS_$YYYY.nc  CO_tra  1950-2014/1-12/1/0 C xy kg/m2/s COtracer25days  26 1/2/12 5
-0 CEDS_COtrc50d_TRA   -                                                          -       -                  - -  -       COtracer50days  26 1/2/12 5
-0 CEDS_COtrc25d_RCO   $ROOT/CEDS/v2018-08/$YYYY/CO-em-anthro_CMIP_CEDS_$YYYY.nc  CO_rco  1950-2014/1-12/1/0 C xy kg/m2/s COtracer25days  26 1/2/12 5
-0 CEDS_COtrc50d_RCO   -                                                          -       -                  - -  -       COtracer50days  26 1/2/12 5
-0 CEDS_COtrc25d_SLV   $ROOT/CEDS/v2018-08/$YYYY/CO-em-anthro_CMIP_CEDS_$YYYY.nc  CO_slv  1950-2014/1-12/1/0 C xy kg/m2/s COtracer25days  26 1/2/12 5
-0 CEDS_COtrc50d_SLV   -                                                          -       -                  - -  -       COtracer50days  26 1/2/12 5
-0 CEDS_COtrc25d_WST   $ROOT/CEDS/v2018-08/$YYYY/CO-em-anthro_CMIP_CEDS_$YYYY.nc  CO_wst  1950-2014/1-12/1/0 C xy kg/m2/s COtracer25days  26 1/2/12 5
-0 CEDS_COtrc50d_WST   -                                                          -       -                  - -  -       COtracer50days  26 1/2/12 5
+0 CEDS_CO25d_ENE   $ROOT/CEDS/v2018-08/$YYYY/CO-em-anthro_CMIP_CEDS_$YYYY.nc  CO_ene  1950-2014/1-12/1/0 C xy kg/m2/s COAnthroEmis25dayTracer  26 1/2/12 5
+0 CEDS_CO50d_ENE   -                                                          -       -                  - -  -       COAnthroEmis50dayTracer  26 1/2/12 5
+0 CEDS_CO25d_IND   $ROOT/CEDS/v2018-08/$YYYY/CO-em-anthro_CMIP_CEDS_$YYYY.nc  CO_ind  1950-2014/1-12/1/0 C xy kg/m2/s COAnthroEmis25dayTracer  26 1/2/12 5
+0 CEDS_CO50d_IND   -                                                          -       -                  - -  -       COAnthroEmis50dayTracer  26 1/2/12 5
+0 CEDS_CO25d_TRA   $ROOT/CEDS/v2018-08/$YYYY/CO-em-anthro_CMIP_CEDS_$YYYY.nc  CO_tra  1950-2014/1-12/1/0 C xy kg/m2/s COAnthroEmis25dayTracer  26 1/2/12 5
+0 CEDS_CO50d_TRA   -                                                          -       -                  - -  -       COAnthroEmis50dayTracer  26 1/2/12 5
+0 CEDS_CO25d_RCO   $ROOT/CEDS/v2018-08/$YYYY/CO-em-anthro_CMIP_CEDS_$YYYY.nc  CO_rco  1950-2014/1-12/1/0 C xy kg/m2/s COAnthroEmis25dayTracer  26 1/2/12 5
+0 CEDS_CO50d_RCO   -                                                          -       -                  - -  -       COAnthroEmis50dayTracer  26 1/2/12 5
+0 CEDS_CO25d_SLV   $ROOT/CEDS/v2018-08/$YYYY/CO-em-anthro_CMIP_CEDS_$YYYY.nc  CO_slv  1950-2014/1-12/1/0 C xy kg/m2/s COAnthroEmis25dayTracer  26 1/2/12 5
+0 CEDS_CO50d_SLV   -                                                          -       -                  - -  -       COAnthroEmis50dayTracer  26 1/2/12 5
+0 CEDS_CO25d_WST   $ROOT/CEDS/v2018-08/$YYYY/CO-em-anthro_CMIP_CEDS_$YYYY.nc  CO_wst  1950-2014/1-12/1/0 C xy kg/m2/s COAnthroEmis25dayTracer  26 1/2/12 5
+0 CEDS_CO50d_WST   -                                                          -       -                  - -  -       COAnthroEmis50dayTracer  26 1/2/12 5
 )))CEDS
 
 #==============================================================================
-# e90 tracer is emitted with a uniform flux of 100 ppbv
+# CO tracer with uniform surface emission of 2400 Tg/yr
 #==============================================================================
-0 SRC_2D_Emis90day   100 - - - xy ppbv Emis90dayTracer   -    1 1
-0 SRC_2D_Emis90dayNH 100 - - - xy ppbv Emis90dayTracerNH 1001 1 1
-0 SRC_2D_Emis90daySH 100 - - - xy ppbv Emis90dayTracerSH 1002 1 1
-
-#==============================================================================
-# Uniform surface emission of 2400 Tg/yr
-#==============================================================================
-0 SRC_2D_Uniform 1.5e-7 - - - xy kg/m2/s UniformTracer - 1 1
+0 SRC_2D_COUniform25d 1.5e-7 - - - xy kg/m2/s COUniformEmis25dayTracer - 1 1
 
 ###############################################################################
 ### EXTENSION DATA (subsection of BASE EMISSIONS SECTION)
@@ -257,8 +250,6 @@ Warnings:                    1
 
 # ScalID Name sourceFile sourceVar sourceTime C/R/E SrcDim SrcUnit Oper Lon1/Lat1/Lon2/Lat2
 1000 OCEAN_MASK $METDIR/$CNYR/01/$MET.$CNYR0101.CN.$RES.$NC FROCEAN 2000/1/1/0 C xy 1 1 -180/-90/180/90
-1001 NH_MASK    -180/0/180/90  - 2000/1/1/0 C xy 1 1 -180/0/180/90
-1002 SH_MASK    -180/-90/180/0 - 2000/1/1/0 C xy 1 1 -180/-90/180/0
 
 ### END SECTION MASKS ###
  

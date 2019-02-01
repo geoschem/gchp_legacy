@@ -57,7 +57,7 @@ fi
 # Ask user to select simulation type
 #-----------------------------------------------------------------
 printf "\nChoose simulation type:\n"
-printf "  1. RnPbBe\n"
+printf "  1. TransportTracers\n"
 printf "  2. Standard\n"
 printf "  3. Benchmark\n"
 valid_sim=0
@@ -65,8 +65,8 @@ while [ "${valid_sim}" -eq 0 ]
 do
     read sim_num
     if [[ ${sim_num} = "1" ]]; then
-	sim_name=RnPbBe
-	sim_name_long=RnPbBePasv
+	sim_name=TransportTracers
+	sim_name_long=${sim_name}
 	sim_type=${sim_name}
 	valid_sim=1
     elif [[ ${sim_num} = "2" ]]; then
@@ -229,7 +229,7 @@ sed -i -e "s|{MET_CN_YR}|${met_cn_year}|"    ${rundir}/ExtData.rc # 2nd in line
 # Special handling for start/end date based on simulation so that
 # start matches default initial restart files. Run directory is
 # always initially set up for a 1-hour duration run.
-if [ "${sim_type}" == "RnPbBe" ]; then
+if [ "${sim_type}" == "TransportTracers" ]; then
     startdate="20160101"
 elif [ "${sim_type}" == "fullchem" ]; then
     startdate="20160701"
