@@ -27,9 +27,6 @@ Species name            : CH3Itracer
 Species name            : COAnthroEmis25dayTracer
 Species name            : COAnthroEmis50dayTracer
 Species name            : COUniformEmis25dayTracer
-Species name            : GlobEmis90dayTracer
-Species name            : NHEmis90dayTracer
-Species name            : SHEmis90dayTracer
 ------------------------+------------------------------------------------------
 %%% PASSIVE SPECIES MENU %%%:
 Passive species name    : PassiveTracer            1.0    -1       1.0e-7   Passive_tracer_for_mass_conservation_evaluation

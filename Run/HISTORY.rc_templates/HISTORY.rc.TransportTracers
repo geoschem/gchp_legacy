@@ -79,9 +79,6 @@ COLLECTIONS: 'Emissions',
                               'CloudConvFlux_COAnthroEmis25dayTracer ', 'GIGCchem',
                               'CloudConvFlux_COAnthroEmis50dayTracer ', 'GIGCchem',
                               'CloudConvFlux_COUniformEmis25dayTracer', 'GIGCchem',
-                              'CloudConvFlux_GlobEmis90dayTracer     ', 'GIGCchem',
-                              'CloudConvFlux_NHEmis90dayTracer       ', 'GIGCchem',
-                              'CloudConvFlux_SHEmis90dayTracer       ', 'GIGCchem',
 ::
 #==============================================================================
   DryDep.template:            '%y4%m2%d2_%h2%n2z.nc4',
@@ -150,9 +147,6 @@ COLLECTIONS: 'Emissions',
                               'SpeciesConc_COAnthroEmis25dayTracer ', 'GIGCchem',
                               'SpeciesConc_COAnthroEmis50dayTracer ', 'GIGCchem',
                               'SpeciesConc_COUniformEmis25dayTracer', 'GIGCchem',
-                              'SpeciesConc_GlobEmis90dayTracer     ', 'GIGCchem',
-                              'SpeciesConc_NHEmis90dayTracer       ', 'GIGCchem',
-                              'SpeciesConc_SHEmis90dayTracer       ', 'GIGCchem',
 ::
 #==============================================================================
   SpeciesConc_inst.template:  '%y4%m2%d2_%h2%n2z.nc4',
@@ -173,9 +167,6 @@ COLLECTIONS: 'Emissions',
                               'SpeciesConc_COAnthroEmis25dayTracer ', 'GIGCchem',
                               'SpeciesConc_COAnthroEmis50dayTracer ', 'GIGCchem',
                               'SpeciesConc_COUniformEmis25dayTracer', 'GIGCchem',
-                              'SpeciesConc_GlobEmis90dayTracer     ', 'GIGCchem',
-                              'SpeciesConc_NHEmis90dayTracer       ', 'GIGCchem',
-                              'SpeciesConc_SHEmis90dayTracer       ', 'GIGCchem',
 ::
 #==============================================================================
   StateMet_avg.template:      '%y4%m2%d2_%h2%n2z.nc4',
