@@ -212,6 +212,7 @@ baselibs_esmf:
 ifeq ($(wildcard $(ESMF_DIR)/esmf.install),)
 	$(MAKE) -C $(ESMF_DIR)
 	$(MAKE) -C $(ESMF_DIR) install
+	cp -f  $(ESMF_DIR)/src/include/*.inc $(ESMF_INSTALL_HEADERDIR)
 	@touch $(ESMF_DIR)/esmf.install
 endif
 
