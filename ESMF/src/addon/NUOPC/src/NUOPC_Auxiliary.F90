@@ -47,7 +47,7 @@ module NUOPC_Auxiliary
 !BOP
 ! !IROUTINE: NUOPC_Write - Write a distributed interpolation matrix to file in SCRIP format
 ! !INTERFACE:
-  ! call using generic interface: NUOPC_Write
+  ! Private name; call using NUOPC_Write()
   subroutine NUOPC_SCRIPWrite(factorList, factorIndexList, fileName, &
     relaxedflag, rc)
 ! !ARGUMENTS:
@@ -109,7 +109,7 @@ module NUOPC_Auxiliary
 !BOP
 ! !IROUTINE: NUOPC_Write - Write a distributed factorList to file
 ! !INTERFACE:
-  ! call using generic interface: NUOPC_Write
+  ! Private name; call using NUOPC_Write()
   subroutine NUOPC_FactorsWrite(factorList, fileName, rc)
 ! !ARGUMENTS:
     real(ESMF_KIND_R8), pointer               :: factorList(:)
@@ -196,7 +196,7 @@ module NUOPC_Auxiliary
 !BOP
 ! !IROUTINE: NUOPC_Write - Write Field data to file
 ! !INTERFACE:
-  ! call using generic interface: NUOPC_Write
+  ! Private name; call using NUOPC_Write()
   subroutine NUOPC_FieldWrite(field, fileName, overwrite, status, timeslice, &
     iofmt, relaxedflag, rc)
 ! !ARGUMENTS:
@@ -250,7 +250,8 @@ module NUOPC_Auxiliary
 !    {\tt ESMF\_IOFMT\_NETCDF}.
 !   \item[{[relaxedflag]}]
 !     If {\tt .true.}, then no error is returned even if the call cannot write
-!     the file due to library limitations. Default is {\tt .false.}.
+!     the file due to library limitations, or because {\tt field} does not 
+!     contain any data. Default is {\tt .false.}.
 !   \item[{[rc]}]
 !     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !   \end{description}
@@ -258,18 +259,26 @@ module NUOPC_Auxiliary
 !EOP
   !-----------------------------------------------------------------------------
     ! local variables
-    character(ESMF_MAXSTR)  :: standardName
-    logical                 :: ioCapable
-    logical                 :: doItFlag
+    character(ESMF_MAXSTR)      :: standardName
+    logical                     :: ioCapable
+    logical                     :: doItFlag
+    type(ESMF_FieldStatus_Flag) :: fieldStatus
 
     if (present(rc)) rc = ESMF_SUCCESS
     
     ioCapable = (ESMF_IO_PIO_PRESENT .and. &
       (ESMF_IO_NETCDF_PRESENT .or. ESMF_IO_PNETCDF_PRESENT))
+      
+    call ESMF_FieldGet(field, status=fieldStatus, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=FILENAME)) &
+      return  ! bail out
     
     doItFlag = .true. ! default
     if (present(relaxedFlag)) then
-      doItFlag = .not.relaxedflag .or. (relaxedflag.and.ioCapable)
+      doItFlag = .not.relaxedflag .or. (relaxedflag.and.ioCapable.and. &
+        (fieldStatus==ESMF_FIELDSTATUS_COMPLETE))
     endif
     
     if (doItFlag) then
@@ -298,7 +307,7 @@ module NUOPC_Auxiliary
 !BOP
 ! !IROUTINE: NUOPC_Write - Write the Fields within a State to NetCDF files
 ! !INTERFACE:
-  ! call using generic interface: NUOPC_Write
+  ! Private name; call using NUOPC_Write()
   subroutine NUOPC_StateWrite(state, fieldNameList, fileNamePrefix, overwrite, &
     status, timeslice, relaxedflag, rc)
 ! !ARGUMENTS:
@@ -361,8 +370,8 @@ module NUOPC_Auxiliary
     integer                         :: i, itemCount
     type(ESMF_Field)                :: field
     type(ESMF_StateItem_Flag)       :: itemType
-    character(len=80)               :: fileName
-    character(len=80), allocatable  :: fieldNameList_loc(:)
+    character(len=160)              :: fileName
+    character(len=160), allocatable :: fieldNameList_loc(:)
 
     if (present(rc)) rc = ESMF_SUCCESS
 

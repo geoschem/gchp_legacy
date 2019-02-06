@@ -28,11 +28,11 @@ using namespace std;
 #include "ESMC_Util.h"
 #include "ESMCI_Array.h"
 #include "Mesh/include/ESMCI_Mesh.h"
-#include "Mesh/include/ESMCI_Exception.h"
+#include "Mesh/include/Legacy/ESMCI_Exception.h"
 #include "Mesh/include/ESMCI_XGridUtil.h"
-#include "Mesh/include/ESMCI_MeshRegrid.h"
-#include "Mesh/include/ESMCI_MeshMerge.h"
-#include "Mesh/include/ESMCI_Regrid_Helper.h"
+#include "Mesh/include/Regridding/ESMCI_MeshRegrid.h"
+#include "Mesh/include/Legacy/ESMCI_MeshMerge.h"
+#include "Mesh/include/Regridding/ESMCI_Regrid_Helper.h"
 #include "Mesh/include/ESMCI_Mesh_XGrid_Glue.h"
 #include "ESMCI_Grid.h"
 
@@ -86,7 +86,7 @@ void ESMCI_xgridregrid_create(Mesh **meshsrcpp, Mesh **meshdstpp,
     std::pair<UInt,UInt> iisize = wts.count_matrix_entries();
     int num_entries = iisize.first;
     int *iientries = new int[2*iisize.first];
-    int larg[2] = {2, iisize.first};
+    int larg[2] = {2, static_cast<int>(iisize.first)};
     // Gather the list
     ESMCI::InterArray<int> ii(iientries, 2, larg);
     ESMCI::InterArray<int> *iiptr = &ii;

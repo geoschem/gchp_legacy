@@ -97,21 +97,13 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !
 ! !DESCRIPTION:
 !   Execute a precomputed Field redistribution from {\tt srcField} to
-!   {\tt dstField}. Both {\tt srcField} and {\tt dstField} must be
-!   congruent and typekind conform with the respective Fields used during 
-!   {\tt ESMF\_FieldRedistStore()}. Congruent Fields possess matching DistGrids
-!   and the shape of the local array tiles, i.e. the memory allocation, matches
-!   between the Fields for every DE. For weakly congruent
-!   Fields the sizes of the undistributed dimensions, that vary faster with
-!   memory than the first distributed dimension, are permitted to be different.
-!   This means that the same {\tt routehandle} can be applied to a large class
-!   of similar Fields that differ in the number of elements in the left most
-!   undistributed dimensions. Because Grid dimensions are mapped to Field in a
-!   sequence order, it's necessary to map the ungridded dimensions to the first
-!   set of dimensions in order to use the weakly congruent Field redist feature.
-!   Not providing a non-default gridToFieldMap during Field creation and then
-!   using such Fields in a weakly congruent manner in Field communication methods
-!   leads to undefined behavior.
+!   {\tt dstField}. 
+!   Both {\tt srcField} and {\tt dstField} must match the respective Fields
+!   used during {\tt ESMF\_FieldRedistStore()} in {\em type}, {\em kind}, and 
+!   memory layout of the {\em gridded} dimensions. However, the size, number, 
+!   and index order of {\em ungridded} dimensions may be different. See section
+!   \ref{RH:Reusability} for a more detailed discussion of RouteHandle 
+!   reusability.
 !
 !   The {\tt srcField} and {\tt dstField} arguments are optional in support of
 !   the situation where {\tt srcField} and/or {\tt dstField} are not defined on
@@ -203,17 +195,24 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! !IROUTINE: ESMF_FieldRedistRelease - Release resources associated with Field redistribution
 !
 ! !INTERFACE:
-  subroutine ESMF_FieldRedistRelease(routehandle, keywordEnforcer, rc)
+  subroutine ESMF_FieldRedistRelease(routehandle, keywordEnforcer, noGarbage, rc)
 !
 ! !ARGUMENTS:
         type(ESMF_RouteHandle), intent(inout)           :: routehandle
 type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+        logical,                intent(in),   optional  :: noGarbage
         integer,                intent(out),  optional  :: rc
 !
 !
 ! !STATUS:
 ! \begin{itemize}
 ! \item\apiStatusCompatibleVersion{5.2.0r}
+! \item\apiStatusModifiedSinceVersion{5.2.0r}
+! \begin{description}
+! \item[8.0.0] Added argument {\tt noGarbage}.
+!   The argument provides a mechanism to override the default garbage collection
+!   mechanism when destroying an ESMF object.
+! \end{description}
 ! \end{itemize}
 !
 ! !DESCRIPTION:
@@ -223,6 +222,24 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !   \begin{description}
 !   \item [routehandle]
 !     Handle to the precomputed Route.
+!   \item[{[noGarbage]}]
+!     If set to {\tt .TRUE.} the object will be fully destroyed and removed
+!     from the ESMF garbage collection system. Note however that under this 
+!     condition ESMF cannot protect against accessing the destroyed object 
+!     through dangling aliases -- a situation which may lead to hard to debug 
+!     application crashes.
+! 
+!     It is generally recommended to leave the {\tt noGarbage} argument
+!     set to {\tt .FALSE.} (the default), and to take advantage of the ESMF 
+!     garbage collection system which will prevent problems with dangling
+!     aliases or incorrect sequences of destroy calls. However this level of
+!     support requires that a small remnant of the object is kept in memory
+!     past the destroy call. This can lead to an unexpected increase in memory
+!     consumption over the course of execution in applications that use 
+!     temporary ESMF objects. For situations where the repeated creation and 
+!     destruction of temporary objects leads to memory issues, it is 
+!     recommended to call with {\tt noGarbage} set to {\tt .TRUE.}, fully 
+!     removing the entire temporary object from memory.
 !   \item [{[rc]}]
 !     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !   \end{description}
@@ -239,7 +256,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         ESMF_INIT_CHECK_DEEP(ESMF_RouteHandleGetInit, routehandle, rc)
             
         ! Call into the RouteHandle code
-        call ESMF_RouteHandleRelease(routehandle, rc=localrc)
+        call ESMF_RouteHandleRelease(routehandle, noGarbage=noGarbage, &
+          rc=localrc)
         if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
           ESMF_CONTEXT, rcToReturn=rc)) return
         
@@ -323,21 +341,12 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! {\tt dstField} arguments. 
 !
 !   The routine returns an {\tt ESMF\_RouteHandle} that can be used to call 
-!   {\tt ESMF\_FieldRedist()} on any pair of Fields that are weakly congruent
-!   and typekind conform with the {\tt srcField}, {\tt dstField} pair. 
-!   Congruent Fields possess matching DistGrids and the shape of the local
-!   array tiles, i.e. the memory allocation, matches between the Fields for 
-!   every DE. For weakly congruent
-!   Fields the sizes of the undistributed dimensions, that vary faster with
-!   memory than the first distributed dimension, are permitted to be different.
-!   This means that the same {\tt routehandle} can be applied to a large class
-!   of similar Fields that differ in the number of elements in the left most
-!   undistributed dimensions. Because Grid dimensions are mapped to Field in a
-!   sequence order, it's necessary to map the ungridded dimensions to the first
-!   set of dimensions in order to use the weakly congruent Field redist feature.
-!   Not providing a non-default gridToFieldMap during Field creation and then
-!   using such Fields in a weakly congruent manner in Field communication methods
-!   leads to undefined behavior.
+!   {\tt ESMF\_FieldRedist()} on any pair of Fields that matches 
+!   {\tt srcField} and {\tt dstField} in {\em type}, {\em kind}, and 
+!   memory layout of the {\em gridded} dimensions. However, the size, number, 
+!   and index order of {\em ungridded} dimensions may be different. See section
+!   \ref{RH:Reusability} for a more detailed discussion of RouteHandle 
+!   reusability.
 !
 ! This method is overloaded for:\newline
 ! {\tt ESMF\_TYPEKIND\_I4}, {\tt ESMF\_TYPEKIND\_I8},\newline 
@@ -693,21 +702,12 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! {\tt dstField} arguments. 
 !
 !   The routine returns an {\tt ESMF\_RouteHandle} that can be used to call 
-!   {\tt ESMF\_FieldRedist()} on any pair of Fields that are weakly congruent
-!   and typekind conform with the {\tt srcField}, {\tt dstField} pair. 
-!   Congruent Fields possess matching DistGrids and the shape of the local
-!   array tiles, i.e. the memory allocation, matches between the Fields for
-!   every DE. For weakly congruent
-!   Fields the sizes of the undistributed dimensions, that vary faster with
-!   memory than the first distributed dimension, are permitted to be different.
-!   This means that the same {\tt routehandle} can be applied to a large class
-!   of similar Fields that differ in the number of elements in the left most
-!   undistributed dimensions. Because Grid dimensions are mapped to Field in a
-!   sequence order, it's necessary to map the ungridded dimensions to the first
-!   set of dimensions in order to use the weakly congruent Field redist feature.
-!   Not providing a non-default gridToFieldMap during Field creation and then
-!   using such Fields in a weakly congruent manner in Field communication methods
-!   leads to undefined behavior.
+!   {\tt ESMF\_FieldRedist()} on any pair of Fields that matches 
+!   {\tt srcField} and {\tt dstField} in {\em type}, {\em kind}, and 
+!   memory layout of the {\em gridded} dimensions. However, the size, number, 
+!   and index order of {\em ungridded} dimensions may be different. See section
+!   \ref{RH:Reusability} for a more detailed discussion of RouteHandle 
+!   reusability.
 !  
 ! This call is {\em collective} across the current VM.  
 ! 

@@ -77,6 +77,7 @@ module ESMF
     use ESMF_FieldCreateMod
     use ESMF_FieldEmptyMod
     use ESMF_FieldRegridMod
+    use ESMF_FieldSetMod
     use ESMF_RegridMod
 
     use ESMF_FieldGatherMod
@@ -106,5 +107,11 @@ module ESMF
     use ESMF_ContainerMod
     
     use ESMF_InitMod
+
+    use ESMFIOMod
+
+    use ESMF_IO_YAMLMod
+    
+    use ESMF_IOScripMod, only: ESMF_SparseMatrixWrite
 
 end module ESMF

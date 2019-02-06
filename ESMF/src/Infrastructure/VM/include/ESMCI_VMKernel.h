@@ -18,6 +18,7 @@
 #endif
 
 #include <mpi.h>
+#include <vector>
 
 #ifdef VMK_STANDALONE
 #include <pthread.h>
@@ -34,7 +35,8 @@ typedef pthread_t       esmf_pthread_t;
 // reduction operations
 enum vmOp   { vmSUM=1, vmMIN, vmMAX};
 // typekind indicators
-enum vmType { vmBYTE=1, vmI4, vmI8, vmR4, vmR8};
+//   Note: vmL4 indicates Fortran logicals, not c++ bools
+enum vmType { vmBYTE=1, vmI4, vmI8, vmR4, vmR8, vmL4};
 
 // VM_ANY_SOURCE and VM_ANY_TAG
 #define VM_ANY_SRC                    (-2)
@@ -546,6 +548,8 @@ class ComPat2{
      
   // communication patterns
   void totalExchange(VMK *vmk);
+  void selectiveExchange(VMK *vmk, std::vector<int>&responderPet, 
+    std::vector<int>&requesterPet);
 }; // ComPat2
 
 

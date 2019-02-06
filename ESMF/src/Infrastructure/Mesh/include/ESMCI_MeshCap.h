@@ -14,7 +14,7 @@
 
 #include "ESMCI_Mesh.h"
 
-#include "Mesh/include/ESMCI_Regrid_Helper.h"
+#include "Mesh/include/Regridding/ESMCI_Regrid_Helper.h"
 
 #include "ESMCI_Macros.h"
 #include "ESMCI_LogErr.h"
@@ -79,6 +79,10 @@
                                         ESMC_CoordSys_Flag *coordSys,
                                           bool _is_esmf_mesh, int *rc);
 
+    static MeshCap *meshcreate_from_grid(Grid **gridpp,
+                                                  bool _is_esmf_mesh, 
+                                                  int *rc);
+
     void meshaddnodes(int *num_nodes, int *nodeId,
                       double *nodeCoord, int *nodeOwner, InterArray<int> *nodeMaskII,
                       ESMC_CoordSys_Flag *_coordSys, int *_orig_sdim,
@@ -117,13 +121,13 @@
     static void meshinfoserialize(int *intMeshFreed,
                                   int *spatialDim, int *parametricDim,
                                   char *buffer, int *length, int *offset,
-                                  ESMC_InquireFlag *inquireflag, int *localrc,
+                                  ESMC_InquireFlag *inquireflag, int *rc,
                                   ESMCI_FortranStrLenArg buffer_l);
 
 
     static void meshinfodeserialize(int *intMeshFreed,
                                     int *spatialDim, int *parametricDim,
-                                    char *buffer, int *offset, int *localrc,
+                                    char *buffer, int *offset, int *rc,
                                     ESMCI_FortranStrLenArg buffer_l);
 
     void meshserialize(char *buffer, int *length, int *offset,

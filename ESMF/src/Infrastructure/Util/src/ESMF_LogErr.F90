@@ -135,6 +135,7 @@ type ESMF_LogEntry
 #endif
     real(ESMF_KIND_R8)  ::  highResTimestamp
     logical             ::  highResTimestampFlag
+    integer             ::  indentCount
     integer             ::  h,m,s,ms
     integer             ::  line
     logical             ::  methodflag,lineflag,fileflag
@@ -184,6 +185,7 @@ type ESMF_LogPrivate
     logical                                         ::  traceFlag = .false.
     logical                                         ::  highResTimestampFlag = .false.
     logical                                         ::  appendFlag = .true.
+    integer                                         ::  indentCount = 0
     logical                                         ::  deferredOpenFlag = .false.
 #else
     type(ESMF_LogEntry), dimension(:),pointer       ::  LOG_ENTRY
@@ -194,6 +196,7 @@ type ESMF_LogPrivate
     type(ESMF_LogMsg_Flag), pointer                 ::  logmsgAbort(:)
     logical                                         ::  traceFlag
     logical                                         ::  highResTimestampFlag
+    integer                                         ::  indentCount
     logical                                         ::  appendflag
     logical                                         ::  deferredOpenFlag
 #endif
@@ -780,11 +783,13 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
     alog => null ()
     if (present(log)) then
-      if(log%logTableIndex>0) then
+      if (log%logTableIndex > 0) then
          alog => ESMF_LogTable(log%logTableIndex)
       endif
     else
-      alog => ESMF_LogTable(ESMF_LogDefault%logTableIndex)
+      if (ESMF_LogDefault%logTableIndex > 0) then
+        alog => ESMF_LogTable(ESMF_LogDefault%logTableIndex)
+      end if
     endif
 
     ESMF_INIT_CHECK_SET_SHALLOW(ESMF_LogGetInit,ESMF_LogInit,log)
@@ -913,13 +918,15 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     nullify(alog) ! ensure that the association status is well defined
 
     if (present(log)) then
-      if(log%logTableIndex>0) then
+      if (log%logTableIndex > 0) then
          alog => ESMF_LogTable(log%logTableIndex)
       else
          localrc = ESMF_RC_OBJ_NOT_CREATED
       endif
     else
-      alog => ESMF_LogTable(ESMF_LogDefault%logTableIndex)
+      if (ESMF_LogDefault%logTableIndex > 0) then
+        alog => ESMF_LogTable(ESMF_LogDefault%logTableIndex)
+      end if
     endif
 
     if (associated(alog)) then
@@ -1088,7 +1095,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     nullify(alog) ! ensure that the association status is well defined
 
     if (present(log)) then
-      if(log%logTableIndex>0) then
+      if (log%logTableIndex > 0) then
          alog => ESMF_LogTable(log%logTableIndex)
       endif
     else
@@ -1197,7 +1204,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     nullify(alog) ! ensure that the association status is well defined
 
     if (present(log)) then
-      if(log%logTableIndex>0) then
+      if (log%logTableIndex > 0) then
          alog => ESMF_LogTable(log%logTableIndex)
       endif
     else
@@ -1319,7 +1326,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     nullify(alog) ! ensure that the association status is well defined
 
     if (present(log)) then
-      if(log%logTableIndex>0) then
+      if (log%logTableIndex > 0) then
          alog => ESMF_LogTable(log%logTableIndex)
       endif
     else
@@ -1518,19 +1525,20 @@ end function ESMF_LogFoundNetCDFError
                              flush,    &
                              logmsgAbort, logkindflag, &
                              maxElements, trace, fileName,  &
-                             highResTimestampFlag, rc)
+                             highResTimestampFlag, indentCount, rc)
 !
 ! !ARGUMENTS:
 !
       type(ESMF_Log),          intent(in),  optional :: log
 type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
-      type(ESMF_Logical),      intent(out), optional :: flush
+      logical,                 intent(out), optional :: flush
       type(ESMF_LogMsg_Flag),  pointer,     optional :: logmsgAbort(:)
       type(ESMF_LogKind_Flag), intent(out), optional :: logkindflag
       integer,                 intent(out), optional :: maxElements
       logical,                 intent(out), optional :: trace
       character(*),            intent(out), optional :: fileName
       logical,                 intent(out), optional :: highResTimestampFlag
+      integer,                 intent(out), optional :: indentCount
       integer,                 intent(out), optional :: rc
 
 ! !DESCRIPTION:
@@ -1562,6 +1570,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !            prefix.
 !      \item [{[highResTimestampFlag]}]
 !            Current setting of the extended elapsed timestamp flag.
+!      \item [{[indentCount]}]
+!            Current setting of the leading white space padding.
 !      \item [{[rc]}]
 !            Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !      \end{description}
@@ -1584,11 +1594,13 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     nullify(alog) ! ensure that the association status is well defined
 
     if (present(log)) then
-      if(log%logTableIndex>0) then
+      if (log%logTableIndex > 0) then
          alog => ESMF_LogTable(log%logTableIndex)
       endif
     else
-      alog => ESMF_LogTable(ESMF_LogDefault%logTableIndex)
+      if (ESMF_LogDefault%logTableIndex > 0) then
+        alog => ESMF_LogTable(ESMF_LogDefault%logTableIndex)
+      end if
     endif
 
     if (associated(alog)) then
@@ -1617,6 +1629,9 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         endif
         if (present (highResTimestampFlag)) then
           highResTimestampFlag = alog%highResTimestampFlag
+        endif
+        if (present (indentCount)) then
+          indentCount = alog%indentCount
         endif
 
       ! Return an array with the current values.  If the user has not
@@ -1776,7 +1791,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         rc=ESMF_FAILURE
     endif
 
-    if(log%logTableIndex>0) then
+    if (log%logTableIndex > 0) then
       alog => ESMF_LogTable(log%logTableIndex)
     else
       ESMF_LogTableCount = ESMF_LogTableCount + 1   ! counting number of files
@@ -1831,6 +1846,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     endif
     alog%traceFlag = .false.
     alog%highResTimestampFlag = .false.
+    alog%indentCount = 0
 
   if(alog%logkindflag /= ESMF_LOGKIND_NONE) then
 
@@ -2080,7 +2096,7 @@ end subroutine ESMF_LogRc2Msg
     subroutine ESMF_LogSet(log, keywordEnforcer,  &
         flush,  &
         logmsgAbort, maxElements, logmsgList,  &
-        errorMask, trace, highResTimestampFlag, rc)
+        errorMask, trace, highResTimestampFlag, indentCount, rc)
 !
 ! !ARGUMENTS:
 !
@@ -2093,6 +2109,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       integer,                intent(in),    optional :: errorMask(:)
       logical,                intent(in),    optional :: trace
       logical,                intent(in),    optional :: highResTimestampFlag
+      integer,                intent(in),    optional :: indentCount
       integer,                intent(out),   optional :: rc
 
 !
@@ -2144,6 +2161,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !            Sets the extended elapsed timestamp flag.  If set to {\tt .true.}, a timestamp
 !            from {\tt ESMF\_VMWtime} will be included in each log message.  Default is
 !            to not add the additional timestamps.
+!      \item [{[indentCount]}]
+!            Number of leading white spaces.
 !      \item [{[rc]}]
 !            Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !      \end{description}
@@ -2161,12 +2180,14 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
     isDefault = .false.
     if (present(log)) then
-      if(log%logTableIndex>0) then
+      if (log%logTableIndex > 0) then
          alog => ESMF_LogTable(log%logTableIndex)
       endif
     else
-      alog => ESMF_LogTable(ESMF_LogDefault%logTableIndex)
-      isDefault = .true.
+      if (ESMF_LogDefault%logTableIndex > 0) then
+        alog => ESMF_LogTable(ESMF_LogDefault%logTableIndex)
+        isDefault = .true.
+      end if
     endif
 
     ! Initialize return code; assume routine not implemented
@@ -2176,7 +2197,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
       ESMF_INIT_CHECK_SET_SHALLOW(ESMF_LogPrivateGetInit,ESMF_LogPrivateInit,alog)
 
-      if (alog%FileIsOpen /= ESMF_TRUE) then
+      if (alog%FileIsOpen /= ESMF_TRUE .and. .not. isDefault) then
         write (ESMF_UtilIOStderr,*) ESMF_METHOD,  &
             ": ESMF_Log not open -- cannot ESMF_LogSet()."
         if (present (rc)) rc = ESMF_RC_CANNOT_SET
@@ -2266,6 +2287,10 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         alog%highResTimestampFlag = highResTimestampFlag
       end if
 
+      if (present (indentCount)) then
+        alog%indentCount = indentCount
+      end if
+
       if (present(rc)) then
         rc=ESMF_SUCCESS
       endif
@@ -2347,11 +2372,13 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     nullify(alog) ! ensure that the association status is well defined
 
     if (present(log)) then
-      if(log%logTableIndex>0) then
+      if (log%logTableIndex > 0) then
          alog => ESMF_LogTable(log%logTableIndex)
       endif
     else
-      alog => ESMF_LogTable(ESMF_LogDefault%logTableIndex)
+      if (ESMF_LogDefault%logTableIndex > 0) then
+        alog => ESMF_LogTable(ESMF_LogDefault%logTableIndex)
+      end if
     endif
 
     if (associated(alog)) then
@@ -2476,25 +2503,34 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     integer                         :: i
     integer                         :: localrc
     integer                         :: memstat
-    integer                         :: rc2, index
+    integer                         :: rc2, index, lenTotal, indentCount
     type(ESMF_LogPrivate), pointer  :: alog
 
     ESMF_INIT_CHECK_SET_SHALLOW(ESMF_LogGetInit,ESMF_LogInit,log)
-
-    nullify(alog) ! ensure that the association status is well defined
-
-    if (present(log)) then
-      if(log%logTableIndex>0) then
-         alog => ESMF_LogTable(log%logTableIndex)
-      endif
-    else
-      alog => ESMF_LogTable(ESMF_LogDefault%logTableIndex)
-    endif
 
     ! Initialize return code; assume routine not implemented
     if (present(rc)) then
       rc=ESMF_RC_NOT_IMPL
     endif
+
+    nullify(alog) ! ensure that the association status is well defined
+
+    localrc = ESMF_SUCCESS
+    if (present(log)) then
+      if (log%logTableIndex > 0) then
+         alog => ESMF_LogTable(log%logTableIndex)
+      else
+        localrc = ESMF_RC_OBJ_INIT
+      endif
+    else
+      if (ESMF_LogDefault%logTableIndex > 0) then
+        alog => ESMF_LogTable(ESMF_LogDefault%logTableIndex)
+      else
+        localrc = ESMF_RC_OBJ_INIT
+      end if
+    endif
+
+    ! Check argument sanity
 
     argcase = 0
     argcase = argcase + merge (1, 0, present (logmsgFlag))
@@ -2528,6 +2564,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
     if (associated(alog)) then
 
+      ! Open the log file if necessary
       if (alog%logkindflag /= ESMF_LOGKIND_NONE) then
 
         if (alog%deferredOpenFlag) then
@@ -2550,7 +2587,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
         if (alog%FileIsOpen /= ESMF_TRUE) then
           write (ESMF_UtilIOStderr,*) ESMF_METHOD,  &
-              ": ESMF_Log not open -- cannot ESMF_LogWrite()."
+              ": ESMF_Log not open -- cannot ESMF_LogWrite().  Log message = ", trim (msg)
           if (present(rc)) rc=ESMF_FAILURE
           return
         endif
@@ -2568,6 +2605,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
           end if
         end if
 
+        ! Add the message to the message queue awaiting flushing
+
         index = alog%fIndex
 
         alog%dirty = ESMF_TRUE
@@ -2580,6 +2619,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
           end if
         end if
         alog%LOG_ENTRY(index)%highResTimestampFlag = alog%highResTimestampFlag
+        alog%LOG_ENTRY(index)%indentCount = alog%indentCount
         alog%LOG_ENTRY(index)%methodflag = .FALSE.
         alog%LOG_ENTRY(index)%lineflag = .FALSE.
         alog%LOG_ENTRY(index)%fileflag = .FALSE.
@@ -2609,8 +2649,15 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         alog%LOG_ENTRY(alog%fIndex)%m  = timevals(6)
         alog%LOG_ENTRY(alog%fIndex)%s  = timevals(7)
         alog%LOG_ENTRY(alog%fIndex)%ms = timevals(8)
-        allocate (alog%LOG_ENTRY(alog%fIndex)%msg(len_trim (msg)), stat=memstat)
-        alog%LOG_ENTRY(alog%fIndex)%msg = ESMF_UtilString2Array (trim (msg))
+        indentCount = alog%LOG_ENTRY(index)%indentCount
+        lenTotal = len_trim(msg) + indentCount
+        allocate (alog%LOG_ENTRY(alog%fIndex)%msg(lenTotal), stat=memstat)
+        if (indentCount > 0) then
+          ! insert leading white spaces
+          alog%LOG_ENTRY(alog%fIndex)%msg(1:indentCount) = " "
+        endif
+        alog%LOG_ENTRY(alog%fIndex)%msg(1+indentCount:) = &
+          ESMF_UtilString2Array(trim(msg))
         alog%flushed = ESMF_FALSE
 
         if (associated (alog%logmsgAbort)) then
@@ -2640,7 +2687,14 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       if (present(rc)) then
         rc=ESMF_SUCCESS
       endif
+    else
+      write (ESMF_UtilIOStderr,*) ESMF_METHOD,  &
+          ": ESMF_Log not open -- cannot ESMF_LogWrite().  Log message = ", trim (msg)
+      if (present (rc)) then
+        rc = localrc
+      end if
     endif
+
 end subroutine ESMF_LogWrite
 
 !--------------------------------------------------------------------------

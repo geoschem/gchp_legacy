@@ -223,7 +223,12 @@ subroutine ESMF_UGridInq(filename, meshname, nodeCount, elementCount, &
     end if
 
     if (present(elementCount) .or. present(maxNodePElement) .or. present(fillvalue)) then
-      if (meshDim == 2) then
+      if (meshDim == 1) then
+          errmsg = "- 1D network topology does not have elements" 
+          call ESMF_LogSetError(rcToCheck=ESMF_FAILURE, &
+                 msg=errmsg, ESMF_CONTEXT, rcToReturn=rc) 
+          return 
+      elseif (meshDim == 2) then
         varname = "face_node_connectivity"
       else
         varname = "volume_node_connectivity"
@@ -2235,11 +2240,12 @@ function CDFCheckError (ncStatus, module, fileName, lineNo, errmsg, rc)
 
 #ifdef ESMF_NETCDF
     if ( ncStatus .ne. nf90_noerror) then
-        call ESMF_LogWrite (msg=trim(errmsg)//':'//trim(nf90_strerror(ncStatus)), &
+        call ESMF_LogWrite (  &
+            msg="netCDF Error: " // trim (errmsg) // ": " // trim (nf90_strerror(ncStatus)),  &
             logmsgFlag=ESMF_LOGMSG_ERROR, &
             line=lineNo, file=fileName, method=module)
         print '("NetCDF Error: ", A, " : ", A)', &
-        trim(errmsg),trim(nf90_strerror(ncStatus))
+            trim(errmsg),trim(nf90_strerror(ncStatus))
         call ESMF_LogFlush()
         if (present(rc)) rc = ESMF_FAILURE
         CDFCheckError = .TRUE.

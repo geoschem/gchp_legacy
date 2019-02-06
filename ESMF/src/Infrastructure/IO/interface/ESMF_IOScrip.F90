@@ -1000,6 +1000,8 @@ subroutine ESMF_OutputScripWeightFile (wgtFile, factorList, factorIndexList, &
       integer            :: totalsize, totallen
       integer            :: meshId
       integer            :: memstat
+      integer            :: dim
+      type(ESMF_CoordSys_Flag):: coordsys
 
 #ifdef ESMF_NETCDF
       ! write out the indices and weights table sequentially to the output file
@@ -1008,6 +1010,8 @@ subroutine ESMF_OutputScripWeightFile (wgtFile, factorList, factorIndexList, &
 
       src_has_area = .false.
       dst_has_area = .false.
+      coordsys = ESMF_COORDSYS_SPH_DEG
+
       if (present(srcFileType)) then
           srcFileTypeLocal = srcFileType
       else
@@ -1250,7 +1254,8 @@ subroutine ESMF_OutputScripWeightFile (wgtFile, factorList, factorIndexList, &
 
           call ESMF_GridspecInq(srcFile, src_ndims, src_grid_dims, &
                 dimids = src_dimids, coordids = src_coordids, &
-                coord_names = srccoordnames, hasbound=srchasbound, rc=status)
+                coord_names = srccoordnames, hasbound=srchasbound, &
+                units=srcunits,rc=status)
           if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
                 ESMF_CONTEXT, rcToReturn=rc)) return
           src_grid_rank = 2
@@ -1260,7 +1265,6 @@ subroutine ESMF_OutputScripWeightFile (wgtFile, factorList, factorIndexList, &
           else
                 src_grid_corner = 4
           endif
-          srcunits = 'degrees'
         else if (srcFileTypeLocal == ESMF_FILEFORMAT_ESMFMESH) then
           ! If bilinear, we have to switch node and elment, so the nodeCount became srcDim and
           ! elementCount becomes srcNodeDim. Hard code src_grid_corner to 3.  The xv_a and xv_b
@@ -1291,8 +1295,13 @@ subroutine ESMF_OutputScripWeightFile (wgtFile, factorList, factorIndexList, &
               methodlocal%regridmethod ==ESMF_REGRIDMETHOD_NEAREST_STOD%regridmethod .or. &
               methodlocal%regridmethod ==ESMF_REGRIDMETHOD_NEAREST_DTOS%regridmethod)) then
             call ESMF_UGridInq(srcFile, srcmeshname, nodeCount=srcDim,  &
-                elementCount=srcNodeDim, units=srcunits, rc=status)
-                src_grid_corner =3
+                nodeCoordDim=dim, units=srcunits, rc=status)
+            ! If it is 1D network topology, there is no corner coordinates
+            if (dim==1) then 
+              src_grid_corner = 0
+            else
+              src_grid_corner =3
+            endif
           else
             call ESMF_UGridInq(srcFile, srcmeshname, elementCount=srcDim, &
                 maxNodePElement=src_grid_corner, units=srcunits, &
@@ -1341,7 +1350,8 @@ subroutine ESMF_OutputScripWeightFile (wgtFile, factorList, factorIndexList, &
 
           call ESMF_GridspecInq(dstFile, dst_ndims, dst_grid_dims, &
                 dimids = dst_dimids, coordids = dst_coordids, &
-                coord_names = dstcoordnames, hasbound=dsthasbound, rc=status)
+                coord_names = dstcoordnames, hasbound=dsthasbound, &
+                units=dstunits, rc=status)
           if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
                 ESMF_CONTEXT, rcToReturn=rc)) return
           dst_grid_rank = 2
@@ -1351,7 +1361,6 @@ subroutine ESMF_OutputScripWeightFile (wgtFile, factorList, factorIndexList, &
           else
                 dst_grid_corner = 4
           endif
-          dstunits = 'degrees'
         else if (dstFileTypeLocal == ESMF_FILEFORMAT_ESMFMESH) then
           ! If bilinear, we have to switch node and elment, so the nodeCount became dstDim and
           ! elementCount becomes dstNodeDim. Hard code dst_grid_corner to 3.  The xv_a and xv_b
@@ -1382,8 +1391,12 @@ subroutine ESMF_OutputScripWeightFile (wgtFile, factorList, factorIndexList, &
               methodlocal%regridmethod ==ESMF_REGRIDMETHOD_NEAREST_STOD%regridmethod .or. &
               methodlocal%regridmethod ==ESMF_REGRIDMETHOD_NEAREST_DTOS%regridmethod)) then
             call ESMF_UGridInq(dstFile, dstmeshname, nodeCount=dstDim,  &
-                elementCount=dstNodeDim, units=dstunits, rc=status)
-                dst_grid_corner =3
+                nodeCoordDim=dim, units=dstunits, rc=status)
+            if (dim==1) then 
+              dst_grid_corner = 0
+            else
+              dst_grid_corner = 3
+            endif
           else
             call ESMF_UGridInq(dstFile, dstmeshname, elementCount=dstDim, &
                 maxNodePElement=dst_grid_corner, units=dstunits, &
@@ -2240,7 +2253,6 @@ subroutine ESMF_OutputScripWeightFile (wgtFile, factorList, factorIndexList, &
              ESMF_SRCLINE,trim(srcFile),&
              rc)) return
         else if (srcFileTypeLocal == ESMF_FILEFORMAT_UGRID) then
-           ! ESMF unstructured grid
            call ESMF_UGridInq(srcfile, srcmeshname, meshId=meshId, faceCoordFlag=faceCoordFlag)
            if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
                ESMF_CONTEXT, rcToReturn=rc)) return
@@ -4086,7 +4098,7 @@ subroutine ESMF_EsmfGetNode (filename, nodeCoords, nodeMask, &
        if (units(len:len) .eq. achar(0)) len = len-1
        units = ESMF_UtilStringLowerCase(units(1:len))
        ! if the units is meters, kilometers, or km, make it Cartisian 2D
-       if (units(1:len) .eq. "meters" .or. &
+       if (units(1:len) .eq. "meters" .or. units(1:len) .eq. "m" .or. &
            units(1:len) .eq. "km" .or. units(1:len) .eq. "kilometers") then     
            coordSysLocal = ESMF_COORDSYS_CART
        elseif (units(1:len) .eq. 'radians' .and. .not. convertToDegLocal) then
@@ -4334,7 +4346,6 @@ subroutine ESMF_EsmfGetElement (filename, elementConn, &
       if (ESMF_LogFoundDeallocError(memstat,  &
           ESMF_CONTEXT, rcToReturn=rc)) return
 
-      print *, PetNo, ' read block ', startConn, totalConn
       ncStatus = nf90_get_var(ncid, VarNo, elementConn, start=(/startConn/), &
                               count=(/totalConn/))
       if (CDFCheckError (ncStatus, &
@@ -4389,13 +4400,22 @@ subroutine ESMF_EsmfGetElement (filename, elementConn, &
     if (ncStatus == nf90_noerror) then
       if (startIndex == 0) then
          do i=1,totalConn
-           if (elementConn(i) /= ESMF_MESH_POLYBREAK) then
+           if (elementConn(i) >= 0) then
               elementConn(i)=elementConn(i)+1
            endif
          enddo
       endif
     endif
 
+    ! Check for negative index values that is not defiend as ESMF_MESH_POLYBREAK
+    do i=1,totalConn
+       if (elementConn(i) < 0 .and. elementConn(i) /= ESMF_MESH_POLYBREAK) then
+           call ESMF_LogSetError(rcToCheck=ESMF_FAILURE, &
+                msg="- negative index found in elementConn table", &
+                ESMF_CONTEXT, rcToReturn=rc)
+           return
+       endif
+    enddo          
     if (present(elementMask)) then
        allocate(elementMask(localcount), stat=memstat)
        if (ESMF_LogFoundAllocError(memstat,  &
@@ -4736,10 +4756,12 @@ function CDFCheckError (ncStatus, module, fileName, lineNo, errmsg, rc)
 
 #ifdef ESMF_NETCDF
     if ( ncStatus .ne. nf90_noerror) then
-        call ESMF_LogWrite (msg="netCDF Status Return Error", logmsgFlag=ESMF_LOGMSG_ERROR, &
-            ESMF_CONTEXT)
+        call ESMF_LogWrite (  &
+            msg="netCDF Error: " // trim (errmsg) // ": " // trim (nf90_strerror(ncStatus)),  &
+            logmsgFlag=ESMF_LOGMSG_ERROR, &
+            line=lineNo, file=fileName, method=module)
         print '("NetCDF Error: ", A, " : ", A)', &
-        trim(errmsg),trim(nf90_strerror(ncStatus))
+            trim(errmsg),trim(nf90_strerror(ncStatus))
         call ESMF_LogFlush()
         if (present(rc)) rc = ESMF_FAILURE
         CDFCheckError = .TRUE.

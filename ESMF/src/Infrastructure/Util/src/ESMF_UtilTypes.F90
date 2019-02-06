@@ -80,14 +80,14 @@
      
 !EOPI
 
-      integer, parameter :: ESMF_VERSION_MAJOR        = 7
-      integer, parameter :: ESMF_VERSION_MINOR        = 1
+      integer, parameter :: ESMF_VERSION_MAJOR        = 8
+      integer, parameter :: ESMF_VERSION_MINOR        = 0
       integer, parameter :: ESMF_VERSION_REVISION     = 0
       integer, parameter :: ESMF_VERSION_PATCHLEVEL   = 0
-      logical, parameter :: ESMF_VERSION_PUBLIC       = .true.
-      logical, parameter :: ESMF_VERSION_BETASNAPSHOT = .false.
+      logical, parameter :: ESMF_VERSION_PUBLIC       = .false.
+      logical, parameter :: ESMF_VERSION_BETASNAPSHOT = .true.
 
-      character(*), parameter :: ESMF_VERSION_STRING  = "7.1.0r"
+      character(*), parameter :: ESMF_VERSION_STRING  = "8.0.0 beta snapshot"
 
 #if defined (ESMF_NETCDF)
       logical, parameter :: ESMF_IO_NETCDF_PRESENT = .true.
@@ -538,7 +538,9 @@
                            ESMF_IOFMT_NETCDF_64BIT_OFFSET = ESMF_IOFmt_Flag(2), &
                            ESMF_IOFMT_NETCDF4  = ESMF_IOFmt_Flag(3), &
                            ESMF_IOFMT_NETCDF4P = ESMF_IOFmt_Flag(4), &
-                           ESMF_IOFMT_NETCDF4C = ESMF_IOFmt_Flag(5)
+                           ESMF_IOFMT_NETCDF4C = ESMF_IOFmt_Flag(5), &
+                           ESMF_IOFMT_CONFIG   = ESMF_IOFmt_Flag(6), &
+                           ESMF_IOFMT_YAML     = ESMF_IOFmt_Flag(7)
 
 !------------------------------------------------------------------------------
 !     ! ESMF_Index_Flag
@@ -1014,7 +1016,8 @@
 
       public ESMF_IOFmt_Flag, ESMF_IOFMT_BIN, ESMF_IOFMT_NETCDF, &
              ESMF_IOFMT_NETCDF_64BIT_OFFSET, ESMF_IOFMT_NETCDF4,  &
-             ESMF_IOFMT_NETCDF4P, ESMF_IOFMT_NETCDF4C
+             ESMF_IOFMT_NETCDF4P, ESMF_IOFMT_NETCDF4C, &
+             ESMF_IOFMT_CONFIG, ESMF_IOFMT_YAML
 
       public ESMF_Index_Flag
       public ESMF_INDEX_DELOCAL, ESMF_INDEX_GLOBAL, ESMF_INDEX_USER
@@ -1443,29 +1446,41 @@ subroutine ESMF_dkas_string(string, dkval)
  character(len=*), intent(out) :: string
  type(ESMF_TypeKind_Flag), intent(in) :: dkval
 
+ string = '(UNKNOWN)'
 #ifndef ESMF_NO_INTEGER_1_BYTE 
  if (dkval == ESMF_TYPEKIND_I1) then
-   write(string,'(a)') 'ESMF_TYPEKIND_I1'
+   string = 'ESMF_TYPEKIND_I1'
  endif
 #endif
 #ifndef ESMF_NO_INTEGER_2_BYTE 
  if (dkval == ESMF_TYPEKIND_I2) then
-   write(string,'(a)') 'ESMF_TYPEKIND_I2'
+   string = 'ESMF_TYPEKIND_I2'
  endif
 #endif
  if (dkval == ESMF_TYPEKIND_I4) then
-   write(string,'(a)') 'ESMF_TYPEKIND_I4'
+   string = 'ESMF_TYPEKIND_I4'
  elseif (dkval == ESMF_TYPEKIND_I8) then
-   write(string,'(a)') 'ESMF_TYPEKIND_I8'
+   string = 'ESMF_TYPEKIND_I8'
  elseif (dkval == ESMF_TYPEKIND_R4) then
-   write(string,'(a)') 'ESMF_TYPEKIND_R4'
+   string = 'ESMF_TYPEKIND_R4'
  elseif (dkval == ESMF_TYPEKIND_R8) then
-   write(string,'(a)') 'ESMF_TYPEKIND_R8'
+   string = 'ESMF_TYPEKIND_R8'
  elseif (dkval == ESMF_TYPEKIND_C8) then
-   write(string,'(a)') 'ESMF_TYPEKIND_C8'
+   string = 'ESMF_TYPEKIND_C8'
  elseif (dkval == ESMF_TYPEKIND_C16) then
-   write(string,'(a)') 'ESMF_TYPEKIND_C16'
+   string = 'ESMF_TYPEKIND_C16'
+ elseif (dkval == ESMF_TYPEKIND_LOGICAL) then
+   string = 'ESMF_TYPEKIND_LOGICAL'
+ elseif (dkval == ESMF_TYPEKIND_CHARACTER) then
+   string = 'ESMF_TYPEKIND_CHARACTER'
+ elseif (dkval == ESMF_TYPEKIND_I) then
+   string = 'ESMF_TYPEKIND_I'
+ elseif (dkval == ESMF_TYPEKIND_R) then
+   string = 'ESMF_TYPEKIND_R'
+ elseif (dkval == ESMF_NOKIND) then
+   string = 'ESMF_NOKIND'
  endif
+   
 end subroutine
 
 

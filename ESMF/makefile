@@ -63,7 +63,7 @@ script_info:
 	-@echo "ESMF_VERSION_STRING:    $(ESMF_VERSION_STRING)"
 ifeq ($(shell $(ESMF_DIR)/scripts/available git),git)
 	@if [ -d $(ESMF_DIR)/.git ] ; then \
-	git describe --tags ;\
+        echo $(ESMF_VERSION_STRING_GIT);\
 	echo "--------------------------------------------------------------" ;\
 	git status ;\
 	else \
@@ -134,6 +134,8 @@ endif
 	-@echo "ESMF_TESTFORCEOPENACC:  $(ESMF_TESTFORCEOPENACC)"
 	-@echo "ESMF_TESTHARNESS_ARRAY: $(ESMF_TESTHARNESS_ARRAY)"
 	-@echo "ESMF_TESTHARNESS_FIELD: $(ESMF_TESTHARNESS_FIELD)"
+	-@if [ "$(ESMF_TESTTRACE)" = "ON" ] ; then \
+	  echo "ESMF_TESTTRACE:         $(ESMF_TESTTRACE)" ; fi
 	-@echo "ESMF_MPIRUN:            $(ESMF_MPIRUN)"
 	-@if [ "$(ESMF_TESTMPMD)" = "ON" ] ; then \
 	  echo "ESMF_MPIMPMDRUN:        $(ESMF_MPIMPMDRUN)" ; fi
@@ -206,15 +208,27 @@ endif
           fi; \
          fi
 	-@if [ -n "$(ESMF_XERCES)" ] ; then \
-	  echo "ESMF_XERCES:             $(ESMF_XERCES)" ; \
+	  echo "ESMF_XERCES:            $(ESMF_XERCES)" ; \
 	  if [ -n "$(ESMF_XERCES_INCLUDE)" ] ; then \
-	    echo "ESMF_XERCES_INCLUDE:     $(ESMF_XERCES_INCLUDE)" ; \
+	    echo "ESMF_XERCES_INCLUDE:    $(ESMF_XERCES_INCLUDE)" ; \
           fi; \
 	  if [ -n "$(ESMF_XERCES_LIBS)" ] ; then \
-	    echo "ESMF_XERCES_LIBS:        $(ESMF_XERCES_LIBS)" ; \
+	    echo "ESMF_XERCES_LIBS:       $(ESMF_XERCES_LIBS)" ; \
           fi; \
 	  if [ -n "$(ESMF_XERCES_LIBPATH)" ] ; then \
-	    echo "ESMF_XERCES_LIBPATH:     $(ESMF_XERCES_LIBPATH)" ; \
+	    echo "ESMF_XERCES_LIBPATH:    $(ESMF_XERCES_LIBPATH)" ; \
+          fi; \
+         fi
+	-@if [ -n "$(ESMF_YAMLCPP)" ] ; then \
+	  echo "ESMF_YAMLCPP:            $(ESMF_YAMLCPP)" ; \
+	  if [ -n "$(ESMF_YAMLCPP_INCLUDE)" ] ; then \
+	    echo "ESMF_YAMLCPP_INCLUDE:    $(ESMF_YAMLCPP_INCLUDE)" ; \
+          fi; \
+	  if [ -n "$(ESMF_YAMLCPP_LIBS)" ] ; then \
+	    echo "ESMF_YAMLCPP_LIBS:       $(ESMF_YAMLCPP_LIBS)" ; \
+          fi; \
+	  if [ -n "$(ESMF_YAMLCPP_LIBPATH)" ] ; then \
+	    echo "ESMF_YAMLCPP_LIBPATH:    $(ESMF_YAMLCPP_LIBPATH)" ; \
           fi; \
          fi
 	-@if [ -n "$(ESMF_PIO)" ] ; then \
@@ -324,6 +338,13 @@ ifneq ($(strip $(ESMF_SL_LIBS_TO_MAKE)),)
 	-@echo "ESMF_SL_LIBLIBS:      $(ESMF_SL_LIBLIBS)"
 endif
 	-@echo ""
+	-@echo "ESMF Tracing linker options:"
+ifneq ($(strip $(ESMF_SL_LIBS_TO_MAKE)),)
+	-@echo "ESMF_TRACE_LDPRELOAD=$(ESMF_TRACE_LDPRELOAD)"
+endif
+	-@echo "ESMF_TRACE_STATICLINKOPTS=$(ESMF_TRACE_STATICLINKOPTS)"
+	-@echo "ESMF_TRACE_STATICLINKLIBS=$(ESMF_TRACE_STATICLINKLIBS)"
+	-@echo ""
 	-@echo ""
 	-@echo "--------------------------------------------------------------"
 ifeq ($(ESMF_OS),MinGW)
@@ -417,6 +438,13 @@ info_mk: chkdir_lib
 	-@echo "ESMF_OPENACC_F90LINKOPTS=$(ESMF_OPENACC_F90LINKOPTS)" >> $(MKINFO)
 	-@echo "ESMF_OPENACC_CXXCOMPILEOPTS=$(ESMF_OPENACC_CXXCOMPILEOPTS)" >> $(MKINFO)
 	-@echo "ESMF_OPENACC_CXXLINKOPTS=$(ESMF_OPENACC_CXXLINKOPTS)" >> $(MKINFO)
+	-@echo "" >> $(MKINFO)	
+	-@echo "# ESMF Tracing compile/link options" >> $(MKINFO)
+ifneq ($(strip $(ESMF_SL_LIBS_TO_MAKE)),)	
+	-@echo "ESMF_TRACE_LDPRELOAD=$(ESMF_TRACE_LDPRELOAD)" >> $(MKINFO)
+endif
+	-@echo "ESMF_TRACE_STATICLINKOPTS=$(ESMF_TRACE_STATICLINKOPTS)" >> $(MKINFO)
+	-@echo "ESMF_TRACE_STATICLINKLIBS=$(ESMF_TRACE_STATICLINKLIBS)" >> $(MKINFO)
 	-@echo "" >> $(MKINFO)
 	-@echo "# Internal ESMF variables, do NOT depend on these!" >> $(MKINFO)
 	-@echo "" >> $(MKINFO)
@@ -506,15 +534,27 @@ info_mk: chkdir_lib
           fi; \
          fi
 	-@if [ -n "$(ESMF_XERCES)" ] ; then \
-	  echo "# ESMF_XERCES:            $(ESMF_XERCES)" >> $(MKINFO) ; \
+	  echo "# ESMF_XERCES:           $(ESMF_XERCES)" >> $(MKINFO) ; \
 	  if [ -n "$(ESMF_XERCES_INCLUDE)" ] ; then \
-	    echo "# ESMF_XERCES_INCLUDE:    $(ESMF_XERCES_INCLUDE)" >> $(MKINFO) ; \
+	    echo "# ESMF_XERCES_INCLUDE:   $(ESMF_XERCES_INCLUDE)" >> $(MKINFO) ; \
           fi; \
 	  if [ -n "$(ESMF_XERCES_LIBS)" ] ; then \
-	    echo "# ESMF_XERCES_LIBS:       $(ESMF_XERCES_LIBS)" >> $(MKINFO) ; \
+	    echo "# ESMF_XERCES_LIBS:      $(ESMF_XERCES_LIBS)" >> $(MKINFO) ; \
           fi; \
 	  if [ -n "$(ESMF_XERCES_LIBPATH)" ] ; then \
-	    echo "# ESMF_XERCES_LIBPATH:    $(ESMF_XERCES_LIBPATH)" >> $(MKINFO) ; \
+	    echo "# ESMF_XERCES_LIBPATH:   $(ESMF_XERCES_LIBPATH)" >> $(MKINFO) ; \
+          fi; \
+         fi
+	-@if [ -n "$(ESMF_YAMLCPP)" ] ; then \
+	  echo "# ESMF_YAMLCPP:           $(ESMF_YAMLCPP)" >> $(MKINFO) ; \
+	  if [ -n "$(ESMF_YAMLCPP_INCLUDE)" ] ; then \
+	    echo "# ESMF_YAMLCPP_INCLUDE:   $(ESMF_YAMLCPP_INCLUDE)" >> $(MKINFO) ; \
+          fi; \
+	  if [ -n "$(ESMF_YAMLCPP_LIBS)" ] ; then \
+	    echo "# ESMF_YAMLCPP_LIBS:      $(ESMF_YAMLCPP_LIBS)" >> $(MKINFO) ; \
+          fi; \
+	  if [ -n "$(ESMF_YAMLCPP_LIBPATH)" ] ; then \
+	    echo "# ESMF_YAMLCPP_LIBPATH:   $(ESMF_YAMLCPP_LIBPATH)" >> $(MKINFO) ; \
           fi; \
          fi
 	-@if [ -n "$(ESMF_PIO)" ] ; then \
@@ -580,15 +620,6 @@ install:
 	mkdir -p $(ESMF_INSTALL_HEADERDIR_ABSPATH)
 	cp -f $(ESMF_BUILD)/src/include/ESMC.h $(ESMF_INSTALL_HEADERDIR_ABSPATH)
 	cp -f $(ESMF_BUILD)/src/include/ESMC_*.h $(ESMF_INSTALL_HEADERDIR_ABSPATH)
-#------------------------------------------------------------------------------
-# %%%%% ADDED BY BOB Y. (11/20/14) %%%%%
-# %%%%% ADDED BY LIZZIE L. into v7.1.0r (1/9/19) %%%%%
-#
-# Force copying of Fortran *.inc header files to the $(ARCH)/include directory
-# because the MAPL build will look for this here.  Maybe this changed somehow
-# when ESMF was updated.
-	cp -f  $(ESMF_BUILD)/src/include/*.inc $(ESMF_INSTALL_HEADERDIR_ABSPATH)
-#------------------------------------------------------------------------------
 	cp -f $(ESMF_DIR)/build_config/$(ESMF_OS).$(ESMF_COMPILER).$(ESMF_SITE)/ESMC_Conf.h $(ESMF_INSTALL_HEADERDIR_ABSPATH)
 	mkdir -p $(ESMF_INSTALL_MODDIR_ABSPATH)
 	cp -f $(ESMF_MODDIR)/*.mod $(ESMF_INSTALL_MODDIR_ABSPATH)

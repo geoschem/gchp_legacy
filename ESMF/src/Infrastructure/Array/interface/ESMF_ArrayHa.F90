@@ -146,17 +146,13 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! \end{itemize}
 !
 ! !DESCRIPTION:
-!   Execute a precomputed Array halo operation for {\tt array}. The {\tt array}
-!   argument must be weakly congruent and typekind conform to the Array used
-!   during {\tt ESMF\_ArrayHaloStore()}.
-!   Congruent Arrays possess matching DistGrids, and the shape of the local
-!   array tiles, i.e. the memory allocation, matches between the Arrays for
-!   every DE. For weakly congruent
-!   Arrays the sizes of the undistributed dimensions, that vary faster with
-!   memory than the first distributed dimension, are permitted to be different.
-!   This means that the same {\tt routehandle} can be applied to a large class
-!   of similar Arrays that differ in the number of elements in the left most
-!   undistributed dimensions.
+!   Execute a precomputed Array halo operation for {\tt array}.
+!   The {\tt array} argument must match the respective Array
+!   used during {\tt ESMF\_ArrayHaloStore()} in {\em type}, {\em kind}, and 
+!   memory layout of the {\em distributed} dimensions. However, the size,
+!   number, and index order of {\em undistributed} dimensions may be different.
+!   See section \ref{RH:Reusability} for a more detailed discussion of
+!   RouteHandle reusability.
 !
 !   See {\tt ESMF\_ArrayHaloStore()} on how to precompute {\tt routehandle}.
 !
@@ -250,16 +246,23 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! !IROUTINE: ESMF_ArrayHaloRelease - Release resources associated with Array halo operation
 !
 ! !INTERFACE:
-  subroutine ESMF_ArrayHaloRelease(routehandle, keywordEnforcer, rc)
+  subroutine ESMF_ArrayHaloRelease(routehandle, keywordEnforcer, noGarbage, rc)
 !
 ! !ARGUMENTS:
     type(ESMF_RouteHandle), intent(inout)         :: routehandle
 type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    logical,                intent(in),  optional :: noGarbage
     integer,                intent(out), optional :: rc
 !
 ! !STATUS:
 ! \begin{itemize}
 ! \item\apiStatusCompatibleVersion{5.2.0r}
+! \item\apiStatusModifiedSinceVersion{5.2.0r}
+! \begin{description}
+! \item[8.0.0] Added argument {\tt noGarbage}.
+!   The argument provides a mechanism to override the default garbage collection
+!   mechanism when destroying an ESMF object.
+! \end{description}
 ! \end{itemize}
 !
 ! !DESCRIPTION:
@@ -269,6 +272,24 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !   \begin{description}
 !   \item [routehandle]
 !     Handle to the precomputed Route.
+!   \item[{[noGarbage]}]
+!     If set to {\tt .TRUE.} the object will be fully destroyed and removed
+!     from the ESMF garbage collection system. Note however that under this 
+!     condition ESMF cannot protect against accessing the destroyed object 
+!     through dangling aliases -- a situation which may lead to hard to debug 
+!     application crashes.
+! 
+!     It is generally recommended to leave the {\tt noGarbage} argument
+!     set to {\tt .FALSE.} (the default), and to take advantage of the ESMF 
+!     garbage collection system which will prevent problems with dangling
+!     aliases or incorrect sequences of destroy calls. However this level of
+!     support requires that a small remnant of the object is kept in memory
+!     past the destroy call. This can lead to an unexpected increase in memory
+!     consumption over the course of execution in applications that use 
+!     temporary ESMF objects. For situations where the repeated creation and 
+!     destruction of temporary objects leads to memory issues, it is 
+!     recommended to call with {\tt noGarbage} set to {\tt .TRUE.}, fully 
+!     removing the entire temporary object from memory.
 !   \item [{[rc]}]
 !     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !   \end{description}
@@ -285,7 +306,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     ESMF_INIT_CHECK_DEEP(ESMF_RouteHandleGetInit, routehandle, rc)
         
     ! Call into the RouteHandle code
-    call ESMF_RouteHandleRelease(routehandle, rc=localrc)
+    call ESMF_RouteHandleRelease(routehandle, noGarbage=noGarbage, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
     
@@ -355,17 +376,13 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !   available for the halo operation.
 !
 !   The routine returns an {\tt ESMF\_RouteHandle} that can be used to call 
-!   {\tt ESMF\_ArrayHalo()} on any Array that is weakly congruent
-!   and typekind conform to {\tt array}.
-!   Congruent Arrays possess matching DistGrids, and the shape of the local
-!   array tiles, i.e. the memory allocation, matches between the Arrays for
-!   every DE. For weakly congruent
-!   Arrays the sizes of the undistributed dimensions, that vary faster with
-!   memory than the first distributed dimension, are permitted to be different.
-!   This means that the same {\tt routehandle} can be applied to a large class
-!   of similar Arrays that differ in the number of elements in the left most
-!   undistributed dimensions.
-!  
+!   {\tt ESMF\_ArrayHalo()} on any Array that matches 
+!   {\tt array} in {\em type}, {\em kind}, and 
+!   memory layout of the {\em distributed} dimensions. However, the size,
+!   number, and index order of {\em undistributed} dimensions may be different.
+!   See section \ref{RH:Reusability} for a more detailed discussion of
+!   RouteHandle reusability.
+!
 !   This call is {\em collective} across the current VM.  
 !
 !   \begin{description}
@@ -724,18 +741,16 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! \end{itemize}
 !
 ! !DESCRIPTION:
-!   Execute a precomputed Array redistribution from {\tt srcArray} to
-!   {\tt dstArray}. Both {\tt srcArray} and {\tt dstArray} must be
-!   weakly congruent and typekind conform with the respective Arrays used 
-!   during {\tt ESMF\_ArrayRedistStore()}.
-!   Congruent Arrays possess matching DistGrids, and the shape of the local
-!   array tiles, i.e. the memory allocation, matches between the Arrays for
-!   every DE. For weakly congruent
-!   Arrays the sizes of the undistributed dimensions, that vary faster with
-!   memory than the first distributed dimension, are permitted to be different.
-!   This means that the same {\tt routehandle} can be applied to a large class
-!   of similar Arrays that differ in the number of elements in the left most
-!   undistributed dimensions.
+!   \begin{sloppypar}
+!   Execute a precomputed Array redistribution from {\tt srcArray}
+!   to {\tt dstArray}.
+!   Both {\tt srcArray} and {\tt dstArray} must match the respective Arrays
+!   used during {\tt ESMF\_ArrayRedisttore()} in {\em type}, {\em kind}, and 
+!   memory layout of the {\em distributed} dimensions. However, the size,
+!   number, and index order of {\em undistributed} dimensions may be different.
+!   See section \ref{RH:Reusability} for a more detailed discussion of
+!   RouteHandle reusability.
+!   \end{sloppypar}
 !
 !   The {\tt srcArray} and {\tt dstArray} arguments are optional in support of
 !   the situation where {\tt srcArray} and/or {\tt dstArray} are not defined on
@@ -876,16 +891,23 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! !IROUTINE: ESMF_ArrayRedistRelease - Release resources associated with Array redistribution
 !
 ! !INTERFACE:
-  subroutine ESMF_ArrayRedistRelease(routehandle, keywordEnforcer, rc)
+  subroutine ESMF_ArrayRedistRelease(routehandle, keywordEnforcer, noGarbage, rc)
 ! 
 ! !ARGUMENTS:
     type(ESMF_RouteHandle), intent(inout)         :: routehandle
 type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    logical,                intent(in),  optional :: noGarbage
     integer,                intent(out), optional :: rc
 !
 ! !STATUS:
 ! \begin{itemize}
 ! \item\apiStatusCompatibleVersion{5.2.0r}
+! \item\apiStatusModifiedSinceVersion{5.2.0r}
+! \begin{description}
+! \item[8.0.0] Added argument {\tt noGarbage}.
+!   The argument provides a mechanism to override the default garbage collection
+!   mechanism when destroying an ESMF object.
+! \end{description}
 ! \end{itemize}
 !
 ! !DESCRIPTION:
@@ -895,6 +917,24 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !   \begin{description}
 !   \item [routehandle]
 !     Handle to the precomputed Route.
+!   \item[{[noGarbage]}]
+!     If set to {\tt .TRUE.} the object will be fully destroyed and removed
+!     from the ESMF garbage collection system. Note however that under this 
+!     condition ESMF cannot protect against accessing the destroyed object 
+!     through dangling aliases -- a situation which may lead to hard to debug 
+!     application crashes.
+! 
+!     It is generally recommended to leave the {\tt noGarbage} argument
+!     set to {\tt .FALSE.} (the default), and to take advantage of the ESMF 
+!     garbage collection system which will prevent problems with dangling
+!     aliases or incorrect sequences of destroy calls. However this level of
+!     support requires that a small remnant of the object is kept in memory
+!     past the destroy call. This can lead to an unexpected increase in memory
+!     consumption over the course of execution in applications that use 
+!     temporary ESMF objects. For situations where the repeated creation and 
+!     destruction of temporary objects leads to memory issues, it is 
+!     recommended to call with {\tt noGarbage} set to {\tt .TRUE.}, fully 
+!     removing the entire temporary object from memory.
 !   \item [{[rc]}]
 !     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !   \end{description}
@@ -911,7 +951,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     ESMF_INIT_CHECK_DEEP(ESMF_RouteHandleGetInit, routehandle, rc)
         
     ! Call into the RouteHandle code
-    call ESMF_RouteHandleRelease(routehandle, rc=localrc)
+    call ESMF_RouteHandleRelease(routehandle, noGarbage=noGarbage, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
     
@@ -1003,18 +1043,14 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !  
 ! It is erroneous to specify the identical Array object for {\tt srcArray} and
 ! {\tt dstArray} arguments. 
-!  
+!
 !   The routine returns an {\tt ESMF\_RouteHandle} that can be used to call 
-!   {\tt ESMF\_ArrayRedist()} on any pair of Arrays that are weakly congruent
-!   and typekind conform with the {\tt srcArray}, {\tt dstArray} pair. 
-!   Congruent Arrays possess matching DistGrids, and the shape of the local
-!   array tiles, i.e. the memory allocation, matches between the Arrays for
-!   every DE. For weakly congruent
-!   Arrays the sizes of the undistributed dimensions, that vary faster with
-!   memory than the first distributed dimension, are permitted to be different.
-!   This means that the same {\tt routehandle} can be applied to a large class
-!   of similar Arrays that differ in the number of elements in the left most
-!   undistributed dimensions.
+!   {\tt ESMF\_ArrayRedist()} on any pair of Arrays that matches 
+!   {\tt srcArray} and {\tt dstArray} in {\em type}, {\em kind}, and 
+!   memory layout of the {\em distributed} dimensions. However, the size,
+!   number, and index order of {\em undistributed} dimensions may be different.
+!   See section \ref{RH:Reusability} for a more detailed discussion of
+!   RouteHandle reusability.
 !
 ! This method is overloaded for:\newline
 ! {\tt ESMF\_TYPEKIND\_I4}, {\tt ESMF\_TYPEKIND\_I8},\newline 
@@ -1438,18 +1474,14 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !  
 ! It is erroneous to specify the identical Array object for {\tt srcArray} and
 ! {\tt dstArray} arguments. 
-!  
+!
 !   The routine returns an {\tt ESMF\_RouteHandle} that can be used to call 
-!   {\tt ESMF\_ArrayRedist()} on any pair of Arrays that are weakly congruent
-!   and typekind conform with the {\tt srcArray}, {\tt dstArray} pair. 
-!   Congruent Arrays possess matching DistGrids, and the shape of the local
-!   array tiles, i.e. the memory allocation, matches between the Arrays for
-!   every DE. For weakly congruent
-!   Arrays the sizes of the undistributed dimensions, that vary faster with
-!   memory than the first distributed dimension, are permitted to be different.
-!   This means that the same {\tt routehandle} can be applied to a large class
-!   of similar Arrays that differ in the number of elements in the left most
-!   undistributed dimensions.
+!   {\tt ESMF\_ArrayRedist()} on any pair of Arrays that matches 
+!   {\tt srcArray} and {\tt dstArray} in {\em type}, {\em kind}, and 
+!   memory layout of the {\em distributed} dimensions. However, the size,
+!   number, and index order of {\em undistributed} dimensions may be different.
+!   See section \ref{RH:Reusability} for a more detailed discussion of
+!   RouteHandle reusability.
 !
 ! This method is overloaded for:\newline
 ! {\tt ESMF\_TYPEKIND\_I4}, {\tt ESMF\_TYPEKIND\_I8},\newline 
@@ -2029,20 +2061,15 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !  
 ! It is erroneous to specify the identical Array object for {\tt srcArray} and
 ! {\tt dstArray} arguments. 
-!  
+!
 !   The routine returns an {\tt ESMF\_RouteHandle} that can be used to call 
-!   {\tt ESMF\_ArrayRedist()} on any pair of Arrays that are weakly congruent
-!   and typekind conform with the {\tt srcArray}, {\tt dstArray} pair.
-!   Congruent Arrays possess matching DistGrids, and the shape of the local
-!   array tiles, i.e. the memory allocation, matches between the Arrays for
-!   every DE. For weakly congruent
-!   Arrays the sizes of the undistributed dimensions, that vary faster with
-!   memory than the first distributed dimension, are permitted to be different.
-!   This means that the same {\tt routehandle} can be applied to a large class
-!   of similar Arrays that differ in the number of elements in the left most
-!   undistributed dimensions.
-!   \newline
-!  
+!   {\tt ESMF\_ArrayRedist()} on any pair of Arrays that matches 
+!   {\tt srcArray} and {\tt dstArray} in {\em type}, {\em kind}, and 
+!   memory layout of the {\em distributed} dimensions. However, the size,
+!   number, and index order of {\em undistributed} dimensions may be different.
+!   See section \ref{RH:Reusability} for a more detailed discussion of
+!   RouteHandle reusability.
+!
 ! This call is {\em collective} across the current VM.  
 !
 !   \begin{description}
@@ -2211,20 +2238,15 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !  
 ! It is erroneous to specify the identical Array object for {\tt srcArray} and
 ! {\tt dstArray} arguments. 
-!  
+!
 !   The routine returns an {\tt ESMF\_RouteHandle} that can be used to call 
-!   {\tt ESMF\_ArrayRedist()} on any pair of Arrays that are weakly congruent
-!   and typekind conform with the {\tt srcArray}, {\tt dstArray} pair.
-!   Congruent Arrays possess matching DistGrids, and the shape of the local
-!   array tiles, i.e. the memory allocation, matches between the Arrays for
-!   every DE. For weakly congruent
-!   Arrays the sizes of the undistributed dimensions, that vary faster with
-!   memory than the first distributed dimension, are permitted to be different.
-!   This means that the same {\tt routehandle} can be applied to a large class
-!   of similar Arrays that differ in the number of elements in the left most
-!   undistributed dimensions.
-!   \newline
-!  
+!   {\tt ESMF\_ArrayRedist()} on any pair of Arrays that matches 
+!   {\tt srcArray} and {\tt dstArray} in {\em type}, {\em kind}, and 
+!   memory layout of the {\em distributed} dimensions. However, the size,
+!   number, and index order of {\em undistributed} dimensions may be different.
+!   See section \ref{RH:Reusability} for a more detailed discussion of
+!   RouteHandle reusability.
+!
 ! This call is {\em collective} across the current VM.  
 !
 !   \begin{description}

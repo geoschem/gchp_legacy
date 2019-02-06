@@ -3696,6 +3696,7 @@ int VMK::reduce(void *in, void *out, int len, vmType type, vmOp op, int root){
       mpitype = MPI_DOUBLE;
       break;
     case vmBYTE:
+    case vmL4:
       localrc = -1;   // error
       return localrc; // bail out
     }
@@ -3717,6 +3718,7 @@ int VMK::reduce(void *in, void *out, int len, vmType type, vmOp op, int root){
       templen *= 8;   // 8 bytes
       break;
     case vmBYTE:
+    case vmL4:
       localrc = -1;   // error
       return localrc; // bail out
     }
@@ -3787,6 +3789,7 @@ int VMK::reduce(void *in, void *out, int len, vmType type, vmOp op, int root){
           }
           break;
         case vmBYTE:
+        case vmL4:
           localrc = -1;   // error
           return localrc; // bail out
         }
@@ -3854,6 +3857,7 @@ int VMK::reduce(void *in, void *out, int len, vmType type, vmOp op, int root){
           }
           break;
         case vmBYTE:
+        case vmL4:
           localrc = -1;   // error
           return localrc; // bail out
         }
@@ -3921,6 +3925,7 @@ int VMK::reduce(void *in, void *out, int len, vmType type, vmOp op, int root){
           }
           break;
         case vmBYTE:
+        case vmL4:
           localrc = -1;   // error
           return localrc; // bail out
         }
@@ -3965,6 +3970,7 @@ int VMK::allreduce(void *in, void *out, int len, vmType type, vmOp op){
       mpitype = MPI_DOUBLE;
       break;
     case vmBYTE:
+    case vmL4:
       localrc = -1;   // error
       return localrc; // bail out
     }
@@ -3986,6 +3992,7 @@ int VMK::allreduce(void *in, void *out, int len, vmType type, vmOp op){
       templen *= 8;   // 8 bytes
       break;
     case vmBYTE:
+    case vmL4:
       localrc = -1;   // error
       return localrc; // bail out
     }
@@ -4056,6 +4063,7 @@ int VMK::allreduce(void *in, void *out, int len, vmType type, vmOp op){
         }
         break;
       case vmBYTE:
+      case vmL4:
         localrc = -1;   // error
         return localrc; // bail out
       }
@@ -4123,6 +4131,7 @@ int VMK::allreduce(void *in, void *out, int len, vmType type, vmOp op){
         }
         break;
       case vmBYTE:
+      case vmL4:
         localrc = -1;   // error
         return localrc; // bail out
       }
@@ -4190,6 +4199,7 @@ int VMK::allreduce(void *in, void *out, int len, vmType type, vmOp op){
         }
         break;
       case vmBYTE:
+      case vmL4:
         localrc = -1;   // error
         return localrc; // bail out
       }
@@ -4250,6 +4260,7 @@ int VMK::allfullreduce(void *in, void *out, int len, vmType type, vmOp op){
       }
       break;
     case vmBYTE:
+    case vmL4:
       localrc = -1;   // error
       return localrc; // bail out
     }
@@ -4294,6 +4305,7 @@ int VMK::allfullreduce(void *in, void *out, int len, vmType type, vmOp op){
       }
       break;
     case vmBYTE:
+    case vmL4:
       localrc = -1;   // error
       return localrc; // bail out
     }
@@ -4338,44 +4350,13 @@ int VMK::allfullreduce(void *in, void *out, int len, vmType type, vmOp op){
       }
       break;
     case vmBYTE:
+    case vmL4:
       localrc = -1;   // error
       return localrc; // bail out
     }
     break;
   }
   localrc = allreduce(localresult, out, 1, type, op);
-  return localrc;
-}
-
-
-int VMK::scatter(void *in, void *out, int len, int root){
-  int localrc=0;
-  if (mpionly){
-    localrc = MPI_Scatter(in, len, MPI_BYTE, out, len, MPI_BYTE, root, mpi_c);
-  }else{
-    // This is a very simplistic, probably very bad peformance implementation.
-    if (mypet==root){
-      // I am root -> send chunks to all other PETs
-      char *rootin = (char *)in;
-      for (int i=0; i<root; i++){
-        localrc = send(rootin, len, i);
-        if (localrc) return localrc;
-        rootin += len;
-      }
-      // memcpy root's chunk
-      memcpy(out, rootin, len);
-      rootin += len;
-      // keep sending chunks
-      for (int i=root+1; i<npets; i++){
-        localrc = send(rootin, len, i);
-        if (localrc) return localrc;
-        rootin += len;
-      }
-    }else{
-      // all other PETs receive their chunk
-      localrc = recv(out, len, root);
-    }
-  }
   return localrc;
 }
 
@@ -4413,6 +4394,7 @@ int VMK::reduce_scatter(void *in, void *out, int *outCounts,
       mpitype = MPI_DOUBLE;
       break;
     case vmBYTE:
+    case vmL4:
       localrc = -1;   // error
       return localrc; // bail out
     }
@@ -4425,6 +4407,38 @@ int VMK::reduce_scatter(void *in, void *out, int *outCounts,
 }
 
     
+int VMK::scatter(void *in, void *out, int len, int root){
+  int localrc=0;
+  if (mpionly){
+    localrc = MPI_Scatter(in, len, MPI_BYTE, out, len, MPI_BYTE, root, mpi_c);
+  }else{
+    // This is a very simplistic, probably very bad peformance implementation.
+    if (mypet==root){
+      // I am root -> send chunks to all other PETs
+      char *rootin = (char *)in;
+      for (int i=0; i<root; i++){
+        localrc = send(rootin, len, i);
+        if (localrc) return localrc;
+        rootin += len;
+      }
+      // memcpy root's chunk
+      memcpy(out, rootin, len);
+      rootin += len;
+      // keep sending chunks
+      for (int i=root+1; i<npets; i++){
+        localrc = send(rootin, len, i);
+        if (localrc) return localrc;
+        rootin += len;
+      }
+    }else{
+      // all other PETs receive their chunk
+      localrc = recv(out, len, root);
+    }
+  }
+  return localrc;
+}
+
+
 int VMK::scatter(void *in, void *out, int len, int root,
   commhandle **ch){
   int localrc=0;
@@ -4498,6 +4512,9 @@ int VMK::scatterv(void *in, int *inCounts, int *inOffsets, void *out,
     case vmR8:
       mpitype = MPI_DOUBLE;
       break;
+    case vmL4:
+      localrc = -1;   // error
+      return localrc; // bail out
     }
     localrc = MPI_Scatterv(in, inCounts, inOffsets, mpitype, out, outCount,
       mpitype, root, mpi_c);
@@ -4518,6 +4535,7 @@ int VMK::scatterv(void *in, int *inCounts, int *inOffsets, void *out,
       size=8;
       break;
     case vmBYTE:
+    case vmL4:
       localrc = -1;   // error
       return localrc; // bail out
     }
@@ -4657,6 +4675,9 @@ int VMK::gatherv(void *in, int inCount, void *out, int *outCounts,
     case vmR8:
       mpitype = MPI_DOUBLE;
       break;
+    case vmL4:
+      localrc = -1;   // error
+      return localrc; // bail out
     }
     localrc = MPI_Gatherv(in, inCount, mpitype, out, outCounts, outOffsets,
       mpitype, root, mpi_c);
@@ -4679,6 +4700,9 @@ int VMK::gatherv(void *in, int inCount, void *out, int *outCounts,
     case vmR8:
       size=8;
       break;
+    case vmL4:
+      localrc = -1;   // error
+      return localrc; // bail out
     }
     int root = 0; // arbitrary root, 0 always exists!
     if (mypet==root){
@@ -4796,6 +4820,9 @@ int VMK::allgatherv(void *in, int inCount, void *out, int *outCounts,
     case vmR8:
       mpitype = MPI_DOUBLE;
       break;
+    case vmL4:
+      localrc = -1;   // error
+      return localrc; // bail out
     }
     localrc = MPI_Allgatherv(in, inCount, mpitype, out, outCounts, outOffsets,
       mpitype, mpi_c);
@@ -4818,6 +4845,9 @@ int VMK::allgatherv(void *in, int inCount, void *out, int *outCounts,
     case vmR8:
       size=8;
       break;
+    case vmL4:
+      localrc = -1;   // error
+      return localrc; // bail out
     }
     int root = 0; // arbitrary root, 0 always exists!
     if (mypet==root){
@@ -4879,6 +4909,9 @@ int VMK::alltoall(void *in, int inCount, void *out, int outCount,
     case vmR8:
       mpitype = MPI_DOUBLE;
       break;
+    case vmL4:
+      mpitype = MPI_LOGICAL;
+      break;
     }
     localrc = MPI_Alltoall(in, inCount, mpitype, out, outCount, mpitype, mpi_c);
   }else{
@@ -4899,6 +4932,9 @@ int VMK::alltoall(void *in, int inCount, void *out, int outCount,
       break;
     case vmR8:
       size=8;
+      break;
+    case vmL4:
+      size=4;
       break;
     }
     char *inC = (char *)in;
@@ -4952,6 +4988,9 @@ int VMK::alltoallv(void *in, int *inCounts, int *inOffsets, void *out,
     case vmR8:
       mpitype = MPI_DOUBLE;
       break;
+    case vmL4:
+      mpitype = MPI_LOGICAL;
+      break;
     }
     localrc = MPI_Alltoallv(in, inCounts, inOffsets, mpitype, out, outCounts,
       outOffsets, mpitype, mpi_c);
@@ -4973,6 +5012,9 @@ int VMK::alltoallv(void *in, int *inCounts, int *inOffsets, void *out,
       break;
     case vmR8:
       size=8;
+      break;
+    case vmL4:
+      size=4;
       break;
     }
     char *inC = (char *)in;
@@ -5606,6 +5648,190 @@ namespace ESMCI{
     }
   }
   
+  //===========================================================================
+  
+  void ComPat2::selectiveExchange(VMK *vmk, std::vector<int>&responderPet,
+    std::vector<int>&requesterPet){
+    int petCount = vmk->getNpets();
+    int localPet = vmk->getMypet();
+    // prepare commhandles and message buffers
+    VMK::commhandle *sendCommh1 = NULL;
+    VMK::commhandle *sendCommh2 = NULL;
+    VMK::commhandle *sendCommh3 = NULL;
+    VMK::commhandle *sendCommh4 = NULL;
+    VMK::commhandle *recvCommh1 = NULL;
+    VMK::commhandle *recvCommh2 = NULL;
+    char *sendRequestBuffer;
+    char *sendResponseBuffer;
+    char *recvBuffer1;
+    char *recvBuffer2;
+    for (int i=0; i<petCount; i++){
+      int requestPet = (petCount + localPet-i) % petCount;
+      int responsePet = (localPet+i) % petCount;
+#ifdef DEBUG_COMPAT2
+    {
+      std::stringstream msg;
+      msg << "ComPat2#" << __LINE__
+        << " requestPet=" << requestPet 
+        << " responsePet=" << responsePet;
+      ESMC_LogDefault.Write(msg.str(), ESMC_LOGMSG_INFO);
+    }
+#endif
+      if (i==0){
+        // the localPet handles its own local operations
+        handleLocal();
+      }else{
+        // localPet interacts with requestPet and responsePet as their
+        // responder and requester, respectively.
+        int recvResponseSize=0; // reset
+        int sendResponseSize=0; // reset
+        // localPet acts as responder
+        int recvRequestSize;
+        if (requesterPet[requestPet])
+          vmk->recv(&recvRequestSize, sizeof(int), requestPet, &recvCommh1);
+        else
+          recvRequestSize=0;
+        // localPet acts as requester
+        int sendRequestSize;
+        if (responderPet[responsePet]){
+          generateRequest(responsePet, sendRequestBuffer, sendRequestSize);
+          vmk->send(&sendRequestSize, sizeof(int), responsePet, &sendCommh1);
+        }else
+          sendRequestSize=0;
+        // localPet acts as responder
+        if (requesterPet[requestPet])
+          vmk->commwait(&recvCommh1); // wait for valid recvRequestSize
+#ifdef DEBUG_COMPAT2
+    {
+      std::stringstream msg;
+      msg << "ComPat2#" << __LINE__
+        << " recvRequestSize=" << recvRequestSize
+        << " sendRequestSize=" << sendRequestSize;
+      ESMC_LogDefault.Write(msg.str(), ESMC_LOGMSG_INFO);
+    }
+#endif
+        if (recvRequestSize>0){
+          recvBuffer1 = new char[recvRequestSize];
+          vmk->recv(recvBuffer1, recvRequestSize, requestPet, &recvCommh1);
+#ifdef DEBUG_COMPAT2
+    {
+      std::stringstream msg;
+      msg << "ComPat2#" << __LINE__
+        << " receiving request from requestPet=" << requestPet
+        << " in recvBuffer1=" << (void*)recvBuffer1;
+      ESMC_LogDefault.Write(msg.str(), ESMC_LOGMSG_INFO);
+    }
+#endif
+        }
+        // localPet acts as requester
+        if (sendRequestSize>0){
+          vmk->send(sendRequestBuffer, sendRequestSize, responsePet,
+            &sendCommh2);
+#ifdef DEBUG_COMPAT2
+    {
+      std::stringstream msg;
+      msg << "ComPat2#" << __LINE__
+        << " sending request to responsePet=" << responsePet
+        << " in sendRequestBuffer=" << (void*)sendRequestBuffer;
+      ESMC_LogDefault.Write(msg.str(), ESMC_LOGMSG_INFO);
+    }
+#endif
+          vmk->recv(&recvResponseSize, sizeof(int), responsePet, &recvCommh2);
+        }
+        // localPet acts as responder
+        if (recvRequestSize>0){
+          vmk->commwait(&recvCommh1); // wait for valid recvBuffer1
+#ifdef DEBUG_COMPAT2
+    {
+      std::stringstream msg;
+      msg << "ComPat2#" << __LINE__
+        << " finished receiving request from requestPet=" << requestPet
+        << " in recvBuffer1=" << (void*)recvBuffer1;
+      ESMC_LogDefault.Write(msg.str(), ESMC_LOGMSG_INFO);
+    }
+#endif
+          sendResponseBuffer = NULL; // detectable reset
+          handleRequest(requestPet, recvBuffer1, recvRequestSize,
+            sendResponseBuffer, sendResponseSize);
+          vmk->send(&sendResponseSize, sizeof(int), requestPet, &sendCommh3);
+        }
+        // localPet acts as requester
+        if (sendRequestSize>0){
+          vmk->commwait(&recvCommh2); // wait for valid recvResponseSize
+          vmk->commwait(&sendCommh2); // wait to be done with sendRequestBuffer
+        }
+#ifdef DEBUG_COMPAT2
+    {
+      std::stringstream msg;
+      msg << "ComPat2#" << __LINE__
+        << " sendResponseSize=" << sendResponseSize
+        << " recvResponseSize=" << recvResponseSize;
+      ESMC_LogDefault.Write(msg.str(), ESMC_LOGMSG_INFO);
+    }
+#endif
+        recvBuffer2 = NULL; // detectable reset
+        if (recvResponseSize>0){
+          recvBuffer2 = new char[recvResponseSize];
+          vmk->recv(recvBuffer2, recvResponseSize, responsePet, &recvCommh2);
+#ifdef DEBUG_COMPAT2
+    {
+      std::stringstream msg;
+      msg << "ComPat2#" << __LINE__
+        << " receiving response from responsePet=" << responsePet
+        << " in recvBuffer2=" << (void*)recvBuffer2;
+      ESMC_LogDefault.Write(msg.str(), ESMC_LOGMSG_INFO);
+    }
+#endif
+        }
+        // localPet acts as responder
+        if (sendResponseSize>0){
+          vmk->send(sendResponseBuffer, sendResponseSize, requestPet,
+            &sendCommh4);
+#ifdef DEBUG_COMPAT2
+    {
+      std::stringstream msg;
+      msg << "ComPat2#" << __LINE__
+        << " sending response to requestPet=" << requestPet
+        << " in sendResponseBuffer=" << (void*)sendResponseBuffer;
+      ESMC_LogDefault.Write(msg.str(), ESMC_LOGMSG_INFO);
+    }
+#endif
+        }
+        // localPet acts as requester
+        if (recvResponseSize>0){        
+          vmk->commwait(&recvCommh2); // wait for valid recvBuffer2
+#ifdef DEBUG_COMPAT2
+    {
+      std::stringstream msg;
+      msg << "ComPat2#" << __LINE__
+        << " finished receiving response from responsePet=" << responsePet
+        << " in recvBuffer2=" << (void*)recvBuffer2;
+      ESMC_LogDefault.Write(msg.str(), ESMC_LOGMSG_INFO);
+    }
+#endif
+          handleResponse(responsePet, recvBuffer2, recvResponseSize);
+        }
+        // localPet acts as requester
+        if (responderPet[responsePet])
+          vmk->commwait(&sendCommh1);
+        if (recvResponseSize>0){
+          delete [] recvBuffer2;
+        }
+        // localPet acts as responder
+        if (sendResponseSize>0){
+          vmk->commwait(&sendCommh4);
+        }
+        if (recvRequestSize>0){
+          vmk->commwait(&sendCommh3);
+          if ((sendResponseBuffer != NULL) && (sendResponseBuffer!=recvBuffer1))
+            delete [] sendResponseBuffer;
+          delete [] recvBuffer1;
+        }
+      }
+      
+    }
+  }
+  
 } // namespace ESMCI
 
 //==============================================================================
@@ -5689,7 +5915,7 @@ namespace ESMCI {
     name.sin_family = AF_INET;
     name.sin_port = htons(port);
     name.sin_addr.s_addr = INADDR_ANY;  // system to fill in automatically
-    if (bind(sock, (struct sockaddr *) &name, sizeof(name)) < 0){
+    if (::bind(sock, (struct sockaddr *) &name, sizeof(name)) < 0){
       perror("socketServerInit: bind()");
       return SOCKERR_UNSPEC;  // bail out
     }

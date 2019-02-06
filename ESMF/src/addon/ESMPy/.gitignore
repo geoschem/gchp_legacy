@@ -1,0 +1,38 @@
+# Compiled source #
+###################
+*.pyc
+
+# Nose #
+########
+*.noseids
+
+# Misc #
+########
+*~
+*.orig
+*.log
+#.Log
+PET*.
+*.stdout
+*.out
+*.vtk
+*.csv
+
+# Eclipse #
+###########
+*.project
+*.pydevproject
+*.settings
+
+# ESMPy build and docs #
+########################
+build
+doc/esmpy_doc
+src/ESMF/interface/esmfmkfile.py
+examples/data
+examples/notebooks/ESMPy-data
+src/ESMF/test/regrid_from_file/data
+
+# notebooks #
+#############
+examples/notebooks/.ipynb_checkpoints/

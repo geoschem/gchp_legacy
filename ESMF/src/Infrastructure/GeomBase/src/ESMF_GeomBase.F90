@@ -32,6 +32,8 @@
 !
 !------------------------------------------------------------------------------
 ! !USES:
+      use ESMF_BaseMod
+      use ESMF_VMMod
       use ESMF_UtilTypesMod
       use ESMF_InitMacrosMod    ! ESMF initializer macros
       use ESMF_LogErrMod        ! ESMF error handling
@@ -326,10 +328,10 @@ end interface
           endif
 
           if (present(ungriddedLBound) .and. present (undistLBound)) then
-              if (size(ungriddedLBound) .gt. 0) undistLBound = ungriddedLBound
+              if (size(ungriddedLBound) .gt. 0) undistLBound(1:size(ungriddedLBound)) = ungriddedLBound
           endif
           if (present(ungriddedUBound) .and. present (undistUBound)) then
-              if (size(ungriddedUBound) .gt. 0) undistUBound = ungriddedUBound
+              if (size(ungriddedUBound) .gt. 0) undistUBound(1:size(ungriddedUBound)) = ungriddedUBound
           endif
 
            ! Distgrid
@@ -364,10 +366,10 @@ end interface
           endif
 
           if (present(ungriddedLBound) .and. present (undistLBound)) then
-              if (size(ungriddedLBound) .gt. 0) undistLBound = ungriddedLBound
+              if (size(ungriddedLBound) .gt. 0) undistLBound(1:size(ungriddedLBound)) = ungriddedLBound
           endif
           if (present(ungriddedUBound) .and. present (undistUBound)) then
-              if (size(ungriddedUBound) .gt. 0) undistUBound = ungriddedUBound
+              if (size(ungriddedUBound) .gt. 0) undistUBound(1:size(ungriddedUBound)) = ungriddedUBound
           endif
 
           ! Get distgrid
@@ -387,10 +389,10 @@ end interface
           endif
 
           if (present(ungriddedLBound) .and. present (undistLBound)) then
-              if (size(ungriddedLBound) .gt. 0) undistLBound = ungriddedLBound
+              if (size(ungriddedLBound) .gt. 0) undistLBound(1:size(ungriddedLBound)) = ungriddedLBound
           endif
           if (present(ungriddedUBound) .and. present (undistUBound)) then
-                if (size(ungriddedUBound) .gt. 0) undistUBound = ungriddedUBound
+                if (size(ungriddedUBound) .gt. 0) undistUBound(1:size(ungriddedUBound)) = ungriddedUBound
           endif
 
           ! Get distgrid
@@ -501,8 +503,8 @@ end interface
 !
 ! !ARGUMENTS:
        type(ESMF_Mesh),       intent(in)              :: mesh
-       type(ESMF_MeshLoc),    intent(in), optional    :: loc
-        integer,               intent(out),  optional  :: rc
+       type(ESMF_MeshLoc),    intent(in),  optional   :: loc
+       integer,               intent(out), optional   :: rc
 !
 ! !DESCRIPTION:
 ! Create an {\tt ESMF\_GeomBase} object from an {\tt ESMF\_Mesh} object.
@@ -1076,7 +1078,11 @@ end interface
            if (present(dimCount)) dimCount = 1
            if (present(distgridToGridMap)) distgridToGridMap = 1
            if (present(localDECount)) then
-               call ESMF_XGridGet(gbcp%xgrid, localDECount=localDECount, rc=localrc)
+               call ESMF_DistGridGet(gbcp%xgrid%xgtypep%distgridM, delayout=localdelayout, rc=localrc)
+               if (ESMF_LogFoundError(localrc, &
+                                ESMF_ERR_PASSTHRU, &
+                                ESMF_CONTEXT, rcToReturn=rc)) return
+               call ESMF_DelayoutGet(localdelayout, localDECount=localDECount, rc=localrc)
                if (ESMF_LogFoundError(localrc, &
                                 ESMF_ERR_PASSTHRU, &
                                 ESMF_CONTEXT, rcToReturn=rc)) return
@@ -1282,6 +1288,12 @@ end subroutine ESMF_GeomBaseGet
 
  end subroutine ESMF_GeomBaseGetPLocalDe
 
+! -----------------------------------------------------------------------------
+!
+! serialize() and deserialize()
+!
+! -----------------------------------------------------------------------------
+
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_GeomBaseSerialize"
@@ -1327,7 +1339,7 @@ end subroutine ESMF_GeomBaseGet
 !           Flag to tell if serialization is to be done (ESMF_NOINQUIRE)
 !           or if this is simply a size inquiry (ESMF_INQUIREONLY)
 !     \item [{[rc]}]
- !           Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!           Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !     \end{description}
 !
 !EOPI
@@ -1335,6 +1347,8 @@ end subroutine ESMF_GeomBaseGet
     integer :: localrc
     type(ESMF_AttReconcileFlag) :: lattreconflag
     type(ESMF_InquireFlag) :: linquireflag
+
+    integer :: geomobj_loffset
 
     ! Initialize return code; assume failure until success is certain
     if (present(rc)) rc = ESMF_RC_NOT_IMPL
@@ -1359,6 +1373,7 @@ end subroutine ESMF_GeomBaseGet
     gbcp=>geombase%gbcp
 
     ! serialize GeomBase info
+
     call c_ESMC_GeomBaseSerialize(gbcp%type%type, &
                                   gbcp%staggerloc%staggerloc, &
                                   gbcp%meshloc%meshloc, &
@@ -1369,6 +1384,13 @@ end subroutine ESMF_GeomBaseGet
     if (ESMF_LogFoundError(localrc, &
                                  ESMF_ERR_PASSTHRU, &
                                  ESMF_CONTEXT, rcToReturn=rc)) return
+
+    ! Leave room for the length of the serialized Geom object
+    geomobj_loffset = offset
+    if (linquireflag == ESMF_NOINQUIRE)  &
+        buffer(offset:offset+3) = transfer (123421, buffer)  ! Dummy value for the moment
+    offset = offset + 4
+    ! print *, ESMF_METHOD, ': offset at start of Geom object =', offset
 
     ! Get info depending on type
     select case(gbcp%type%type)
@@ -1415,6 +1437,11 @@ end subroutine ESMF_GeomBaseGet
                                ESMF_CONTEXT, rcToReturn=rc)) return
     end select
 
+    ! Set length of the serialized object
+    ! print *, ESMF_METHOD, ': offset after geom object serialize =', offset
+    if (linquireflag == ESMF_NOINQUIRE)  &
+        buffer(geomobj_loffset:geomobj_loffset+3) =  &
+            transfer (offset - (geomobj_loffset+4), buffer)
 
     ! Set return value
     if (present(rc)) rc = ESMF_SUCCESS
@@ -1439,7 +1466,7 @@ end subroutine ESMF_GeomBaseGet
       integer, intent(inout) :: offset
       type(ESMF_AttReconcileFlag), optional :: attreconflag
       integer, intent(out), optional :: rc
- !
+!
 ! !DESCRIPTION:
 !      Takes a byte-stream buffer and reads the information needed to
 !      recreate a Grid object.  Recursively calls the deserialize routines
@@ -1455,7 +1482,7 @@ end subroutine ESMF_GeomBaseGet
 !           updated by this routine and return pointing to the next
 !           unread byte in the buffer.
 !     \item[{[attreconflag]}]
-!           Flag to tell if Attribute serialization is to be done
+!           Flag to tell if Attribute deserialization is to be done
 !     \item [{[rc]}]
 !           Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !     \end{description}
@@ -1464,6 +1491,22 @@ end subroutine ESMF_GeomBaseGet
     type(ESMF_GeomBaseClass),pointer :: gbcp
     integer :: localrc
     type(ESMF_AttReconcileFlag) :: lattreconflag
+
+    type(ESMF_Base) :: base_temp
+    integer :: offset_temp
+
+    integer :: id_temp
+    type(ESMF_VMId) :: vmid_temp
+    type(ESMF_Grid) :: grid_temp
+    type(ESMF_Logical) :: object_found
+
+    integer :: geomobj_len
+
+type (ESMF_VM) :: vm
+integer :: mypet, npets
+integer :: i
+logical, parameter :: trace = .false.
+logical, parameter :: ENABLE_SHARED_GRID_SUPPORT = .false.
 
     ! Initialize return code; assume failure until success is certain
     if (present(rc)) rc = ESMF_RC_NOT_IMPL
@@ -1480,7 +1523,7 @@ end subroutine ESMF_GeomBaseGet
     if (ESMF_LogFoundAllocError(localrc, msg="Allocating GeomBase type object", &
                                      ESMF_CONTEXT, rcToReturn=rc)) return
 
-    ! serialize GeomBase info
+    ! deserialize GeomBase info
     call c_ESMC_GeomBaseDeserialize(gbcp%type%type,     &
                                     gbcp%staggerloc%staggerloc, &
                                     gbcp%meshloc%meshloc, &
@@ -1491,15 +1534,73 @@ end subroutine ESMF_GeomBaseGet
                                  ESMF_ERR_PASSTHRU, &
                                  ESMF_CONTEXT, rcToReturn=rc)) return
 
+    geomobj_len = transfer (buffer(offset:offset+3), geomobj_len)
+    if (trace) print *, ESMF_METHOD, ': deserialized geom object len =', geomobj_len
+    offset = offset + 4
+
     ! Get info depending on type
     select case(gbcp%type%type)
 
        case (ESMF_GEOMTYPE_GRID%type) ! Grid
-           gbcp%grid=ESMF_GridDeserialize(buffer=buffer, &
-              offset=offset, attreconflag=lattreconflag, rc=localrc)
+
+          ! Peek into the serialized Base to see if this Grid ID/VMId already exists
+          if (trace) then
+            call ESMF_VMGetCurrent (vm)
+            call ESMF_VMGet(vm, localPet=mypet)
+            print *, ESMF_METHOD, ': PET', mypet, ' is in shared grid test code'
+            !print *, 'matchtable on PET', mypet, ':'
+            !call c_esmc_vmprintmatchtable(vm)
+          end if
+
+          if (trace) print *, ESMF_METHOD, ': creating a VMId for peek'
+          call ESMF_VMIdCreate (vmid_temp, localrc)
           if (ESMF_LogFoundError(localrc, &
                                  ESMF_ERR_PASSTHRU, &
                                  ESMF_CONTEXT, rcToReturn=rc)) return
+
+          if (trace) print *, ESMF_METHOD, ': deserialize the VMId for peek.  Offset =', offset
+          offset_temp = offset
+          call ESMF_BaseDeserializeIDVMId (buffer, offset_temp,  &
+                                 id_temp, vmid_temp, localrc)
+          if (ESMF_LogFoundError(localrc, &
+                                 ESMF_ERR_PASSTHRU, &
+                                 ESMF_CONTEXT, rcToReturn=rc)) return
+          ! print '(1x,2a,i5)', ESMF_METHOD, ': peeked id =', id_temp
+          ! print *, ESMF_METHOD, ': peeked VMId:'
+          ! call ESMF_VMIdPrint (vmid_temp)
+
+          if (trace) print *, ESMF_METHOD, ': attempt to access object with temp id/vmID'
+          call c_esmc_vmgetobject (grid_temp,  &
+              id_temp, vmid_temp,  ESMF_GEOMTYPE_GRID%type,  &
+              object_found, localrc)
+          if (ESMF_LogFoundError(localrc, &
+                                 ESMF_ERR_PASSTHRU, &
+                                 ESMF_CONTEXT, rcToReturn=rc)) return
+
+          if (trace) print *, ESMF_METHOD, ': Destroy temp VMId'
+          call ESMF_VMIdDestroy (vmid_temp, localrc)
+          if (ESMF_LogFoundError(localrc, &
+                                 ESMF_ERR_PASSTHRU, &
+                                 ESMF_CONTEXT, rcToReturn=rc)) return
+
+          if (trace) print *, ESMF_METHOD, ': PET', mypet, ' - shared object_found = ', object_found == ESMF_TRUE
+          if (ENABLE_SHARED_GRID_SUPPORT .and. object_found == ESMF_TRUE) then
+            gbcp%grid = grid_temp
+            if (trace)  &
+              print *, ESMF_METHOD, ': Grid linked for sharing.'
+            if (trace)  &
+              call ESMF_GridPrint (gbcp%grid)
+! TODO: (increment Base and/or VM refCount?, etc.  Gerhard says not yet.)
+            gbcp%grid%isInit = ESMF_INIT_CREATED
+            offset = offset + geomobj_len
+          else
+            gbcp%grid=ESMF_GridDeserialize(buffer=buffer, &
+                offset=offset, attreconflag=lattreconflag,  &
+                rc=localrc)
+            if (ESMF_LogFoundError(localrc, &
+                                   ESMF_ERR_PASSTHRU, &
+                                   ESMF_CONTEXT, rcToReturn=rc)) return
+          end if
 
        case  (ESMF_GEOMTYPE_MESH%type)
           gbcp%mesh=ESMF_MeshDeserialize(buffer=buffer, &

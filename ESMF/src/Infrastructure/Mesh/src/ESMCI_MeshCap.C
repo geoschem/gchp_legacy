@@ -96,13 +96,13 @@ void MeshCap::MeshCap_to_PointList(ESMC_MeshLoc_Flag meshLoc,
 
 #if defined ESMF_MOAB
   } else {
-    *out_pl = MBMesh_to_PointList(static_cast<MBMesh *>(mbmesh), &localrc);
+    *out_pl = MBMesh_to_PointList(static_cast<MBMesh *>(mbmesh), meshLoc,
+                                  maskValuesArg, &localrc);
     if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
                                       ESMC_CONTEXT, rc)) return;
 #endif
   }
 }
-
 
 
 // returns NULL if unsuccessful
@@ -601,6 +601,7 @@ void MeshCap::regrid_create(
                          rh, has_rh, has_iw,
                          nentries, tweights,
                          has_udl, _num_udl, _tudl,
+                         has_statusArray, statusArray,
                          &localrc);
     if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
                                       ESMC_CONTEXT, rc)) return;
@@ -1095,7 +1096,7 @@ void MeshCap::meshturnoncellmask(ESMCI::InterArray<int> *maskValuesArg,  int *rc
     ESMCI_meshturnoncellmask(&mesh, maskValuesArg, rc);
   } else {
 #if defined ESMF_MOAB
-    MBMesh_meshturnoncellmask(&mbmesh, maskValuesArg, rc);
+    MBMesh_turnonelemmask(&mbmesh, maskValuesArg, rc);
 #else
    if(ESMC_LogDefault.MsgFoundError(ESMC_RC_LIB_NOT_PRESENT,
       "This functionality requires ESMF to be built with the MOAB library enabled" , ESMC_CONTEXT, rc)) return;
@@ -1114,7 +1115,7 @@ void MeshCap::meshturnoffcellmask(int *rc) {
     ESMCI_meshturnoffcellmask(&mesh, rc);
   } else {
 #if defined ESMF_MOAB
-    MBMesh_meshturnoffcellmask(&mbmesh, rc);
+    MBMesh_turnoffelemmask(&mbmesh, rc);
 #else
    if(ESMC_LogDefault.MsgFoundError(ESMC_RC_LIB_NOT_PRESENT,
       "This functionality requires ESMF to be built with the MOAB library enabled" , ESMC_CONTEXT, rc)) return;
@@ -1132,10 +1133,12 @@ void MeshCap::meshturnonnodemask(ESMCI::InterArray<int> *maskValuesArg,  int *rc
   if (is_esmf_mesh) {
     ESMCI_meshturnonnodemask(&mesh, maskValuesArg, rc);
   } else {
-    ESMC_LogDefault.MsgFoundError(ESMC_RC_NOT_IMPL,
-       "- this functionality is not currently supported using MOAB",
-                                  ESMC_CONTEXT, rc);
-    return;
+#if defined ESMF_MOAB
+    MBMesh_turnonnodemask(&mbmesh, maskValuesArg, rc);
+#else
+   if(ESMC_LogDefault.MsgFoundError(ESMC_RC_LIB_NOT_PRESENT,
+      "This functionality requires ESMF to be built with the MOAB library enabled" , ESMC_CONTEXT, rc)) return;
+#endif
   }
 
 }
@@ -1149,10 +1152,12 @@ void MeshCap::meshturnoffnodemask(int *rc) {
   if (is_esmf_mesh) {
     ESMCI_meshturnoffnodemask(&mesh, rc);
   } else {
-     ESMC_LogDefault.MsgFoundError(ESMC_RC_NOT_IMPL,
-       "- this functionality is not currently supported using MOAB",
-                                  ESMC_CONTEXT, rc);
-    return;
+#if defined ESMF_MOAB
+    MBMesh_turnoffnodemask(&mbmesh, rc);
+#else
+   if(ESMC_LogDefault.MsgFoundError(ESMC_RC_LIB_NOT_PRESENT,
+      "This functionality requires ESMF to be built with the MOAB library enabled" , ESMC_CONTEXT, rc)) return;
+#endif
   }
 }
 
@@ -1526,6 +1531,65 @@ MeshCap *MeshCap::meshcreate_easy_elems(int *pdim,
   } else {
     ESMC_LogDefault.MsgFoundError(ESMC_RC_NOT_IMPL,
        "- this functionality is not currently supported using MOAB",
+                                  ESMC_CONTEXT, rc);
+    return NULL;
+  }
+
+  // Create MeshCap
+  MeshCap *mc=new MeshCap();
+
+  // Set member variables
+  mc->is_esmf_mesh=_is_esmf_mesh;
+  if (_is_esmf_mesh) {
+    mc->mesh=mesh;
+  } else {
+    mc->mbmesh=mbmesh;
+  }
+
+  // Output new MeshCap
+  return mc;
+}
+
+
+
+// returns NULL if unsuccessful
+MeshCap *MeshCap::meshcreate_from_grid(Grid **gridpp,
+                                       bool _is_esmf_mesh, 
+                                       int *rc) {
+#undef ESMC_METHOD
+#define ESMC_METHOD "MeshCap::meshcreate_from_grid()"
+  int localrc;
+
+  // Dereference grid pointer
+  if (gridpp == NULL) {
+    if(ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_VALUE,
+                                     " Grid pointer NULL",
+                                     ESMC_CONTEXT, rc)) return NULL;
+  }
+  Grid *gridp=*gridpp;
+
+  if (gridp == NULL) {
+    if(ESMC_LogDefault.MsgFoundError(ESMC_RC_ARG_VALUE,
+                                     " Grid pointer NULL",
+                                     ESMC_CONTEXT, rc)) return NULL;
+  }
+  Grid &grid=*gridp;
+
+  // Empty vector of Arrays
+  std::vector<ESMCI::Array*> empty_arrays;
+
+  // Create mesh depending on the type
+  Mesh *mesh;
+  void *mbmesh;
+  if (_is_esmf_mesh) {
+    ESMCI_GridToMeshCell(grid,
+                         empty_arrays,
+                         &mesh, &localrc);
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
+                                       ESMC_CONTEXT, rc)) return NULL;
+  } else {
+    ESMC_LogDefault.MsgFoundError(ESMC_RC_NOT_IMPL,
+            "- this functionality is not currently supported using MOAB",
                                   ESMC_CONTEXT, rc);
     return NULL;
   }

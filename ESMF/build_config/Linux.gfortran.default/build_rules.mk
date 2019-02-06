@@ -75,22 +75,16 @@ ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
 else
 ifeq ($(ESMF_COMM),openmpi)
 # OpenMPI --------------------------------------------------
-
-# Minor updates to enable use of gfortran with OpenMPI3 on Harvard
-# cluster. Users should update this section as needed for their
-# own systems. (ewl, 1/17/19)
-ESMF_CXXCOMPILECPPFLAGS+= -DESMF_NO_SIGUSR2
+ifeq ($(shell $(ESMF_DIR)/scripts/available mpifort),mpifort)
 ESMF_F90DEFAULT         = mpifort
-ESMF_F90LINKLIBS       += $(shell $(ESMF_DIR)/scripts/libs.openmpif90 $(ESMF_F90DEFAULT))
-ESMF_CXXDEFAULT         = mpic++
 ESMF_CXXLINKLIBS       += -lmpi_mpifh
-#ifeq ($(shell $(ESMF_DIR)/scripts/available mpifort),mpifort)
-#ESMF_F90DEFAULT         = mpifort
-#ESMF_CXXLINKLIBS       += -lmpi_mpifh
-#else
-#ESMF_F90DEFAULT         = mpif90
-#ESMF_CXXLINKLIBS       += -lmpi_f77
-#endif
+else
+ESMF_F90DEFAULT         = mpif90
+ESMF_CXXLINKLIBS       += -lmpi_f77
+endif
+ESMF_CXXCOMPILECPPFLAGS+= -DESMF_NO_SIGUSR2
+ESMF_F90LINKLIBS       += $(shell $(ESMF_DIR)/scripts/libs.openmpif90 $(ESMF_F90DEFAULT))
+ESMF_CXXDEFAULT         = mpicxx
 ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
 ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
 else
@@ -270,3 +264,9 @@ ESMF_SO_F90LINKOPTSEXE  = -Wl,-export-dynamic
 ESMF_SO_CXXCOMPILEOPTS  = -fPIC
 ESMF_SO_CXXLINKOPTS     = -shared
 ESMF_SO_CXXLINKOPTSEXE  = -Wl,-export-dynamic
+
+############################################################
+# Add compile options required by external libraries
+ifneq ($(ESMF_YAMLCPP),)
+ESMF_CXXCOMPILEOPTS  += -std=c++11
+endif

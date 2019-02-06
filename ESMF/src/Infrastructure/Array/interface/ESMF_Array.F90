@@ -579,18 +579,14 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! !DESCRIPTION:
 !   \begin{sloppypar}
 !   Execute a precomputed Array sparse matrix multiplication from {\tt srcArray}
-!   to {\tt dstArray}. Both {\tt srcArray} and {\tt dstArray} must be weakly
-!   congruent and typekind conform to the respective Arrays used during 
-!   {\tt ESMF\_ArraySMMStore()}.
+!   to {\tt dstArray}.
+!   Both {\tt srcArray} and {\tt dstArray} must match the respective Arrays
+!   used during {\tt ESMF\_ArraySMMStore()} in {\em type}, {\em kind}, and 
+!   memory layout of the {\em distributed} dimensions. However, the size, 
+!   number, and index order of {\em undistributed} dimensions may be different. See section
+!   \ref{RH:Reusability} for a more detailed discussion of RouteHandle 
+!   reusability.
 !   \end{sloppypar}
-!   Congruent Arrays possess matching DistGrids, and the shape of the local
-!   array tiles, i.e. the memory allocation, matches between the Arrays for
-!   every DE. For weakly congruent
-!   Arrays the size of the undistributed dimensions, that vary faster with
-!   memory than the first distributed dimension, is permitted to be different.
-!   This means that the same {\tt routehandle} can be applied to a large class
-!   of similar Arrays that differ in the number of elements in the left most
-!   undistributed dimensions.
 !
 !   The {\tt srcArray} and {\tt dstArray} arguments are optional in support of
 !   the situation where {\tt srcArray} and/or {\tt dstArray} are not defined on
@@ -930,16 +926,23 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! !IROUTINE: ESMF_ArraySMMRelease - Release resources associated with Array sparse matrix multiplication
 !
 ! !INTERFACE:
-  subroutine ESMF_ArraySMMRelease(routehandle, keywordEnforcer, rc)
+  subroutine ESMF_ArraySMMRelease(routehandle, keywordEnforcer, noGarbage, rc)
 !
 ! !ARGUMENTS:
     type(ESMF_RouteHandle), intent(inout)         :: routehandle
 type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+    logical,                intent(in),  optional :: noGarbage
     integer,                intent(out), optional :: rc
 !
 ! !STATUS:
 ! \begin{itemize}
 ! \item\apiStatusCompatibleVersion{5.2.0r}
+! \item\apiStatusModifiedSinceVersion{5.2.0r}
+! \begin{description}
+! \item[8.0.0] Added argument {\tt noGarbage}.
+!   The argument provides a mechanism to override the default garbage collection
+!   mechanism when destroying an ESMF object.
+! \end{description}
 ! \end{itemize}
 !
 ! !DESCRIPTION:
@@ -949,6 +952,24 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !   \begin{description}
 !   \item [routehandle]
 !     Handle to the precomputed Route.
+!   \item[{[noGarbage]}]
+!     If set to {\tt .TRUE.} the object will be fully destroyed and removed
+!     from the ESMF garbage collection system. Note however that under this 
+!     condition ESMF cannot protect against accessing the destroyed object 
+!     through dangling aliases -- a situation which may lead to hard to debug 
+!     application crashes.
+! 
+!     It is generally recommended to leave the {\tt noGarbage} argument
+!     set to {\tt .FALSE.} (the default), and to take advantage of the ESMF 
+!     garbage collection system which will prevent problems with dangling
+!     aliases or incorrect sequences of destroy calls. However this level of
+!     support requires that a small remnant of the object is kept in memory
+!     past the destroy call. This can lead to an unexpected increase in memory
+!     consumption over the course of execution in applications that use 
+!     temporary ESMF objects. For situations where the repeated creation and 
+!     destruction of temporary objects leads to memory issues, it is 
+!     recommended to call with {\tt noGarbage} set to {\tt .TRUE.}, fully 
+!     removing the entire temporary object from memory.
 !   \item [{[rc]}]
 !     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !   \end{description}
@@ -965,7 +986,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     ESMF_INIT_CHECK_DEEP(ESMF_RouteHandleGetInit, routehandle, rc)
         
     ! Call into the RouteHandle code
-    call ESMF_RouteHandleRelease(routehandle, rc=localrc)
+    call ESMF_RouteHandleRelease(routehandle, noGarbage=noGarbage, rc=localrc)
     if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
       ESMF_CONTEXT, rcToReturn=rc)) return
     
@@ -1055,16 +1076,12 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !   {\tt dstArray} arguments.
 !
 !   The routine returns an {\tt ESMF\_RouteHandle} that can be used to call 
-!   {\tt ESMF\_ArraySMM()} on any pair of Arrays that are weakly congruent
-!   and typekind conform with the {\tt srcArray}, {\tt dstArray} pair. 
-!   Congruent Arrays possess matching DistGrids, and the shape of the local
-!   array tiles, i.e. the memory allocation, matches between the Arrays for
-!   every DE. For weakly congruent
-!   Arrays the size of the undistributed dimensions, that vary faster with
-!   memory than the first distributed dimension, is permitted to be different.
-!   This means that the same {\tt routehandle} can be applied to a large class
-!   of similar Arrays that differ in the number of elements in the left most
-!   undistributed dimensions.
+!   {\tt ESMF\_ArraySMM()} on any pair of Arrays that matches 
+!   {\tt srcArray} and {\tt dstArray} in {\em type}, {\em kind}, and 
+!   memory layout of the {\em distributed} dimensions. However, the size,
+!   number, and index order of {\em undistributed} dimensions may be different.
+!   See section \ref{RH:Reusability} for a more detailed discussion of 
+!   RouteHandle reusability.
 !
 !   This method is overloaded for:\newline
 !   {\tt ESMF\_TYPEKIND\_I4}, {\tt ESMF\_TYPEKIND\_I8},\newline 
@@ -1859,16 +1876,12 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !   {\tt dstArray} arguments.
 !
 !   The routine returns an {\tt ESMF\_RouteHandle} that can be used to call 
-!   {\tt ESMF\_ArraySMM()} on any pair of Arrays that are weakly congruent
-!   and typekind conform with the {\tt srcArray}, {\tt dstArray} pair. 
-!   Congruent Arrays possess matching DistGrids, and the shape of the local
-!   array tiles, i.e. the memory allocation, matches between the Arrays for
-!   every DE. For weakly congruent
-!   Arrays the size of the undistributed dimensions, that vary faster with
-!   memory than the first distributed dimension, is permitted to be different.
-!   This means that the same {\tt routehandle} can be applied to a large class
-!   of similar Arrays that differ in the number of elements in the left most
-!   undistributed dimensions.
+!   {\tt ESMF\_ArraySMM()} on any pair of Arrays that matches 
+!   {\tt srcArray} and {\tt dstArray} in {\em type}, {\em kind}, and 
+!   memory layout of the {\em distributed} dimensions. However, the size,
+!   number, and index order of {\em undistributed} dimensions may be different.
+!   See section \ref{RH:Reusability} for a more detailed discussion of
+!   RouteHandle reusability.
 !
 !   This method is overloaded for:\newline
 !   {\tt ESMF\_TYPEKIND\_I4}, {\tt ESMF\_TYPEKIND\_I8},\newline 
@@ -3014,16 +3027,12 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !   {\tt dstArray} arguments.
 !
 !   The routine returns an {\tt ESMF\_RouteHandle} that can be used to call 
-!   {\tt ESMF\_ArraySMM()} on any pair of Arrays that are weakly congruent
-!   and typekind conform with the {\tt srcArray}, {\tt dstArray} pair. 
-!   Congruent Arrays possess matching DistGrids, and the shape of the local
-!   array tiles, i.e. the memory allocation, matches between the Arrays for
-!   every DE. For weakly congruent
-!   Arrays the size of the undistributed dimensions, that vary faster with
-!   memory than the first distributed dimension, is permitted to be different.
-!   This means that the same {\tt routehandle} can be applied to a large class
-!   of similar Arrays that differ in the number of elements in the left most
-!   undistributed dimensions.
+!   {\tt ESMF\_ArraySMM()} on any pair of Arrays that matches 
+!   {\tt srcArray} and {\tt dstArray} in {\em type}, {\em kind}, and 
+!   memory layout of the {\em distributed} dimensions. However, the size,
+!   number, and index order of {\em undistributed} dimensions may be different.
+!   See section \ref{RH:Reusability} for a more detailed discussion of
+!   RouteHandle reusability.
 !
 !   This call is {\em collective} across the current VM.
 !
@@ -3202,16 +3211,12 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !   {\tt dstArray} arguments.
 !
 !   The routine returns an {\tt ESMF\_RouteHandle} that can be used to call 
-!   {\tt ESMF\_ArraySMM()} on any pair of Arrays that are weakly congruent
-!   and typekind conform with the {\tt srcArray}, {\tt dstArray} pair. 
-!   Congruent Arrays possess matching DistGrids, and the shape of the local
-!   array tiles, i.e. the memory allocation, matches between the Arrays for
-!   every DE. For weakly congruent
-!   Arrays the size of the undistributed dimensions, that vary faster with
-!   memory than the first distributed dimension, is permitted to be different.
-!   This means that the same {\tt routehandle} can be applied to a large class
-!   of similar Arrays that differ in the number of elements in the left most
-!   undistributed dimensions.
+!   {\tt ESMF\_ArraySMM()} on any pair of Arrays that matches 
+!   {\tt srcArray} and {\tt dstArray} in {\em type}, {\em kind}, and 
+!   memory layout of the {\em distributed} dimensions. However, the size,
+!   number, and index order of {\em undistributed} dimensions may be different.
+!   See section \ref{RH:Reusability} for a more detailed discussion of
+!   RouteHandle reusability.
 !
 !   This call is {\em collective} across the current VM.
 !
@@ -3396,7 +3401,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !   \item [{[ignoreUnmatchedIndices]}]
 !     A logical flag that affects the behavior for when sequence indices
 !     in the sparse matrix are encountered that do not have a match on the
-!     {\tt srcField} or {\tt dstField} side. The default setting is
+!     {\tt srcArray} or {\tt dstArray} side. The default setting is
 !     {\tt .false.}, indicating that it is an error when such a situation is
 !     encountered. Setting {\tt ignoreUnmatchedIndices} to {\tt .true.} ignores
 !     entries with unmatched indices.
@@ -3419,7 +3424,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !     methods.
 !
 !     \begin{sloppypar}
-!     The {\tt ESMF\_FieldSMMStore()} method implements an auto-tuning scheme
+!     The {\tt ESMF\_ArraySMMStore()} method implements an auto-tuning scheme
 !     for the {\tt srcTermProcessing} parameter. The intent on the
 !     {\tt srcTermProcessing} argument is "{\tt inout}" in order to
 !     support both overriding and accessing the auto-tuning parameter.
@@ -3443,7 +3448,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !     Note that the pipeline depth has no effect on the bit-for-bit
 !     reproducibility of the results. However, it may affect the performance
 !     reproducibility of the exchange.
-!     The {\tt ESMF\_FieldSMMStore()} method implements an auto-tuning scheme
+!     The {\tt ESMF\_ArraySMMStore()} method implements an auto-tuning scheme
 !     for the {\tt pipelineDepth} parameter. The intent on the
 !     {\tt pipelineDepth} argument is "{\tt inout}" in order to
 !     support both overriding and accessing the auto-tuning parameter.
@@ -3557,7 +3562,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !   \item [{[ignoreUnmatchedIndices]}]
 !     A logical flag that affects the behavior for when sequence indices
 !     in the sparse matrix are encountered that do not have a match on the
-!     {\tt srcField} or {\tt dstField} side. The default setting is
+!     {\tt srcArray} or {\tt dstArray} side. The default setting is
 !     {\tt .false.}, indicating that it is an error when such a situation is
 !     encountered. Setting {\tt ignoreUnmatchedIndices} to {\tt .true.} ignores
 !     entries with unmatched indices.
@@ -3580,7 +3585,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !     methods.
 !
 !     \begin{sloppypar}
-!     The {\tt ESMF\_FieldSMMStore()} method implements an auto-tuning scheme
+!     The {\tt ESMF\_ArraySMMStore()} method implements an auto-tuning scheme
 !     for the {\tt srcTermProcessing} parameter. The intent on the
 !     {\tt srcTermProcessing} argument is "{\tt inout}" in order to
 !     support both overriding and accessing the auto-tuning parameter.
@@ -3604,7 +3609,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !     Note that the pipeline depth has no effect on the bit-for-bit
 !     reproducibility of the results. However, it may affect the performance
 !     reproducibility of the exchange.
-!     The {\tt ESMF\_FieldSMMStore()} method implements an auto-tuning scheme
+!     The {\tt ESMF\_ArraySMMStore()} method implements an auto-tuning scheme
 !     for the {\tt pipelineDepth} parameter. The intent on the
 !     {\tt pipelineDepth} argument is "{\tt inout}" in order to
 !     support both overriding and accessing the auto-tuning parameter.
@@ -3799,9 +3804,9 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !      on the value of {\tt iofmt} as shown below:
 !    \begin{description}
 !    \item[{\tt iofmt} = {\tt ESMF\_IOFMT\_BIN}:]\ All data in the file will
-!      be overwritten with each field's data.
-!    \item[{\tt iofmt} = {\tt ESMF\_IOFMT\_NETCDF}:]\ Only the
-!      data corresponding to each field's name will be
+!      be overwritten with each Array's data.
+!    \item[{\tt iofmt} = {\tt ESMF\_IOFMT\_NETCDF, ESMF\_IOFMT\_NETCDF\_64BIT\_OFFSET}:]\ Only the
+!      data corresponding to each Array's name will be
 !      be overwritten. If the {\tt timeslice} option is given, only data for
 !      the given timeslice may be overwritten.
 !      Note that it is always an error to attempt to overwrite a NetCDF

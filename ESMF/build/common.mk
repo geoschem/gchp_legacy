@@ -237,7 +237,9 @@ export ESMF_ETCDIR = default
 endif
 
 ifndef ESMF_MOAB
-export ESMF_MOAB = default
+#TODO: reactivate MOAB once issues from August2018 commit resolved.
+#export ESMF_MOAB = default
+export ESMF_MOAB = OFF
 endif
 
 ifndef ESMF_ACC_SOFTWARE_STACK
@@ -668,6 +670,13 @@ ESMF_CPPFLAGS += -DESMF_NO_INTEGER_2_BYTE
 endif           
 #-------------------------------------------------------------------------------
 
+ifeq ($(shell $(ESMF_DIR)/scripts/available git),git)
+export ESMF_VERSION_STRING_GIT := $(shell $(ESMF_DIR)/scripts/esmfversiongit)
+endif
+
+ifdef ESMF_VERSION_STRING_GIT
+ESMF_CPPFLAGS += -DESMFVERSIONGIT='"$(ESMF_VERSION_STRING_GIT)"'
+endif
 
 #-------------------------------------------------------------------------------
 # default settings for common.mk
@@ -1362,6 +1371,35 @@ endif
 endif
 
 #-------------------------------------------------------------------------------
+# yaml-cpp C++ YAML API
+#-------------------------------------------------------------------------------
+ifeq ($(ESMF_YAMLCPP),standard)
+ifneq ($(origin ESMF_YAMLCPP_LIBS), environment)
+ESMF_YAMLCPP_LIBS = -lyaml-cpp
+endif
+endif
+
+ifdef ESMF_YAMLCPP
+ESMF_CPPFLAGS                += -DESMF_YAMLCPP=1 -DESMF_YAML=1
+ifdef ESMF_YAMLCPP_INCLUDE
+ESMF_CXXCOMPILEPATHSTHIRD    += -I$(ESMF_YAMLCPP_INCLUDE)
+ESMF_F90COMPILEPATHSTHIRD    += -I$(ESMF_YAMLCPP_INCLUDE)
+endif
+ifdef ESMF_YAMLCPP_LIBS
+ESMF_CXXLINKLIBS          += $(ESMF_YAMLCPP_LIBS)
+ESMF_CXXLINKRPATHSTHIRD   += $(addprefix $(ESMF_CXXRPATHPREFIX),$(subst -L,,$(filter -L%,$(ESMF_YAMLCPP_LIBS))))
+ESMF_F90LINKLIBS          += $(ESMF_YAMLCPP_LIBS)
+ESMF_F90LINKRPATHSTHIRD   += $(addprefix $(ESMF_F90RPATHPREFIX),$(subst -L,,$(filter -L%,$(ESMF_YAMLCPP_LIBS))))
+endif
+ifdef ESMF_YAMLCPP_LIBPATH
+ESMF_CXXLINKPATHSTHIRD    += -L$(ESMF_YAMLCPP_LIBPATH)
+ESMF_F90LINKPATHSTHIRD    += -L$(ESMF_YAMLCPP_LIBPATH)
+ESMF_CXXLINKRPATHSTHIRD   += $(ESMF_CXXRPATHPREFIX)$(ESMF_YAMLCPP_LIBPATH)
+ESMF_F90LINKRPATHSTHIRD   += $(ESMF_F90RPATHPREFIX)$(ESMF_YAMLCPP_LIBPATH)
+endif
+endif
+
+#-------------------------------------------------------------------------------
 # PIO
 #-------------------------------------------------------------------------------
 ifneq ($(origin ESMF_PIO), environment)
@@ -1543,6 +1581,12 @@ ESMF_CPPFLAGS       += -DESMF_TESTEXHAUSTIVE
 endif
 
 #-------------------------------------------------------------------------------
+# ESMF_BOPT is passed (by CPP) into test programs to control any differences
+# between the different BOPT modes.
+#-------------------------------------------------------------------------------
+ESMF_CPPFLAGS       += -DESMF_BOPT_$(ESMF_BOPT)
+
+#-------------------------------------------------------------------------------
 # ESMF_TESTCOMPTUNNEL is passed (by CPP) into test programs to control the
 # dependency on ESMF-threading.
 #-------------------------------------------------------------------------------
@@ -1569,6 +1613,18 @@ ESMF_CPPFLAGS        +=-DS$(ESMF_ABISTRING)=1
 #-------------------------------------------------------------------------------
 
 ESMF_CPPFLAGS        +=-DESMF_OS_$(ESMF_OS)=1
+
+#-------------------------------------------------------------------------------
+# Add ESMF_COMM to preprocessor flags
+#-------------------------------------------------------------------------------
+
+ESMF_CPPFLAGS        +=-DESMF_COMM=$(ESMF_COMM)
+
+#-------------------------------------------------------------------------------
+# Add ESMF_DIR to preprocessor flags
+#-------------------------------------------------------------------------------
+
+ESMF_CPPFLAGS        +=-DESMF_DIR=$(ESMF_DIR)
 
 #-------------------------------------------------------------------------------
 # construct precompiler flags to be used on Fortran sources
@@ -1616,6 +1672,47 @@ ESMF_CXXCOMPILEOPTS   += -DESMF_TESTEXHAUSTIVE
 endif
 
 endif
+
+#-------------------------------------------------------------------------------
+# Build variables for static wrapping and preloading functions for ESMF trace
+#-------------------------------------------------------------------------------
+
+ESMF_TRACE_BUILD_SHARED := ON
+
+ifeq ($(strip $(ESMF_SL_LIBS_TO_MAKE)),)
+ESMF_TRACE_BUILD_SHARED := OFF
+endif
+ifneq (,$(findstring ESMF_NO_DLFCN,$(ESMF_CXXCOMPILECPPFLAGS)))
+ESMF_TRACE_BUILD_SHARED := OFF
+endif
+ifeq ($(ESMF_OS),Cygwin)
+# Cygwin does not support RTLD_NEXT needed by dlsym
+ESMF_TRACE_BUILD_SHARED := OFF
+endif
+
+ifeq ($(ESMF_TRACE_BUILD_SHARED),ON)
+ESMF_TRACE_LDPRELOAD := $(ESMF_LIBDIR)/libesmftrace_preload.$(ESMF_SL_SUFFIX)
+endif
+ESMF_TRACE_STATICLINKLIBS := -lesmftrace_static
+
+ESMF_TRACE_WRAPPERS_IO  := write writev pwrite read open
+ESMF_TRACE_WRAPPERS_MPI := MPI_Barrier MPI_Wait
+ESMF_TRACE_WRAPPERS_MPI += mpi_allgather_ mpi_allgather__ mpi_allgatherv_ mpi_allgatherv__
+ESMF_TRACE_WRAPPERS_MPI += mpi_allreduce_ mpi_allreduce__ mpi_alltoall_ mpi_alltoall__
+ESMF_TRACE_WRAPPERS_MPI += mpi_alltoallv_ mpi_alltoallv__ mpi_alltoallw_ mpi_alltoallw__
+ESMF_TRACE_WRAPPERS_MPI += mpi_barrier_ mpi_barrier__ mpi_bcast_ mpi_bcast__
+ESMF_TRACE_WRAPPERS_MPI += mpi_exscan_ mpi_exscan__ mpi_gather_ mpi_gather__
+ESMF_TRACE_WRAPPERS_MPI += mpi_gatherv_ mpi_gatherv__ mpi_recv_ mpi_recv__
+ESMF_TRACE_WRAPPERS_MPI += mpi_reduce_ mpi_reduce__ mpi_reduce_scatter_ mpi_reduce_scatter__
+ESMF_TRACE_WRAPPERS_MPI += mpi_scatter_ mpi_scatter__ mpi_scatterv_ mpi_scatterv__
+ESMF_TRACE_WRAPPERS_MPI += mpi_scan_ mpi_scan__ mpi_send_ mpi_send__
+ESMF_TRACE_WRAPPERS_MPI += mpi_wait_ mpi_wait__ mpi_waitall_ mpi_waitall__
+ESMF_TRACE_WRAPPERS_MPI += mpi_waitany_ mpi_waitany__
+
+COMMA := ,
+ESMF_TRACE_STATICLINKOPTS := -static -Wl,--wrap=c_esmftrace_notify_wrappers -Wl,--wrap=c_esmftrace_isinitialized
+ESMF_TRACE_STATICLINKOPTS += $(addprefix -Wl$(COMMA)--wrap=, $(ESMF_TRACE_WRAPPERS_IO))
+ESMF_TRACE_STATICLINKOPTS += $(addprefix -Wl$(COMMA)--wrap=, $(ESMF_TRACE_WRAPPERS_MPI))
 
 #-------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------
@@ -1836,6 +1933,7 @@ endif
 # subdir and it will go up to the top dir and build from there.
 lib: info
 	@$(MAKE) build_libs
+	@$(MAKE) build_tracelibs
 	@$(MAKE) info_mk
 	@echo "ESMF library built successfully on "`date`
 	@echo "To verify, build and run the unit and system tests with: $(MAKE) check"
@@ -1849,6 +1947,16 @@ endif
 	cd $(ESMF_DIR) ; $(MAKE) ranlib
 ifneq ($(strip $(ESMF_SL_LIBS_TO_MAKE)),)
 	cd $(ESMF_DIR) ; $(MAKE) shared
+endif
+
+build_tracelibs:
+ifeq ($(ESMF_TESTTRACE),ON)
+	cd $(ESMF_DIR)/src/Superstructure/Trace/preload ;\
+	$(MAKE) tracelib_static
+ifeq ($(ESMF_TRACE_BUILD_SHARED),ON)
+	cd $(ESMF_DIR)/src/Superstructure/Trace/preload ;\
+	$(MAKE) tracelib_preload
+endif
 endif
 
 # Build only stuff in and below the current dir.
