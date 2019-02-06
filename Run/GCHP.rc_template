@@ -1,11 +1,15 @@
 # Atmospheric Model Configuration Parameters
 # ------------------------------------------
-           NX: 1
-           NY: 6
-           IM: 24
-           JM: 144
-           LM: 72
-     GRIDNAME: PE24x144-CF
+NX: 1
+NY: 6
+
+GCHP.GRID_TYPE: Cubed-Sphere
+GCHP.GRIDNAME: PE24x144-CF
+GCHP.NF: 6
+GCHP.LM: 72
+GCHP.IM_WORLD: 24
+GCHP.IM: 24
+GCHP.JM: 144
 
 GEOSChem_CTM: 1
 
