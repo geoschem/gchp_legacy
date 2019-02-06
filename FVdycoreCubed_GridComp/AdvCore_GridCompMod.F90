@@ -202,15 +202,16 @@ contains
          VLOCATION  = MAPL_VLocationEdge,             RC=STATUS  )
      VERIFY_(STATUS)
 
-    call MAPL_AddImportSpec(GC,                                  &
-       SHORT_NAME         = 'TRADV',                             &
-       LONG_NAME          = 'advected_quantities',               &
-       units              = 'X',                                 &
-       DIMS               = MAPL_DimsHorzVert,                   &
-       VLOCATION          = MAPL_VLocationCenter,                &
-       DATATYPE           = MAPL_BundleItem,                     &
-                                                      RC=STATUS  )
-     VERIFY_(STATUS)
+    ! Not used in GCHP; use TRACERS instead (ewl, 12/6/19)
+    !call MAPL_AddImportSpec(GC,                                  &
+    !   SHORT_NAME         = 'TRADV',                             &
+    !   LONG_NAME          = 'advected_quantities',               &
+    !   units              = 'X',                                 &
+    !   DIMS               = MAPL_DimsHorzVert,                   &
+    !   VLOCATION          = MAPL_VLocationCenter,                &
+    !   DATATYPE           = MAPL_BundleItem,                     &
+    !                                                  RC=STATUS  )
+    ! VERIFY_(STATUS)
 
     ! Add for GCHP (ewl, 12/1/19)
     call MAPL_AddImportSpec ( gc,                                  &
@@ -603,7 +604,8 @@ contains
       !  in the import state.
       !--------------------------------------------------------------
 
-      call ESMF_StateGet(IMPORT, "TRADV", TRADV, rc=STATUS)
+      ! Customize for GCHP: Change TRADV to TRACERS (ewl, 2/6/19)
+      call ESMF_StateGet(IMPORT, "TRACERS", TRADV, rc=STATUS)
       VERIFY_(STATUS)
       call ESMF_FieldBundleGet(TRADV, fieldCount=NQ,    rc=STATUS)
       VERIFY_(STATUS)
