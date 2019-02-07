@@ -243,8 +243,7 @@ INC_THIS = $(ESMAINC)/$(DIR_THIS)
 LIB_THIS = $(ESMALIB)/lib$(DIR_THIS).a
 
 # Customize for GCHP (ewl, 1/23/19)
-#INC_gFTL = $(BASEDIR)/$(ARCH)/gFTL/include
-INC_gFTL = $(gFTL)
+INC_gFTL = $(gFTL)/include
 
 # This lines control linking in the Allinea 
 # profiling libraries. By default, they are not linked in.
