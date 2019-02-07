@@ -57,12 +57,12 @@ rundir=$PWD
 # symbolic link using script setEnvironment in the run directory. 
 # Be sure gchp.env points to the same file for both compilation and 
 # running. You can copy or adapt sample environment files located in 
-# ./envSamples subdirectory.
+# ./environmentFileSamples subdirectory.
 gchp_env=$(readlink -f gchp.env)
 if [ ! -f ${gchp_env} ] 
 then
    echo "ERROR: gchp.env symbolic link is not set!"
-   echo "Copy or adapt an environment file from the ./envSamples "
+   echo "Copy or adapt an environment file from the ./environmentFileSamples "
    echo "subdirectory prior to running. Then set the gchp.env "
    echo "symbolic link to point to it using ./setEnvironment."
    echo "Exiting."
