@@ -274,8 +274,6 @@ Calculate SW fluxes?    : F
 Clear-sky flux?         : F
 All-sky flux?           : F
 Radiation Timestep [sec]: 10800
-Species fluxes          : 0 0 0 0 0 0 0 0 0 1 0
- ---[O3,ME,SU,NI,AM,BC,OA,SS,DU,PM,ST]
 ------------------------+------------------------------------------------------
 %%% OUTPUT MENU %%%     : 123456789.123456789.123456789.1--1=ZERO+2=BPCH
 Schedule output for JAN : 3000000000000000000000000000000

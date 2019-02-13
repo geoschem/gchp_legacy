@@ -807,7 +807,6 @@ CONTAINS
 
     Input_Opt%myCpu   = myPet
     Input_Opt%mpiCOMM = mpiComm
-    print *, "Input_Opt%mpiCOMM"
 
     ! MSL - shift from 0 - 360 to -180 - 180 degree grid
     where (lonCtr .gt. MAPL_PI ) lonCtr = lonCtr - 2*MAPL_PI
