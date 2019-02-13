@@ -197,7 +197,7 @@ OLSON72 1 xy C N F;72 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olso
 #==============================================================================
 # MODIS Leaf Area Index (land type is 3rd dimension) 
 #==============================================================================
-XLAIMULTI cm2/cm2 xyz E N Y %y4-%m2-%d2T00:00:00 none none XLAIMULTI ./ChemDataDir/MODIS_LAI_201204/For_Olson_2001/XLAI_for_GCHP/2008/Condensed_MODIS_XLAI.025x025.%y4%m2.nc
+XLAIMULTI cm2/cm2 xyz E N Y %y4-%m2-%d2T00:00:00 none none XLAIMULTI ./ChemDataDir/MODIS_LAI_201707/For_Olson_2001/XLAI_for_GCHP/%y4/Condensed_MODIS_XLAI.025x025.%y4%m2.nc
 
 #==============================================================================
 # MODIS Chlorophyll-a (land type is 3rd dimension)
