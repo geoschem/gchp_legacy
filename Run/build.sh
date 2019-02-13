@@ -52,17 +52,19 @@ fi
 
 # Set run directory path
 rundir=$PWD
+gcdir=$(readlink -f CodeDir)
+gchpdir=${codedir}/GCHP
 
 # Check source your environment file. This requires first setting the gchp.env
 # symbolic link using script setEnvironment in the run directory. 
 # Be sure gchp.env points to the same file for both compilation and 
 # running. You can copy or adapt sample environment files located in 
-# ./envSamples subdirectory.
+# ./environmentFileSamples subdirectory.
 gchp_env=$(readlink -f gchp.env)
 if [ ! -f ${gchp_env} ] 
 then
    echo "ERROR: gchp.env symbolic link is not set!"
-   echo "Copy or adapt an environment file from the ./envSamples "
+   echo "Copy or adapt an environment file from the ./environmentFileSamples "
    echo "subdirectory prior to running. Then set the gchp.env "
    echo "symbolic link to point to it using ./setEnvironment."
    echo "Exiting."
@@ -100,9 +102,9 @@ done=0
 #   clean_all
 #-----------------------------------------------------------------------
 if [[ $1 == "clean_all"      ]]; then
-   cd ${rundir}/CodeDir 
+   cd ${gcdir}
    make HPC=yes realclean
-   cd GCHP
+   cd ${gchpdir}
    make the_nuclear_option
    cd ${rundir}
    done=1
@@ -111,9 +113,9 @@ if [[ $1 == "clean_all"      ]]; then
 #   clean_mapl
 #-----------------------------------------------------------------------
 elif [[ $1 == "clean_mapl"      ]]; then
-   cd ${rundir}/CodeDir 
+   cd ${gcdir}
    make HPC=yes realclean
-   cd GCHP
+   cd ${gchpdir}
    make wipeout_fvdycore
    make wipeout_mapl
    cd ${rundir}
@@ -123,7 +125,7 @@ elif [[ $1 == "clean_mapl"      ]]; then
 #   clean_gc
 #-----------------------------------------------------------------------
 elif [[ $1 == "clean_gc" ]]; then
-   cd ${rundir}/CodeDir 
+   cd ${gcdir} 
    make HPC=yes realclean
    cd ${rundir}
    done=1
@@ -143,7 +145,7 @@ fi
 #   build (compile) - with or without debug flags
 #-----------------------------------------------------------------------
 if [[ $1 == "build" ]]; then
-   cd ${rundir}/CodeDir 
+   cd ${gcdir}
    if [[ $2 == "--debug" ]]; then
       make -j${SLURM_NTASKS} NC_DIAG=y   CHEM=standard  EXTERNAL_GRID=y  \
                              DEBUG=y     TRACEBACK=y    MET=geosfp       \
@@ -161,12 +163,12 @@ if [[ $1 == "build" ]]; then
 #   compile_debug
 #-----------------------------------------------------------------------
 elif [[ $1 == "compile_debug"      ]]; then
-   cd ${rundir}/CodeDir 
+   cd ${gcdir}
    echo "WARNING: build.sh option compile_debug will be deprecated in a future version, replaced with build_debug."
-   cd GCHP
+   cd ${gchpdir}
    make clean
-   cd ..
-   rm -f ${rundir}/CodeDir/bin/geos
+   cd ${gcdir}
+   rm -f ${gcdir}/bin/geos
    make -j${SLURM_NTASKS} NC_DIAG=y   CHEM=standard  EXTERNAL_GRID=y  \
                           DEBUG=y     TRACEBACK=y    MET=geosfp       \
                           GRID=4x5    NO_REDUCED=y   BOUNDS=y         \
@@ -176,12 +178,12 @@ elif [[ $1 == "compile_debug"      ]]; then
 #   compile_standard
 #-----------------------------------------------------------------------
 elif [[ $1 == "compile_standard"      ]]; then
-   cd ${rundir}/CodeDir 
+   cd ${gcdir}
    echo "WARNING: build.sh option compile_standard will be deprecated in a future version, replaced with rebuild_gc."
-   cd GCHP
+   cd ${gchpdir}
    make clean
-   cd ..
-   rm -f ${rundir}/CodeDir/bin/geos
+   cd ${gcdir}
+   rm -f ${gcdir}/bin/geos
    make -j${SLURM_NTASKS} NC_DIAG=y   CHEM=standard EXTERNAL_GRID=y   \
                           DEBUG=n     TRACEBACK=y   MET=geosfp        \
                           GRID=4x5    NO_REDUCED=y  hpc
@@ -190,16 +192,16 @@ elif [[ $1 == "compile_standard"      ]]; then
 #   compile_mapl
 #-----------------------------------------------------------------------
 elif [[ $1 == "compile_mapl"      ]]; then
-   cd ${rundir}/CodeDir 
+   cd ${gcdir}
    echo "WARNING: build.sh option compile_mapl will be deprecated in a future version, replaced with build_mapl."
    make realclean
-   cd GCHP
+   cd ${gchpdir}
    make EXTERNAL_GRID=y  DEBUG=y   GRID=4x5      MET=geosfp      \
         NO_REDUCED=y     wipeout_fvdycore
    make EXTERNAL_GRID=y  DEBUG=y   GRID=4x5      MET=geosfp      \
         NO_REDUCED=y     wipeout_mapl
-   cd ..
-   rm -f ${rundir}/CodeDir/bin/geos
+   cd ${gcdir}
+   rm -f ${gcdir}/bin/geos
    make -j${SLURM_NTASKS} NC_DIAG=y   CHEM=standard EXTERNAL_GRID=y   \
                           DEBUG=n     TRACEBACK=y   MET=geosfp        \
                           GRID=4x5    NO_REDUCED=y  hpc
@@ -208,13 +210,13 @@ elif [[ $1 == "compile_mapl"      ]]; then
 #   compile_clean
 #-----------------------------------------------------------------------
 elif [[ $1 == "compile_clean"      ]]; then
-   cd ${rundir}/CodeDir 
+   cd ${gcdir}
    echo "WARNING: build.sh option compile_clean will be deprecated in a future version, replaced with build_all."
    make HPC=yes realclean
-   cd GCHP
+   cd ${gchpdir}
    make EXTERNAL_GRID=y the_nuclear_option
-   cd ..
-   rm -f ${rundir}/CodeDir/bin/geos
+   cd ${gcdir}
+   rm -f ${gcdir}/bin/geos
    make -j${SLURM_NTASKS} NC_DIAG=y   CHEM=standard EXTERNAL_GRID=y   \
                           DEBUG=n     TRACEBACK=y   MET=geosfp        \
                           GRID=4x5    NO_REDUCED=y  hpc
@@ -223,7 +225,7 @@ fi
 
 cd ${rundir}
 
-if [[ -e ${rundir}/CodeDir/bin/geos ]]; then
+if [[ -e ${gcdir}/bin/geos ]]; then
    echo '###################################'
    echo '###    GCHP executable exists!  ###'
    echo '###################################'
