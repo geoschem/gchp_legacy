@@ -1,6 +1,6 @@
 # Inspect rundir name to guess the chemistry mechanism
 if("${RUNDIR_NAME}" MATCHES ".*benchmark")
-    set(RUNDIR_MECH "Benchmark")
+    set(RUNDIR_MECH "benchmark")
 elseif("${RUNDIR_NAME}" MATCHES ".*RnPbBe")
     set(RUNDIR_MECH "RnPbBe")
 else()
@@ -14,7 +14,7 @@ include(GC-GetGCHPThirdParty)
 set_dynamic_option(MECH "${RUNDIR_MECH}"
     LOG GENERAL_OPTIONS_LOG
     SELECT_EXACTLY 1
-    OPTIONS "Standard" "RnPbBe" "Benchmark"
+    OPTIONS "Standard" "RnPbBe" "benchmark"
 )
 set(MECH ${MECH} PARENT_SCOPE) # Make visible for use by ../KPP 
 
