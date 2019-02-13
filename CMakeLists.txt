@@ -4,6 +4,10 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/CMakeScripts)
 # Configure GCHP build
 include(GC-ConfigureGCHPBuild)
 
+# Add MAPL and FVdycore
+add_subdirectory(Shared)
+add_subdirectory(FVdycoreCubed_GridComp)
+
 # Add GIGC library
 add_library(GIGC STATIC
 	Chem_GridCompMod.F90
@@ -11,7 +15,6 @@ add_library(GIGC STATIC
 	gigc_chunk_mod.F90
 	GIGC_GridCompMod.F90
 	gigc_historyexports_mod.F90
-	gigc_mpi_wrap.F90
 	gigc_providerservices_mod.F90
 )    
 target_link_libraries(GIGC

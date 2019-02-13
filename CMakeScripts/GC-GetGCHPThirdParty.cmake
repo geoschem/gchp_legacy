@@ -10,8 +10,6 @@ get_filename_component(THIRD_PARTY "${THIRD_PARTY}" ABSOLUTE)
 set(THIRD_PARTY_LIBNAMES
 	-L${THIRD_PARTY}/lib
 	esmf 
-    MAPL_Base MAPL_cfio_r4 GMAO_mpeu GMAO_pilgrim
-    FVdycoreCubed_GridComp fvdycore GFDL_fms GEOS_Shared GMAO_hermes 
 )
 
 # Find NetCDF, MPI, and OpenMP and make them dependees
@@ -26,6 +24,9 @@ target_include_directories(BaseTarget
 	INTERFACE ${NETCDF_F90_INCLUDE_DIR} ${MPI_Fortran_INCLUDE_PATH} ${THIRD_PARTY}/include
 )
 target_link_libraries(BaseTarget 
+	PUBLIC 
+		MAPL_Base MAPL_cfio_r4 GMAO_mpeu GMAO_pilgrim
+		FVdycoreCubed_GridComp fvdycore GFDL_fms GEOS_Shared GMAO_hermes 
 	INTERFACE 
 		${THIRD_PARTY_LIBNAMES} 
 		${NETCDF_LIBRARIES} 
