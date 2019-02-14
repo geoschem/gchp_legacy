@@ -1308,7 +1308,7 @@ CONTAINS
 ! !USES:
 !
     USE HCO_INTERFACE_MOD,       ONLY : HcoState
-    USE Olson_Landmap_Mod,       ONLY : Compute_Olson_Landmap_GCHP
+    USE Olson_Landmap_Mod,       ONLY : Compute_Olson_Landmap
     USE Precision_Mod
 !
 ! !INPUT/OUTPUT PARAMETERS:
@@ -1909,7 +1909,7 @@ CONTAINS
           ENDIF
   
           ! Compute State_Met variables IREG, ILAND, IUSE, and FRCLND
-          CALL Compute_Olson_Landmap_GCHP( am_I_Root, State_Met, RC )
+          CALL Compute_Olson_Landmap( am_I_Root, Input_Opt, State_Met, RC )
        ENDIF
        
        !=======================================================================

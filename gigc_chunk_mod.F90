@@ -408,7 +408,7 @@ CONTAINS
     USE Dao_Mod,            ONLY : AirQnt, Set_Dry_Surface_Pressure
     USE Dao_Mod,            ONLY : GIGC_Cap_Tropopause_Prs
     USE Set_Global_CH4_Mod, ONLY : Set_CH4
-    USE MODIS_LAI_Mod,      ONLY : Compute_XLAI_GCHP
+    USE MODIS_LAI_Mod,      ONLY : Compute_XLAI
     USE PBL_Mix_Mod,        ONLY : Compute_PBL_Height
     USE Pressure_Mod,       ONLY : Set_Floating_Pressures
     USE TOMS_Mod,           ONLY : Compute_Overhead_O3
@@ -666,7 +666,7 @@ CONTAINS
     CALL SetHcoTime ( am_I_Root, DoEmis, RC )
 
     ! Calculate MODIS leaf area indexes needed for dry deposition
-    CALL Compute_XLAI_GCHP( am_I_Root, State_Met, RC )
+    CALL Compute_XLAI( am_I_Root, Input_Opt, State_Met, RC )
 
     ! Set the pressure at level edges [hPa] from the ESMF environment
     CALL Accept_External_Pedge    ( am_I_Root      = am_I_Root,  &
