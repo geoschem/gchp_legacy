@@ -1,9 +1,16 @@
-set (alldirs
-  GMAO_mpeu GMAO_pilgrim GMAO_etc
+esma_check_if_debug()
+
+esma_add_subdirectories(
+  GMAO_mpeu
+  GMAO_pilgrim
+  GMAO_etc
   GMAO_pFIO 
   MAPL_Base 
-  GEOS_Shared GMAO_hermes GEOS_Util 
-  Chem_Base Chem_Shared
+  GEOS_Shared
+  GMAO_hermes
+  GEOS_Util 
+  Chem_Base
+  Chem_Shared
   LANL_Shared
   GMAO_perllib
   )
@@ -11,8 +18,6 @@ set (alldirs
 if (PFUNIT)
   add_subdirectory (MAPL_pFUnit EXCLUDE_FROM_ALL)
 endif ()
-
-esma_build_subcomponents (${alldirs})
 
 # Special cases - MAPL_cfio, GMAO_gfio, and GFDL_fms are built twice with two
 # different precisions.
