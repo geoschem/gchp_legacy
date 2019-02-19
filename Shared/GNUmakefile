@@ -5,7 +5,10 @@
 # Make sure ESMADIR is defined
 # ----------------------------
 ifndef ESMADIR
-       ESMADIR := $(PWD)/../..
+       # Change for GCHP
+       #ESMADIR := $(PWD)/../..
+       ESMADIR := $(shell pwd)
+       #---
 endif
 
 
@@ -36,16 +39,25 @@ esma_help :
 #                   Recurse Make in Sub-directories
 #                  --------------------------------
 
+# Change for GCHP
+#ALLDIRS = arpack pnagpack \
+#          GMAO_mpeu GMAO_pilgrim GMAO_mfhdf3 \
+#          GMAO_gfio GMAO_gfioeos GMAO_perllib \
+#          GMAO_ods  MAPL_cfio GMAO_pFIO \
+#          MAPL_Base GEOS_Shared Chem_Base Chem_Shared\
+#          GMAO_etc  GMAO_hermes GMAO_transf GMAO_psas GMAO_gems \
+#          GFDL_fms LANL_Shared \
+#          GMAO_iret GEOS_Util GMAO_pyobs GMAO_radmon GMAO_stoch \
+#          GMAO_ncdiag \
+#          GEOS_Pert
 ALLDIRS = arpack pnagpack \
-          GMAO_mpeu GMAO_pilgrim GMAO_mfhdf3 \
-          GMAO_gfio GMAO_gfioeos GMAO_perllib \
-          GMAO_ods  MAPL_cfio GMAO_pFIO \
-          MAPL_Base GEOS_Shared Chem_Base Chem_Shared\
-          GMAO_etc  GMAO_hermes GMAO_transf GMAO_psas GMAO_gems \
-          GFDL_fms LANL_Shared \
-          GMAO_iret GEOS_Util GMAO_pyobs GMAO_radmon GMAO_stoch \
-          GMAO_ncdiag \
-          GEOS_Pert
+          GMAO_mpeu GMAO_pilgrim\
+          GMAO_gfio GMAO_perllib \
+          MAPL_cfio GMAO_pFIO \
+          MAPL_Base GEOS_Shared \
+          GMAO_etc  GMAO_hermes \
+          GFDL_fms  GEOS_Util
+#---
 
 SUBDIRS = $(wildcard $(ALLDIRS) )
 

@@ -34,7 +34,9 @@ ifndef NODE             # same as SITE name, except sometimes SITE comes predefi
   NODE := $(shell uname -n)
 endif
 ifndef BPREC
-  BPREC := 64#  Build with "-r8"
+  # Change for GCHP
+  #BPREC := 64#  Build with "-r8"
+  BPREC := 32 #  Build with "-r4"
 endif
 
 ifndef FV_PRECISION #  Toggle build precision for FV3. Set to R4 for single precision
@@ -47,13 +49,22 @@ endif
 
 # Installation Directories
 # ------------------------
-  ESMABIN = $(ESMADIR)/$(ARCH)/bin
+  # Change for GCHP
+  #ESMABIN = $(ESMADIR)/$(ARCH)/bin
+  ESMABIN = $(ESMADIR)/Config/bin
+  #---
+
   ESMALIB = $(ESMADIR)/$(ARCH)/lib
   ESMAINC = $(ESMADIR)/$(ARCH)/include
   ESMAMOD = $(ESMADIR)/$(ARCH)/include
   ESMAETC = $(ESMADIR)/$(ARCH)/etc
   ESMADOC = $(ESMADIR)/$(ARCH)/doc
-  ESMACFG = $(ESMADIR)/$(ARCH)/Config
+
+  # Change for GCHP
+  #ESMACFG = $(ESMADIR)/$(ARCH)/Config
+  ESMACFG = $(ESMADIR)/Config
+  #---
+
   ESMATST = $(ESMAETC)/testsuites
   ESMAWFL = $(ESMADIR)/$(ARCH)/workflow
 
@@ -87,7 +98,12 @@ TAR         = /bin/tar
 GZIP        = gzip -v
 BOPT        = O
 M4          = m4
-FDP         = $(ESMABIN)/fdp
+
+# Change for GCHP
+#FDP         = $(ESMABIN)/fdp
+FDP         = $(ESMACFG)/fdp
+#---
+
 FDP_FLAGS   = -v
 STUB        = $(ESMABIN)/mapl_stub.pl
 ACG         = $(ESMABIN)/mapl_acg.pl 
@@ -130,50 +146,62 @@ LIB_SCI =
 INC_SYS =
 LIB_SYS =
 
-DIR_HDF5 = $(BASEDIR)/$(ARCH)
-INC_HDF5 = $(DIR_HDF5)/include/hdf5
-LIB_HDF5 = $(wildcard $(foreach lib,hdf5hl_fortran hdf5_hl hdf5_fortran hdf5 z sz gpfs,\
-           $(BASELIB)/lib$(lib).a) )
-
-DIR_NETCDF = $(BASEDIR)/$(ARCH)
-INC_NETCDF = $(DIR_NETCDF)/include/netcdf
-ifneq ($(wildcard $(BASEBIN)/nf-config), )
-    LIB_NETCDF := $(shell $(BASEBIN)/nf-config --flibs)
-else
-  ifneq ($(wildcard $(BASEBIN)/nc-config), )
-      LIB_NETCDF := $(shell $(BASEBIN)/nc-config --flibs)
-  else
-      LIB_NETCDF = $(BASELIB)/libnetcdf.a $(LIB_HDF5)
-  endif
+# Change for GCHP
+#DIR_HDF5 = $(BASEDIR)/$(ARCH)
+#INC_HDF5 = $(DIR_HDF5)/include/hdf5
+#LIB_HDF5 = $(wildcard $(foreach lib,hdf5hl_fortran hdf5_hl hdf5_fortran hdf5 z sz gpfs,\
+#           $(BASELIB)/lib$(lib).a) )
+#
+#DIR_NETCDF = $(BASEDIR)/$(ARCH)
+#INC_NETCDF = $(DIR_NETCDF)/include/netcdf
+#ifneq ($(wildcard $(BASEBIN)/nf-config), )
+#    LIB_NETCDF := $(shell $(BASEBIN)/nf-config --flibs)
+#else
+#  ifneq ($(wildcard $(BASEBIN)/nc-config), )
+#      LIB_NETCDF := $(shell $(BASEBIN)/nc-config --flibs)
+#  else
+#      LIB_NETCDF = $(BASELIB)/libnetcdf.a $(LIB_HDF5)
+#  endif
+#endif
+INC_NETCDF :=$(GC_INCLUDE)
+ifdef GC_F_INCLUDE
+   INC_NETCDF +=$(GC_F_INCLUDE)
 endif
+LIB_NETCDF :=$(NCL)
+#---
 
-DIR_HDF = $(BASEDIR)/$(ARCH)
-INC_HDF = $(DIR_HDF)/include/hdf
-LIB_HDF = $(wildcard $(foreach lib,mfhdf df hdfjpeg jpeg hdfz z sz,\
-          $(BASELIB)/lib$(lib).a) )
-
-ifeq ($(ESMA_SDF),hdf)
-   INC_SDF = $(INC_HDF)
-   LIB_SDF = $(LIB_HDF)
-else
-   INC_SDF = $(INC_NETCDF)
-   LIB_SDF = $(LIB_NETCDF)
-   ifneq ($(wildcard $(INC_SDF)/netcdf.inc), )
-     ifneq ($(shell grep -c netcdf4 $(INC_SDF)/netcdf.inc),0)
-        DEF_SDF += $(D)HAS_NETCDF4
-     endif
-     ifneq ($(shell grep -c 'netcdf version 3' $(INC_SDF)/netcdf.inc),0)
-        DEF_SDF += $(D)HAS_NETCDF3
-     endif
-     ifneq ($(shell grep -c 'define H5_HAVE_PARALLEL 1' $(INC_HDF5)/H5pubconf.h),0)
-        DEF_SDF += $(D)H5_HAVE_PARALLEL
-        F2PY_FLAGS += --f77exec=$(FC) --f90exec=$(FC)
-     endif
-     ifneq ($(wildcard $(INC_SDF)/netcdf_par.h), )
-        DEF_SDF += $(D)NETCDF_NEED_NF_MPIIO
-     endif
-   endif
-endif
+# Change for GCHP
+#DIR_HDF = $(BASEDIR)/$(ARCH)
+#INC_HDF = $(DIR_HDF)/include/hdf
+#LIB_HDF = $(wildcard $(foreach lib,mfhdf df hdfjpeg jpeg hdfz z sz,\
+#          $(BASELIB)/lib$(lib).a) )
+#
+#ifeq ($(ESMA_SDF),hdf)
+#   INC_SDF = $(INC_HDF)
+#   LIB_SDF = $(LIB_HDF)
+#else
+#   INC_SDF = $(INC_NETCDF)
+#   LIB_SDF = $(LIB_NETCDF)
+#   ifneq ($(wildcard $(INC_SDF)/netcdf.inc), )
+#     ifneq ($(shell grep -c netcdf4 $(INC_SDF)/netcdf.inc),0)
+#        DEF_SDF += $(D)HAS_NETCDF4
+#     endif
+#     ifneq ($(shell grep -c 'netcdf version 3' $(INC_SDF)/netcdf.inc),0)
+#        DEF_SDF += $(D)HAS_NETCDF3
+#     endif
+#     ifneq ($(shell grep -c 'define H5_HAVE_PARALLEL 1' $(INC_HDF5)/H5pubconf.h),0)
+#        DEF_SDF += $(D)H5_HAVE_PARALLEL
+#        F2PY_FLAGS += --f77exec=$(FC) --f90exec=$(FC)
+#     endif
+#     ifneq ($(wildcard $(INC_SDF)/netcdf_par.h), )
+#        DEF_SDF += $(D)NETCDF_NEED_NF_MPIIO
+#     endif
+#   endif
+#endif
+INC_SDF = $(INC_NETCDF)
+LIB_SDF = $(LIB_NETCDF)
+DEF_SDF += $(D)HAS_NETCDF4 
+DEF_SDF += $(D)H5_HAVE_PARALLEL
 
 F2PY += $(F2PY_FLAGS)
 
@@ -181,19 +209,30 @@ LIB_GCTP   = $(BASELIB)/libGctp.a
 LIB_HDFEOS = $(BASELIB)/libhdfeos.a
 LIB_EOS    = $(LIB_HDFEOS) $(LIB_GCTP)
 
-DIR_ESMF = $(BASEDIR)
-INC_ESMF = $(DIR_ESMF)/$(ARCH)/include/esmf
-MOD_ESMF = $(DIR_ESMF)/$(ARCH)/include/esmf
-LIB_ESMF = $(DIR_ESMF)/$(ARCH)/lib/libesmf.a
+# Change for GCHP
+#DIR_ESMF = $(BASEDIR)
+#INC_ESMF = $(DIR_ESMF)/$(ARCH)/include/esmf
+#MOD_ESMF = $(DIR_ESMF)/$(ARCH)/include/esmf
+#LIB_ESMF = $(DIR_ESMF)/$(ARCH)/lib/libesmf.a
+DIR_ESMF = $(ESMF_DIR)
+INC_ESMF = $(DIR_ESMF)/$(ARCH)/include/
+MOD_ESMF = $(DIR_ESMF)/$(ARCH)/mod/
+LIB_ESMF = $(DIR_ESMF)/$(ARCH)/lib/libesmf.so
+#---
 
-INC_MPI = /usr/include
-LIB_MPI = -lmpi
+# Remove for GCHP; see mpi.mk
+#INC_MPI = /usr/include
+#LIB_MPI = -lmpi
+#---
 
 DIR_THIS := $(shell basename `pwd`)
 INC_THIS = $(ESMAINC)/$(DIR_THIS)
 LIB_THIS = $(ESMALIB)/lib$(DIR_THIS).a
 
-INC_gFTL = $(BASEDIR)/$(ARCH)/gFTL/include
+# Change for GCHP
+#INC_gFTL = $(BASEDIR)/$(ARCH)/gFTL/include
+INC_gFTL = $(gFTL)/include
+#---
 
 INC_FLAP = $(BASEDIR)/$(ARCH)/include/FLAP
 LIB_FLAP = $(BASEDIR)/$(ARCH)/lib/libflap.a
@@ -227,6 +266,10 @@ CC        = gcc
 CXX       = g++
 CPP       = cpp
 
+# Add for GCHP
+PP        = -$(CPP)
+#---
+
 CFLAGS    = $(CDEFS) $(CINCS) $(COPT) $(USER_CFLAGS)
 CXXFLAGS  = $(CDEFS) $(CINCS) $(COPT) $(USER_CFLAGS)
 
@@ -257,7 +300,27 @@ BIG_ENDIAN  =
 BYTERECLEN  =
 OMPFLAG     =
 FREAL4      = 
-FREAL8      = -r8
+
+# Remove for GCHP
+#FREAL8      = -r8
+#---
+
+# Add for GCHP
+ifeq ("$(ESMF_COMPILER)","intel")
+  FREAL8      = -r8
+  FREE        =
+  CPPANSIX    = -ansi -DANSI_CPP 
+else ifeq ("$(ESMF_COMPILER)","gfortran")
+  FREAL8      = -fdefault-real-8 -fdefault-double-8
+  FREE        = -ffree-form -ffree-line-length-none -Wno-line-truncation -fno-range-check
+  CPPANSIX    = -std=gnu11 -nostdinc -C
+else
+  FREAL8      =
+  FREE        =
+  CPPANSIX    = -ansi -DANSI_CPP 
+endif
+#---
+
 ifeq ( "$(BPREC)","32" )
       FREAL = $(FREAL4)
 else
@@ -273,10 +336,18 @@ endif
 
 FDEFS     = $(D)sys$(ARCH) $(D)ESMA$(BPREC) $(DEF_SDF) $(USER_FDEFS)
 FINCS     = $(foreach dir,$(INC_ESMF), $(I)$(dir)) $(USER_FINCS)
-FMODS     = $(foreach dir,$(INC_ESMF), $(M)$(dir)) $(USER_FMODS)
+
+# Change for GCHP
+#FMODS     = $(foreach dir,$(INC_ESMF), $(M)$(dir)) $(USER_FMODS)
+FMODS     = $(foreach dir,$(MOD_ESMF), $(M)$(dir)) $(USER_FMODS)
+#---
+
 XFLAGS    = 
 
-FC        = f90
+# Remove for GCHP
+#FC        = f90
+#---
+
 fFLAGS    = $(FDEFS) $(FINCS) $(FMODS) $(FOPT) $(FREAL) $(FINT) $(XFLAGS) $(USER_FFLAGS)
 f90FLAGS  = $(FDEFS) $(FINCS) $(FMODS) $(FOPT) $(FREAL) $(FINT) $(XFLAGS) $(USER_FFLAGS)
 FFLAGS    = $(FDEFS) $(FINCS) $(FMODS) $(FOPT) $(FREAL) $(FINT) $(XFLAGS) $(USER_FFLAGS)

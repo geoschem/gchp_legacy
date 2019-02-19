@@ -2,7 +2,17 @@
   # GNU Fortran
   # -----------
 
-  ifeq ($(ESMA_FC), gfortran)
+  # Changed for GCHP
+  #ifeq ($(ESMA_FC), gfortran)
+  ifeq ($(word 1,$(shell $(FC) --version)), GNU)
+  #---
+
+     # Added for GCHP
+     CC = gcc
+     CXX = c++
+     CPP = cpp
+     #---
+
      MKL_COMPILER = gnu_f
 
      EXTENDED_SOURCE := -ffixed-line-length-132
@@ -20,11 +30,20 @@
      ALIGNCOM = -falign-commons
      BYTERECLEN = -frecord-marker=4
 
-     OMPFLAG = -fopenmp
+     # Changed for GCHP
+     #OMPFLAG = -fopenmp
+     OMPFLAG =
+     #---
+
      PP = -cpp
 
      ifeq ("$(BOPT)","g")
-        FOPT = -O0 -g -fcheck=all,no-array-temps -finit-real=snan
+
+        # Changed for GCHP
+        #FOPT = -O0 -g -fcheck=all,no-array-temps -finit-real=snan
+        FOPT = $(FOPTG) -fbacktrace -fcheck=bounds,do,mem,pointer,recursion -ffpe-trap=invalid,overflow,underflow
+        #---
+
      else
      ifeq ("$(BOPT)","Og")
         FOPT = -Og -g
@@ -35,7 +54,12 @@
         #FOPT = $(FOPT3)
         #FOPT = $(FOPT3) -march=native -funroll-loops
         #FOPT = $(FOPT3) -march=native -funroll-loops -ffast-math
-        FOPT = $(FOPT3) -march=westmere -mtune=generic -funroll-loops -g
+
+        # Changed for GCHP
+        #FOPT = $(FOPT3) -march=westmere -mtune=generic -funroll-loops -g
+        FOPT = $(FOPT3) -falign-commons -funroll-loops -fcray-pointer
+        #---
+
      endif
      endif
      endif
@@ -44,11 +68,18 @@
      # This is broken in GCC 8.1. For now just do not use
      #FOPT += -fcoarray=single
 
+     # Changed for GCHP
+     #CFLAGS   += -Wno-missing-include-dirs
+     #fFLAGS   += $(D)__GFORTRAN__ $(NO_RANGE_CHECK) -Wno-missing-include-dirs
+     #FFLAGS   += $(D)__GFORTRAN__ $(NO_RANGE_CHECK) -Wno-missing-include-dirs
+     #f90FLAGS += $(D)__GFORTRAN__ -ffree-line-length-none $(NO_RANGE_CHECK) -Wno-missing-include-dirs
+     #F90FLAGS += $(D)__GFORTRAN__ -ffree-line-length-none $(NO_RANGE_CHECK) -Wno-missing-include-dirs
      CFLAGS   += -Wno-missing-include-dirs
-     fFLAGS   += $(D)__GFORTRAN__ $(NO_RANGE_CHECK) -Wno-missing-include-dirs
-     FFLAGS   += $(D)__GFORTRAN__ $(NO_RANGE_CHECK) -Wno-missing-include-dirs
-     f90FLAGS += $(D)__GFORTRAN__ -ffree-line-length-none $(NO_RANGE_CHECK) -Wno-missing-include-dirs
-     F90FLAGS += $(D)__GFORTRAN__ -ffree-line-length-none $(NO_RANGE_CHECK) -Wno-missing-include-dirs
+     fFLAGS   += $(D)__GFORTRAN__ -Wno-missing-include-dirs
+     FFLAGS   += $(D)__GFORTRAN__ -Wno-missing-include-dirs
+     f90FLAGS += $(D)__GFORTRAN__ -Wno-missing-include-dirs
+     F90FLAGS += $(D)__GFORTRAN__ -Wno-missing-include-dirs
+     #---
 
      # Define LIB_SYS
      # --------------
