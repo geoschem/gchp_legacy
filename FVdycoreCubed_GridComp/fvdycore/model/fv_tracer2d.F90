@@ -1025,8 +1025,9 @@ subroutine offline_tracer_advection(q, ple0, ple1, mfx, mfy, cx, cy, &
        !         !enddo
        !      !enddo
        !   !enddo
-          scalingFactor = calcScalingFactorTrop(bd, q1, dp2, ple1, npx, npy, npz, &
+       scalingFactor = calcScalingFactorTrop(bd, q1, dp2, ple1, npx, npy, npz, &
                                              kStart, gridstruct)
+
           q(is:ie,js:je,1:(kStart-1),iq) = q1(is:ie,js:je,1:(kStart-1))
           q(is:ie,js:je,kStart:npz,iq) = q1(is:ie,js:je,kStart:npz) * scalingFactor
 
@@ -1036,22 +1037,29 @@ end subroutine offline_tracer_advection
 !------------------------------------------------------------------------------------
           
          ! GCHP update to restrict mass balance operation to the troposphere
-         function calcScalingFactorTrop(q1, dp2, ple1, npx, npy, npz, kStart) result(scaling)
+         function calcScalingFactorTrop(bd, q1, dp2, ple1, npx, npy, npz, &
+                                        kStart, gridstruct ) result(scaling)
          use mpp_mod, only: mpp_sum
+         type(fv_grid_bounds_type), intent(IN) :: bd
          integer, intent(in) :: npx
          integer, intent(in) :: npy
          integer, intent(in) :: npz
          integer, intent(in) :: kStart
-         real(REAL8), intent(in) :: q1(:,:,:)
-         real(REAL8), intent(in) :: dp2(:,:,:)
-         real(REAL8), intent(in) :: ple1(:,:,:)
-         real(REAL8) :: scaling
+         type(fv_grid_type), intent(IN), target :: gridstruct
+         real, intent(in) :: q1(:,:,:)
+         real, intent(in) :: dp2(:,:,:)
+         real, intent(in) :: ple1(:,:,:)
+         real :: scaling
 
          integer :: k
-         real(REAL8) :: partialSums(3,npz), globalSums(3)
-         real(REAL8), parameter :: TINY_DENOMINATOR = tiny(1.d0)
-         !real(REAL8), parameter :: TINY_DENOMINATOR = 1.d-5
-         real(REAL8) :: tempSum
+         real :: partialSums(3,npz), globalSums(3)
+         real, parameter :: TINY_DENOMINATOR = tiny(1.d0)
+         !real, parameter :: TINY_DENOMINATOR = 1.d-5
+         real :: tempSum
+
+         real, pointer, dimension(:,:) :: area
+         integer :: is,  ie,  js,  je
+
 
          !-------
          ! Compute partial sum on local array first to minimize communication.
@@ -1059,6 +1067,13 @@ end subroutine offline_tracer_advection
          ! decomposition, but uses far less communication bandwidth (and memory BW)
          ! then the preceding implementation.
          !-------
+
+         is  = bd%is
+         ie  = bd%ie
+         js  = bd%js
+         je  = bd%je
+         area => gridstruct%area
+
          partialSums = 0.d0
          do k = 1, npz
             ! numerator
