@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2018, University Corporation for Atmospheric Research,
+! Copyright 2002-2019, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -75,6 +75,7 @@
   public ESMF_GridspecReadTile
   public ESMF_GridspecReadStagger
   public ESMF_GridspecReadMosaic
+  public ESMF_GridspecQueryTileFile
   public ESMF_GridspecQueryTileSize
   public ESMF_GridspecQueryTileGlobal
   public ESMF_MosaicDestroy
@@ -139,8 +140,8 @@ subroutine ESMF_GridspecReadMosaic(filename, mosaic, tileFilePath, rc)
     integer   :: ncid, varid
     integer   :: i, j, nvars, attlen
     integer   :: ntiles, ncontacts
-    character(len=ESMF_MAXSTR) :: attstr
-    character(len=ESMF_MAXSTR) :: mosaicname
+    character(len=128) :: attstr
+    character(len=128) :: mosaicname
     character(len=ESMF_MAXPATHLEN) :: tempname
     integer            :: strlen
     character(len=1), allocatable :: temptilenames(:,:)
@@ -415,6 +416,66 @@ end subroutine ESMF_GridspecReadMosaic
 
 ! -------------------------- ESMF-private method -------------------------------
 #undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_GridspecQueryTileFile"
+subroutine ESMF_GridspecQueryTileFile(filename, isSupergrid, rc)
+
+    character(len=*), intent(in)     :: filename
+    logical, intent(out)             :: isSupergrid
+    integer, intent(out), optional   :: rc
+
+#ifdef ESMF_NETCDF
+    integer :: ncid, nvars, attlen, i
+    integer :: ncStatus
+    character(len=128) :: attstr
+
+    if (present(rc)) rc=ESMF_SUCCESS
+
+    ! Check if the file contain a dummy variable with the standard_name
+    ! attribute set to grid_tile_spec
+
+    ncStatus = nf90_open(path=filename, mode=nf90_nowrite, ncid=ncid)
+    if (CDFCheckError (ncStatus, &
+        ESMF_METHOD,  &
+        ESMF_SRCLINE, &
+        filename, &
+        rc)) return
+    ncStatus = nf90_inquire(ncid, nVariables=nvars)
+    if (CDFCheckError (ncStatus, &
+        ESMF_METHOD,  &
+        ESMF_SRCLINE, &
+        filename, &
+        rc)) return
+    isSupergrid = .false.
+    do i=1,nvars
+       ! Check its standard_name attribute
+       ncStatus = nf90_inquire_attribute(ncid, i, 'standard_name', len=attlen)
+       if (ncStatus == nf90_noerr) then
+          ncStatus = nf90_get_att(ncid, i, 'standard_name', values=attstr)
+          if (attstr(1:attlen) .eq. 'grid_tile_spec') then
+            isSupergrid = .true.
+          endif
+       endif
+       if (isSupergrid) exit
+     enddo
+     ncStatus = nf90_close(ncid)
+    if (CDFCheckError (ncStatus, &
+        ESMF_METHOD,  &
+        ESMF_SRCLINE, &
+        filename, &
+        rc)) return
+#else       
+
+    call ESMF_LogSetError(ESMF_RC_LIB_NOT_PRESENT, & 
+                 msg="- ESMF_NETCDF not defined when lib was compiled", & 
+                 ESMF_CONTEXT, rcToReturn=rc) 
+    return
+#endif
+
+end subroutine ESMF_GridSpecQueryTileFile
+
+
+! -------------------------- ESMF-private method -------------------------------
+#undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_GridspecQueryTileGlobal"
 subroutine ESMF_GridspecQueryTileGlobal(filename, isGlobal, rc)
 
@@ -514,10 +575,11 @@ end subroutine ESMF_GridSpecQueryTileGlobal
 ! -------------------------- ESMF-private method -------------------------------
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_GridspecQueryTileSize"
-subroutine ESMF_GridspecQueryTileSize(filename, nx, ny, rc)
+subroutine ESMF_GridspecQueryTileSize(filename, nx, ny, units, rc)
 
     character(len=*), intent(in)     :: filename
     integer, intent(out)             :: nx, ny
+    character(len=*), intent(out), optional    :: units
     integer, intent(out), optional   :: rc
 
 #ifdef ESMF_NETCDF
@@ -525,6 +587,7 @@ subroutine ESMF_GridspecQueryTileSize(filename, nx, ny, rc)
     integer :: ncStatus
     integer :: ndims, dimids(2)
     character(len=128) :: attstr
+    character(len=1024) :: errmsg
 
     if (present(rc)) rc=ESMF_SUCCESS
 
@@ -572,6 +635,29 @@ subroutine ESMF_GridspecQueryTileSize(filename, nx, ny, rc)
             ! return the dimension of the center grid
             nx = (nx-1)/2
             ny = (ny-1)/2
+
+            ! find out units attribute
+            if (present(units)) then
+              ncStatus = nf90_inquire_attribute(ncid, i, "units", len=attlen)
+              errmsg ="attribute units for coordinate variable" //" in "//trim(filename)
+              if (CDFCheckError (ncStatus, &
+                  ESMF_METHOD,  &
+                  ESMF_SRCLINE, &
+                  errmsg, &
+                  rc)) return
+              ncStatus = nf90_get_att(ncid, i, 'units',attstr)
+              if (CDFCheckError (ncStatus, &
+                  ESMF_METHOD,  &
+                  ESMF_SRCLINE, &
+                  errmsg, &
+                  rc)) return
+              if (attstr(1:6) .eq. 'degree') then 
+                 units = 'degrees'
+              elseif (attstr(1:6) .eq. 'radian') then
+                 units = 'radians'
+              endif
+            endif
+
             goto 20
          endif
        endif
@@ -719,7 +805,7 @@ subroutine ESMF_GridspecReadTile(filename, nx, ny, centerLon, centerLat, cornerL
                  ESMF_CONTEXT, rcToReturn=rc) 
               return
             endif
-            
+               
             if (present(start) .and. present(count)) then
                ! read a block instead of the entire array
                count1=count*2+1

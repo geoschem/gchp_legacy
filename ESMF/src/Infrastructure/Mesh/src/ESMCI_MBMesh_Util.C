@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2018, University Corporation for Atmospheric Research,
+// Copyright 2002-2019, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -32,6 +32,8 @@
 #include <vector>
 
 #include <ESMCI_VM.h>
+
+// #define DEBUG_POINTLIST
 
 //-----------------------------------------------------------------------------
 // leave the following line as-is; it will insert the cvs ident string
@@ -340,7 +342,6 @@ ESMCI::PointList *MBMesh_to_PointList(MBMesh *mesh, ESMC_MeshLoc_Flag meshLoc, E
         moab::ErrorCodeStr[merr], ESMC_CONTEXT,&localrc)) throw localrc;
     }
 
-
   } else if (meshLoc == ESMC_MESHLOC_ELEMENT) {
 
     //need check here to see that elem coordinates are set
@@ -353,12 +354,11 @@ ESMCI::PointList *MBMesh_to_PointList(MBMesh *mesh, ESMC_MeshLoc_Flag meshLoc, E
 
     src_mask_val = mesh->elem_mask_val_tag;
 
-    merr=moab_mesh->get_entities_by_dimension(0,mesh->sdim,range_ent);
+    merr=moab_mesh->get_entities_by_dimension(0,mesh->pdim,range_ent);
     if (merr != MB_SUCCESS) {
       if(ESMC_LogDefault.MsgFoundError(ESMC_RC_MOAB_ERROR,
         moab::ErrorCodeStr[merr], ESMC_CONTEXT,&localrc)) throw localrc;
     }
-
 
   } else {
     //unknown meshLoc
@@ -476,6 +476,18 @@ ESMCI::PointList *MBMesh_to_PointList(MBMesh *mesh, ESMC_MeshLoc_Flag meshLoc, E
       plp->add(id, c);
     }
   }
+
+  // sort the pointlist
+  plp->sort_by_id();
+  
+#ifdef DEBUG_POINTLIST
+  {printf("%d# MB2P POINTLIST(%d) [", localPet, plp->get_curr_num_pts());
+  for (int p = 0; p < plp->get_curr_num_pts(); ++p) {
+    const int *id = plp->get_id_ptr(p);
+    printf("%d, ", plp->get_id_ptr(p));
+  }
+  printf("]\n");}
+#endif
 
   if (rc!=NULL) *rc=ESMF_SUCCESS;
   return plp;

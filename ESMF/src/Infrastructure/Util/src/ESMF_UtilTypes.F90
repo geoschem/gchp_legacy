@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2018, University Corporation for Atmospheric Research,
+! Copyright 2002-2019, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -68,7 +68,7 @@
       integer, parameter :: ESMF_SUCCESS = 0, ESMF_FAILURE = -1
 
 ! General non-specific string length
-      integer, parameter :: ESMF_MAXSTR = 128
+      integer, parameter :: ESMF_MAXSTR = 256
 
 ! Maximum length of a file name, including its path.
       integer, parameter :: ESMF_MAXPATHLEN = 1024
@@ -422,6 +422,24 @@
 
 !------------------------------------------------------------------------------
 !
+!     ! Typed proxy flag
+
+!     ! WARNING: must match corresponding values in ../include/ESMC_Util.h
+
+      type ESMF_ProxyFlag
+#ifndef ESMF_NO_SEQUENCE
+      sequence
+#endif
+      private
+          integer :: flag
+      end type
+
+      type(ESMF_ProxyFlag), parameter :: ESMF_PROXYYES = ESMF_ProxyFlag (1),  &
+                                         ESMF_PROXYNO  = ESMF_ProxyFlag (2),  &
+                                         ESMF_PROXYANY = ESMF_ProxyFlag (3)
+
+!------------------------------------------------------------------------------
+!
 !     ! Typed reduction operations
 
 !     ! WARNING: must match corresponding values in ../include/ESMC_Util.h
@@ -502,7 +520,8 @@
 
       type(ESMF_Pin_Flag), parameter:: &
         ESMF_PIN_DE_TO_PET        = ESMF_Pin_Flag(1), &
-        ESMF_PIN_DE_TO_VAS        = ESMF_Pin_Flag(2)
+        ESMF_PIN_DE_TO_VAS        = ESMF_Pin_Flag(2), &
+        ESMF_PIN_DE_TO_SSI        = ESMF_Pin_Flag(3)
 
 !------------------------------------------------------------------------------
 !
@@ -752,7 +771,8 @@
       type(ESMF_ExtrapMethod_Flag), parameter :: &
            ESMF_EXTRAPMETHOD_NONE    = ESMF_ExtrapMethod_Flag(0), &
            ESMF_EXTRAPMETHOD_NEAREST_STOD = ESMF_ExtrapMethod_Flag(1), &
-           ESMF_EXTRAPMETHOD_NEAREST_IDAVG = ESMF_ExtrapMethod_Flag(2)
+           ESMF_EXTRAPMETHOD_NEAREST_IDAVG = ESMF_ExtrapMethod_Flag(2), &
+           ESMF_EXTRAPMETHOD_CREEP = ESMF_ExtrapMethod_Flag(3)
 
 !------------------------------------------------------------------------------
       type ESMF_LineType_Flag
@@ -880,7 +900,7 @@
         ESMF_FILEFORMAT_CFGRID = ESMF_FileFormat_Flag(6), &
         ESMF_FILEFORMAT_GRIDSPEC = ESMF_FileFormat_Flag(6), &
         ESMF_FILEFORMAT_MOSAIC = ESMF_FileFormat_Flag(7), &
-        ESMF_FILEFORMAT_TILE = ESMF_FileFormat_Flag(7)
+        ESMF_FILEFORMAT_TILE = ESMF_FileFormat_Flag(8)
 
 
 !------------------------------------------------------------------------------
@@ -1012,6 +1032,9 @@
       public ESMF_InquireFlag
       public ESMF_INQUIREONLY, ESMF_NOINQUIRE
 
+      public ESMF_ProxyFlag
+      public ESMF_PROXYYES, ESMF_PROXYNO, ESMF_PROXYANY
+
       public ESMF_Direction_Flag, ESMF_DIRECTION_FORWARD, ESMF_DIRECTION_REVERSE
 
       public ESMF_IOFmt_Flag, ESMF_IOFMT_BIN, ESMF_IOFMT_NETCDF, &
@@ -1034,7 +1057,7 @@
              ESMF_SYNC_NONBLOCKING
       public ESMF_Context_Flag, ESMF_CONTEXT_OWN_VM, ESMF_CONTEXT_PARENT_VM
       public ESMF_End_Flag, ESMF_END_NORMAL, ESMF_END_KEEPMPI, ESMF_END_ABORT
-      public ESMF_Pin_Flag, ESMF_PIN_DE_TO_PET, ESMF_PIN_DE_TO_VAS
+      public ESMF_Pin_Flag, ESMF_PIN_DE_TO_PET, ESMF_PIN_DE_TO_VAS, ESMF_PIN_DE_TO_SSI
       public ESMF_AttCopy_Flag, ESMF_ATTCOPY_HYBRID, ESMF_ATTCOPY_REFERENCE, &
                                ESMF_ATTCOPY_VALUE
       public ESMF_AttGetCountFlag, ESMF_ATTGETCOUNT_ATTRIBUTE, ESMF_ATTGETCOUNT_ATTPACK, &
@@ -1053,7 +1076,8 @@
 
        public ESMF_ExtrapMethod_Flag, ESMF_EXTRAPMETHOD_NONE, & 
                                       ESMF_EXTRAPMETHOD_NEAREST_STOD, &
-                                      ESMF_EXTRAPMETHOD_NEAREST_IDAVG
+                                      ESMF_EXTRAPMETHOD_NEAREST_IDAVG, &
+                                      ESMF_EXTRAPMETHOD_CREEP
 
        public ESMF_LineType_Flag,   ESMF_LINETYPE_CART, &
                                    ESMF_LINETYPE_GREAT_CIRCLE
@@ -1185,6 +1209,7 @@ interface operator (==)
   module procedure ESMF_FileFormatEq
   module procedure ESMF_FileStatusEq
   module procedure ESMF_RegridMethodEq
+  module procedure ESMF_ExtrapMethodEq
   module procedure ESMF_CoordSysEqual
   module procedure ESMF_LineTypeEqual
   module procedure ESMF_NormTypeEqual
@@ -1206,6 +1231,7 @@ interface operator (/=)
   module procedure ESMF_FileFormatNe
   module procedure ESMF_FileStatusNe
   module procedure ESMF_RegridMethodNe
+  module procedure ESMF_ExtrapMethodNe
   module procedure ESMF_CoordSysNotEqual
   module procedure ESMF_LineTypeNotEqual
   module procedure ESMF_NormTypeNotEqual
@@ -1826,6 +1852,23 @@ function ESMF_RegridMethodNe(rp1, rp2)
  ESMF_RegridMethodNe = (rp1%regridmethod /= rp2%regridmethod)
 end function
 
+!------------------------------------------------------------------------------
+! function to compare two ESMF_ExtrapMethod types
+
+function ESMF_ExtrapMethodEq(ep1, ep2)
+ logical ESMF_ExtrapMethodEq
+ type(ESMF_ExtrapMethod_Flag), intent(in) :: ep1, ep2
+
+ ESMF_ExtrapMethodEq = (ep1%extrapmethod == ep2%extrapmethod)
+end function
+
+function ESMF_ExtrapMethodNe(ep1, ep2)
+ logical ESMF_ExtrapMethodNe
+ type(ESMF_ExtrapMethod_Flag), intent(in) :: ep1, ep2
+
+ ESMF_ExtrapMethodNe = (ep1%extrapmethod /= ep2%extrapmethod)
+end function
+
 
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
@@ -2142,6 +2185,8 @@ end function
 
       end function ESMF_TermOrderEq
 
+
+
 !------------------------------------------------------------------------- 
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_UtilVersionPrint"
@@ -2200,7 +2245,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         print *, ""
         print *, "Earth System Modeling Framework"
         print *, ""
-        print *, "Copyright (c) 2002-2018 University Corporation for Atmospheric Research,"
+        print *, "Copyright (c) 2002-2019 University Corporation for Atmospheric Research,"
         print *, "Massachusetts Institute of Technology, Geophysical Fluid Dynamics Laboratory,"
         print *, "University of Michigan, National Centers for Environmental Prediction,"
         print *, "Los Alamos National Laboratory, Argonne National Laboratory,"

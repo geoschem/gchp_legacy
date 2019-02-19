@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2018, University Corporation for Atmospheric Research, 
+// Copyright 2002-2019, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -80,7 +80,7 @@ namespace ESMCI {
   class LocalArray{
 
    protected:
-    ESMC_TypeKind_Flag typekind;         // I1, I2, I4, I8, R4, R8
+    ESMC_TypeKind_Flag typekind;    // I1, I2, I4, I8, R4, R8
     int rank;                       // 1, 2, ..., ESMF_MAXDIM
     LocalArrayOrigin origin;        // create called from Fortran or C++?
     bool dealloc;                   // responsible for deallocation?

@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2018, University Corporation for Atmospheric Research,
+// Copyright 2002-2019, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -376,6 +376,11 @@ void MeshAddPole(Mesh &mesh, UInt node_id,
         if (is_pole_side) pole_side = s;
 
       } // for s
+
+      // BOB_DEBUG
+      if (pole_side < 0) {
+        printf("elem.id=%d pole_side=%d\n",elem.get_id(),pole_side);
+      }
 
       ThrowRequire(pole_side >= 0); // need to have found a side
 

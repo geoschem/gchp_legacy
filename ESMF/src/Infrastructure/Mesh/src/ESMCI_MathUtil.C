@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2018, University Corporation for Atmospheric Research,
+// Copyright 2002-2019, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -327,8 +327,8 @@ double tri_area(const double * const u, const double * const v, const double * c
 // Compute the great circle area of a polygon on a sphere
 double great_circle_area(int n, double *pnts) {
 
-  // Make sure that it's at least a triangle
-  if (n < 3) Throw() << "Can't compute the area of a polygon containing fewer than 3 corners.";
+  // The area of a degenerate triangle is 0.0
+  if (n < 3) return 0.0;
 
   // sum areas around polygon
   double sum=0.0;

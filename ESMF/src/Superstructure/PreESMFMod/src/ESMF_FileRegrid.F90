@@ -2,7 +2,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2018, University Corporation for Atmospheric Research,
+! Copyright 2002-2019, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -756,7 +756,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     ! ESMF_Grid or ESMF_Mesh
 
     if (localsrcfiletype == ESMF_FILEFORMAT_GRIDSPEC) then
-      srcGrid = ESMF_GridCreate(srcfile, localsrcfiletype, (/xpart,ypart/), &
+      srcGrid = ESMF_GridCreate(srcfile, regdecomp=(/xpart,ypart/), &
                 addCornerStagger=addCorners, &
                 addMask=useSrcMask, varname=trim(srcVarName), isSphere=srcIsSphere, &
                 coordNames = srcCoordNames, indexflag=ESMF_INDEX_DELOCAL, rc=localrc)
@@ -870,7 +870,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     endif
 
     if (localdstfiletype == ESMF_FILEFORMAT_GRIDSPEC) then
-      dstGrid = ESMF_GridCreate(dstfile, localdstfiletype, (/xpart,ypart/), &
+      dstGrid = ESMF_GridCreate(dstfile, regdecomp=(/xpart,ypart/), &
          addCornerStagger=addCorners, &
          addMask=useDstMask, varname=trim(dstVarName), isSphere=dstIsSphere, &
          coordNames = dstCoordNames, indexflag=ESMF_INDEX_DELOCAL, rc=localrc)

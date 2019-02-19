@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2018, University Corporation for Atmospheric Research, 
+// Copyright 2002-2019, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -18,6 +18,7 @@
 #include <Mesh/include/Legacy/ESMCI_MeshSkin.h>
 #include <Mesh/include/Legacy/ESMCI_ParEnv.h>
 #include <Mesh/include/Legacy/ESMCI_MeshVTK.h>
+#include "ESMCI_Array.h"
 
 #include <mpi.h>
 
@@ -34,7 +35,10 @@ static const char *const version = "$Id$";
 
 namespace ESMCI {
 
-void WriteMesh(const Mesh &mesh, const std::string &fbase, int nstep, double tstep, int file_type) 
+void WriteMesh(const Mesh &mesh, const std::string &fbase, 
+               int num_nodeArrays, ESMCI::Array **nodeArrays, 
+               int num_elemArrays, ESMCI::Array **elemArrays, 
+               int nstep, double tstep, int file_type) 
 {
   Trace __trace("WriteMesh(const Mesh &mesh, const std::string &fbase, int nstep, double tstep)");
   // Manufacture this processors filename
@@ -57,7 +61,9 @@ void WriteMesh(const Mesh &mesh, const std::string &fbase, int nstep, double tst
   if (file_type == ESMC_FILE_EXODUS) {
     WriteExMesh(mesh, newname, nstep, tstep);
   } else if (file_type == ESMC_FILE_VTK) {
-    WriteVTKMesh(mesh, newname);
+    WriteVTKMesh(mesh, newname,
+                 num_nodeArrays, nodeArrays, 
+                 num_elemArrays, elemArrays);
   } else Throw() << "Unknown filetype:" << file_type;
 }
 

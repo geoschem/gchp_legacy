@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2018, University Corporation for Atmospheric Research,
+! Copyright 2002-2019, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -103,10 +103,11 @@ contains
 
 
    ! Deep type constructor function 
-   function ESMF_DeepCreate()
+   function ESMF_DeepCreate(val)
+       integer         :: val
        type(ESMF_Deep) :: ESMF_DeepCreate
 
-       ESMF_DeepCreate%num=7
+       ESMF_DeepCreate%num=val
 
        ESMF_INIT_SET_CREATED(ESMF_DeepCreate)
    end function ESMF_DeepCreate

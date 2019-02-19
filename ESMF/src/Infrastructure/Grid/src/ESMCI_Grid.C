@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2018, University Corporation for Atmospheric Research, 
+// Copyright 2002-2019, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -871,7 +871,7 @@ int Grid::addCoordArray(
                           (InterArray<int> *)ESMC_NULL_POINTER,
                           (InterArray<int> *)ESMC_NULL_POINTER,
                           (InterArray<int> *)ESMC_NULL_POINTER,
-                          &indexflag, staggerMemLBoundIntInt, 
+                          &indexflag, NULL, staggerMemLBoundIntInt, 
                           (InterArray<int> *)ESMC_NULL_POINTER,
                           (InterArray<int> *)ESMC_NULL_POINTER, 
                           &localrc);
@@ -1012,7 +1012,7 @@ int Grid::addCoordArrayArb(
                        (InterArray<int> *)ESMC_NULL_POINTER,
                        (InterArray<int> *)ESMC_NULL_POINTER,
                        (InterArray<int> *)ESMC_NULL_POINTER,
-                        ESMC_NULL_POINTER, NULL,
+                        ESMC_NULL_POINTER, NULL, NULL,
                        (InterArray<int> *)ESMC_NULL_POINTER,
                        (InterArray<int> *)ESMC_NULL_POINTER, 
             &localrc);
@@ -1298,7 +1298,7 @@ int Grid::addItemArray(
                           (InterArray<int> *)ESMC_NULL_POINTER,
                           (InterArray<int> *)ESMC_NULL_POINTER,
                           (InterArray<int> *)ESMC_NULL_POINTER,
-                          &indexflag, staggerMemLBoundIntInt, 
+                          &indexflag, NULL, staggerMemLBoundIntInt, 
                           (InterArray<int> *)ESMC_NULL_POINTER,
                           (InterArray<int> *)ESMC_NULL_POINTER, 
                           &localrc);
@@ -1460,7 +1460,7 @@ int Grid::addItemArrayArb(
                (InterArray<int> *)ESMC_NULL_POINTER,
                (InterArray<int> *)ESMC_NULL_POINTER,
                (InterArray<int> *)ESMC_NULL_POINTER,
-               &indexflag, NULL,
+               &indexflag, NULL, NULL,
                (InterArray<int> *)ESMC_NULL_POINTER,
                (InterArray<int> *)ESMC_NULL_POINTER, 
                &localrc);
@@ -5349,8 +5349,8 @@ int Grid::getStaggerDistgrid(
                                                          ///   DistGrid *staggerdistgrid_wo_poles=DistGrid::create(distgrid_wo_poles,
                                                          staggerEdgeLWidthIntInt, 
                                                          staggerEdgeUWidthIntInt, 
-                                                         NULL,
-                                                         connListWPoles, NULL, true,
+                                                         NULL, connListWPoles, false,
+                                                         NULL, NULL, true,
                                                          &localrc);
         if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
                                           &rc)) return rc;
@@ -5429,8 +5429,8 @@ int Grid::getStaggerDistgrid(
           staggerDistgridList[staggerloc]=DistGrid::create(distgrid,
                                                            staggerEdgeLWidthIntInt, 
                                                            staggerEdgeUWidthIntInt, 
-                                                           NULL,
-                                                           emptyConnListII, NULL, true,
+                                                           NULL, emptyConnListII, false,
+                                                           NULL, NULL, true,
                                                            &localrc);
           if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
                                             &rc)) return rc;
@@ -5442,7 +5442,7 @@ int Grid::getStaggerDistgrid(
           staggerDistgridList[staggerloc]=DistGrid::create(distgrid,
                                                            staggerEdgeLWidthIntInt, 
                                                            staggerEdgeUWidthIntInt, 
-                                                           NULL,
+                                                           NULL, NULL, false,
                                                            NULL, NULL, true,
                                                            &localrc);
           if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
@@ -10030,7 +10030,8 @@ bool Grid::match(
     for (int j=0; j<grid1->dimCount; j++) {
       if (grid1->coordArrayList[i][j] != ESMC_NULL_POINTER &&
       grid2->coordArrayList[i][j] != ESMC_NULL_POINTER) {
-    bool arraymatch=Array::match(grid1->coordArrayList[i][j], grid2->coordArrayList[i][j],&localrc);
+    bool arraymatch=Array::matchBool(grid1->coordArrayList[i][j],
+      grid2->coordArrayList[i][j],&localrc);
     if (ESMC_LogDefault.MsgFoundError(localrc,
     ESMCI_ERR_PASSTHRU, ESMC_CONTEXT, rc)) return false;
     if (!arraymatch) {
@@ -10103,7 +10104,8 @@ bool Grid::match(
     for (int j=0; j<ESMC_GRIDITEM_COUNT; j++) {
       if (grid1->itemArrayList[i][j] != ESMC_NULL_POINTER &&
       grid2->itemArrayList[i][j] != ESMC_NULL_POINTER) {
-    bool arraymatch=Array::match(grid1->itemArrayList[i][j], grid2->itemArrayList[i][j],&localrc);
+    bool arraymatch=Array::matchBool(grid1->itemArrayList[i][j],
+      grid2->itemArrayList[i][j],&localrc);
     if (ESMC_LogDefault.MsgFoundError(localrc,
               ESMCI_ERR_PASSTHRU, ESMC_CONTEXT, rc)) return false;
     if (!arraymatch) {
@@ -10384,8 +10386,8 @@ void _create_nopole_distgrid(DistGrid *distgrid, DistGrid **distgrid_nopole, int
   if (distgrid->getConnectionCount() <1) {
     *distgrid_nopole=DistGrid::create(distgrid,
                                       (InterArray<int> *)NULL, (InterArray<int> *)NULL,
-                                      (ESMC_IndexFlag *)NULL, (InterArray<int> *)NULL, 
-                                      NULL, true, &localrc);
+                                      (ESMC_IndexFlag *)NULL, (InterArray<int> *)NULL, false,
+                                      NULL, NULL, true, &localrc);
     if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
        rc)) return; 
     return;
@@ -10403,8 +10405,8 @@ void _create_nopole_distgrid(DistGrid *distgrid, DistGrid **distgrid_nopole, int
     // Copy distgrid
     *distgrid_nopole=DistGrid::create(distgrid,
                                    (InterArray<int> *)NULL, (InterArray<int> *)NULL,
-                                      (ESMC_IndexFlag *)NULL, (InterArray<int> *)NULL, 
-                                   NULL, true, &localrc);
+                                   (ESMC_IndexFlag *)NULL, (InterArray<int> *)NULL, false,
+                                   NULL, NULL, true, &localrc);
     if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
                                       rc)) return; 
 
@@ -10468,8 +10470,8 @@ void _create_nopole_distgrid(DistGrid *distgrid, DistGrid **distgrid_nopole, int
 
  *distgrid_nopole=DistGrid::create(distgrid,
                                    (InterArray<int> *)NULL, (InterArray<int> *)NULL,
-                                   (ESMC_IndexFlag *)NULL, newConnListII, 
-                                   NULL, true, &localrc);
+                                   (ESMC_IndexFlag *)NULL, newConnListII, false,
+                                   NULL, NULL, true, &localrc);
  if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT,
      rc)) return; 
 

@@ -119,6 +119,7 @@ endif
 	-@echo "ESMF_PTHREADS:          $(ESMF_PTHREADS)"
 	-@echo "ESMF_OPENMP:            $(ESMF_OPENMP)"
 	-@echo "ESMF_OPENACC:           $(ESMF_OPENACC)"
+	-@echo "ESMF_CXXSTD:            $(ESMF_CXXSTD)"
 	-@echo "ESMF_ARRAY_LITE:        $(ESMF_ARRAY_LITE)"
 	-@echo "ESMF_NO_INTEGER_1_BYTE: $(ESMF_NO_INTEGER_1_BYTE)"
 	-@echo "ESMF_NO_INTEGER_2_BYTE: $(ESMF_NO_INTEGER_2_BYTE)"
@@ -625,6 +626,11 @@ install:
 	cp -f $(ESMF_MODDIR)/*.mod $(ESMF_INSTALL_MODDIR_ABSPATH)
 	mkdir -p $(ESMF_INSTALL_LIBDIR_ABSPATH)
 	cp -f $(ESMF_LIBDIR)/lib*.* $(ESMF_INSTALL_LIBDIR_ABSPATH)
+ifeq ($(ESMF_TESTTRACE),ON)
+ifeq ($(ESMF_TRACE_BUILD_SHARED),ON)
+	$(MAKE) ESMF_PRELOADDIR=$(ESMF_INSTALL_LIBDIR_ABSPATH) build_preload_script
+endif
+endif
 ifneq ($(ESMF_OS),Cygwin)
 	$(ESMF_RANLIB) $(ESMF_INSTALL_LIBDIR_ABSPATH)/lib*.$(ESMF_LIB_SUFFIX)
 else
@@ -641,7 +647,7 @@ endif
 	-@echo " "
 	-@echo "ESMF installation complete."
 	-@echo " "
-        
+
 # ------------------------------------------------------------------
 # INSTALLCHECK target
 installcheck:

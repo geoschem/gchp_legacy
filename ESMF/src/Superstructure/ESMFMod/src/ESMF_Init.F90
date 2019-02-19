@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2018, University Corporation for Atmospheric Research, 
+! Copyright 2002-2019, University Corporation for Atmospheric Research, 
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 ! Laboratory, University of Michigan, National Centers for Environmental 
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -140,7 +140,16 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !     to worry about providing them. Also, note that ESMF does not alter
 !     the command line arguments, so that if the user obtains them they will
 !     be as specified on the command line (including those which MPICH would
-!     normally strip out). 
+!     normally strip out).
+!
+!     {\tt ESMF\_Initialize()} supports running ESMF inside a user MPI program.
+!     Details of this feature are discussed under the VM example 
+!     \ref{vm_inside_user_mpi}. It is not necessary that all MPI ranks are
+!     handed to ESMF. Section \ref{vm_nesting_esmf} shows how an MPI
+!     communicator can be used to execute ESMF on a subset of MPI ranks.
+!     Finally {\tt ESMF\_Initialize()} supports running multiple concurrent
+!     instances of ESMF under the same user MPI program. This feature is
+!     discussed under \ref{vm_multi_instance_esmf}.
 !
 !     By default, {\tt ESMF\_Initialize()} will open multiple error log files,
 !     one per processor.  This is very useful for debugging purpose.  However,
@@ -181,6 +190,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !     \item [{[mpiCommunicator]}]
 !           MPI communicator defining the group of processes on which the
 !           ESMF application is running.
+!           See section \ref{vm_nesting_esmf} and \ref{vm_multi_instance_esmf}
+!           for details.
 !           If not specified, defaults to {\tt MPI\_COMM\_WORLD}.
 !     \item [{[ioUnitLBound]}]
 !           Lower bound for Fortran unit numbers used within the ESMF library.
@@ -317,7 +328,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       type(ESMF_LogKind_Flag) :: logkindflagUse
       logical :: openflag
       integer :: complianceCheckIsOn
-      integer :: traceIsOn
+      integer :: traceIsOn, profileIsOn, profileToLog
       type(ESMF_VM) :: vm
       integer :: localPet
 
@@ -557,17 +568,22 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       endif
 
       ! check if tracing is on
-      call c_esmc_getComplianceCheckTrace(traceIsOn, localrc)
+      call c_esmc_getComplianceCheckTrace(traceIsOn, profileIsOn, localrc)
       if (localrc /= ESMF_SUCCESS) then
           write (ESMF_UtilIOStderr,*) ESMF_METHOD, ": Error checking ESMF_RUNTIME_COMPLIANCECHECK env variable"
           return
       endif
-      if (traceIsOn == 1) then
-         call ESMF_TraceOpen("./traceout", rc=localrc)
-         if (localrc /= ESMF_SUCCESS) then
-            write (ESMF_UtilIOStderr,*) ESMF_METHOD, ": Error initializing trace stream"
-            return
-         endif
+      if (traceIsOn == 1 .or. profileIsOn == 1) then
+        profileToLog = 0
+        if ((logkindflagUse/=ESMF_LOGKIND_NONE) .and. &
+          (logkindflagUse/=ESMF_LOGKIND_MULTI_ON_ERROR)) then
+          profileToLog = 1
+        endif
+        call ESMF_TraceOpen("./traceout", profileToLog=profileToLog, rc=localrc)
+        if (localrc /= ESMF_SUCCESS) then
+          write (ESMF_UtilIOStderr,*) ESMF_METHOD, ": Error initializing trace stream"
+          return
+        endif
       endif
 
       ! Initialize the default time manager calendar
@@ -766,7 +782,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       logical, save :: already_final = .false.    ! Static, maintains state.
 
       logical, parameter :: trace = .false.
-      integer :: traceIsOn
+      integer :: traceIsOn, profileIsOn
 
       ! Initialize return code
       rcpresent = .FALSE.
@@ -787,12 +803,12 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
           write (ESMF_UtilIOStderr,*) ESMF_METHOD, ": Error writing into the default log"
       endif
 
-      call c_esmc_getComplianceCheckTrace(traceIsOn, localrc)
+      call c_esmc_getComplianceCheckTrace(traceIsOn, profileIsOn, localrc)
       if (localrc /= ESMF_SUCCESS) then
           write (ESMF_UtilIOStderr,*) ESMF_METHOD, ": Error checking ESMF_RUNTIME_COMPLIANCECHECK env variable"
           return
       endif
-      if (traceIsOn == 1) then
+      if (traceIsOn == 1 .or. profileIsOn == 1) then
         call ESMF_TraceClose()
         if (localrc /= ESMF_SUCCESS) then
           write (ESMF_UtilIOStderr,*) ESMF_METHOD, ": Error closing trace stream"

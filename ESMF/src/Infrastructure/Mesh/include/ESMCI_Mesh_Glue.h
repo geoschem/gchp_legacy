@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2018, University Corporation for Atmospheric Research,
+// Copyright 2002-2019, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -30,6 +30,7 @@
 #include "ESMCI_LogErr.h"
 #include "ESMCI_VM.h"
 #include "ESMCI_CoordSys.h"
+#include "ESMCI_Array.h"
 
 #include "Mesh/include/ESMCI_Mesh.h"
 #include "Mesh/include/Legacy/ESMCI_MeshRead.h"
@@ -67,7 +68,10 @@ void ESMCI_meshaddnodes(Mesh **meshpp, int *num_nodes, int *nodeId,
 void ESMCI_meshwrite(Mesh **meshpp, char *fname, int *rc,
                      ESMCI_FortranStrLenArg nlen);
 
-
+void ESMCI_meshwritewarrays(Mesh **meshpp, char *fname, ESMCI_FortranStrLenArg nlen,
+                            int num_nodeArrays, ESMCI::Array **nodeArrays, 
+                            int num_elemArrays, ESMCI::Array **elemArrays, 
+                            int *rc);
 
 void ESMCI_meshaddelements(Mesh **meshpp,
                                               int *_num_elems, int *elemId, int *elemType, InterArray<int> *_elemMaskII ,
@@ -101,12 +105,14 @@ void ESMCI_meshcreateelemdistgrid(Mesh **meshpp, int *egrid, int *num_lelems, in
 
 void ESMCI_meshinfoserialize(int *intMeshFreed,
                              int *spatialDim, int *parametricDim,
+                             int *intIsPresentNDG, int *intIsPresentEDG,
                              char *buffer, int *length, int *offset,
                              ESMC_InquireFlag *inquireflag, int *rc,
                              ESMCI_FortranStrLenArg buffer_l);
 
 void ESMCI_meshinfodeserialize(int *intMeshFreed,
                                int *spatialDim, int *parametricDim,
+                               int *intIsPresentNDG, int *intIsPresentEDG,
                                char *buffer, int *offset, int *rc,
                                ESMCI_FortranStrLenArg buffer_l);
 
@@ -126,6 +132,13 @@ void ESMCI_meshfindpnt(Mesh **meshpp, int *unmappedaction, int *dimPnts, int *nu
 void ESMCI_getlocalelemcoords(Mesh **meshpp, double *elemCoord, int *_orig_sdim, int *rc);
 
 void ESMCI_getlocalcoords(Mesh **meshpp, double *nodeCoord, int *_orig_sdim, int *rc);
+
+void ESMCI_geteleminfointoarray(Mesh *mesh, 
+                                ESMCI::DistGrid *elemDistgrid, 
+                                int numElemArrays,
+                                int *infoTypeElemArrays, 
+                                ESMCI::Array **elemArrays, 
+                                int *rc);
 
 void ESMCI_getconnectivity(Mesh **meshpp, double *connCoord, int *nodesPerElem,
                                    int *_orig_sdim, int *rc);
@@ -204,7 +217,7 @@ void ESMCI_sphdeg_to_cart(double *lon, double *lat,
                           double *x, double *y, double *z, int *rc);
 
 // This method sets the pole values so a 2D Mesh from a SCRIP grid can still be used in regrid with poles
-void ESMCI_meshsetpoles(Mesh **meshpp, int *_pole_val, int *_min_pole_gid, int *_max_pole_gid,
+void ESMCI_meshsetpoles(Mesh **meshpp, int *_pole_obj_type, int *_pole_val, int *_min_pole_gid, int *_max_pole_gid,
                         int *rc);
 
 void ESMCI_meshcreatedual(Mesh **src_meshpp, Mesh **output_meshpp, int *rc);

@@ -2,7 +2,7 @@
 //==============================================================================
 //
 // Earth System Modeling Framework
-// Copyright 2002-2016, University Corporation for Atmospheric Research,
+// Copyright 2002-2019, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -48,8 +48,6 @@
 // for Windows...
 #define M_PI 3.14159265358979323846
 #endif
-
-using namespace std;
 
 #if defined ESMF_MOAB
 
@@ -432,7 +430,7 @@ int main(int argc, char *argv[]) {
   PointList *pl = NULL;
   bool cart =  false;
   bool collapsed = false;
-  vector<double> weights;
+  std::vector<double> weights;
   weights.resize(4);
 
 #else

@@ -2,7 +2,7 @@
 //==============================================================================
 //
 // Earth System Modeling Framework
-// Copyright 2002-2016, University Corporation for Atmospheric Research,
+// Copyright 2002-2019, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -46,8 +46,6 @@
 // for Windows...
 #define M_PI 3.14159265358979323846
 #endif
-
-using namespace std;
 
 #if defined ESMF_MOAB
 
@@ -147,7 +145,7 @@ int main(int argc, char *argv[]) {
   if (rc != ESMF_SUCCESS) return 0;
 
   // common vector for pointlist verification
-  vector<double*> cv;
+  std::vector<double*> cv;
 
 #if defined ESMF_MOAB
 
@@ -162,7 +160,7 @@ int main(int argc, char *argv[]) {
   int map_type = MB_MAP_TYPE_CART_APPROX;
 
   //----------------------------------------------------------------------------
-  //NEX_UTest
+  //NEX_disable_UTest
   // call rendezvous between mesh and pointlist
   MBMesh *mesh_rend=NULL;
   PointList *pl_rend=NULL;
@@ -180,7 +178,7 @@ int main(int argc, char *argv[]) {
   //rc = mesh_print(mesh_rend);
 
   //----------------------------------------------------------------------------
-  //NEX_UTest
+  //NEX_disable_UTest
   rc = ESMF_SUCCESS;
   strcpy(name, "Validate pointlist rendezvous");
   strcpy(failMsg, "pointlist rendezvous incorrect");

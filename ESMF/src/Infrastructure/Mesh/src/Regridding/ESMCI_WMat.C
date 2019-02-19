@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2018, University Corporation for Atmospheric Research,
+// Copyright 2002-2019, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -340,7 +340,7 @@ void WMat::MergeDisjoint(const WMat &wmat2) {
     WeightMap::const_iterator ce = weights.lower_bound(upper);
 
     // If there are no constraints which match continue to next row
-    if (ci != wmat2.weights.end()) {
+    if (ci != weights.end()) {
 
       // Loop over contraints which match
       // see if any have the same dst id

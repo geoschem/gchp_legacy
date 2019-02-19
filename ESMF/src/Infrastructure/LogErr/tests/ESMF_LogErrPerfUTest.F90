@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2018, University Corporation for Atmospheric Research,
+! Copyright 2002-2019, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -92,7 +92,7 @@ program ESMF_LogErrPerfUTest
 #ifdef ESMF_BOPT_g
   dtTest = 2.d-7  ! 200ns is expected to pass in debug mode
 #else
-  dtTest = 4.d-8  ! 40ns is expected to pass in optimized mode
+  dtTest = 6.d-8  ! 60ns is expected to pass in optimized mode
 #endif
   write(failMsg, *) "ESMF_LogFoundError() performance problem! ", &
     dt, ">", dtTest

@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2018, University Corporation for Atmospheric Research,
+// Copyright 2002-2019, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -24,6 +24,8 @@
 #include "ESMCI_GridToMesh.h"
 #include "ESMC_Util.h"
 #include "ESMCI_Array.h"
+#include "ESMCI_TraceRegion.h"
+
 #include "Mesh/include/ESMCI_Mesh.h"
 #include "Mesh/include/Legacy/ESMCI_MeshRead.h"
 #include "Mesh/include/Regridding/ESMCI_MeshRegrid.h"
@@ -96,6 +98,8 @@ void ESMCI_regrid_create(
                      int *extrapMethod,
                      int *extrapNumSrcPnts,
                      ESMC_R8 *extrapDistExponent,
+                     int *extrapNumLevels,
+                     int *extrapNumInputLevels, 
                      int *unmappedaction, int *_ignoreDegenerate,
                      int *srcTermProcessing, int *pipelineDepth,
                      ESMCI::RouteHandle **rh, int *has_rh, int *has_iw,
@@ -200,6 +204,11 @@ void ESMCI_regrid_create(
     }
     WMat dst_status;
 
+#ifdef ESMF_PROFILE_MESH_WEIGHTGEN_NATIVE
+    int localrc;
+    ESMCI_REGION_ENTER("Native Mesh Weight Generation", localrc)
+    VM::logMemInfo(std::string("before Native Mesh Weight Generation"));
+#endif
 
     // to do NEARESTDTOS just do NEARESTSTOD and invert results
     if (*regridMethod != ESMC_REGRID_METHOD_NEAREST_DST_TO_SRC) {
@@ -210,6 +219,8 @@ void ESMCI_regrid_create(
                         extrapMethod,
                         extrapNumSrcPnts,
                         extrapDistExponent,
+                        extrapNumLevels,
+                        extrapNumInputLevels, 
                         &temp_unmappedaction,
                         set_dst_status, dst_status)) {
         Throw() << "Online regridding error" << std::endl;
@@ -223,11 +234,19 @@ void ESMCI_regrid_create(
                         extrapMethod,
                         extrapNumSrcPnts,
                         extrapDistExponent,
+                        extrapNumLevels,
+                        extrapNumInputLevels, 
                         &temp_unmappedaction,
                         set_dst_status, dst_status)) {
         Throw() << "Online regridding error" << std::endl;
       }
     }
+
+#ifdef ESMF_PROFILE_MESH_WEIGHTGEN_NATIVE
+    VM::logMemInfo(std::string("after Native Mesh Weight Generation"));
+    ESMCI_REGION_EXIT("Native Mesh Weight Generation", localrc)
+#endif
+
 #ifdef PROGRESSLOG_on
     ESMC_LogDefault.Write("c_esmc_regrid_create(): Done with weight generation... check unmapped dest,", ESMC_LOGMSG_INFO);
 #endif
@@ -334,7 +353,7 @@ void ESMCI_regrid_create(
           // Construct factor list entry
           iientries[twoi+1] = w.id;  iientries[twoi] = wc.id;
           factors[i] = wc.value;
-          
+
 #define ESMF_REGRID_DEBUG_OUTPUT_WTS_ALL_off
 
 #ifdef ESMF_REGRID_DEBUG_OUTPUT_WTS_ALL
@@ -432,6 +451,11 @@ void ESMCI_regrid_create(
     VM::logMemInfo(std::string("RegridCreate5.2"));
 #endif
 
+#ifdef ESMF_PROFILE_MESH_SMMSTORE_NATIVE
+    ESMCI_REGION_ENTER("Native Mesh ArraySMMStore", localrc)
+    VM::logMemInfo(std::string("before Native Mesh ArraySMMStore"));
+#endif
+
     // Build the ArraySMM
     if (*has_rh != 0) {
       int localrc;
@@ -443,6 +467,11 @@ void ESMCI_regrid_create(
       if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
         ESMC_CONTEXT, NULL)) throw localrc;  // bail out with exception
     }
+
+#ifdef ESMF_PROFILE_MESH_SMMSTORE_NATIVE
+    VM::logMemInfo(std::string("after Native Mesh ArraySMMStore"));
+    ESMCI_REGION_EXIT("Native Mesh ArraySMMStore", localrc)
+#endif
 
 #ifdef PROGRESSLOG_on
     ESMC_LogDefault.Write("c_esmc_regrid_create(): Returned from ArraySMMStore().", ESMC_LOGMSG_INFO);

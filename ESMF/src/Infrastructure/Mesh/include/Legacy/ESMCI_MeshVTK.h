@@ -1,6 +1,6 @@
 // $Id$
 // Earth System Modeling Framework
-// Copyright 2002-2018, University Corporation for Atmospheric Research, 
+// Copyright 2002-2019, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -13,6 +13,7 @@
 #define ESMCI_MeshVTK_h
 
 #include <Mesh/include/Legacy/ESMCI_MeshTypes.h>
+#include "ESMCI_Array.h"
 
 #include <string>
 
@@ -24,7 +25,9 @@ class MeshObjTopo;
 /**
  * Write the mesh as a VTK file.
  */
-void WriteVTKMesh(const Mesh &mesh, const std::string &filename);
+ void WriteVTKMesh(const Mesh &mesh, const std::string &filename,
+                   int num_nodeArrays=0, ESMCI::Array **nodeArrays=NULL, 
+                   int num_elemArrays=0, ESMCI::Array **elemArrays=NULL);
 
 /**
  * Read and create the mesh from a VTK file.

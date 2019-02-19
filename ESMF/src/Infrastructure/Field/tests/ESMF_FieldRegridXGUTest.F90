@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2018, University Corporation for Atmospheric Research,
+! Copyright 2002-2019, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -1949,7 +1949,7 @@ contains
     ! Allocate serialization buffer
 
     buff_length = 1
-    allocate (buffer(buff_length))
+    allocate (buffer(0:buff_length-1))
     offset = 0
     call ESMF_XGridSerialize(xgrid, buffer, buff_length, offset, &
         inquireflag=ESMF_INQUIREONLY, rc=localrc)
@@ -1959,7 +1959,7 @@ contains
     deallocate (buffer)
 
     buff_length = offset
-    allocate (buffer(buff_length))
+    allocate (buffer(0:buff_length-1))
 
     ! call serialize and deserialize and verify again
 

@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2018, University Corporation for Atmospheric Research,
+! Copyright 2002-2019, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -408,7 +408,6 @@ contains
             sideAMeshCount=sideAMC, sideBMeshCount=sideBMC, &
             sideAGrid=l_sideA, sideBGrid=l_sideB, area=l_area, &
             elementCount=eleCount, &
-            dimCount=ndim, &
             centroid=l_centroid, distgridA=l_sideAdg, &
             distgridM = distgrid, sparseMatA2X=l_sparseMatA2X, &
             sparseMatX2B=l_sparseMatX2B, &

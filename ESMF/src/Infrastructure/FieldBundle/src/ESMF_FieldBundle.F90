@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2018, University Corporation for Atmospheric Research, 
+! Copyright 2002-2019, University Corporation for Atmospheric Research, 
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 ! Laboratory, University of Michigan, National Centers for Environmental 
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -5976,6 +5976,7 @@ call ESMF_LogWrite("Aft ESMF_IOWrite", ESMF_LOGMSG_INFO, rc=rc)
       type(ESMF_FieldBundleType), pointer :: bp   ! fieldbundle type
       type(ESMF_AttReconcileFlag) :: lattreconflag
       type(ESMF_Grid) :: grid
+      type(ESMF_LocStream) :: locstream
       type(ESMF_GeomType_Flag) :: geomtype
       type(ESMF_Field), pointer :: flist(:)
       type(ESMF_Logical) :: linkChange
@@ -6037,18 +6038,26 @@ call ESMF_LogWrite("Aft ESMF_IOWrite", ESMF_LOGMSG_INFO, rc=rc)
         if (ESMF_LogFoundError(localrc, &
           ESMF_ERR_PASSTHRU, &
           ESMF_CONTEXT, rcToReturn=rc)) return
-        if((geomtype == ESMF_GEOMTYPE_GRID) .or. &
-           (geomtype == ESMF_GEOMTYPE_LOCSTREAM)) then
-          call ESMF_GeomBaseGet(bp%geombase, grid=grid, rc=localrc)
-          if (ESMF_LogFoundError(localrc, &
-            ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rcToReturn=rc)) return
-          linkChange = ESMF_TRUE
-          call c_ESMC_AttributeLink(bp%base, grid, linkChange, status)
-          if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
-                        ESMF_CONTEXT, rcToReturn=rc))  return
+        if (geomtype == ESMF_GEOMTYPE_GRID) then
+           call ESMF_GeomBaseGet(bp%geombase, grid=grid, rc=localrc)
+           if (ESMF_LogFoundError(localrc, &
+                ESMF_ERR_PASSTHRU, &
+                ESMF_CONTEXT, rcToReturn=rc)) return
+           linkChange = ESMF_TRUE
+           call c_ESMC_AttributeLink(bp%base, grid, linkChange, status)
+           if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+                ESMF_CONTEXT, rcToReturn=rc))  return
+        else if (geomtype == ESMF_GEOMTYPE_LOCSTREAM) then
+           call ESMF_GeomBaseGet(bp%geombase, locstream=locstream, rc=localrc)
+           if (ESMF_LogFoundError(localrc, &
+                ESMF_ERR_PASSTHRU, &
+                ESMF_CONTEXT, rcToReturn=rc)) return
+           linkChange = ESMF_TRUE
+           call c_ESMC_AttributeLink(bp%base, locstream%lstypep%base, linkChange, status)
+           if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+                ESMF_CONTEXT, rcToReturn=rc))  return
         endif
-      endif
+     endif
 
       ! TODO: decide if these need to be sent before or after
       allocate(flist(fieldCount), stat=localrc)

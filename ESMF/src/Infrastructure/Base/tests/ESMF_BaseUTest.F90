@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2018, University Corporation for Atmospheric Research,
+! Copyright 2002-2019, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -60,6 +60,7 @@
       character(ESMF_MAXSTR) :: print_options
       character(ESMF_MAXSTR) :: validate_options
       character(ESMF_MAXSTR) :: name_set, name_get
+      character(ESMF_MAXSTR) :: obj_name
       ! instantiate a Base 
       type(ESMF_Base) :: base1, base2
       type(ESMF_AttReconcileFlag) :: attreconflag
@@ -368,11 +369,12 @@
       ! part of the supported ESMF user API!
       offset3 = 0
       call ESMF_BaseDeserializeIDVMId (buffer, offset3, &
-          id_inq, vmid_inq, rc=rc)
+          id_inq, vmid_inq, obj_name, rc=rc)
       write(name, *) "ESMF_BaseDeserializeID/VMId - perform deserialization inquiry"
       write(failMsg, *) "rc =", rc
       call ESMF_Test((rc == ESMF_SUCCESS), &
                       name, failMsg, result, ESMF_SRCLINE)
+      ! print *, 'After deserialization inquiry, obj_name: ', trim (obj_name)
 
       !EX_UTest
       ! Compare original vs inquired ids.

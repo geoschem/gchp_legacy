@@ -2,7 +2,7 @@
 $Id$
 
 Earth System Modeling Framework
-Copyright 2002-2018, University Corporation for Atmospheric Research,
+Copyright 2002-2019, University Corporation for Atmospheric Research,
 Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 Laboratory, University of Michigan, National Centers for Environmental
 Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -54,6 +54,9 @@ automatic initialization of types.
 #define ESMF_INIT_GET(var) var%isInit
 
 #ifdef ESMF_NO_INITIALIZERS
+
+ Error FOUND A CONFIGURATION THAT USES ESMF_NO_INITIALIZERS
+
 #define ESMF_INIT_DECLARE  ESMF_INIT_TYPE :: isInit
 #define ESMF_INIT_CHECK_SET_SHALLOW(fget,finit,var) \
              if (fget(var) .ne. ESMF_INIT_DEFINED) call \
@@ -82,9 +85,8 @@ if (ESMF_IMErrS(fget(var),__LINE__,ESMF_FILENAME,ESMF_METHOD,rc=rcvar)) return
 if (ESMF_IMErrS(fget(var),__LINE__,ESMF_FILENAME,"?",rc=rcvar)) return
 
 
-#define ESMF_INIT_C_PAD   char isInit[8]; 
-
 #else
+
 
 #define ESMF_INIT_GET(var) 0
 
@@ -104,8 +106,6 @@ if (ESMF_IMErrS(fget(var),__LINE__,ESMF_FILENAME,"?",rc=rcvar)) return
 #define ESMF_INIT_CHECK_DEEP_SHORT(fget,var, rcvar) 
 #define ESMF_INIT_CHECK_SHALLOW(fget,var, rcvar) 
 #define ESMF_INIT_CHECK_SHALLOW_SHORT(fget,var, rcvar)
-
-#define ESMF_INIT_C_PAD 
 
 #endif
 

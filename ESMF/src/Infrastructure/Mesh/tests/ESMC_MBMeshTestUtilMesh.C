@@ -2,7 +2,7 @@
 //==============================================================================
 //
 // Earth System Modeling Framework
-// Copyright 2002-2016, University Corporation for Atmospheric Research,
+// Copyright 2002-2019, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -34,7 +34,6 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-using namespace std;
 using ESMCI::MeshCXX;
 
 MeshCXX* create_nmesh_quad(int &rc) {

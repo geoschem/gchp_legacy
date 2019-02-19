@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2018, University Corporation for Atmospheric Research,
+! Copyright 2002-2019, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -807,6 +807,8 @@ exclusion_loop:  &
           if (present(rc)) rc = localrc
           return
       endif
+
+      call ESMF_LogSet (flush=.true.)
 
       ! get test start time
       call cpu_time(start_time)

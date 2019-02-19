@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2018, University Corporation for Atmospheric Research, 
+// Copyright 2002-2019, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -478,6 +478,32 @@ void MeshConcat(Mesh &mesh, std::vector<Mesh*> &srcmesh) {
   // Build storage
   mesh.Commit();
 
+  // Zero mesh node data as part of strategy for taking care of shared items
+  MeshDB::iterator ni = mesh.node_begin(), ne = mesh.node_end();
+  for (; ni != ne; ++ni) {
+    MeshObj &node = *ni;
+    
+    for (UInt f = 0; f < fields.size(); f++) {
+      double *da = fields[f]->data(node);
+      for (UInt d= 0; d < fields[f]->dim(); d++) {
+        da[d] = 0.0;
+      }
+    }  
+  }
+
+  // Zero mesh elem data as part of strategy for taking care of shared items
+  MeshDB::iterator ei = mesh.elem_begin(), ee = mesh.elem_end();
+  for (; ei != ee; ++ei) {
+    MeshObj &elem = *ei;
+    
+    for (UInt f = 0; f < efields.size(); f++) {
+      double *da = efields[f]->data(elem);
+      for (UInt d= 0; d < efields[f]->dim(); d++) {
+        da[d] = 0.0;
+      }
+    }  
+  }
+
   // Now set the values
   for (UInt i = 0; i < npart; i++) {
     Mesh &src = *srcmesh[i];
@@ -511,7 +537,7 @@ void MeshConcat(Mesh &mesh, std::vector<Mesh*> &srcmesh) {
           double *da = fields[f]->data(*mni);
           double *s = ofield[f]->data(onode);
           for (UInt d= 0; d < fields[f]->dim(); d++) {
-            da[d] = s[d];
+            if (s[d] != 0.0) da[d] = s[d];
           }
         }
       }
@@ -528,7 +554,7 @@ void MeshConcat(Mesh &mesh, std::vector<Mesh*> &srcmesh) {
           double *da = efields[f]->data(*mni);
           double *s = oefield[f]->data(oelem);
           for (UInt d= 0; d < efields[f]->dim(); d++) {
-            da[d] = s[d];
+            if (s[d] != 0.0) da[d] = s[d];
           }
         }
       }

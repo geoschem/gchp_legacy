@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2018, University Corporation for Atmospheric Research,
+! Copyright 2002-2019, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -1251,7 +1251,6 @@ subroutine ESMF_OutputScripWeightFile (wgtFile, factorList, factorIndexList, &
           allocate(src_grid_dims(2), stat=memstat)
           if (ESMF_LogFoundAllocError(memstat,  &
               ESMF_CONTEXT, rcToReturn=rc)) return
-
           call ESMF_GridspecInq(srcFile, src_ndims, src_grid_dims, &
                 dimids = src_dimids, coordids = src_coordids, &
                 coord_names = srccoordnames, hasbound=srchasbound, &
@@ -1265,6 +1264,19 @@ subroutine ESMF_OutputScripWeightFile (wgtFile, factorList, factorIndexList, &
           else
                 src_grid_corner = 4
           endif
+        else if (srcFileTypeLocal == ESMF_FILEFORMAT_TILE) then
+          allocate(src_grid_dims(2), stat=memstat)
+          if (ESMF_LogFoundAllocError(memstat,  &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+          ! this returns the size of the center stagger, not the supergrid
+          call ESMF_GridSpecQueryTileSize(srcfile, src_grid_dims(1), src_grid_dims(2), &
+                  units=srcunits, rc=status)
+          if (ESMF_LogFoundError(status, &
+                                     ESMF_ERR_PASSTHRU, &
+                                     ESMF_CONTEXT, rcToReturn=rc)) return
+          src_grid_rank = 2
+          srcDim = src_grid_dims(1)*src_grid_dims(2)
+          src_grid_corner = 4
         else if (srcFileTypeLocal == ESMF_FILEFORMAT_ESMFMESH) then
           ! If bilinear, we have to switch node and elment, so the nodeCount became srcDim and
           ! elementCount becomes srcNodeDim. Hard code src_grid_corner to 3.  The xv_a and xv_b
@@ -1361,6 +1373,19 @@ subroutine ESMF_OutputScripWeightFile (wgtFile, factorList, factorIndexList, &
           else
                 dst_grid_corner = 4
           endif
+        else if (dstFileTypeLocal == ESMF_FILEFORMAT_TILE) then
+          allocate(dst_grid_dims(2), stat=memstat)
+          if (ESMF_LogFoundAllocError(memstat,  &
+              ESMF_CONTEXT, rcToReturn=rc)) return
+          ! this returns the size of the center stagger, not the supergrid
+          call ESMF_GridSpecQueryTileSize(dstfile, dst_grid_dims(1),dst_grid_dims(2), &
+               units=dstunits, rc=status)
+          if (ESMF_LogFoundError(status, &
+                                     ESMF_ERR_PASSTHRU, &
+                                     ESMF_CONTEXT, rcToReturn=rc)) return
+          dst_grid_rank = 2
+          dstDim = dst_grid_dims(1)*dst_grid_dims(2)
+          dst_grid_corner = 4
         else if (dstFileTypeLocal == ESMF_FILEFORMAT_ESMFMESH) then
           ! If bilinear, we have to switch node and elment, so the nodeCount became dstDim and
           ! elementCount becomes dstNodeDim. Hard code dst_grid_corner to 3.  The xv_a and xv_b
@@ -2077,6 +2102,97 @@ subroutine ESMF_OutputScripWeightFile (wgtFile, factorList, factorIndexList, &
            if (ESMF_LogFoundDeallocError(memstat,  &
                ESMF_CONTEXT, rcToReturn=rc)) return
 
+        else if (srcFileTypeLocal == ESMF_FILEFORMAT_TILE) then
+           allocate(lonBuffer2(src_grid_dims(1),src_grid_dims(2)), &
+                    latBuffer2(src_grid_dims(1), src_grid_dims(2)), stat=memstat)
+           if (ESMF_LogFoundAllocError(memstat,  &
+               ESMF_CONTEXT, rcToReturn=rc)) return
+           allocate(cornerlon2D(src_grid_dims(1)+1,src_grid_dims(2)+1), &
+                    cornerlat2D(src_grid_dims(1)+1, src_grid_dims(2)+1), stat=memstat)
+           if (ESMF_LogFoundAllocError(memstat,  &
+                 ESMF_CONTEXT, rcToReturn=rc)) return
+
+           call ESMF_GridspecReadTile(srcFile, src_grid_dims(1), src_grid_dims(2), &
+                lonBuffer2, latBuffer2, cornerLon=cornerlon2D, cornerLat=cornerlat2D, &
+                rc=status)
+           if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+                ESMF_CONTEXT, rcToReturn=rc)) return
+           allocate(lonBuffer(srcDim), latBuffer(srcDim), stat=memstat)
+           if (ESMF_LogFoundAllocError(memstat,  &
+               ESMF_CONTEXT, rcToReturn=rc)) return
+
+           lonBuffer = reshape(lonBuffer2, (/srcDim/))
+           latBuffer = reshape(latBuffer2, (/srcDim/))
+           deallocate(lonBuffer2, latBuffer2, stat=memstat)
+           if (ESMF_LogFoundAllocError(memstat,  &
+               ESMF_CONTEXT, rcToReturn=rc)) return
+
+           allocate(lonBuffer2(src_grid_corner, srcDim),latBuffer2(src_grid_corner,srcDim), stat=memstat)
+           if (ESMF_LogFoundAllocError(memstat,  &
+               ESMF_CONTEXT, rcToReturn=rc)) return
+
+           k=1
+           do j=1,src_grid_dims(2)
+              do i=1,src_grid_dims(1)
+                lonBuffer2(1,k)=cornerlon2D(i,j) 
+                lonBuffer2(2,k)=cornerlon2D(i,j+1) 
+                lonBuffer2(3,k)=cornerlon2D(i+1,j+1) 
+                lonBuffer2(4,k)=cornerlon2D(i+1,j) 
+                latBuffer2(1,k)=cornerlat2D(i,j) 
+                latBuffer2(2,k)=cornerlat2D(i,j+1) 
+                latBuffer2(3,k)=cornerlat2D(i+1,j+1) 
+                latBuffer2(4,k)=cornerlat2D(i+1,j) 
+                k=k+1
+              enddo
+           enddo
+
+           deallocate(cornerlon2D, cornerlat2D, stat=memstat)
+           if (ESMF_LogFoundAllocError(memstat,  &
+               ESMF_CONTEXT, rcToReturn=rc)) return
+
+           ncStatus=nf90_inq_varid(ncid,"xc_a",VarId)
+           ncStatus=nf90_put_var(ncid,VarId, lonBuffer)
+           errmsg = "Variable xc_a in "//trim(wgtfile)
+           if (CDFCheckError (ncStatus, &
+             ESMF_METHOD, &
+             ESMF_SRCLINE,&
+             errmsg,&
+             rc)) return
+
+           ncStatus=nf90_inq_varid(ncid,"yc_a",VarId)
+           ncStatus=nf90_put_var(ncid,VarId, latBuffer)
+           errmsg = "Variable yc_a in "//trim(wgtfile)
+           if (CDFCheckError (ncStatus, &
+             ESMF_METHOD, &
+             ESMF_SRCLINE,&
+             errmsg,&
+             rc)) return
+           deallocate(latBuffer, lonBuffer, stat=memstat)
+           if (ESMF_LogFoundDeallocError(memstat,  &
+               ESMF_CONTEXT, rcToReturn=rc)) return
+
+        
+          ! Write xv_a, yv_a    
+           ncStatus=nf90_inq_varid(ncid,"xv_a",VarId)
+           ncStatus=nf90_put_var(ncid,VarId, lonBuffer2)
+           errmsg = "Variable xv_a in "//trim(wgtfile)
+           if (CDFCheckError (ncStatus, &
+             ESMF_METHOD, &
+             ESMF_SRCLINE,&
+             errmsg,&
+             rc)) return
+
+           ncStatus=nf90_inq_varid(ncid,"yv_a",VarId)
+           ncStatus=nf90_put_var(ncid,VarId, latBuffer2)
+           errmsg = "Variable yv_a in "//trim(wgtfile)
+           if (CDFCheckError (ncStatus, &
+             ESMF_METHOD, &
+             ESMF_SRCLINE,&
+             errmsg,&
+             rc)) return
+           deallocate(lonBuffer2, latBuffer2, stat=memstat)
+           if (ESMF_LogFoundDeallocError(memstat,  &
+               ESMF_CONTEXT, rcToReturn=rc)) return
 
         else if (srcFileTypeLocal == ESMF_FILEFORMAT_ESMFMESH) then
            ! ESMF unstructured grid
@@ -2727,6 +2843,98 @@ subroutine ESMF_OutputScripWeightFile (wgtFile, factorList, factorIndexList, &
              errmsg,&
              rc)) return
            deallocate(mask, stat=memstat)
+           if (ESMF_LogFoundDeallocError(memstat,  &
+               ESMF_CONTEXT, rcToReturn=rc)) return
+
+        else if (dstFileTypeLocal == ESMF_FILEFORMAT_TILE) then
+           allocate(lonBuffer2(dst_grid_dims(1),dst_grid_dims(2)), &
+                    latBuffer2(dst_grid_dims(1), dst_grid_dims(2)), stat=memstat)
+           if (ESMF_LogFoundAllocError(memstat,  &
+               ESMF_CONTEXT, rcToReturn=rc)) return
+           allocate(cornerlon2D(dst_grid_dims(1)+1,dst_grid_dims(2)+1), &
+                    cornerlat2D(dst_grid_dims(1)+1, dst_grid_dims(2)+1), stat=memstat)
+           if (ESMF_LogFoundAllocError(memstat,  &
+                 ESMF_CONTEXT, rcToReturn=rc)) return
+
+           call ESMF_GridspecReadTile(dstFile, dst_grid_dims(1), dst_grid_dims(2), &
+                lonBuffer2, latBuffer2, cornerLon=cornerlon2D, cornerLat=cornerlat2D, &
+                rc=status)
+           if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+                ESMF_CONTEXT, rcToReturn=rc)) return
+           allocate(lonBuffer(dstDim), latBuffer(dstDim), stat=memstat)
+           if (ESMF_LogFoundAllocError(memstat,  &
+               ESMF_CONTEXT, rcToReturn=rc)) return
+
+           lonBuffer = reshape(lonBuffer2, (/dstDim/))
+           latBuffer = reshape(latBuffer2, (/dstDim/))
+           deallocate(lonBuffer2, latBuffer2, stat=memstat)
+           if (ESMF_LogFoundAllocError(memstat,  &
+               ESMF_CONTEXT, rcToReturn=rc)) return
+
+           allocate(lonBuffer2(dst_grid_corner, dstDim),latBuffer2(dst_grid_corner,dstDim), stat=memstat)
+           if (ESMF_LogFoundAllocError(memstat,  &
+               ESMF_CONTEXT, rcToReturn=rc)) return
+
+           k=1
+           do j=1,dst_grid_dims(2)
+              do i=1,dst_grid_dims(1)
+                lonBuffer2(1,k)=cornerlon2D(i,j) 
+                lonBuffer2(2,k)=cornerlon2D(i,j+1) 
+                lonBuffer2(3,k)=cornerlon2D(i+1,j+1) 
+                lonBuffer2(4,k)=cornerlon2D(i+1,j) 
+                latBuffer2(1,k)=cornerlat2D(i,j) 
+                latBuffer2(2,k)=cornerlat2D(i,j+1) 
+                latBuffer2(3,k)=cornerlat2D(i+1,j+1) 
+                latBuffer2(4,k)=cornerlat2D(i+1,j) 
+                k=k+1
+              enddo
+           enddo
+
+           deallocate(cornerlon2D, cornerlat2D, stat=memstat)
+           if (ESMF_LogFoundAllocError(memstat,  &
+               ESMF_CONTEXT, rcToReturn=rc)) return
+
+           ncStatus=nf90_inq_varid(ncid,"xc_b",VarId)
+           ncStatus=nf90_put_var(ncid,VarId, lonBuffer)
+           errmsg = "Variable xc_b in "//trim(wgtfile)
+           if (CDFCheckError (ncStatus, &
+             ESMF_METHOD, &
+             ESMF_SRCLINE,&
+             errmsg,&
+             rc)) return
+
+           ncStatus=nf90_inq_varid(ncid,"yc_b",VarId)
+           ncStatus=nf90_put_var(ncid,VarId, latBuffer)
+           errmsg = "Variable yc_b in "//trim(wgtfile)
+           if (CDFCheckError (ncStatus, &
+             ESMF_METHOD, &
+             ESMF_SRCLINE,&
+             errmsg,&
+             rc)) return
+           deallocate(latBuffer, lonBuffer, stat=memstat)
+           if (ESMF_LogFoundDeallocError(memstat,  &
+               ESMF_CONTEXT, rcToReturn=rc)) return
+
+        
+          ! Write xv_b, yv_b    
+           ncStatus=nf90_inq_varid(ncid,"xv_b",VarId)
+           ncStatus=nf90_put_var(ncid,VarId, lonBuffer2)
+           errmsg = "Variable xv_b in "//trim(wgtfile)
+           if (CDFCheckError (ncStatus, &
+             ESMF_METHOD, &
+             ESMF_SRCLINE,&
+             errmsg,&
+             rc)) return
+
+           ncStatus=nf90_inq_varid(ncid,"yv_b",VarId)
+           ncStatus=nf90_put_var(ncid,VarId, latBuffer2)
+           errmsg = "Variable yv_b in "//trim(wgtfile)
+           if (CDFCheckError (ncStatus, &
+             ESMF_METHOD, &
+             ESMF_SRCLINE,&
+             errmsg,&
+             rc)) return
+           deallocate(lonBuffer2, latBuffer2, stat=memstat)
            if (ESMF_LogFoundDeallocError(memstat,  &
                ESMF_CONTEXT, rcToReturn=rc)) return
 
@@ -3762,7 +3970,8 @@ end subroutine ESMF_OutputScripVarFile
 ! !INTERFACE:
 subroutine ESMF_EsmfInq(filename, nodeCount, elementCount, &
                         maxNodePElement, coordDim,  &
-                        haveNodeMask, haveElmtMask, haveArea, rc)
+                        haveNodeMask, haveElmtMask, haveArea, &
+                        haveOrigGridDims, origGridDims, rc)
 
 ! !ARGUMENTS:
 
@@ -3774,6 +3983,8 @@ subroutine ESMF_EsmfInq(filename, nodeCount, elementCount, &
     logical, intent(out), optional :: haveNodeMask
     logical, intent(out), optional :: haveElmtMask
     logical, intent(out), optional :: haveArea
+    logical, intent(out), optional :: haveOrigGridDims
+    integer, intent(out), optional :: origGridDims(2)
     integer, intent(out), optional :: rc
 
     integer:: localrc, ncStatus
@@ -3880,6 +4091,33 @@ subroutine ESMF_EsmfInq(filename, nodeCount, elementCount, &
       else
            haveArea = .false.
       end if
+    end if
+
+    ! check if haveOrigGridDims
+    if (present(haveOrigGridDims)) then
+      ncStatus = nf90_inq_varid (ncid, "origGridDims", VarId)
+      if (ncStatus == nf90_noerror) then
+           haveOrigGridDims = .true.
+      else
+           haveOrigGridDims = .false.
+      end if
+    end if
+
+! XMRKX !
+    ! Get origGridDims
+    if (present(origGridDims)) then
+      ncStatus = nf90_inq_varid (ncid, "origGridDims", VarId)
+      errmsg = "Variable origGridDims in "//trim(filename)
+      if (CDFCheckError (ncStatus, &
+        ESMF_METHOD, &
+        ESMF_SRCLINE,errmsg,&
+        rc)) return
+
+      ncStatus=nf90_get_var(ncid, VarId, origGridDims)
+      if (CDFCheckError (ncStatus, &
+           ESMF_METHOD, &
+           ESMF_SRCLINE,errmsg,&
+           rc)) return
     end if
 
     if (present(rc)) rc=ESMF_SUCCESS

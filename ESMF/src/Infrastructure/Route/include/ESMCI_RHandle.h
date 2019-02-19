@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2018, University Corporation for Atmospheric Research, 
+// Copyright 2002-2019, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -88,6 +88,7 @@ namespace ESMCI {
     static RouteHandle *create(int *rc);
     static RouteHandle *create(RouteHandle *rh, InterArray<int> *originPetList,
       InterArray<int> *targetPetList, int *rc);
+    static RouteHandle *create(const std::string &file, int *rc);
     static int destroy(RouteHandle *routehandle, bool noGarbage=false);
     int construct(void);
     int destruct(void);
@@ -164,6 +165,9 @@ namespace ESMCI {
     // required methods inherited and overridden from the ESMC_Base class
     int validate() const;
     int print() const;
+    
+    // write RH to file
+    int write(const std::string &file) const;
 
     // optimize for the communication pattern stored inside the RouteHandle
     int optimize() const;

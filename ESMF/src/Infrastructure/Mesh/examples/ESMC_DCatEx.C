@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2018, University Corporation for Atmospheric Research, 
+// Copyright 2002-2019, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -95,18 +95,17 @@ int main(int argc, char *argv[]) {
     MeshConcat(catmesh, srcmesh);
 
     // Write the resulting concatenated file.
-    WriteMesh(catmesh, catmesh.filename(), 1, 0.0, ESMC_FILE_VTK);
+    WriteMesh(catmesh, catmesh.filename(), 0, NULL, 0, NULL,
+              1, 0.0, ESMC_FILE_VTK);
 
   
   } catch (std::runtime_error &ex) {
     std::cerr << "runtime exception:" << ex.what() << std::endl;
     Par::Abort();
-  }
-   catch (const char *msg) {
+  } catch (const char *msg) {
     std::cerr << "exception:" << msg << std::endl;
     Par::Abort();
-  }
-  catch(std::exception &ex) {
+  } catch(std::exception &ex) {
     std::cerr << "exception:" << ex.what() << std::endl;
     Par::Abort();
   }
@@ -114,7 +113,6 @@ int main(int argc, char *argv[]) {
   Par::End();
 
   return 0;
-  
 }
 
 

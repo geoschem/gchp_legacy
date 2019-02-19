@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2018, University Corporation for Atmospheric Research,
+// Copyright 2002-2019, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -42,7 +42,7 @@
 #define ESMF_SUCCESS  0
 #define ESMF_FAILURE -1
 
-#define ESMF_MAXSTR 128
+#define ESMF_MAXSTR 256
 #define ESMF_MAXDIM 7
 #define ESMF_MAXIGRIDDIM 3
 // TODO:FIELDINTEGRATION: Remove the MAXIGRIDDIM and increase the 
