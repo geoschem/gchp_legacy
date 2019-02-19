@@ -292,7 +292,7 @@
 
 !  All done
 !  --------
-   call exit(0)
+   stop 0
 
 CONTAINS
 
@@ -377,25 +377,25 @@ CONTAINS
       if ( iarg .gt. argc ) then
         exit
       endif
-      call GetArg ( iArg, argv )
+      call Get_Command_Argument ( iArg, argv )
       if(index(argv,'-o') .gt. 0 ) then
          if ( iarg+1 .gt. argc ) call usage_()
          iarg = iarg + 1
-         call GetArg ( iArg, outFile )
+         call Get_Command_Argument ( iArg, outFile )
       else if(index(argv,'-noshave') .gt. 0 ) then
          noshave = .true.
       else if(index(argv,'-nbits') .gt. 0 ) then
          if ( iarg+1 .gt. argc ) call usage_()
          iarg = iarg + 1
-         call GetArg ( iArg, argv )
+         call Get_Command_Argument ( iArg, argv )
          read(argv,*) nbits
       else if(index(argv,'-skipvars') .gt. 0 ) then
          if ( iarg+1 .gt. argc ) call usage_()
          iarg = iarg + 1
-         call GetArg ( iArg, argv )
+         call Get_Command_Argument ( iArg, argv )
          call split_ ( ',', argv, mVars, Vars, nskip_vars )
       else if(index(argv,'-prec') .gt. 0 ) then
-         call GetArg ( iArg, argv )
+         call Get_Command_Argument ( iArg, argv )
          read(argv,*) outPrec
       else
          inFile = argv
@@ -465,7 +465,7 @@ print *
       print *, '        ',myname
       print *, '   ',string
       print *, ' --------------------------------'
-      call exit(1)
+      stop 1
       return
       end subroutine builtin_die
 ! -------------------------------------------------------------------

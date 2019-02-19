@@ -10,7 +10,7 @@
 # Make sure ESMADIR is defined
 # ----------------------------
 ifndef ESMADIR
-       ESMADIR := $(PWD)/../..
+       ESMADIR := $(PWD)/../../..
 endif
 
 THIS := $(shell basename `pwd`)
@@ -31,6 +31,7 @@ BINS = # Chem_SettlingCalculator.x
 esma_install install: $(DEPS) $(LIB) $(BINS)
 	$(MKDIR) $(ESMALIB) $(ESMAETC) $(INC_CHEM_SHARED)
 	$(CP) -p *.mod   $(INC_CHEM_SHARED)
+	$(CP) -p *.h     $(INC_CHEM_SHARED)
 	$(CP) -p *.a     $(ESMALIB)
 #	$(CP) -p $(BINS) $(ESMABIN)
 
@@ -72,8 +73,11 @@ endif
 SRCS = $(FVGCM_SRCS) Chem_ConstMod.F90 Chem_SettlingMod.F90 \
        DryDepositionMod.F90 DustEmissionMod.F90 \
        WetRemovalMod.F90 SeasaltEmissionMod.F90 \
+       NitrateChemDriverMod.F90 \
        SulfateChemDriverMod.F90 ConvectionMod.F90 \
-       SmokeEmissionMod.F90 $(CHEM_UTIL)
+       SmokeEmissionMod.F90 VegLaiMod.F90 GmiPrintError_mod.F90 \
+       GmiTimeControl_mod.F90 GmiSolar_mod.F90 GmiResistance.F90 \
+       GmiEmissUtils.F90 Henrys_Law_cts.F90 $(CHEM_UTIL)
 OBJS := $(addsuffix .o, $(basename $(SRCS)))
 DEPS := $(addsuffix .d, $(basename $(SRCS))) \
         $(addsuffix .d, $(basename $(BINS)))
@@ -116,12 +120,13 @@ vpath % $(MOD_DIRS)
 $(LIB) lib : $(OBJS)
 	$(RM) $(LIB_CHEM_SHARED)
 	$(AR) $(AR_FLAGS) $(LIB) $(OBJS)
+	$(RANLIB) $(RANLIB_FLAGS) $(LIB)
 
 %.x : $(LIB) %.o 
 	$(LD) $(LDFLAGS) -o $@ $*.o $(LIB) $(LIB_CHEM_BASE) $(LIB_MAPL_BASE) \
                                     $(LIB_CFIO) $(LIB_EU) $(LIB_GFIO) \
-                                    $(LIB_MFHDF3) $(LIB_PILGRIM) $(LIB_SDF) \
-                                    $(LIB_ESMF) $(LIB_SYS) $(LIB_MPI)
+                                    $(LIB_MFHDF3) $(LIB_PILGRIM) $(LIB_ESMF) \
+                                    $(LIB_SDF) $(LIB_SYS) $(LIB_MPI)
 
 # Hack to prevent remaking dep files during cleaning
 # --------------------------------------------------

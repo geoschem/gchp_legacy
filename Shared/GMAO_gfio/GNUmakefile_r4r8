@@ -89,7 +89,7 @@ help:
 	@ echo "  make depend"  
 
 GFIOSRC = gfio___.F gfioCF.F diffdate.f getdate.f timesubs.f gfioutil___.F \
-          m_GFIO_GetFld.f m_GFIO_PutFld.f gfio_flush.F GFIO_py.F90
+          m_GFIO_GetFld.f m_GFIO_PutFld.f GFIO_py.F90
 
 #                  --------------------
 #                  User Defined Targets

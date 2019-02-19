@@ -575,7 +575,7 @@ subroutine genv_(tmpl,lnt,i,istp,str,lns,k,ier)
 
   istp=j-i
 
-  call getenv(tmpl(jb:je),env)
+  call get_environment_variable(tmpl(jb:je), env)
   l=len_trim(env)
   m=min(k+l-1,lns)
   str(k:m)=env

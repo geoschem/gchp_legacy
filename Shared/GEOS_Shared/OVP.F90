@@ -319,13 +319,13 @@ contains
 
 ! !ARGUMENTS
 
-     REAL, POINTER, DIMENSION(:,:),   INTENT(in)  :: SOURCE_FIELD
-     REAL, POINTER, DIMENSION(:,:),   INTENT(out) :: OVERPASS_FIELD
-     INTEGER,       DIMENSION(:,:),   INTENT(in)  :: OVP_MASK
-     INTEGER,                         INTENT(in)  :: FIRST_HMS
-     INTEGER,                         INTENT(in)  :: CURRENT_HMS
-     REAL, OPTIONAL,                  INTENT(in)  :: SCALE
-     INTEGER, OPTIONAL,               INTENT(out) :: RC           ! Error code
+     REAL, POINTER, DIMENSION(:,:),   INTENT(in)    :: SOURCE_FIELD
+     REAL, POINTER, DIMENSION(:,:),   INTENT(inout) :: OVERPASS_FIELD
+     INTEGER,       DIMENSION(:,:),   INTENT(in)    :: OVP_MASK
+     INTEGER,                         INTENT(in)    :: FIRST_HMS
+     INTEGER,                         INTENT(in)    :: CURRENT_HMS
+     REAL, OPTIONAL,                  INTENT(in)    :: SCALE
+     INTEGER, OPTIONAL,               INTENT(out)   :: RC           ! Error code
 
 ! !DESCRIPTION
 
@@ -364,7 +364,7 @@ contains
       IF( .NOT. ASSOCIATED(SOURCE_FIELD) ) THEN
         IF(MAPL_AM_I_ROOT()) PRINT *, "OVP_apply_mask_2D: Cannot extract values because source-field is not available"
         RC=99
-        VERIFY_(RC)
+        _VERIFY(RC)
       END IF
 
       IF ( CURRENT_HMS == FIRST_HMS ) OVERPASS_FIELD(:,:) = -987.0    ! SET UNDEFINED ON FIRST TIMESTEP OF THE DAY
@@ -392,14 +392,14 @@ contains
 
 ! !ARGUMENTS
 
-     REAL, POINTER, DIMENSION(:,:,:), INTENT(in)  :: SOURCE_FIELD
-     REAL, POINTER, DIMENSION(:,:,:), INTENT(out) :: OVERPASS_FIELD
-     INTEGER,       DIMENSION(:,:),   INTENT(in)  :: OVP_MASK
-     INTEGER,                         INTENT(in)  :: FIRST_HMS
-     INTEGER,                         INTENT(in)  :: CURRENT_HMS
-     LOGICAL,                         INTENT(in)  :: K_EDGES     ! TRUE: k starts at 0, FALSE: k starts at 1
-     REAL, OPTIONAL,                  INTENT(in)  :: SCALE
-     INTEGER, OPTIONAL,               INTENT(out) :: RC           ! Error code
+     REAL, POINTER, DIMENSION(:,:,:), INTENT(in)    :: SOURCE_FIELD
+     REAL, POINTER, DIMENSION(:,:,:), INTENT(inout) :: OVERPASS_FIELD
+     INTEGER,       DIMENSION(:,:),   INTENT(in)    :: OVP_MASK
+     INTEGER,                         INTENT(in)    :: FIRST_HMS
+     INTEGER,                         INTENT(in)    :: CURRENT_HMS
+     LOGICAL,                         INTENT(in)    :: K_EDGES     ! TRUE: k starts at 0, FALSE: k starts at 1
+     REAL, OPTIONAL,                  INTENT(in)    :: SCALE
+     INTEGER, OPTIONAL,               INTENT(out)   :: RC           ! Error code
 
 ! !DESCRIPTION
 
@@ -441,7 +441,7 @@ contains
       IF( .NOT. ASSOCIATED(SOURCE_FIELD) ) THEN
         IF(MAPL_AM_I_ROOT()) PRINT *, "OVP_apply_mask_3D: Cannot extract values because source-field is not available"
         RC=99
-        VERIFY_(RC)
+        _VERIFY(RC)
       END IF
 
       km = SIZE(SOURCE_FIELD(1,1,:))

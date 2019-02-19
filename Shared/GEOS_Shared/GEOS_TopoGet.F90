@@ -1,5 +1,5 @@
 ! $Id$
-! VERIFY_ and RETURN_ macros for error handling
+! _VERIFY and _RETURN macros for error handling
 
 #include "MAPL_Generic.h"
 
@@ -127,37 +127,37 @@ contains
 ! Initialize CONFIG File into MAPL Object
 ! ---------------------------------------
     call MAPL_Set (MAPLOBJ, name='DUMMY', cf=cf, rc=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
 ! Get filenames for Get_Topo utility
 ! ----------------------------------
     call ESMF_ConfigGetAttribute ( cf, value=filename(1), label ='TOPO_MEAN_FILE:',     &
                                    default='hmean.2.5x2.5min.data', rc=status )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call ESMF_ConfigGetAttribute ( cf, value=filename(2), label ='TOPO_GWDVAR_FILE:',   &
                                    default='hgrav_var.2.5x2.5min.data', rc=status )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call ESMF_ConfigGetAttribute ( cf, value=filename(3), label ='TOPO_GWDVARX_FILE:',  &
                                    default='hgrav_varx.2.5x2.5min.data', rc=status )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call ESMF_ConfigGetAttribute ( cf, value=filename(4), label ='TOPO_GWDVARY_FILE:',  &
                                    default='hgrav_vary.2.5x2.5min.data', rc=status )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call ESMF_ConfigGetAttribute ( cf, value=filename(5), label ='TOPO_GWDVARXY_FILE:', &
                                    default='hgrav_varxy.2.5x2.5min.data', rc=status )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call ESMF_ConfigGetAttribute ( cf, value=filename(6), label ='TOPO_GWDVARYX_FILE:', &
                                    default='hgrav_varyx.2.5x2.5min.data', rc=status )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call ESMF_ConfigGetAttribute ( cf, value=filename(7), label ='TOPO_TRBVAR_FILE:',   &
                                    default='hturb_var.2.5x2.5min.data', rc=status )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
   if( present(MEAN)  ) then
 ! -------------------------
@@ -171,7 +171,7 @@ contains
   if( present(GWDVAR) ) then
 ! --------------------------
        call MAPL_GetResource( MAPLOBJ, GWDFAC, label="GWDVAR_FACTOR:",  default = 1.0, RC=STATUS )
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
        UNIT = GETFILE  (filename(2), form="unformatted")
        call MAPL_VarRead (UNIT,GWDVAR)
        CALL FREE_FILE    (UNIT)
@@ -182,7 +182,7 @@ contains
   if( present(GWDVARX) ) then
 ! ---------------------------
        call MAPL_GetResource( MAPLOBJ, GWDFACX, label="GWDVARX_FACTOR:",  default = 1.0, RC=STATUS )
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
        UNIT = GETFILE  (filename(3), form="unformatted")
        call MAPL_VarRead (UNIT,GWDVARX)
        CALL FREE_FILE    (UNIT)
@@ -193,7 +193,7 @@ contains
   if( present(GWDVARY) ) then
 ! ---------------------------
        call MAPL_GetResource( MAPLOBJ, GWDFACY, label="GWDVARY_FACTOR:",  default = 1.0, RC=STATUS )
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
        UNIT = GETFILE  (filename(4), form="unformatted")
        call MAPL_VarRead (UNIT,GWDVARY)
        CALL FREE_FILE    (UNIT)
@@ -204,7 +204,7 @@ contains
   if( present(GWDVARXY) ) then
 ! ----------------------------
        call MAPL_GetResource( MAPLOBJ, GWDFACXY, label="GWDVARXY_FACTOR:",  default = 1.0, RC=STATUS )
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
        UNIT = GETFILE  (filename(5), form="unformatted")
        call MAPL_VarRead (UNIT,GWDVARXY)
        CALL FREE_FILE    (UNIT)
@@ -215,7 +215,7 @@ contains
   if( present(GWDVARYX) ) then
 ! ----------------------------
        call MAPL_GetResource( MAPLOBJ, GWDFACYX, label="GWDVARYX_FACTOR:",  default = 1.0, RC=STATUS )
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
        UNIT = GETFILE  (filename(6), form="unformatted")
        call MAPL_VarRead (UNIT,GWDVARYX)
        CALL FREE_FILE    (UNIT)
@@ -226,7 +226,7 @@ contains
   if( present(TRBVAR) ) then
 ! --------------------------
        call MAPL_GetResource( MAPLOBJ, TRBFAC, label="TRBVAR_FACTOR:",  default = 1.0, RC=STATUS )
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
        UNIT = GETFILE  (filename(7), form="unformatted")
        call MAPL_VarRead (UNIT,TRBVAR)
        CALL FREE_FILE    (UNIT)

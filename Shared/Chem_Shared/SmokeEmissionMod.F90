@@ -1,3 +1,4 @@
+#include "unused_dummy.H"
 !-------------------------------------------------------------------------
 !         NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
 !-------------------------------------------------------------------------
@@ -205,6 +206,9 @@ logical :: use_profile     ! If MINX observations exist, use them
 real :: z
 
 real, parameter :: smallval = 1.0e-37          ! FPE testing
+
+_UNUSED_DUMMY(nymd)
+_UNUSED_DUMMY(nhms)
 
 !--
 !  Initialize local variables

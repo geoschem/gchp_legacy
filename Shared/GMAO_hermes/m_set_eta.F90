@@ -22,7 +22,7 @@
 #ifdef HERMES
 
       module m_set_eta
-
+         use, intrinsic :: iso_fortran_env, only: REAL32, REAL64
       PRIVATE
       PUBLIC set_eta
       PUBLIC get_ref_plevs
@@ -1006,13 +1006,13 @@ CONTAINS
 
     subroutine get_ref_plevs_r4_ ( ak, bk, ptop, plev, p0 )
     implicit none
-    real(4), intent(in) :: ak(:), bk(:)
-    real(4), intent(in) :: ptop
-    real(4), intent(inout) :: plev(:)
-    real(4), intent(in), optional :: p0
+    real(kind=REAL32), intent(in) :: ak(:), bk(:)
+    real(kind=REAL32), intent(in) :: ptop
+    real(kind=REAL32), intent(inout) :: plev(:)
+    real(kind=REAL32), intent(in), optional :: p0
 
     integer k,nlev
-    real(4) p0_
+    real(kind=REAL32) p0_
 
     p0_=98400.
     if(present(p0)) then
@@ -1027,9 +1027,9 @@ CONTAINS
     plev(1:nlev) = plev(1:nlev) / 100.
 
       contains
-      real(4) function dpref_ (k,pbot)
+      real(kind=REAL32) function dpref_ (k,pbot)
       integer k
-      real(4) pbot
+      real(kind=REAL32) pbot
       dpref_   = ( ak(k+1) - ak(k) ) + &
                  ( bk(k+1) - bk(k) ) * pbot
       end function dpref_
@@ -1037,13 +1037,13 @@ CONTAINS
 
     subroutine get_ref_plevs_r8_ ( ak, bk, ptop, plev, p0 )
     implicit none
-    real(8), intent(in) :: ak(:), bk(:)
-    real(8), intent(in) :: ptop
-    real(8), intent(inout) :: plev(:)
-    real(8), intent(in), optional :: p0
+    real(kind=REAL64), intent(in) :: ak(:), bk(:)
+    real(kind=REAL64), intent(in) :: ptop
+    real(kind=REAL64), intent(inout) :: plev(:)
+    real(kind=REAL64), intent(in), optional :: p0
 
     integer k,nlev
-    real(8) p0_
+    real(kind=REAL64) p0_
     p0_=98400.d0
     if(present(p0)) then
       p0_=p0
@@ -1056,9 +1056,9 @@ CONTAINS
     plev(1:nlev) = plev(1:nlev) / 100.
 
       contains
-      real(8) function dpref_ (k,pbot)
+      real(kind=REAL64) function dpref_ (k,pbot)
       integer k
-      real(8) pbot
+      real(kind=REAL64) pbot
       dpref_   = ( ak(k+1) - ak(k) ) + &
                  ( bk(k+1) - bk(k) ) * pbot
       end function dpref_

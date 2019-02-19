@@ -20,20 +20,19 @@
       character*5 zz 
       integer vv(8)
       character*200 name,argin(3),user_def_reg
-      integer*4 iargc
       logical present,regon
       regon=.false.
 c Test for the existence of .zeit.  If it's not around then create
 c a new file later.  Otherwise open the old one now.
       
 c     Process argument list
-      n=iargc()
+      n=command_argument_count()
       select case(n)
       case(0)             !Print usage list
          call zeit_usage('zeit_ci')
          stop
       case(1)                  
-         call getarg(1,argin(1))                 
+         call get_command_argument(1,argin(1))                 
          if(argin(1).eq.'-v')then
             name='main'
             inquire(file='.zeit',exist=present)
@@ -63,8 +62,8 @@ c     Process argument list
      $           tt(3:4),tt(5:6),tt(8:10)
          endif
       case(2)                     
-         call getarg(1,argin(1))
-         call getarg(2,argin(2))      
+         call get_command_argument(1,argin(1))
+         call get_command_argument(2,argin(2))      
          if(argin(1).eq.'-v')then
             name=argin(2)
             inquire(file='.zeit',exist=present)
@@ -99,9 +98,9 @@ c     Process argument list
             stop
          endif
       case(3)
-         call getarg(1,argin(1))
-         call getarg(2,user_def_reg)
-         call getarg(3,argin(3))
+         call get_command_argument(1,argin(1))
+         call get_command_argument(2,user_def_reg)
+         call get_command_argument(3,argin(3))
          if(argin(1).eq.'-r')then
             if(argin(3).eq.'-v')then
                name='main'
@@ -135,10 +134,10 @@ c     Process argument list
             stop
          endif
       case(4)
-         call getarg(1,argin(1))
-         call getarg(2,argin(2))
-         call getarg(3,argin(3))
-         call getarg(4,name)
+         call get_command_argument(1,argin(1))
+         call get_command_argument(2,argin(2))
+         call get_command_argument(3,argin(3))
+         call get_command_argument(4,name)
          if(argin(1).eq.'-r'.and.argin(3).eq.'-v')then
             user_def_reg=argin(2)
             call date_and_time(dd,tt,zz,vv)

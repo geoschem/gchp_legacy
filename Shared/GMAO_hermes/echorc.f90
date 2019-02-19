@@ -66,7 +66,7 @@
         call i90_loadf ( trim(rcfile), ier )
         if ( ier .ne. 0 ) then
           write(6,'(2a)') 'cannot find rc file ' // trim(rcfile)
-          call exit (1)
+          stop 1
         endif
 
        fullvar = trim(var) // '::'
@@ -86,7 +86,7 @@
                  endif
                  if (ier/=0) then
                      write(6,'(2a,i5)') 'echorc.x: I90_GToken error, ier=', ier
-                     call exit(1)
+                     stop 1
                  end if
                  if (template) then
                      call strTemplate ( fld, varentry, 'GRADS', trim(expid), &
@@ -106,7 +106,7 @@
          call i90_label ( trim(fullvar), ier )
          if ( ier .ne. 0 ) then
              write(6,'(a)') 'cannot find variable string in rc file '
-             call exit (1)
+             stop 1
          else
             call i90_gtoken ( varentry, ier )
                if ( ier .ne. 0 ) call die (myname, 'premature end of rc file')
@@ -132,7 +132,7 @@
 
    endif
 
-   call exit(0)
+   stop 0
 
    CONTAINS
 
@@ -182,7 +182,7 @@
    norc     = .false.   ! default: read template from resource file
    ncol     = 1
 
-   argc =  iargc()
+   argc =  command_argument_count()
    if ( argc .lt. 1 ) call usage_()
    iarg = 0
 lp:  do i = 1, 32767
@@ -190,17 +190,17 @@ lp:  do i = 1, 32767
         if ( iarg .gt. argc ) then
              exit lp
         endif 
-        call GetArg ( iArg, argv )
+        call Get_Command_Argument ( iArg, argv )
         if (index(argv,'-template') .gt. 0 ) then
              if ( iarg+3 .gt. argc ) call usage_()
              iarg = iarg + 1
-             call GetArg ( iArg, argv )
+             call Get_Command_Argument ( iArg, argv )
              read(argv,*) expid
              iarg = iarg + 1
-             call GetArg ( iArg, argv )
+             call Get_Command_Argument ( iArg, argv )
              read(argv,*) nymd
              iarg = iarg + 1
-             call GetArg ( iArg, argv )
+             call Get_Command_Argument ( iArg, argv )
              read(argv,*) nhms
              template = .true.
         elseif (index(argv,'-fill') .gt. 0 ) then
@@ -208,7 +208,7 @@ lp:  do i = 1, 32767
         elseif (index(argv,'-ncol') .gt. 0 ) then
            if ( iarg+1 .gt. argc ) call usage_()
            iarg = iarg + 1
-           call GetArg ( iArg, argv )
+           call Get_Command_Argument ( iArg, argv )
            read(argv,*) ncol
         elseif (index(argv,'-var') .gt. 0 ) then
            if ( iarg+1 .gt. argc ) call usage_()
@@ -216,7 +216,7 @@ lp:  do i = 1, 32767
         elseif (index(argv,'-rc') .gt. 0 ) then
              if ( iarg+1 .gt. argc ) call usage_()
              iarg = iarg + 1
-             call GetArg ( iarg, rcfile )
+             call Get_Command_Argument ( iarg, rcfile )
         else
            var = trim(argv)
         end if

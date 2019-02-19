@@ -1,4 +1,5 @@
 #include "MAPL_Generic.h"
+#include "unused_dummy.H"
 !-------------------------------------------------------------------------
 !         NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
 !-------------------------------------------------------------------------
@@ -86,8 +87,8 @@ CONTAINS
                                         u, v, delp, tmpu, cloud, rhoa, hghte, &
                                         ustar, shflux, oro, pblh, z0h, &
                                         SU_dep, SU_PSO2, SU_PMSA, &
-                                        SU_PSO4g, SU_PSO4aq, &        ! 2d diagnostics
-                                        pso2, pmsa, pso4g, pso4aq,  & ! 3d diagnostics
+                                        SU_PSO4, SU_PSO4g, SU_PSO4aq, &     ! 2d diagnostics
+                                        pso2, pmsa, pso4, pso4g, pso4aq,  & ! 3d diagnostics
                                         rc)
 
 
@@ -110,8 +111,8 @@ CONTAINS
    type(Chem_Array), intent(inout)     :: SU_dep(nbins)  ! Mass lost by deposition
                                                          ! to surface, kg/m2/s
 !  chemical production terms d(mixing ratio) /s
-   type(Chem_Array), intent(inout)     :: su_pSO2, su_pMSA, su_pSO4g, su_pSO4aq
-   type(Chem_Array), intent(inout)     :: pSO2, pMSA, pSO4g, pSO4aq 
+   type(Chem_Array), intent(inout)     :: su_pSO2, su_pMSA, su_PSO4, su_pSO4g, su_pSO4aq
+   type(Chem_Array), intent(inout)     :: pSO2, pMSA, pSO4, pSO4g, pSO4aq 
 
    integer, intent(out)                :: rc          ! Error return code:
                                                       !  0 - all is well
@@ -144,12 +145,18 @@ CONTAINS
 
 ! !Local Variables
    real    :: cossza(i1:i2,j1:j2), sza(i1:i2,j1:j2)
-   integer :: i, j, k, n, jday
+   integer :: k, n, jday
    real    :: pSO2_DMS(i1:i2,j1:j2,1:km), pMSA_DMS(i1:i2,j1:j2,1:km), &
               pSO4g_SO2(i1:i2,j1:j2,1:km), pSO4aq_SO2(i1:i2,j1:j2,1:km)
    real    :: drydepositionfrequency(i1:i2,j1:j2)
-   real    :: qmin, qmax, xhour
+   real    :: xhour
    integer :: ijl, ijkl
+#ifdef DEBUG
+   real :: qmin, qmax
+#endif
+   _UNUSED_DUMMY(nbeg)
+   _UNUSED_DUMMY(u)
+   _UNUSED_DUMMY(v)
 
    ijl  = ( i2 - i1 + 1 ) * ( j2 - j1 + 1 )
    ijkl = ijl * km
@@ -161,10 +168,12 @@ CONTAINS
    pSO4aq_SO2(i1:i2,j1:j2,1:km) = 0.
    if( associated(su_pSO2%data2d) )   su_pSO2%data2d(i1:i2,j1:j2) = 0.
    if( associated(su_pMSA%data2d) )   su_pMSA%data2d(i1:i2,j1:j2) = 0.
+   if( associated(su_pSO4%data2d) )   su_pSO4%data2d(i1:i2,j1:j2) = 0.
    if( associated(su_pSO4g%data2d) )  su_pSO4g%data2d(i1:i2,j1:j2) = 0.
    if( associated(su_pSO4aq%data2d) ) su_pSO4aq%data2d(i1:i2,j1:j2) = 0.
    if( associated(pSO2%data3d) )      pSO2%data3d(i1:i2,j1:j2,1:km) = 0.
    if( associated(pMSA%data3d) )      pMSA%data3d(i1:i2,j1:j2,1:km) = 0.
+   if( associated(pSO4%data3d) )      pSO4%data3d(i1:i2,j1:j2,1:km) = 0.
    if( associated(pSO4g%data3d) )     pSO4g%data3d(i1:i2,j1:j2,1:km) = 0.
    if( associated(pSO4aq%data3d) )    pSO4aq%data3d(i1:i2,j1:j2,1:km) = 0.
 
@@ -237,6 +246,19 @@ CONTAINS
           + pSO4aq_SO2(i1:i2,j1:j2,k)*delp(i1:i2,j1:j2,k)/grav
      enddo
    endif
+
+   if( associated(pSO4%data3d) ) &
+     pSO4%data3d(i1:i2,j1:j2,1:km) = pSO4g_SO2(i1:i2,j1:j2,1:km) + pSO4aq_SO2(i1:i2,j1:j2,1:km)
+   if( associated(su_pSO4%data2d)) then
+     do k = 1, km
+      su_pSO4%data2d(i1:i2,j1:j2) &
+        =   su_pSO4%data2d(i1:i2,j1:j2) &
+          + pSO4g_SO2(i1:i2,j1:j2,k)*delp(i1:i2,j1:j2,k)/grav   &
+          + pSO4aq_SO2(i1:i2,j1:j2,k)*delp(i1:i2,j1:j2,k)/grav
+     enddo
+   endif
+
+
 
 !  SO4 source and loss
    call SU_ChemDrv_SO4( i1, i2, j1, j2, km, cdt, so4, delp, &
@@ -341,17 +363,18 @@ CONTAINS
 
 ! !Local Variables
    integer :: i, j, k
-   real*8  :: Fx, a, b, eff
+   real*8  :: Fx, b, eff
    real*8  :: rk1, rk2, rk3, rk4
    real*8  :: tk, o2, oh, no3, air
    real*8  :: dms, dms0, dms_oh
-   real :: qmin, qmax
 
    data Fx  / 1.0 /
-   data a   / 0.75 /
    data b   / 0.25 /
    data eff / 1. /
-   
+
+   _UNUSED_DUMMY(delp)
+   _UNUSED_DUMMY(drydepf)
+
 !  spatial loop 
    do k = 1, km
     do j = j1, j2
@@ -507,8 +530,6 @@ CONTAINS
    real*8  :: rk1, rk2, rk, rkt, f1
    real*8  :: L1, L2, Ld, SO2, SO2_cd, fc, fMR
    real*8  :: oh, h2o2, SO20, tk, air, k0, ki, kk
-   real*8  :: dms, dms0, dms_oh
-   real    :: qmin, qmax
    real, dimension(i1:i2,j1:j2) :: fout
 
    data ki / 1.5e-12 /
@@ -850,21 +871,22 @@ CONTAINS
                                       grid, lonRad, latRad, &
                                       rhoa, &
                                       nymd_last, &
-				      oh_clim, no3_clim, h2o2_clim, &
-                                      xoh, xno3, xh2o2 )
+                                      oh_clim, no3_clim, h2o2_clim, &
+                                      xoh, xno3, xh2o2, recycle_h2o2 )
 
 !
 !  Input
    type(ESMF_State), intent(inout) :: impChem
    character(len=*), intent(in   ) :: iName
-   integer :: i1, i2, im, j1, j2, jm, km
-   real    :: cdt
-   integer :: nymd_current, &   ! current model NYMD
-              nhms_current, &   ! current model NHMS
-              nymd_last         ! NYMD of last emission update
-   logical :: using_GMI_OH, &
-              using_GMI_NO3, &
-              using_GMI_H2O2
+   integer, intent(in)    :: i1, i2, im, j1, j2, jm, km
+   real, intent(in)       :: cdt
+   integer, intent(in)    :: nymd_current, &   ! current model NYMD
+                             nhms_current      ! current model NHMS
+   integer, intent(inout) :: nymd_last         ! NYMD of last emission update
+   logical, intent(inout) :: recycle_h2o2      ! triggers recycling of H2O2
+   logical, intent(in)    :: using_GMI_OH, &
+                             using_GMI_NO3, &
+                             using_GMI_H2O2
    type(ESMF_Grid)  :: grid
    real, pointer, dimension(:,:) :: lonRad, latRad
 
@@ -878,15 +900,18 @@ CONTAINS
                                       rhoa
 
 !  Local
-   integer :: i, j, k, ijl, ijkl, jday
-   integer :: nymd1, nhms1
+   integer :: i, j, k, jday
    integer :: STATUS
-   real    :: qmin, qmax, xhour, xhouruse
+   real    :: qmax, xhour, xhouruse
    real    :: cossza(i1:i2,j1:j2), sza(i1:i2,j1:j2)
    real    :: tcosz(i1:i2,j1:j2), tday(i1:i2,j1:j2), tnight(i1:i2,j1:j2)
    integer :: n, ndystep
-   real, pointer :: ptr2d(:,:)   => null()
    real, pointer :: ptr3d(:,:,:) => null()
+
+   _UNUSED_DUMMY(im)
+   _UNUSED_DUMMY(jm)
+   _UNUSED_DUMMY(grid)
+
 
 ! Update emissions/production if necessary (daily)
 !  -----------------------------------------------
@@ -898,6 +923,7 @@ CONTAINS
     IF(.NOT. using_GMI_OH) THEN
      call MAPL_GetPointer(impChem,ptr3d,"SU_OH"//trim(iName),rc=status)
      oh_clim = ptr3d
+
      where(1.01*oh_clim(i1:i2,j1:j2,1:km) > undefval) oh_clim(i1:i2,j1:j2,1:km) = 0.
      where(     oh_clim(i1:i2,j1:j2,1:km) < 0       ) oh_clim(i1:i2,j1:j2,1:km) = 0.
     END IF
@@ -906,6 +932,7 @@ CONTAINS
     IF(.NOT. using_GMI_NO3) THEN
      call MAPL_GetPointer(impChem,ptr3d,"SU_NO3"//trim(iName),rc=status)
      no3_clim = ptr3d
+
      where(1.01*no3_clim(i1:i2,j1:j2,1:km) > undefval) no3_clim(i1:i2,j1:j2,1:km) = 0.
      where(     no3_clim(i1:i2,j1:j2,1:km) < 0       ) no3_clim(i1:i2,j1:j2,1:km) = 0.
     END IF
@@ -913,6 +940,7 @@ CONTAINS
     IF(.NOT. using_GMI_H2O2) THEN
      call MAPL_GetPointer(impChem,ptr3d,"SU_H2O2"//trim(iName),rc=status)
      h2o2_clim = ptr3d
+
      where(1.01*h2o2_clim(i1:i2,j1:j2,1:km) > undefval) h2o2_clim(i1:i2,j1:j2,1:km) = 0.
      where(     h2o2_clim(i1:i2,j1:j2,1:km) < 0       ) h2o2_clim(i1:i2,j1:j2,1:km) = 0.
     END IF
@@ -920,11 +948,11 @@ CONTAINS
 !   The first time through the reads we will save the h2o2 monthly
 !   average in the instantaneous field
 !   ---------------------------------
-
     if (nymd_last == nymd_current .and. (.not. using_GMI_H2O2)) then
-       xh2o2 = h2o2_clim
-       nymd_last = nymd_current
-    end if
+     xh2o2 = h2o2_clim
+     nymd_last = nymd_current
+    end if 
+
 
 !  Find the day number of the year and hour (needed for later doing sza)
 !  ----------------------------------
@@ -934,12 +962,12 @@ CONTAINS
             + real(mod(nhms_current,100)) &
            ) / 3600.
 
-!  If the hour is divisible by 3, reset the h2o2 values to the monthly
-!  average
+!  Recycle H2O2 to input on 3 hour boundaries if not coupled to GMI
 !  ----------------------------------
-   IF(.NOT. using_GMI_H2O2 .and. MOD(nhms_current/10000,3) == 0) THEN
-    xh2o2 = h2o2_clim
-   END IF
+   if (.NOT. using_GMI_H2O2 .and. recycle_h2o2) then
+        xh2o2 = h2o2_clim
+        recycle_h2o2 = .false.
+   end if
 
 !  If not getting instantaneous values from GMI, update for time of day.
 !  ---------------------------------------------------------------------
@@ -1055,18 +1083,25 @@ CONTAINS
    subroutine SulfateUpdateEmissions ( impChem, iName, i1, i2, im, j1, j2, jm, km, cdt, &
                                        nymd_current, nhms_current, &
                                        grid, lonRad, latRad, &
-                                       nymd_last,  &
+                                       nymd_last, &
                                        diurnal_bb, &
                                        so2biomass_src, so2biomass_src_, &
-                                       so2anthro_l1_src,  &
-                                       so2anthro_l2_src,  &
-                                       so2ship_src,  &
+                                       so2anthro_l1_src, &
+                                       so2anthro_l2_src, &
+                                       so2ship_src, &
                                        so4ship_src, &
-                                       dmso_conc,  &
+                                       dmso_conc, &
                                        aircraft_fuel_src, &
+                                       aviation_lto_src, &
+                                       aviation_cds_src, &
+                                       aviation_crs_src, &
                                        volcano_srcfilen, &
-                                       nvolc, vLat, vLon, vElev, vCloud, vSO2, &
-                                       maskString, gridMask )
+                                       nvolc, vLat, vLon, vElev, vCloud, vSO2, vStart, vEnd, &
+                                       doing_NEI, nei_hour, nei_year, nei_srcfilen, &
+                                       nei_lon, nei_lat, lons, lats, &
+                                       maskString, gridMask, &
+                                       rc)
+
 !
 !  Input
    type(ESMF_State), intent(inout) :: impChem
@@ -1092,7 +1127,7 @@ CONTAINS
 
    real, pointer, dimension(:,:,:) :: aircraft_fuel_src
    real, pointer, dimension(:)     :: vLat, vLon, vElev, vCloud, vSO2
-
+   integer, pointer, dimension(:)  :: vStart, vEnd
    real, pointer, dimension(:)     :: vLatE   => null(), &
                                       vLonE   => null(), &
                                       vElevE  => null(), &
@@ -1108,18 +1143,47 @@ CONTAINS
    integer                         :: nVolc, nVolcE, nVolcC
    logical                         :: useVolcanicDailyTables = .false.
 
+!  Input parameters for NEI08 handling
+!  Note: these should are being defined as optional until the CARMA API is updated.
+   logical, intent(in), optional :: doing_NEI
+   integer, intent(inout), optional :: nei_hour, nei_year
+   character(len=*), intent(in), optional :: nei_srcfilen(2)
+   real, intent(in), optional :: nei_lon(2), nei_lat(2), lons(:,:), lats(:,:)
+
+!  Emissions from aviation sector
+!  ------------------------------
+   real, dimension(:,:), intent(inout) :: aviation_lto_src, &
+                                          aviation_cds_src, &
+                                          aviation_crs_src
+
+   integer, intent(out) :: rc
+
 !  Optional parameters to be passed for masking separate instances
    character(len=*), OPTIONAL, intent(in) :: maskString             !Delimited string of integers
    real, OPTIONAL, intent(in)             :: gridMask(i1:i2,j1:j2)  !Grid mask (NOTE: No ghosting) 
 
 ! Local
-  logical :: do_cyclic = .false.
-  integer :: nymd1, nhms1, rc, ijl, ijkl
+  integer :: ijl, ijkl
   integer :: i, ios
-  real    :: qmin, qmax
   real, pointer :: ptr2d(:,:)   => null()
   real, pointer :: ptr3d(:,:,:) => null()
   integer       :: status
+
+! Workspace for NEI emissions
+! ---------------------------
+  real, pointer, dimension(:,:)         ::  nei_src1, nei_src2
+  integer                               ::  hour, year, nei_nymd
+#ifdef DEBUG
+   real :: qmin, qmax
+#endif
+
+
+  character(len=32) :: Iam
+
+  _UNUSED_DUMMY(maskString)
+  _UNUSED_DUMMY(gridMask)
+
+  Iam = 'SulfateUpdateEmissions'
 
   ijl  = ( i2 - i1 + 1 ) * ( j2 - j1 + 1 )
   ijkl = ijl * km
@@ -1132,6 +1196,29 @@ CONTAINS
   if(index(volcano_srcfilen,'volcanic_') .ne. 0) useVolcanicDailyTables = .true.
   
 
+!   Anthropogenic and ship emissions are now outside of UpdateEmiss loop to 
+!   account for diurnal variability in HEMCO emissions (ckeller, 2/27/16)
+
+!   Anthropogenic emissions
+!   -----------------------
+    call MAPL_GetPointer(impChem,ptr2d,"SU_ANTHROL1"//trim(iName),rc=status)
+    _VERIFY(STATUS)
+    so2anthro_l1_src = ptr2d
+
+    call MAPL_GetPointer(impChem,ptr2d,"SU_ANTHROL2"//trim(iName),rc=status)
+    _VERIFY(STATUS)
+    so2anthro_l2_src = ptr2d
+
+!   Ship based emissions of SO2 and SO4
+!   -----------------------------------
+    call MAPL_GetPointer(impChem,ptr2d,"SU_SHIPSO2"//trim(iName),rc=status)
+    _VERIFY(STATUS)
+    so2ship_src = ptr2d
+
+    call MAPL_GetPointer(impChem,ptr2d,"SU_SHIPSO4"//trim(iName),rc=status)
+    _VERIFY(STATUS)
+    so4ship_src = ptr2d
+
 ! Update emissions/production if necessary (daily)
 !  -----------------------------------------------
    UpdateEmiss: if(nymd_last .ne. nymd_current) then
@@ -1141,39 +1228,40 @@ CONTAINS
 !   ----------------------------------------------
     call MAPL_GetPointer(impChem,ptr2d,"SU_BIOMASS"//trim(iName),rc=status)
     so2biomass_src = ptr2d
+
 !   Save read in emissions if doing diurnal BB
 !   ------------------------------------------
     if ( diurnal_bb ) then
          so2biomass_src_(:,:) = so2biomass_src(:,:)
     end if
 
-!   Anthropogenic emissions
-!   -----------------------
-    call MAPL_GetPointer(impChem,ptr2d,"SU_ANTHROL1"//trim(iName),rc=status)
-    so2anthro_l1_src = ptr2d
-
-    call MAPL_GetPointer(impChem,ptr2d,"SU_ANTHROL2"//trim(iName),rc=status)
-    so2anthro_l2_src = ptr2d
-
-!   Ship based emissions of SO2 and SO4
-!   -----------------------------------
-    call MAPL_GetPointer(impChem,ptr2d,"SU_SHIPSO2"//trim(iName),rc=status)
-    so2ship_src = ptr2d
-
-    call MAPL_GetPointer(impChem,ptr2d,"SU_SHIPSO4"//trim(iName),rc=status)
-    so4ship_src = ptr2d
-
-
-
 !   DMS concentrations (from climatology)
 !   -------------------------------------
     call MAPL_GetPointer(impChem,ptr2d,"SU_DMSO"//trim(iName),rc=status)
+    _VERIFY(STATUS)
     dmso_conc = ptr2d
 
 !   Aircraft fuel source
 !   --------------------
     call MAPL_GetPointer(impChem,ptr3d,"SU_AIRCRAFT"//trim(iName),rc=status)
+    _VERIFY(STATUS)
     aircraft_fuel_src = ptr3d
+
+!   Aviation-LTO emissions
+!   ----------------------
+    call MAPL_GetPointer(impChem,ptr2d,'SU_AVIATION_LTO'//iNAME,rc=status)
+    _VERIFY(STATUS)
+    aviation_lto_src = ptr2d
+
+    call MAPL_GetPointer(impChem,ptr2d,'SU_AVIATION_CDS'//iNAME,rc=status)
+    _VERIFY(STATUS)
+    aviation_cds_src = ptr2d
+
+    call MAPL_GetPointer(impChem,ptr2d,'SU_AVIATION_CRS'//iNAME,rc=status)
+    _VERIFY(STATUS)
+    aviation_crs_src = ptr2d
+
+
 
 !   As a safety check, where values are undefined set to 0
     where(1.01*so2biomass_src(i1:i2,j1:j2)  > undefval)     so2biomass_src(i1:i2,j1:j2) = 0.
@@ -1184,6 +1272,9 @@ CONTAINS
     where(1.01*so4ship_src(i1:i2,j1:j2) > undefval)         so4ship_src(i1:i2,j1:j2) = 0.
     where(1.01*aircraft_fuel_src(i1:i2,j1:j2,1:km) > undefval ) &
                aircraft_fuel_src(i1:i2,j1:j2,1:km) = 0.
+    where(1.01*aviation_lto_src(i1:i2,j1:j2) > undefval )   aviation_lto_src(i1:i2,j1:j2) = 0.
+    where(1.01*aviation_cds_src(i1:i2,j1:j2) > undefval )   aviation_cds_src(i1:i2,j1:j2) = 0.    
+    where(1.01*aviation_crs_src(i1:i2,j1:j2) > undefval )   aviation_crs_src(i1:i2,j1:j2) = 0.
 
 #ifdef DEBUG
     call pmaxmin('SU: so2biomass_src  ', so2biomass_src, qmin, qmax, ijl,1, 1.  )
@@ -1193,6 +1284,9 @@ CONTAINS
     call pmaxmin('SU: so4ship_src     ', so4ship_src, qmin, qmax, ijl,1, 1.  )
     call pmaxmin('SU: DMSO_conc       ', dmso_conc,   qmin, qmax, ijl,1, 1.  )
     call pmaxmin('SU: fuel            ', aircraft_fuel_src, qmin, qmax, ijl,km, 1. )
+    call pmaxmin('SU: so2_aviation_lto', aviation_lto_src,  qmin, qmax, ijl,1, 1.  )
+    call pmaxmin('SU: so2_aviation_cds', aviation_cds_src,  qmin, qmax, ijl,1, 1.  )
+    call pmaxmin('SU: so2_aviation_crs', aviation_crs_src,  qmin, qmax, ijl,1, 1.  )
 #endif
 
 !   Volcanic emissions
@@ -1203,10 +1297,19 @@ CONTAINS
 !       volcanoes
 !   What is provided at this point is the number of
 !   volcanoes, their locations, elevations, and SO2 emissions.
+!   Added some additional variables "vStart" and "vEnd" which
+!   for now are the start and end time of the eruption.  For hard
+!   wired data tables the emissions are assumed to hold over entire
+!   day.  With "useVolcanicDailyTables" there are optionally two
+!   columns in each line of table that provide start and end hour
+!   of event.  In all cases we are assuming the value of vSO2 is
+!   kg SO2 s-1 over the *duration of the event*.  The duration is
+!   24 hours unless otherwise specified.  So when updating the daily
+!   tables put in numbers accordingly.
 
     if( useVolcanicDailyTables ) then
      call GetVolcDailyTables( nymd_current, volcano_srcfilen, &
-                              nVolc, vLat, vLon, vElev, vCloud, vSO2 )
+                              nVolc, vLat, vLon, vElev, vCloud, vSO2, vStart, vEnd )
 !   Read from the previous inventory of non-explosive volcanoes
 !   Special handling to partition is possible (and /dev/null handling)
     else
@@ -1229,12 +1332,15 @@ CONTAINS
      if(associated(vSO2))    deallocate(vSO2, stat=ios)
      if(associated(vElev))   deallocate(vElev, stat=ios)
      if(associated(vCloud))  deallocate(vCloud, stat=ios)
+     if(associated(vStart))  deallocate(vStart, stat=ios)
+     if(associated(vEnd))    deallocate(vEnd, stat=ios)
 
 !    Allocate space for the volcanoes
      nVolc = nVolcE + nVolcC
      allocate(vLat(nvolc), vLon(nvolc), &
               vSO2(nvolc), vElev(nvolc), &
-              vCloud(nvolc), stat=ios)
+              vCloud(nvolc), vStart(nvolc), vEnd(nvolc), &
+              stat=ios)
      if(nVolc > 0) then
       if(nVolcE > 0) then
        do i = 1, nVolcE
@@ -1255,6 +1361,12 @@ CONTAINS
        end do
       end if
      endif
+
+!    For these tables vStart and vEnd are not provided, so we assume
+!    eruption is throughout day and set to default values
+     vStart = -1
+     vEnd   = -1
+
 !    Clean Up
      if(associated(vLatC))    deallocate(vLatC, stat=ios)
      if(associated(vLonC))    deallocate(vLonC, stat=ios)
@@ -1270,6 +1382,13 @@ CONTAINS
      if(volcano_srcfilen(1:9) == '/dev/null') nvolc = 0
     endif
 
+!   For volcanos, check value of vStart and vEnd.  Set to be
+!   vStart = 000000 if default (=-1) is provided
+!   vEnd   = 240000 if default (=-1) is provided
+    where(vStart < 0) vStart = 000000
+    where(vEnd < 0)   vEnd   = 240000
+
+
   endif UpdateEmiss
 
 ! Apply dirunal emissions to BB
@@ -1278,6 +1397,48 @@ CONTAINS
        call Chem_BiomassDiurnal ( so2biomass_src, so2biomass_src_,   &
                                   lonRad*radToDeg, latRad*radToDeg, nhms_current, cdt )      
   end if
+
+!  Apply NEI emissions over North America if so desired
+!  ----------------------------------------------------
+   if ( present(doing_nei) ) then
+    if (doing_NEI) then
+
+       hour = nhms_current/10000
+       year = nymd_current/10000
+
+       if ( hour /= nei_hour ) then
+
+            allocate(nei_src1(i1:i2,j1:j2),nei_src2(i1:i2,j1:j2),stat=ios)
+
+!           Handle SO2
+!           ----------
+            call MAPL_GetPointer(impChem,ptr2d,'SU_NEI_SRC1',rc=status)
+            _VERIFY(STATUS)
+            call MAPL_GetPointer(impChem,ptr2d,'SU_NEI_SRC2',rc=status)
+            _VERIFY(STATUS)
+
+            WHERE ( (lons.ge.nei_lon(1)) .AND. &
+                    (lons.le.nei_lon(2)) .AND. &
+                    (lats.ge.nei_lat(1)) .AND. &
+                    (lats.le.nei_lat(2))   )
+
+                    so2anthro_l1_src = nei_src1
+                    so2anthro_l2_src = nei_src2
+
+            end where
+
+#ifdef DEBUG
+            call pmaxmin('SO2: nei_bot', nei_src1, qmin, qmax, ijl,1, 1. )
+            call pmaxmin('SO2: nei_src', nei_src2, qmin, qmax, ijl,1, 1. )
+#endif
+
+            nei_hour = hour ! only update NEI once hourly
+            deallocate(nei_src1,nei_src2)
+
+       end if ! time to update NEI
+
+    end if ! doing NEI
+   end if ! present(doing_nei)
 
   rc = 0
 
@@ -1304,14 +1465,14 @@ CONTAINS
 ! !INTERFACE:
 !
 
-   subroutine SulfateDistributeEmissions ( i1, i2, j1, j2, km, nbins, cdt, &
-                                           fSO4ant, eBiomass, eAircraftFuel, &
+   subroutine SulfateDistributeEmissions ( i1, i2, j1, j2, km, nbins, cdt, nymd, nhms, &
+                                           fSO4ant, eAircraftFuel, &
                                            so2anthro_l1_src, so2anthro_l2_src, &
                                            so2biomass_src, dmso_conc, &
                                            so2ship_src, so4ship_src, &
                                            aircraft_fuel_src, &
                                            nvolc, vlat, vlon, velev, vcloud, &
-                                           vso2, &
+                                           vso2, vstart, vend, &
                                            dms, so2, so4, &
                                            oro, u10m, v10m, hsurf, hghte, pblh, &
                                            tmpu, rhoa, delp, &
@@ -1319,7 +1480,11 @@ CONTAINS
                                            SU_emis, &
                                            SU_SO4eman, SU_SO2eman, SU_SO2embb, &
                                            SU_SO2emvn, SU_SO2emve, &
-                                           rc, maskString, gridMask )
+                                           rc, maskString, gridMask, &
+                                           aviation_layers,   &
+                                           aviation_lto_src, &
+                                           aviation_cds_src, &
+                                           aviation_crs_src)
 
 ! !USES:
 
@@ -1328,8 +1493,8 @@ CONTAINS
 ! !INPUT PARAMETERS:
 
    integer, intent(in)              :: i1, i2, j1, j2, km, nbins, nvolc
-   real, intent(in)                 :: cdt, fSO4ant, eBiomass, &
-                                       eAircraftFuel
+   integer, intent(in)              :: nymd, nhms
+   real, intent(in)                 :: cdt, fSO4ant, eAircraftFuel
    real, pointer, dimension(:,:)    :: so2anthro_l1_src, so2anthro_l2_src, &
                                        so2biomass_src, dmso_conc, &
                                        so2ship_src, so4ship_src
@@ -1337,6 +1502,7 @@ CONTAINS
    real, pointer, dimension(:,:)    :: cell_area
    type(ESMF_Grid), intent(inout)   :: Grid  ! ESMF Grid
    real, pointer, dimension(:)      :: vlat, vlon, velev, vcloud, vso2
+   integer, pointer, dimension(:)   :: vstart, vend
    real, pointer, dimension(:,:)    :: oro, u10m, v10m, pblh, hsurf
    real, pointer, dimension(:,:,:)  :: tmpu, rhoa, hghte, delp
 
@@ -1357,6 +1523,11 @@ CONTAINS
    character(len=*), OPTIONAL, intent(in) :: maskString             !Delimited string of integers
    real, OPTIONAL, intent(in)             :: gridMask(i1:i2,j1:j2)  !Grid mask (NOTE: No ghosting) 
 
+   real, optional, intent(in)                         :: aviation_layers(4)   ! heights of LTO, CDS and CRS layers
+   real, optional, dimension(i1:i2,j1:j2), intent(in) :: aviation_lto_src     ! SO2 Aviation-LTO
+   real, optional, dimension(i1:i2,j1:j2), intent(in) :: aviation_cds_src     ! SO2 Aviation-CDS
+   real, optional, dimension(i1:i2,j1:j2), intent(in) :: aviation_crs_src     ! SO2 Aviation-CRS
+
    character(len=*), parameter :: myname = 'SU_Emission'
 
 ! !DESCRIPTION: Updates the SU concentration with emissions every timestep
@@ -1370,7 +1541,7 @@ CONTAINS
 !-------------------------------------------------------------------------
 
 ! !Local Variables
-   integer  ::  i, j, k, m, n, ios
+   integer  ::  i, j, k, n, ios
    real :: p1, z1, dz, deltaz, deltap, f100, f500, fPblh
    real :: sCO2, schmidt, w10m, akw, sst
    real :: zpbl
@@ -1379,9 +1550,6 @@ CONTAINS
    real, dimension(i1:i2,j1:j2) :: p100, p500, pPblh  
    real, dimension(i1:i2,j1:j2) :: p0, z0, ps
 
-   real, dimension(i1:i2,j1:j2) :: SO2VolcExp
-   real, dimension(i1:i2,j1:j2) :: ElvVolcExp
-   real, dimension(i1:i2,j1:j2) :: cElvVolcExp
 
    real, dimension(i1:i2,j1:j2) :: srcSO2
    real, dimension(i1:i2,j1:j2) :: srcSO4
@@ -1394,11 +1562,9 @@ CONTAINS
    real, dimension(i1:i2,j1:j2) :: so2srcvolc 
 
    integer :: it
-   real :: vemis, hup, hlow, dzvolc, suVolcnon
+   real :: hup, hlow, dzvolc
    real :: deltaSO2v, so2volcano
-   real :: xlon, xlat
    integer :: ijl, ijkl
-   real :: qmin, qmax
 
 !  Handle masking of volcanic sources
     logical :: doingMasking
@@ -1407,6 +1573,19 @@ CONTAINS
 
 ! Indices for volcanic sources
     integer :: iVolc(nvolc), jVolc(nvolc)
+
+!  Aviation
+   real, dimension(i1:i2,j1:j2,km) :: emis_aviation
+   real, dimension(i1:i2,j1:j2,km) :: srcAviation
+   real                            :: z_lto_bot, z_lto_top
+   real                            :: z_cds_bot, z_cds_top
+   real                            :: z_crs_bot, z_crs_top
+#ifdef DEBUG
+   real :: qmin, qmax
+#endif
+
+
+   _UNUSED_DUMMY(nymd)
 
    ijl  = ( i2 - i1 + 1 ) * ( j2 - j1 + 1 )
    ijkl = ijl * km
@@ -1428,6 +1607,29 @@ CONTAINS
    if( associated(SU_SO2embb%data2d)) SU_SO2embb%data2d(i1:i2,j1:j2) = 0.0
    if( associated(SU_SO2emvn%data2d)) SU_SO2emvn%data2d(i1:i2,j1:j2) = 0.0
    if( associated(SU_SO2emve%data2d)) SU_SO2emve%data2d(i1:i2,j1:j2) = 0.0
+
+!  Distribute aircraft emissions from LTO, CDS and CRS layers
+!  ----------------------------------------------------------
+   z_lto_bot = max(1e-3, aviation_layers(1))
+   z_lto_top = max(2e-3, aviation_layers(2))
+
+   z_cds_bot = max(2e-3, aviation_layers(2))
+   z_cds_top = max(3e-3, aviation_layers(3))
+
+   z_crs_bot = max(3e-3, aviation_layers(3))
+   z_crs_top = max(4e-3, aviation_layers(4))
+
+   emis_aviation = 0.0
+   srcAviation   = 0.0
+
+   call distribute_aviation_emissions(delp, rhoa, z_lto_bot, z_lto_top, aviation_lto_src, emis_aviation, i1, i2, j1, j2, km)
+   srcAviation = srcAviation + emis_aviation
+
+   call distribute_aviation_emissions(delp, rhoa, z_cds_bot, z_cds_top, aviation_cds_src, emis_aviation, i1, i2, j1, j2, km)
+   srcAviation = srcAviation + emis_aviation
+
+   call distribute_aviation_emissions(delp, rhoa, z_crs_bot, z_crs_top, aviation_crs_src, emis_aviation, i1, i2, j1, j2, km)
+   srcAviation = srcAviation + emis_aviation
 
 !  Find the pressure of the 100m, 500m, and PBLH altitudes
    ps = 0.0
@@ -1500,7 +1702,7 @@ CONTAINS
                 (   f100 * so2anthro_l1_src(i,j) &
                   + f500 * so2anthro_l2_src(i,j)  )
 
-      srcSO2bioburn(i,j) = fPblh*eBiomass*so2biomass_src(i,j)
+      srcSO2bioburn(i,j) = fPblh*so2biomass_src(i,j)
 
 !     Add the ship emissions to anthro
       srcSO2anthro(i,j) = srcSO2anthro(i,j) + f100*so2ship_src(i,j)
@@ -1509,6 +1711,8 @@ CONTAINS
 !     Add the aircraft fuel emissions to anthro SO2
       srcSO2anthro(i,j) = srcSO2anthro(i,j) + &
        eAircraftFuel * aircraft_fuel_src(i,j,k)
+
+      srcSO2anthro(i,j) = srcSO2anthro(i,j) + srcAviation(i,j,k)
 
       srcSO4(i,j) = srcSO4anthro(i,j)
       srcSO2(i,j) = srcSO2anthro(i,j)+srcSO2bioburn(i,j)
@@ -1612,8 +1816,10 @@ CONTAINS
  !    Get indices for volcanic emissions
  !    ----------------------------------
       call MAPL_GetHorzIJIndex(nvolc,iVolc,jVolc,Grid=Grid,lon=vLon/radToDeg,lat=vLat/radToDeg,rc=rc)
+
       if ( rc /= 0 ) call die(myname,'cannot get indices for volcanic emissions')
 
+!     Loop over all volcanoes in the database
       do it = 1, nvolc
 
          i = iVolc(it)
@@ -1626,11 +1832,13 @@ CONTAINS
             if( mask(i,j) == 0 ) cycle
          end if
 
+!        Check time against time range of eruption
+!        -----------------------------------------
+         if(nhms < vStart(it) .or. nhms >= vEnd(it)) cycle
+
          so2volcano = 0.
 
 !        Emissions per volcano
-!        This check will omit volcanos in very small grid boxes (i.e., pole; area in m2)
-!        AMS Note: Polar grid box does not have small area: it is a polar cap
 !        -------------------------------------------------------------------------------
          if(cell_area(i,j) .gt. 1.) then
             so2volcano = vSO2(it) /cell_area(i,j)     ! to kg SO2/sec/m2
@@ -1638,6 +1846,10 @@ CONTAINS
          endif
 
 !        Distribute in the vertical
+!        Database provides altitude of top of volcano cone (vElev) and altitude
+!        of plume top (vCloud).  If vCloud != vElev then distribute emissions
+!        in top 1/3 of column extending from vElev to vCloud (case of explosive
+!        eruption), else put emissions in grid cell containing vElev (degassing)
 !        --------------------------
          hup  = vCloud(it)
          hlow = vElev(it)
@@ -1655,8 +1867,8 @@ CONTAINS
 
          dzvolc = hup-hlow
          do k = km, 1, -1
-            z1 = hghte(i,j,k-1)
-            dz = z1-z0(i,j)
+            z1 = hghte(i,j,k-1) ! geopotential altitude at gridbox top
+            dz = z1-z0(i,j)     ! thickness of gridbox
             deltaSO2v = 0.
 
 !           Volcano is above this level
@@ -1666,16 +1878,16 @@ CONTAINS
                cycle
             end if
 
-!           Volcano is below this level
-!           ---------------------------
-            if(z0(i,j) .gt. hup) then
+!           Volcano is below this level (except at surface)
+!           -----------------------------------------------
+            if(z0(i,j) .gt. hup .and. k .ne. km) then
                z0(i,j) = z1
                cycle
             end if
 
 !           Volcano is in this level
 !           ------------------------
-            if( (k .eq. km .and. z0(i,j) .gt. hup) .or. &    ! below surface
+            if( (k .eq. km .and. z0(i,j) .gt. hup) .or. &     ! below surface
                  (z0(i,j) .le. hlow .and. z1 .ge. hup) ) then ! in level
                deltaSO2v = so2volcano
 
@@ -1707,6 +1919,8 @@ CONTAINS
    if(associated(SU_SO2emvn%data2d)) then
       SU_SO2emvn%data2d = srcSO2volc
    endif
+   if( associated(SU_emis(nSO2)%data2d) ) &
+                  SU_emis(nSO2)%data2d =  SU_emis(nSO2)%data2d + srcSO2volc + srcSO2volce
 
 !  Clean up volcano masking function
    IF(doingMasking) THEN
@@ -1768,6 +1982,85 @@ CONTAINS
 
    rc = 0
 
+contains
+   subroutine distribute_aviation_emissions(delp, rhoa, z_bot, z_top, emissions_layer, emissions, i1, i2, j1, j2, km)
+
+    implicit none
+
+    integer, intent(in) :: i1, i2, j1, j2, km
+
+    real, dimension(:,:,:), intent(in) :: delp
+    real, dimension(:,:,:), intent(in) :: rhoa
+    real, dimension(:,:),   intent(in) :: emissions_layer
+    real, intent(in)                   :: z_bot
+    real, intent(in)                   :: z_top
+    real, dimension(:,:,:), intent(out):: emissions
+    
+!   local
+    integer :: i, j, k
+    integer :: k_bot, k_top
+    real    :: z_
+    real, dimension(km) :: z, dz, w_
+    
+    do j = j1, j2
+        do i = i1, i2
+            ! find level height
+            z = 0.0
+            z_= 0.0 
+
+            do k = km, 1, -1
+                dz(k) = delp(i,j,k)/rhoa(i,j,k)/grav
+                z_    = z_ + dz(k)
+                z(k)  = z_
+            end do
+
+            ! find the bottom level
+            do k = km, 1, -1
+                if (z(k) >= z_bot) then
+                    k_bot = k
+                    exit
+                end if
+            end do
+            
+            ! find the top level
+            do k = k_bot, 1, -1
+                if (z(k) >= z_top) then
+                    k_top = k
+                    exit
+                end if
+            end do
+
+            ! find the weights
+            w_ = 0
+
+!           if (k_top > k_bot) then
+!               need to bail - something went wrong here
+!           end if
+
+            if (k_bot .eq. k_top) then
+                w_(k_bot) = z_top - z_bot
+            else
+                do k = k_bot, k_top, -1
+                    if ((k < k_bot) .and. (k > k_top)) then
+                        w_(k) = dz(k)
+                    else
+                        if (k == k_bot) then
+                            w_(k) = (z(k) - z_bot)
+                        end if
+
+                        if (k == k_top) then
+                            w_(k) = z_top - (z(k)-dz(k))
+                        end if
+                    end if
+                end do
+            end if
+           
+            ! distribute emissions in the vertical 
+            emissions(i,j,:) = (w_ / sum(w_)) * emissions_layer(i,j)
+        end do 
+    end do
+
+    end subroutine distribute_aviation_emissions
 
    end subroutine SulfateDistributeEmissions
 
@@ -1785,7 +2078,7 @@ CONTAINS
 !
 
    subroutine GetVolcDailyTables( nymd, volcnon_srcfilen, &
-                                  nVolcPts, vLat, vLon, vElev, vCloud, vSO2 )
+                                  nVolcPts, vLat, vLon, vElev, vCloud, vSO2, vStart, vEnd )
 			  
 ! !USES:
 
@@ -1795,10 +2088,11 @@ CONTAINS
 ! volcanos (as represented by the text tables).  We return all the
 ! volcanic emissions (as points, per volcano).
 
-  integer, intent(in)           :: nymd
-  character(len=255)            :: volcnon_srcfilen
-  integer                       :: nVolcPts
-  real, pointer, dimension(:)   :: vLat, vLon, vElev, vCloud, vSO2
+  integer, intent(in)            :: nymd
+  character(len=255)             :: volcnon_srcfilen
+  integer                        :: nVolcPts
+  real, pointer, dimension(:)    :: vLat, vLon, vElev, vCloud, vSO2
+  integer, pointer, dimension(:) :: vStart, vEnd
   integer :: i, j, nLines, nCols, rc, STATUS, nymd1, nhms1, ios
   character(len=255) :: fname
   type(ESMF_Config)  :: cf
@@ -1811,6 +2105,8 @@ CONTAINS
   if(associated(vSO2))    deallocate(vSO2, stat=ios)
   if(associated(vElev))   deallocate(vElev, stat=ios)
   if(associated(vCloud))  deallocate(vCloud, stat=ios)
+  if(associated(vStart))  deallocate(vStart, stat=ios)
+  if(associated(vEnd))    deallocate(vEnd, stat=ios)
 
 ! Daily files (e.g., from AEROCOM)
 ! --------------------------------
@@ -1821,25 +2117,26 @@ CONTAINS
                      nymd=nymd1, nhms=nhms1 )
   cf = ESMF_ConfigCreate()
   call ESMF_ConfigLoadFile(cf, fileName=trim(fname), rc=STATUS )
-!<<<<<
-!     VERIFY_ (STATUS)
-!>>>>>
   call ESMF_ConfigGetDim(cf, nLines, nCols, LABEL='volcano::', rc=STATUS )
   nVolcPts = nLines
   allocate(vData(nCols), vLat(nLines), vLon(nLines), &
-           vSO2(nLines), vElev(nLines), &
-           vCloud(nLines), stat=ios)
+           vSO2(nLines), vElev(nLines), vStart(nLines), &
+           vEnd(nLines), vCloud(nLines), stat=ios)
+  vStart = -1
+  vEnd   = -1
   call ESMF_ConfigFindLabel(cf, 'volcano::',rc=STATUS)
      do i = 1, nLines
       call ESMF_ConfigNextLine(cf, rc=rc)
       do j = 1, nCols
-       call ESMF_ConfigGetAttribute(cf, vData(j), default=0.)
+       call ESMF_ConfigGetAttribute(cf, vData(j), default=-1.)
       end do
       vLat(i)    = vData(1)
       vLon(i)    = vData(2)
       vSO2(i)    = vData(3) * fMassSO2 / fMassSulfur
       vElev(i)   = vData(4)
       vCloud(i)  = vData(5)
+      if(nCols >= 6) vStart(i)  = vData(6)
+      if(nCols >= 7) vEnd(i)    = vData(7)
   end do
 
   call ESMF_ConfigDestroy(cf)
@@ -1868,8 +2165,9 @@ CONTAINS
 
 ! Description
 ! Data for volcanic explosions provided by Thomas Diehl.  I have converted
-! to kt SO2 event-1 to kt SO2 day-1 over the eruption.  Below this gets
-! converted to a kg SO2 m-2 s-1 needed in emissions.
+! from kt SO2 event-1 to kt SO2 day-1 in the data table.  Following that I
+! convert to kg SO2 s-1 needed in emissions.  Assumption is uniform 
+! injection over 24 hour period.
 ! What is returned is the number of volcanoes and an array of locations,
 ! elevations, and SO2 amounts.
 
@@ -2371,8 +2669,9 @@ CONTAINS
   implicit NONE
 
 ! Description
-! Data for outgassing volcanos provided by Thomas Diehl.  I have converted
-! to Mg SO2 event-1 to SO2 m-2 s-1 needed in emissions.
+! Data for outgassing volcanos provided by Thomas Diehl.  Data table is
+! Mg SO2 day-1 and I convert to kg SO2 s-1 needed in emissions.  Assumption
+! is continuous emissions throughout day.
 ! What is returned is the number of volcanoes and an array of locations,
 ! elevations, and SO2 amounts.
 
@@ -2537,7 +2836,7 @@ CONTAINS
    real, pointer, dimension(:,:) :: lonRad, latRad
    integer :: jday, i1, i2, j1, j2, i, j
    real :: a0, a1, a2, a3, b1, b2, b3, r, dec
-   real :: pi, timloc, ahr, xlon, xlat, rlat, xHour
+   real :: pi, timloc, ahr, xlon, rlat, xHour
    real :: cossza(i1:i2,j1:j2), sza(i1:i2,j1:j2)
    data pi / 3.1415926 /
 

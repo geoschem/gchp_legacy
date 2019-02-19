@@ -6,6 +6,7 @@
 !
 !   06Jul2007  Todling  - Wrapped up as module
 !      
+      use, intrinsic :: iso_fortran_env, only: REAL32, REAL64
       implicit none
       
       private
@@ -32,22 +33,22 @@
       integer, intent(in)    :: im1, jm1, km1    ! dim of input vector
       integer, intent(in)    :: im2, jm2, km2    ! dim to interpolate to
       integer, intent(out)   :: rc
-      real(4), intent(in)    ::      f(im1,jm1,km1)
-      real(4), intent(inout) ::   ad_f(im1,jm1,km1)
-      real(4), intent(in)    :: adfint(im2,jm2,km2)
-      real(4), intent(in), optional :: lon0
-      real(4), intent(in), optional :: fill
+      real(kind=REAL32), intent(in)    ::      f(im1,jm1,km1)
+      real(kind=REAL32), intent(inout) ::   ad_f(im1,jm1,km1)
+      real(kind=REAL32), intent(in)    :: adfint(im2,jm2,km2)
+      real(kind=REAL32), intent(in), optional :: lon0
+      real(kind=REAL32), intent(in), optional :: fill
 
-      real(8) ::      f_r8(im1,jm1,km1)
-      real(8) ::   ad_f_r8(im1,jm1,km1)
-      real(8) :: adfint_r8(im2,jm2,km2)
+      real(kind=REAL64) ::      f_r8(im1,jm1,km1)
+      real(kind=REAL64) ::   ad_f_r8(im1,jm1,km1)
+      real(kind=REAL64) :: adfint_r8(im2,jm2,km2)
 
       f_r8 = f
       adfint_r8 = adfint
       ad_f_r8 = ad_f
 
       call adterpv3d_ ( im1, jm1, km1, f_r8, ad_f_r8, im2, jm2, km2, adfint_r8, rc,
-     &                  real(lon0,8), real(fill,8) ) ! optionals
+     &                  real(lon0,REAL64), real(fill,REAL64) ) ! optionals
 
       ad_f = ad_f_r8
 

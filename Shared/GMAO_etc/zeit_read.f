@@ -81,7 +81,7 @@
          endif      
          command='rm '//fname
          if(dopt)then
-            call system(command)
+            call execute_command_line(command)
          endif
       else
          print*,'Error! Could not find registry input file'

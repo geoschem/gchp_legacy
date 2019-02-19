@@ -433,8 +433,8 @@ CONTAINS
         tlat=tlat+rlat
         glats(j,1)=pi180*ulat
         glats(j,2)=pi180*tlat
-        slats(j,1)=dsin(ulat)
-        slats(j,2)=dsin(tlat)
+        slats(j,1)=sin(ulat)
+        slats(j,2)=sin(tlat)
       enddo
 !
        jweights(1,1)=0.d0  ! not used

@@ -569,7 +569,7 @@
       if ( present(RCfile) ) then
         d2drc = trim(RCfile)
       else
-        call getenv('DYN2DYN_RC',d2drc)		! Unix binding
+        call get_environment_variable('DYN2DYN_RC',d2drc)		! Unix binding
         if(d2drc.eq.' ') d2drc=def_RCd2d	! default name
       endif
       call i90_loadf (trim(d2drc), iret)

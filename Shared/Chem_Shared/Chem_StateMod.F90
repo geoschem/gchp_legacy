@@ -1,3 +1,4 @@
+#include "unused_dummy.H"
 !-------------------------------------------------------------------------
 !         NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
 !-------------------------------------------------------------------------
@@ -62,7 +63,7 @@ CONTAINS
 !
 
    subroutine Chem_StateSetNeeded ( This, which, needed, rc )
-
+  
 ! !USES:
 
   implicit NONE
@@ -94,6 +95,10 @@ CONTAINS
 !
 !  Nothing to do in GEOS-5
 !
+   _UNUSED_DUMMY(this)
+   _UNUSED_DUMMY(which)
+   _UNUSED_DUMMY(needed)
+
    rc = 0
 
  end subroutine Chem_StateSetNeeded

@@ -1,3 +1,5 @@
+set (CMAKE_Fortran_FLAGS_RELEASE "-O3 ${common_Fortran_fpe_flags} ${ALIGNCOM}")
+
 add_executable(argopt argopt.c)
 add_executable(fresolv.x fresolv.f90)
 add_executable(gethdftinc.x gethdftinc.f)

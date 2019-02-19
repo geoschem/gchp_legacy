@@ -1,14 +1,13 @@
-get_filename_component(this "${CMAKE_CURRENT_SOURCE_DIR}" NAME)
+esma_set_this()
 
-add_definitions (-DHERMES)
-include_directories (${include_GMAO_mpeu} ${include_MAPL_Base} ${include_GEOS_Shared})
-include_directories (${include_MAPL_cfio_r8} ${include_GMAO_gfio_r8})
-include_directories (${include_${this}})
+add_definitions (-DHERMES -DDEBUG_SHAVE -Dunix -D__unix__)
+include_directories (${include_MAPL_Base} ${include_GEOS_Shared})
+include_directories (${include_GMAO_gfio_r8})
 
 string (REPLACE " " ";" flags ${FREAL8})
 add_compile_options(${flags})
 
-add_library (${this}
+set (srcs
   m_ana2dyn.F m_const.f90 m_dyn.f90 m_dyn2dyn.f90 m_dynp.F90
   m_insitu.F m_interp.F90 m_lp.F m_maph.F90 m_maph_pert.F90 m_mapz.F m_mapz_pert.F90
   m_qsat.F m_remap.f90 m_set_eta.F90 m_vdc2vdc.F90 progsig.f90 m_topo_remap.F90
@@ -16,13 +15,17 @@ add_library (${this}
   m_dyn_util.F90 m_spline.f90
   )
 
-target_link_libraries (${this} GMAO_mpeu GMAO_gfio_r8)
-set_target_properties (${this} PROPERTIES Fortran_MODULE_DIRECTORY ${include_${this}})
+esma_add_library(${this} SRCS ${srcs} DEPENDENCIES GMAO_mpeu GMAO_gfio_r8)
+target_compile_options(${this} PRIVATE ${flags})
 
-set_source_files_properties (m_interpack.F PROPERTIES COMPILE_FLAGS ${EXTENDED_SOURCE})
-set_source_files_properties (m_interpack_ad.F PROPERTIES COMPILE_FLAGS ${EXTENDED_SOURCE})
-set_source_files_properties (m_ana2dyn.F PROPERTIES COMPILE_FLAGS ${EXTENDED_SOURCE})
-set_source_files_properties (m_insitu.F PROPERTIES COMPILE_FLAGS ${EXTENDED_SOURCE})
+set (CMAKE_Fortran_FLAGS_RELEASE "-O3 ${common_Fortran_flags} ${common_Fortran_fpe_flags} ${ALIGNCOM}")
+
+if (EXTENDED_SOURCE)
+  set_source_files_properties (m_interpack.F PROPERTIES COMPILE_FLAGS ${EXTENDED_SOURCE})
+  set_source_files_properties (m_interpack_ad.F PROPERTIES COMPILE_FLAGS ${EXTENDED_SOURCE})
+  set_source_files_properties (m_ana2dyn.F PROPERTIES COMPILE_FLAGS ${EXTENDED_SOURCE})
+  set_source_files_properties (m_insitu.F PROPERTIES COMPILE_FLAGS ${EXTENDED_SOURCE})
+endif ()
 set_source_files_properties (GFIO_Shave.f90 PROPERTIES COMPILE_FLAGS ${PP})
 set_source_files_properties (GFIO_remap.f90 PROPERTIES COMPILE_FLAGS ${PP})
 

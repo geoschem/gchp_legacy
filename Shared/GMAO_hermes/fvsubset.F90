@@ -519,7 +519,7 @@
 
 !  All done
 !  --------
-   call exit(0)
+   stop 0
 
 CONTAINS
 
@@ -599,7 +599,7 @@ print *, "subset - subsetting eta files. "
 print *, "-------------------------------------------------------------------"
 print *
 
-   argc = iargc()
+   argc = command_argument_count()
    if ( argc < 1 ) call usage_()
 
 !  Defaults
@@ -623,48 +623,48 @@ print *
       if ( iarg .gt. argc ) then
            exit
       endif
-      call GetArg ( iArg, argv )
+      call Get_Command_Argument ( iArg, argv )
       if(index(argv,'-o') .gt. 0 ) then
          if ( iarg+1 .gt. argc ) call usage_()
          iarg = iarg + 1
-         call GetArg ( iArg, outFile )
+         call Get_Command_Argument ( iArg, outFile )
       else if(index(argv,'-begDate') .gt. 0 ) then
          if ( iarg+1 .gt. argc ) call usage_()
          iarg = iarg + 1
-         call GetArg ( iArg, argv )
+         call Get_Command_Argument ( iArg, argv )
          read(argv,*) begDate
       else if(index(argv,'-begTime') .gt. 0 ) then
          if ( iarg+1 .gt. argc ) call usage_()
          iarg = iarg + 1
-         call GetArg ( iArg, argv )
+         call Get_Command_Argument ( iArg, argv )
          read(argv,*) begTime
       else if(index(argv,'-incTime') .gt. 0 ) then
          if ( iarg+1 .gt. argc ) call usage_()
          iarg = iarg + 1
-         call GetArg ( iArg, argv )
+         call Get_Command_Argument ( iArg, argv )
          read(argv,*) incTime
       else if(index(argv,'-west') .gt. 0 ) then
          if ( iarg+1 .gt. argc ) call usage_()
          iarg = iarg + 1
-         call GetArg ( iArg, argv )
+         call Get_Command_Argument ( iArg, argv )
          read(argv,*) xWest
       else if(index(argv,'-rc') .gt. 0 ) then
          if ( iarg+1 .gt. argc ) call usage_()
          iarg = iarg + 1
-         call GetArg ( iArg, rcfile )
+         call Get_Command_Argument ( iArg, rcfile )
       else if(index(argv,'-cvs') .gt. 0 ) then
          if ( iarg+1 .gt. argc ) call usage_()
          iarg = iarg + 1
-         call GetArg ( iArg, cvsFile )
+         call Get_Command_Argument ( iArg, cvsFile )
       else if(index(argv,'-vars') .gt. 0 ) then
          if ( iarg+1 .gt. argc ) call usage_()
          iarg = iarg + 1
-         call GetArg ( iArg, argv )
+         call Get_Command_Argument ( iArg, argv )
          call split_ ( ',', argv, mVars, Vars, nVars )
       else if(index(argv,'-levels') .gt. 0 ) then
          if ( iarg+1 .gt. argc ) call usage_()
          iarg = iarg + 1
-         call GetArg ( iArg, argv )
+         call Get_Command_Argument ( iArg, argv )
          call split_ ( ',', argv, mLevs, cLevs, nLevs )
          allocate( Levs(nLevs), stat = rc)
          if ( rc /= 0 )  call die (myname, 'wrong in allocating nLevs')
@@ -676,7 +676,7 @@ print *
       else if(index(argv,'-prec') .gt. 0 ) then
          if ( iarg+1 .gt. argc ) call usage_()
          iarg = iarg + 1
-         call GetArg ( iArg, argv )
+         call Get_Command_Argument ( iArg, argv )
          read(argv,*) outPrec
       else if(index(argv,'-d') .gt. 0 ) then
          debug = .true.

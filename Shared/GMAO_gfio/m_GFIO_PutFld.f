@@ -257,25 +257,25 @@
          if (im_max .ne. im) then
             write(stderr,'(2a,i5)') myname_,
      &           ': trying to write unallowed longitudinal dim'
-            call exit(7)
+            stop 7
          endif
 
          if (jm_max .ne. jm) then
             write(stderr,'(2a,i5)') myname_,
      &           ': trying to write unallowed latitudinal dim'
-            call exit(7)
+            stop 7
          endif
 
 !_OUT    if (lm_max .gt. lm_max_max) then
 !_OUT       write(stderr,'(2a,i5)') myname_,
 !_OUT&           ': trying to write unallowed number of times'
-!_OUT       call exit(7)
+!_OUT       stop 7
 !_OUT    endif
 
          if (mlev_max .ne. mlev) then
             write(stderr,'(2a,i5)') myname_,
      &           ': trying to write unallowed number of levels'
-            call exit(7)
+            stop 7
          endif
 
 
@@ -283,7 +283,7 @@
 
          write(stdout,'(2a)') myname_,
      .                ': No GFIO file for current date '
-         call flush (stdout)
+         flush (stdout)
 
          precision = iprec_def
          if ( present(iprec) ) precision = iprec
@@ -301,7 +301,7 @@
          if ( ier .ne. 0 ) then
            write(stderr,'(2a,i10)') myname_,  
      &                  ': Gfio_Create error, ier = ', ier
-           call exit(7)
+           stop 7
          end if
          print *, 'History_Ana: created Gfio file ', trim(gfiofile)
 
@@ -320,7 +320,7 @@
              write(stderr,'(2a,i10,2a)') myname_,
      &                    ': Gfio_PutVar, ier = ', ier,
      &                    ' for variable ', trim(vname2d(iv))
-             call exit(7)
+             stop 7
            end if
       end do
 
@@ -333,7 +333,7 @@
              write(stderr,'(2a,i10,2a)') myname_,
      &                    ': Gfio_PutVar, ier = ', ier,
      &                    ' for variable ', trim(vname3d(iv))
-             call exit(7)
+             stop 7
            end if
       end do
 
@@ -514,7 +514,7 @@
 !_OUT if ( ier .ne. 0 ) then
 !_OUT     write(stderr,'(2a,i5)') myname_,
 !_OUT.          ': allocate(lm) error, stat =', ier
-!_OUT     call exit(7)
+!_OUT     stop 7
 !_OUT endif
 
 !     Open GFIO file
@@ -555,25 +555,25 @@
          if (im_max .ne. im) then
             write(stderr,'(2a,i5)') myname_,
      &           ': trying to write unallowed longitudinal dim'
-            call exit(7)
+            stop 7
          endif
 
          if (jm_max .ne. jm) then
             write(stderr,'(2a,i5)') myname_,
      &           ': trying to write unallowed latitudinal dim'
-            call exit(7)
+            stop 7
          endif
 
 !_OUT    if (lm_max .gt. lm_max_max) then
 !_OUT       write(stderr,'(2a,i5)') myname_,
 !_OUT&           ': trying to write unallowed number of times'
-!_OUT       call exit(7)
+!_OUT       stop 7
 !_OUT    endif
 
          if (mlev_max .ne. mlev) then
             write(stderr,'(2a,i5)') myname_,
      &           ': trying to write unallowed number of levels'
-            call exit(7)
+            stop 7
          endif
 
 
@@ -581,7 +581,7 @@
 
          write(stdout,'(2a)') myname_,
      .                ': No GFIO file for current date '
-         call flush (stdout)
+         flush (stdout)
 
          precision = iprec_def
          if ( present(iprec) ) precision = iprec
@@ -599,7 +599,7 @@
          if ( ier .ne. 0 ) then
            write(stderr,'(2a,i10)') myname_,  
      &                  ': Gfio_Create error, ier = ', ier
-           call exit(7)
+           stop 7
          end if
          print *, 'History_Ana: created Gfio file ', trim(gfiofile)
 
@@ -615,7 +615,7 @@
              write(stderr,'(2a,i10,2a)') myname_,
      &                    ': Gfio_PutVar, ier = ', ier,
      &                    ' for variable ', trim(vname(iv))
-             call exit(7)
+             stop 7
            end if
       end do
 
@@ -717,7 +717,7 @@
              write(stderr,'(2a,i10,2a)') myname_,
      &                    ': Gfio_PutVar, ier = ', ier,
      &                    ' for variable ', trim(vname(iv))
-             call exit(7)
+             stop 7
            end if
       end do
 
@@ -896,7 +896,7 @@
 !_OUT if ( ier .ne. 0 ) then
 !_OUT     write(stderr,'(2a,i5)') myname_,
 !_OUT.          ': allocate(lm) error, stat =', ier
-!_OUT     call exit(7)
+!_OUT     stop 7
 !_OUT endif
 
 !     Open GFIO file
@@ -937,25 +937,25 @@
          if (im_max .ne. im) then
             write(stderr,'(2a,i5)') myname_,
      &           ': trying to write unallowed longitudinal dim'
-            call exit(7)
+            stop 7
          endif
 
          if (jm_max .ne. jm) then
             write(stderr,'(2a,i5)') myname_,
      &           ': trying to write unallowed latitudinal dim'
-            call exit(7)
+            stop 7
          endif
 
 !_OUT    if (lm_max .gt. lm_max_max) then
 !_OUT       write(stderr,'(2a,i5)') myname_,
 !_OUT&           ': trying to write unallowed number of times'
-!_OUT       call exit(7)
+!_OUT       stop 7
 !_OUT    endif
 
          if (mlev_max .ne. mlev) then
             write(stderr,'(2a,i5)') myname_,
      &           ': trying to write unallowed number of levels'
-            call exit(7)
+            stop 7
          endif
 
 
@@ -963,7 +963,7 @@
 
          write(stdout,'(2a)') myname_,
      .                ': No GFIO file for current date '
-         call flush (stdout)
+         flush (stdout)
 
          precision = iprec_def
          if ( present(iprec) ) precision = iprec
@@ -981,7 +981,7 @@
          if ( ier .ne. 0 ) then
            write(stderr,'(2a,i10)') myname_,  
      &                  ': Gfio_Create error, ier = ', ier
-           call exit(7)
+           stop 7
          end if
          print *, 'History_Ana: created Gfio file ', trim(gfiofile)
 
@@ -996,7 +996,7 @@
              write(stderr,'(2a,i10,2a)') myname_,
      &                    ': Gfio_PutVar, ier = ', ier,
      &                    ' for variable ', trim(vname(iv))
-             call exit(7)
+             stop 7
            end if
       end do
 
@@ -1299,19 +1299,19 @@
          if (im_max .ne. im) then
             write(stderr,'(2a,i5)') myname_,
      &           ': trying to write unallowed longitudinal dim'
-            call exit(7)
+            stop 7
          endif
 
          if (jm_max .ne. jm) then
             write(stderr,'(2a,i5)') myname_,
      &           ': trying to write unallowed latitudinal dim'
-            call exit(7)
+            stop 7
          endif
 
          if (mlev_max .ne. km) then
             write(stderr,'(2a,i5)') myname_,
      &           ': trying to write unallowed number of levels'
-            call exit(7)
+            stop 7
          endif
 
 
@@ -1320,7 +1320,7 @@
          if(sayit)
      .   write(stdout,'(2a)') myname_,
      .                ': No GFIO file for current date '
-         call flush (stdout)
+         flush (stdout)
 
          precision = iprec_def
          if ( present(iprec) ) precision = iprec
@@ -1338,7 +1338,7 @@
          if ( ier .ne. 0 ) then
            write(stderr,'(2a,i10)') myname_,  
      &                  ': Gfio_Create error, ier = ', ier
-           call exit(7)
+           stop 7
          end if
          print *, myname_, ': Created Gfio file ', trim(gfiofile)
 
@@ -1357,7 +1357,7 @@
              write(stderr,'(2a,i10,2a)') myname_,
      &                    ': Gfio_PutVar, ier = ', ier,
      &                    ' for variable ', trim(vname(iv))
-             call exit(7)
+             stop 7
            end if
       end do
       deallocate(aux)

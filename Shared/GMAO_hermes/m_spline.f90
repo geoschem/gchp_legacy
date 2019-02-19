@@ -1,4 +1,5 @@
 module m_spline
+use, intrinsic :: iso_fortran_env, only: REAL32, REAL64
 implicit none
 private
 public :: spline
@@ -13,15 +14,15 @@ contains
 
   implicit none
 
-  real(8),intent(in)    :: xi(:)
-  real(8),intent(in)    :: xo(:)
-  real(8),intent(in)    :: yi(:)
-  real(8),intent(inout) :: yo(:)
+  real(kind=REAL64),intent(in)    :: xi(:)
+  real(kind=REAL64),intent(in)    :: xo(:)
+  real(kind=REAL64),intent(in)    :: yi(:)
+  real(kind=REAL64),intent(inout) :: yo(:)
 
-  real(8), allocatable, dimension(:) :: b(:), c(:), d(:)
-  real(8), allocatable, dimension(:) :: xxi(:)
-  real(8), allocatable, dimension(:) :: yyi(:)
-  real(8), allocatable, dimension(:) :: xxo(:)
+  real(kind=REAL64), allocatable :: b(:), c(:), d(:)
+  real(kind=REAL64), allocatable :: xxi(:)
+  real(kind=REAL64), allocatable :: yyi(:)
+  real(kind=REAL64), allocatable :: xxo(:)
 
   integer k,ni,no
   logical reverse_
@@ -69,15 +70,15 @@ contains
 
   implicit none
 
-  real(4) :: xi(:)
-  real(4) :: xo(:)
-  real(4) :: yi(:)
-  real(4) :: yo(:)
+  real(kind=REAL32) :: xi(:)
+  real(kind=REAL32) :: xo(:)
+  real(kind=REAL32) :: yi(:)
+  real(kind=REAL32) :: yo(:)
 
-  real(8), allocatable, dimension(:) :: b(:), c(:), d(:)
-  real(8), allocatable, dimension(:) :: xxi(:)
-  real(8), allocatable, dimension(:) :: yyi(:)
-  real(8), allocatable, dimension(:) :: xxo(:)
+  real(kind=REAL64), allocatable, dimension(:) :: b(:), c(:), d(:)
+  real(kind=REAL64), allocatable, dimension(:) :: xxi(:)
+  real(kind=REAL64), allocatable, dimension(:) :: yyi(:)
+  real(kind=REAL64), allocatable, dimension(:) :: xxo(:)
 
   integer k,ni,no
   logical reverse_
@@ -141,9 +142,9 @@ contains
 !======================================================================
 implicit none
 integer n
-double precision x(n), y(n), b(n), c(n), d(n)
+real(kind=REAL64) :: x(n), y(n), b(n), c(n), d(n)
 integer i, j, gap
-double precision h
+real(kind=REAL64) :: h
 
 gap = n-1
 ! check input
@@ -225,11 +226,11 @@ end subroutine spline_
 ! ispline = interpolated value at point u
 !=======================================================================
 implicit none
-double precision ispline
+real(kind=REAL64) :: ispline
 integer n
-double precision  u, x(n), y(n), b(n), c(n), d(n)
+real(kind=REAL64) :: u, x(n), y(n), b(n), c(n), d(n)
 integer i, j, k
-double precision dx
+real(kind=REAL64) :: dx
 
 ! if u is ouside the x() interval take a boundary value (left or right)
 if(u <= x(1)) then

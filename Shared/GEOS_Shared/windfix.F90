@@ -63,9 +63,9 @@
       undef = 1e15
 
       call ESMF_VMGet (VM, localpet=myid, petcount=NPES,  RC=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       call ESMF_VmGet (VM, mpicommunicator=comm, rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       call  MAPL_GridGet(GRIDana, globalCellCountPerDim=DIMS, RC=STATUS)
       img = DIMS(1) ! global grid dim
@@ -91,14 +91,14 @@
 ! Gather Winds for Background
 ! ---------------------------
       call MAPL_CollectiveGather3D(gridAna,ub,uglo,rc=status)
-      VERIFY_(status)
+      _VERIFY(status)
       call MAPL_CollectiveGather3D(gridAna,vb,vglo,rc=status)
-      VERIFY_(status)
+      _VERIFY(status)
       call MAPL_CollectiveGather3D(gridAna,dpb,dpglo,rc=status)
-      VERIFY_(status)
+      _VERIFY(status)
       if (size(dpglo)>1) then
          allocate(dglo(img,jmg,size(dpglo,3)),stat=status)
-         VERIFY_(status)
+         _VERIFY(status)
       end if
 
 ! Compute Vorticity and Divergence
@@ -110,7 +110,7 @@
       end if
          
       call MAPL_CollectiveScatter3d(gridAna,dglo,divb,rc=status)
-      VERIFY_(status)
+      _VERIFY(status)
       deallocate(uglo,vglo,dpglo)
       nullify(uglo,vglo,dpglo)
       if (associated(dglo)) then
@@ -121,14 +121,14 @@
 ! Gather Winds for Analysis
 ! -------------------------
       call MAPL_CollectiveGather3D(gridAna,ua,uglo,rc=status)
-      VERIFY_(status)
+      _VERIFY(status)
       call MAPL_CollectiveGather3D(gridAna,va,vglo,rc=status)
-      VERIFY_(status)
+      _VERIFY(status)
       call MAPL_CollectiveGather3D(gridAna,dpa,dpglo,rc=status)
-      VERIFY_(status)
+      _VERIFY(status)
       if (size(dpglo)>1) then
          allocate(dglo(img,jmg,size(dpglo,3)),stat=status)
-         VERIFY_(status)
+         _VERIFY(status)
       end if
 
 ! Compute Vorticity and Divergence
@@ -140,7 +140,7 @@
       end if
 
       call MAPL_CollectiveScatter3d(gridAna,dglo,diva,rc=status)
-      VERIFY_(status)
+      _VERIFY(status)
       if (associated(dglo)) then
          deallocate(dglo)
          nullify(dglo)
@@ -206,7 +206,7 @@
 ! Gather and Broadcast Divergence Increment
 ! -----------------------------------------
       call MAPL_CollectiveGather3D(gridAna,diva,dglo,rc=status)
-      VERIFY_(status)
+      _VERIFY(status)
 
 ! Compute Wind Increments Associated with Divergence Increment
 ! ------------------------------------------------------------
@@ -222,9 +222,9 @@
 ! Scatter Winds
 ! -------------
       call MAPL_CollectiveScatter3d(gridAna,uglo,ua,rc=status)
-      VERIFY_(status)
+      _VERIFY(status)
       call MAPL_CollectiveScatter3d(gridAna,vglo,va,rc=status)
-      VERIFY_(status)
+      _VERIFY(status)
       if (associated(dglo)) then
          deallocate(dglo,uglo,vglo,dpglo)
          nullify(dglo,uglo,vglo,dpglo)

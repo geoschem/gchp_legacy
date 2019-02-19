@@ -463,9 +463,6 @@ end function luavail
 !_______________________________________________________________________
   character(len=*),parameter :: myname_=myname//'::luflush'
 
-#ifdef sysIRIX64
-  integer :: ier
-#endif
   integer :: lu
 
 	! Which logical unit number?
@@ -474,17 +471,7 @@ end function luavail
   if(present(unit)) lu=unit
   if(lu < 0) return
 
-	! The following call may be system dependent.
-
-#ifdef sysIRIX64
-  call flush(lu,ier)
-#else
-#if sysAIX 
-  call flush_(lu)      ! Function defined in xlf reference document.
-#else
-  call flush(lu)
-#endif
-#endif
+  flush(lu)
 
 end subroutine luflush
 

@@ -95,10 +95,6 @@ CONTAINS
 
    character(len=*), parameter	:: myname = 'FileResolv'
 
-#ifndef __GFORTRAN__
-   integer, external  :: system
-#endif
-
    character(len=255) :: path, host, dirn, basen, head, tail, cmd, filen
 
    integer i, rc
@@ -178,8 +174,8 @@ CONTAINS
       end if
       if ( .not. ( fexists .and. caching ) ) then
          cmd = trim(remote_cp) // ' ' // &
-               trim(host) // ':' // trim(fname) // ' . '
-         rc = system ( cmd ) 
+              trim(host) // ':' // trim(fname) // ' . '
+         call execute_command_line(cmd, exitstat=rc)
          if ( rc .eq. 0 ) then
             fname = basen
          else
@@ -230,7 +226,7 @@ CONTAINS
         else                                          ! keep   file.gz
              cmd = trim(gunzip) // ' -c ' // trim(fname) // ' > ' // trim(head)
         end if
-        rc = system ( cmd ) 
+        call execute_command_line(cmd, exitstat=rc)
         if ( rc .eq. 0 ) then
            fname = head             
         else
@@ -314,10 +310,6 @@ CONTAINS
    integer rc, lu
    character(len=255) :: cmd
 
-#ifndef __GFORTRAN__
-   integer, external  :: system
-#endif
-
    logical :: fexists
 
    if ( present(stat) ) stat = 0
@@ -325,7 +317,7 @@ CONTAINS
 !  Create temp file with resolved name
 !  -----------------------------------
    cmd = 'which ' // trim(shortfn) // ' | tail -1 > .ExecResolv'
-   rc = system ( cmd )
+   call execute_command_line(cmd, exitstat=rc)
    if ( rc .ne. 0 ) then
         if ( present(stat) ) then
              stat = 1

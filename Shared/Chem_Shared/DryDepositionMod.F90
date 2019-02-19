@@ -71,8 +71,6 @@ CONTAINS
    real, dimension(i1:i2,j1:j2)  :: obk       ! Obukhov length [m]
 
 !  Local
-   integer :: i, j
-
 
 !  Calculate the Monin-Obhukov length:
 !          -Air density * Cp * T(surface) * Ustar^3
@@ -153,7 +151,7 @@ CONTAINS
 
 ! !Local Variables
    character(len=*), parameter :: myname = 'DryDepositionGOCART'
-   integer :: i, j, k, n
+   integer :: i, j
    real, parameter :: rhow = 1000.      ! density of water [kg m-3]
    real, parameter :: coll_size = 0.002 ! collector size [m]
    real :: dz(i1:i2,j1:j2)              ! lowest layer thickness
@@ -163,21 +161,11 @@ CONTAINS
    real :: vdep(i1:i2,j1:j2)            ! Deposition speed [m s-1]
    real :: obk(i1:i2,j1:j2)             ! Obukhov Length [m]
 
-   real qmin, qmax
-
    real*8 Rttl        ! total surface resistance
-   real*8 dc
-   real*8 diff_coef, vsettle
-   real*8 Sc          ! Schmidt number
-   real*8 Eb          ! Brownian diffusion collection efficiency
-   real*8 St          ! Stokes number
-   real*8 Ein         ! Interception collection efficiency
-   real*8 Eim         ! Impaction collection efficiency
-   real*8 alpha, gamma
 
-   real*8 R1, R2, w10m, u_thresh0
-   real*8 vds, vdsmax, czh, factor
-   real*8 :: frac, cz, psi_h, eps, logmfrac, z0h_min, z0h_, r8_cdt
+   real*8 R2, w10m, u_thresh0
+   real*8 vds, vdsmax, czh
+   real*8 :: frac, cz, psi_h, eps, logmfrac, z0h_min, z0h_
    real*8 :: one = 1.0, zero = 0.0
 
 !  Initialize local variables

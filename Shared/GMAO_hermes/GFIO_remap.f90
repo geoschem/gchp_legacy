@@ -1404,7 +1404,7 @@ Program GFIO_remap
 
 !  All done
 !  --------
-   call exit(0)
+   stop 0
 
 CONTAINS
 
@@ -2071,83 +2071,83 @@ CONTAINS
          if ( iarg .gt. argc ) then
             exit
          endif
-         call GetArg ( iArg, argv )
+         call Get_Command_Argument ( iArg, argv )
          if(index(argv,'-o') .gt. 0 ) then
             if ( iarg+1 .gt. argc ) call usage_()
             iarg = iarg + 1
-            call GetArg ( iArg, outFile )
+            call Get_Command_Argument ( iArg, outFile )
          else if(index(argv,'-psfile') .gt. 0 ) then
             if ( iarg+1 .gt. argc ) call usage_()
             iarg = iarg + 1
-            call GetArg ( iArg, psFile )
+            call Get_Command_Argument ( iArg, psFile )
          else if(index(argv,'-clim') .gt. 0 ) then
             clim_flag = .true.
          else if(index(argv,'-inc') .gt. 0 ) then
             if ( iarg+1 .gt. argc ) call usage_()
             iarg = iarg + 1
-            call GetArg ( iArg, argv )
+            call Get_Command_Argument ( iArg, argv )
             read(argv,*) inc_hhmmss
          else if(index(argv,'-date') .gt. 0 ) then
             if ( iarg+1 .gt. argc ) call usage_()
             iarg = iarg + 1
-            call GetArg ( iArg, argv )
+            call Get_Command_Argument ( iArg, argv )
             read(argv,*) ndate
          else if(index(argv,'-time') .gt. 0 ) then
             if ( iarg+1 .gt. argc ) call usage_()
             iarg = iarg + 1
-            call GetArg ( iArg, argv )
+            call Get_Command_Argument ( iArg, argv )
             read(argv,*) ntime
          else if(index(argv,'-nlev') .gt. 0 ) then
             if ( iarg+1 .gt. argc ) call usage_()
             iarg = iarg + 1
-            call GetArg ( iArg, argv )
+            call Get_Command_Argument ( iArg, argv )
             read(argv,*) kn
          else if(index(argv,'-shift') .gt. 0 ) then
             shftlon = .true.
          else if(index(argv,'-like_pt') .gt. 0 ) then
             if ( iarg+1 .gt. argc ) call usage_()
             iarg = iarg + 1
-            call GetArg ( iArg, argv )
+            call Get_Command_Argument ( iArg, argv )
             call split_ ( ',', argv, mVars, ptVars, nptVars )
          else if(index(argv,'-like_q-agrid') .gt. 0 ) then
             if ( iarg+1 .gt. argc ) call usage_()
             iarg = iarg + 1
-            call GetArg ( iArg, argv )
+            call Get_Command_Argument ( iArg, argv )
             call split_ ( ',', argv, mVars, qaVars, nqaVars )
          else if(index(argv,'-like_u-dgrid') .gt. 0 ) then
             if ( iarg+1 .gt. argc ) call usage_()
             iarg = iarg + 1
-            call GetArg ( iArg, argv )
+            call Get_Command_Argument ( iArg, argv )
             call split_ ( ',', argv, mVars, udVars, nudVars )
          else if(index(argv,'-like_sph') .gt. 0 ) then
             if ( iarg+1 .gt. argc ) call usage_()
             iarg = iarg + 1
-            call GetArg ( iArg, argv )
+            call Get_Command_Argument ( iArg, argv )
             call split_ ( ',', argv, mVars, sphVars, nsphVars )
          else if(index(argv,'-like_v-dgrid') .gt. 0 ) then
             if ( iarg+1 .gt. argc ) call usage_()
             iarg = iarg + 1
-            call GetArg ( iArg, argv )
+            call Get_Command_Argument ( iArg, argv )
             call split_ ( ',', argv, mVars, vdVars, nvdVars )
          else if(index(argv,'-like_u-cgrid') .gt. 0 ) then
             if ( iarg+1 .gt. argc ) call usage_()
             iarg = iarg + 1
-            call GetArg ( iArg, argv )
+            call Get_Command_Argument ( iArg, argv )
             call split_ ( ',', argv, mVars, ucVars, nucVars )
          else if(index(argv,'-like_v-cgrid') .gt. 0 ) then
             if ( iarg+1 .gt. argc ) call usage_()
             iarg = iarg + 1
-            call GetArg ( iArg, argv )
+            call Get_Command_Argument ( iArg, argv )
             call split_ ( ',', argv, mVars, vcVars, nvcVars )
          else if(index(argv,'-res') .gt. 0 ) then
             if ( iarg+1 .gt. argc ) call usage_()
             iarg = iarg + 1
-            call GetArg ( iArg, argv )
+            call Get_Command_Argument ( iArg, argv )
             read(argv,*) resolution
          else if(index(argv,'-pref') .gt. 0 ) then
             if ( iarg+1 .gt. argc ) call usage_()
             iarg = iarg + 1
-            call GetArg ( iArg, argv )
+            call Get_Command_Argument ( iArg, argv )
             read(argv,*) prefProvided
             if (prefProvided < 1000) then
                call die (myname, "prefProvided should be in Pascals. Your value seems a bit low. Is it in millibars?")
@@ -2155,7 +2155,7 @@ CONTAINS
          else if(index(argv,'-levels') .gt. 0 ) then
             if ( iarg+1 .gt. argc ) call usage_()
             iarg = iarg + 1
-            call GetArg ( iArg, argv )
+            call Get_Command_Argument ( iArg, argv )
             call split_ ( ',', argv, mLevs, cLevs, nLevs )
             if(associated(Levs)) deallocate(Levs)
             allocate( Levs(nLevs), stat = rc)
@@ -2168,7 +2168,7 @@ CONTAINS
          else if(index(argv,'-prec') .gt. 0 ) then
             if ( iarg+1 .gt. argc ) call usage_()
             iarg = iarg + 1
-            call GetArg ( iArg, argv )
+            call Get_Command_Argument ( iArg, argv )
             read(argv,*) outPrec
          else if(index(argv,'-debug') .gt. 0 ) then
             debug = .true.
@@ -2452,7 +2452,7 @@ CONTAINS
       print *, '        ',myname
       print *, '   ',string
       print *, ' --------------------------------'
-      call exit(1)
+      stop 1
       return
    end subroutine builtin_die
 

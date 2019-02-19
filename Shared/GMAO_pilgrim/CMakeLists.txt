@@ -1,7 +1,6 @@
-get_filename_component(this "${CMAKE_CURRENT_SOURCE_DIR}" NAME)
-esma_set_include (${this})
+esma_set_this()
 
-add_library (${this}
+set(srcs
   shr_kind_mod.F90
   debugutilitiesmodule.F90
   timingModule.F90
@@ -13,9 +12,11 @@ add_library (${this}
   redistributemodule.F90
   )
 
-target_compile_definitions (GMAO_pilgrim PRIVATE -DSPMD -DSTAND_ALONE -DMODCM_ALLOC)
+set (CMAKE_Fortran_FLAGS_RELEASE "-O2 ${common_Fortran_fpe_flags} ${ALIGNCOM}")
 
-target_link_libraries (GMAO_pilgrim ${MPI_Fortran_LIBRARIES})
-set_target_properties (${this} PROPERTIES Fortran_MODULE_DIRECTORY ${include_${this}})
+esma_add_library(${this} SRCS ${srcs})
+target_compile_definitions (${this} PRIVATE SPMD STAND_ALONE MODCM_ALLOC NO_TYPE_INIT)
+
+target_link_libraries (${this} PUBLIC ${MPI_Fortran_LIBRARIES})
 
 

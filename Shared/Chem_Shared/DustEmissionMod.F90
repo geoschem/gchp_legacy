@@ -1,3 +1,4 @@
+#include "unused_dummy.H"
 !-------------------------------------------------------------------------
 !         NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
 !-------------------------------------------------------------------------
@@ -15,6 +16,7 @@
    use Chem_Mod
    use Chem_ConstMod, only: grav        ! Constants !
    use Chem_UtilMod
+   use MAPL_ConstantsMod, only : MAPL_PI
 
    use m_mpout
 
@@ -30,9 +32,10 @@
 
    PUBLIC  DustEmissionDEAD
    PUBLIC  DustEmissionGOCART
+   PUBLIC  DustEmissionSimple
    PUBLIC  MAM_DustEmissionGOCART
    PUBLIC  MAM_DustEmission
-    
+   PUBLIC  KokSizeDistribution    
 
 
   real, parameter :: OCEAN=0.0, LAND = 1.0, SEA_ICE = 2.0
@@ -95,12 +98,10 @@ CONTAINS
 !-------------------------------------------------------------------------
 
 ! !Local Variables
-   integer  ::  i, j, k, m, n, ios, ijl
-   integer  ::  n1, n2
+   integer  ::  i, j
    real, parameter ::  air_dens = 1.25  ! Air density = 1.25 kg m-3
    real            ::  u_thresh0        ! dry bed, non-salting saltation threshold [m s-1]
    real            ::  w10m
-   real :: qmax, qmin
 
 !  Variables and parameters specific to Zender source implementation
    real            ::  fd               ! drag partitioning eff. factor
@@ -124,6 +125,7 @@ CONTAINS
    real            ::  vert_flux        ! Vertical Mass Flux
    real            ::  alpha            ! Vertical Flux Conversion Factor [m-1]
 
+  _UNUSED_DUMMY(km)
 
 !  Initialize local variables
 !  --------------------------
@@ -270,18 +272,15 @@ CONTAINS
 !-------------------------------------------------------------------------
 
 ! !Local Variables
-   integer  ::  i, j, k, m, n, ios
-   integer  ::  n1, n2
-   real     ::  emis(i1:i2,j1:j2)       ! Local bin emission
+   integer  ::  i, j
    real, parameter ::  air_dens = 1.25  ! Air density = 1.25 kg m-3
    real, parameter ::  soil_density  = 2650.  ! km m-3
    real            ::  diameter         ! dust effective diameter [m]
-   real            ::  DU_rhop          ! density of class [kg m-3]
    real            ::  u_thresh0
    real            ::  u_thresh
    real            ::  w10m
-   real            ::  w10mSave, DU_emisSave
-   real :: qmax, qmin
+
+  _UNUSED_DUMMY(km)
 
 !  Initialize local variables
 !  --------------------------
@@ -335,6 +334,90 @@ CONTAINS
    rc = 0
 
    end subroutine DustEmissionGOCART
+
+
+! Simple version of GOCART like scheme, where a threshold value is provided
+! along with a wind speed and the emissions are returned.  No size information
+! is implied.
+!
+! !IROUTINE:  DustEmissionSimple - Compute the dust emissions
+!
+! !INTERFACE:
+!
+
+   subroutine DustEmissionSimple( i1, i2, j1, j2, ut0, &
+                                  fraclake, gwettop, oro, w, &
+                                  tsoil, tsoil_freezing, emissions, rc )
+
+! !USES:
+
+  implicit NONE
+
+! !INPUT PARAMETERS:
+
+   integer, intent(in)           :: i1, i2, j1, j2
+   real                          :: ut0            ! dry threshold speed [m s-1]
+   real, pointer, dimension(:,:) :: fraclake, &    ! fraction of grid cell in lake
+                                    gwettop,  &    ! soil moisture
+                                    oro,      &    ! orography flag
+                                    w,        &    ! wind speed [m s-1]
+                                    tsoil          ! soil surface temperature [K]
+   real                          :: tsoil_freezing ! soil freezing point [K]
+
+! !OUTPUT PARAMETERS:
+
+   real                          :: emissions(i1:i2,j1:j2)  ! Local emission [kg m-2 s-1]
+   integer, intent(out)          :: rc          ! Error return code:
+                                                !  0 - all is well
+                                                !  1 - 
+   character(len=*), parameter :: myname = 'DustEmissionsSimple'
+
+! !DESCRIPTION: Computes the dust emissions for one time step
+!
+! !REVISION HISTORY:
+!
+!  19Nov2012, Colarco - Introduced
+!
+!EOP
+!-------------------------------------------------------------------------
+
+! !Local Variables
+   integer  ::  i, j
+   integer  ::  n1, n2
+   real     ::  emis(i1:i2,j1:j2)       ! Local bin emission
+   real     ::  ut
+   real     ::  w10m
+
+!  Initialize local variables
+!  --------------------------
+   emissions(:,:) = 0.
+
+!  Spatially dependent part of calculation
+!  ---------------------------------------
+   do j = j1, j2
+    do i = i1, i2
+
+     if ( oro(i,j) /= LAND ) cycle ! only over LAND gridpoints
+
+!    Modify the threshold depending on soil moisture as in Ginoux et al. [2001]
+     if ((gwettop(i,j) .lt. 0.5) .and. (tsoil(i,j) .gt. tsoil_freezing)) then
+      ut = max(0.0, ut0 * (1.2 + 0.2*alog10(max(1.0e-3, gwettop(i,j)))) / &
+                          (1.2 + 0.2*alog10(1.0e-3)))
+
+       if(w(i,j) .gt. ut) then     
+!       Emission of dust [kg m-2 s-1]
+        emissions(i,j) = &
+            (1.-fraclake(i,j)) * w(i,j)**2. * (w(i,j)-ut)
+
+       endif
+      endif
+
+     end do   ! i
+    end do    ! j
+
+   rc = 0
+
+   end subroutine DustEmissionSimple
 
 
    subroutine MAM_DustEmissionGOCART( i1, i2, j1, j2, km, &
@@ -453,6 +536,7 @@ CONTAINS
    real               :: weight_number(nmodes), w_n(nmodes)
    real               :: integral_mass(nmodes), integral_number(nmodes)
 
+   _UNUSED_DUMMY(km)
 
 !  Initialize local variables
 !  --------------------------
@@ -484,18 +568,118 @@ CONTAINS
 
    contains
        real function lognormal_cdf(x, median, sigma) result(cdf)
+          implicit none
           real, intent(in) :: x, median, sigma
-          real             :: erf ! erf is a 3F function in PGI, must be declared
+          real             :: erf
 
           cdf = 0.5 * (1 + erf(log(x/median) / (sqrt(2.0) * log(sigma))))
        end function lognormal_cdf
 
        real function lognormal_integral(x1, x2, median, sigma) result(integral)
+          implicit none
           real, intent(in) :: x1, x2, median, sigma
 
           integral = lognormal_cdf(x2, median, sigma) - lognormal_cdf(x1, median, sigma)
        end  function lognormal_integral
 
    end subroutine MAM_DustEmission
+
+
+
+! ------------------------------------------------------------------------------
+! Algorithm to compute mass fraction of dust emissions in particle bin of radius
+! range spanned by rlow and rup [m] based on brittle fragmentation theory, after
+! Kok PNAS (2011), his equations 5 & 6
+!
+! !IROUTINE:  KokSizeDistribution -- pass mass fraction size bins at dust emission
+!
+! !INTERFACE:
+!
+
+   subroutine KokSizeDistribution( r, rlow, rup, dm, dn)
+
+! !USES:
+
+  implicit NONE
+
+! !INPUT PARAMETERS:
+   real, intent(in), dimension(:)  :: r, rlow, rup  ! bin center, lower, and
+                                                    ! upper radius [m]
+
+! !OUTPUT PARAMETERS:
+   real, intent(out), dimension(:) :: dm            ! mass fraction of each bin
+   real, intent(out), dimension(:), optional :: dn  ! number fraction of each bin
+
+! !DESCRIPTION: Compute the dust emission mass fraction per size bin based on 
+!               Kok PNAS (2011) brittle fragmentation theory
+!
+! !REVISION HISTORY:
+!
+!  13Apr2017, Colarco - Introduced
+!
+!EOP
+!-------------------------------------------------------------------------
+
+! !Local Variables
+   integer         :: nbin, ibin
+   real            :: erf
+   real, parameter :: ds = 3.4e-6, &                ! soil median diameter [m]
+                      sigma = 3., &                 ! width of soil distribution
+                      lambda = 12.e-6, &            ! side crack propagation length
+                      cv = 12.62e-6, &              ! some constants
+                      cn = 0.9539e-6
+!  parameters for a fine sub-bin distribution
+   integer, parameter :: nbin_ = 1000
+   real               :: r_(nbin_), dr_(nbin_), dm_(nbin_), dn_(nbin_)
+   real               :: rmrat_, rmin_
+
+!  Get number of major bins
+   nbin = size(r)
+
+!  Loop over the major size bins
+   do ibin = 1, nbin
+
+    rmrat_ = (rup(ibin)/rlow(ibin))**(3./nbin_)
+    rmin_  = rlow(ibin)*((1.+rmrat_)/2.)**(1./3.)
+    call carmabins(rmin_, rmrat_, r_, dr_)
+
+!   Calculate the mass fraction from Kok PNAS 2011 Eqn. 6
+    dm_ = ( dr_/r_ ) * (2.*r_/cv) * &
+           (1. + erf(alog(2.*r_/ds)/sqrt(2.)/alog(sigma)))*exp(-(2.*r_/lambda)**3)
+    dm(ibin) = sum(dm_)
+if(MAPL_AM_I_ROOT()) print *, 'DUST USING THESE BIN MASS FRACTIONS:', ibin, r(ibin), dm(ibin)
+
+!   Calculate the number fraction from Kok PNAS 2011 Eqn. 5
+    if(present(dn)) then
+     dn_ = ( dr_/r_ ) * (1./cn/(2.*r_)**2) * &
+            (1. + erf(alog(2.*r_/ds)/sqrt(2.)/alog(sigma)))*exp(-(2.*r_/lambda)**3)
+     dn(ibin) = sum(dn_)
+    endif
+   enddo
+
+   contains
+    subroutine carmabins(rmin, rmrat, r, dr)
+!   mimics the CARMA size bin routine, provides onlly r and dr and assumes
+!   particle density = 1.
+    real, intent(in) :: rmin, rmrat
+    real, intent(out), dimension(:) :: r, dr
+
+    integer         :: nbin, ibin
+    real, parameter :: pi = MAPL_PI
+    real            :: rmassmin, vrfact, rmass
+
+    nbin = size(r)
+
+    rmassmin = 4./3.*pi*rmin**3
+    vrfact   = ( (3./2./pi / (rmrat+1.))**(1./3.))*(rmrat**(1./3.) - 1.)
+    do ibin = 1, nbin
+     rmass    = rmassmin*rmrat**(ibin-1)
+     r(ibin)  = (rmass/(4./3.*pi))**(1./3.)
+     dr(ibin) = vrfact*rmass**(1./3.)
+    enddo
+
+    end subroutine carmabins
+
+   end subroutine KokSizeDistribution
 
 end module 

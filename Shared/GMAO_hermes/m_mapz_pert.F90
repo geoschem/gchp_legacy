@@ -1,4 +1,5 @@
 module m_mapz_pert
+use, intrinsic :: iso_fortran_env, only: REAL32, REAL64
 use m_set_eta, only: set_eta
 use m_set_eta, only: get_ref_plevs
 use m_dyn, only: dyn_vect
@@ -18,8 +19,8 @@ end interface
 contains
 
 subroutine mapz_pert_ ( plevi, plevo, xpi, xpo, rc )
-real(8),intent(in) :: plevi(:)
-real(8),intent(in) :: plevo(:)
+real(kind=REAL64),intent(in) :: plevi(:)
+real(kind=REAL64),intent(in) :: plevo(:)
 type(dyn_vect) :: xpi
 type(dyn_vect) :: xpo
 integer, intent(out) :: rc
@@ -71,10 +72,10 @@ xpo%ps = xpi%ps
 end subroutine mapz_pert_
 subroutine set_ (nlevs,plevs)
 integer,intent(in) :: nlevs
-real(8),intent(inout) :: plevs(nlevs)
+real(kind=REAL64),intent(inout) :: plevs(nlevs)
 
-real(8), allocatable:: ak(:),bk(:)
-real(8):: ptop, pint
+real(kind=REAL64), allocatable:: ak(:),bk(:)
+real(kind=REAL64):: ptop, pint
 integer :: ks
 
 allocate(ak(nlevs+1),bk(nlevs+1))
@@ -85,10 +86,10 @@ deallocate(ak,bk)
 end subroutine set_
 
 subroutine vinterp_ ( plevi, plevo, yi, yo, rc)
-real(8),intent(in)   :: plevi(:)
-real(8),intent(in)   :: plevo(:)
-real(8),intent(in)   :: yi(:,:,:)
-real(8),intent(inout):: yo(:,:,:)
+real(kind=REAL64),intent(in)   :: plevi(:)
+real(kind=REAL64),intent(in)   :: plevo(:)
+real(kind=REAL64),intent(in)   :: yi(:,:,:)
+real(kind=REAL64),intent(inout):: yo(:,:,:)
 integer,intent(out)  :: rc
 
 integer imi,jmi,kmi

@@ -3,13 +3,13 @@
 
       integer timeId, timInc
       integer fid, rc
-      integer  iarg, iargc, argc
+      integer  iarg, argc
       character*255 fname, argv
 
-      argc =  iargc()
-      if ( argc .lt. 1 ) call exit(1)
+      argc =  command_argument_count()
+      if ( argc .lt. 1 ) stop 1
       iarg = 1
-      call GetArg ( iArg, argv )
+      call get_command_argument ( iArg, argv )
       fname = trim(argv)
       fid = ncopn (fname, NCNOWRIT, rc)
       timeId = ncvid (fid, 'time', rc)

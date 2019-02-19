@@ -11,7 +11,6 @@ set (srcs
   gfioutil.f
   m_GFIO_GetFld.f
   m_GFIO_PutFld.f
-  gfio_flush.F
   )
 
 set_source_files_properties (gfio.f PROPERTIES COMPILE_FLAGS ${PP})
@@ -20,13 +19,14 @@ set_source_files_properties (m_GFIO_PutFld.f PROPERTIES COMPILE_FLAGS ${PP})
 
 
 # Need to build r4 and r8 versions.  See details at bottom
-add_library (${this} STATIC ${srcs})
+esma_add_library (${this} SRCS ${srcs} DEPENDENCIES GMAO_mpeu)
 set_property(TARGET ${this} PROPERTY POSITION_INDEPENDENT_CODE ON)
 
-set_target_properties (${this} PROPERTIES COMPILE_FLAGS ${EXTENDED_SOURCE})
+if (EXTENDED_SOURCE)
+  set_target_properties (${this} PROPERTIES COMPILE_FLAGS ${EXTENDED_SOURCE})
+endif()
 set_target_properties (${this} PROPERTIES Fortran_MODULE_DIRECTORY ${include_${this}})
-target_link_libraries (${this} GMAO_mpeu ${ESMF_LIBRARIES})
-target_include_directories (${this} PUBLIC ${include_GMAO_mpeu})
+target_link_libraries (${this} PUBLIC ${ESMF_LIBRARIES})
 target_include_directories (${this} PUBLIC ${INC_ESMF})
 target_include_directories (${this} PUBLIC ${INC_NETCDF})
   

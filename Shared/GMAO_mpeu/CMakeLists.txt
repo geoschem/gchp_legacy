@@ -1,6 +1,6 @@
-get_filename_component(this "${CMAKE_CURRENT_SOURCE_DIR}" NAME)
+esma_set_this()
 
-add_library (${this}
+set(srcs
   get_zeits.c
   m_mpif.F m_random.F
   m_FileResolv.f90
@@ -42,14 +42,20 @@ add_library (${this}
   m_fpe.F90
   )
 
-target_link_libraries(${this} ${MPI_Fortran_LIBRARIES})
+esma_add_library(${this} SRCS ${srcs})
+
+# Other dependencies
+target_link_libraries(${this} PUBLIC ${MPI_Fortran_LIBRARIES})
+target_include_directories(${this} PUBLIC ${MPI_Fortran_INCLUDE_PATH})
+
+#############################################################
+# Exceptional cases:
 # One source file uses the preprocessor but is has the .f90 suffix (lower case).
 set_source_files_properties (m_FileResolv.f90 PROPERTIES COMPILE_FLAGS ${PP})
 
 # NAG notices if the same procedure is called with varying types in the absence
 # of an explicit interface.
 target_compile_options (${this} PRIVATE $<$<COMPILE_LANGUAGE:Fortran>:${MISMATCH}>)
-set_target_properties (${this} PROPERTIES Fortran_MODULE_DIRECTORY ${include_${this}})
 
 
 
