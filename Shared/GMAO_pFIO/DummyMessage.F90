@@ -1,6 +1,8 @@
+#include "pFIO_ErrLog.h"
 #include "unused_dummy.H"
 
 module pFIO_DummyMessageMod
+   use pFIO_ErrorHandlingMod
    use pFIO_AbstractMessageMod
    use, intrinsic :: iso_fortran_env, only: INT32
    implicit none
@@ -36,17 +38,20 @@ contains
       length = 0
    end function get_length
 
-   subroutine serialize(this, buffer)
+   subroutine serialize(this, buffer, rc)
       class (DummyMessage), intent(in) :: this
       integer(kind=INT32), intent(inout) :: buffer(:) ! no-op
+      integer, optional, intent(out) :: rc
       integer :: empty(0)
       buffer = empty
+      _RETURN(_SUCCESS)
    end subroutine serialize
 
-   subroutine deserialize(this, buffer)
+   subroutine deserialize(this, buffer, rc)
       class (DummyMessage), intent(inout) :: this
       integer(kind=INT32), intent(in) :: buffer(:)
+      integer, optional, intent(out) :: rc
+      _RETURN(_SUCCESS)
    end subroutine deserialize
    
 end module pFIO_DummyMessageMod
-

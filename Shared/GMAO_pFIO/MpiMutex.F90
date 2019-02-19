@@ -39,7 +39,6 @@ contains
       integer, intent(in) :: comm
 
       integer :: ierror
-      integer :: sizeof_logical
       integer(kind=MPI_ADDRESS_KIND) :: sz
 
       call MPI_Comm_dup(comm, lock%comm, ierror)
@@ -107,7 +106,7 @@ contains
          block
            integer :: buffer ! unused
            call MPI_Recv(buffer, 0, MPI_LOGICAL, MPI_ANY_SOURCE, &
-                & LOCK_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE, ierror)
+                & LOCK_TAG, this%comm, MPI_STATUS_IGNORE, ierror)
          end block
       end if
 
@@ -149,7 +148,7 @@ contains
         
         if (next_rank /= -1) then
            call MPI_Send(buffer, 0, MPI_LOGICAL, next_rank, &
-                & LOCK_TAG, MPI_COMM_WORLD, ierror)
+                & LOCK_TAG, this%comm, ierror)
         end if
       end block
 
