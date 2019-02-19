@@ -978,6 +978,13 @@ subroutine offline_tracer_advection(q, ple0, ple1, mfx, mfy, cx, cy, &
 ! It requires less memory than mapn_ppm
 !------------------------------------------------------------------
 
+    ! GCHP update to restrict mass balance operation to the troposphere
+    ! Identify the first layer which is affected by surface pressure
+    kStart=0
+    do k=1,npz
+       if ((kStart.le.0).and.(bk(k+1).gt.0d0)) kStart=k
+    end do
+
        do iq=1,nq
           do j=js,je
            ! pressures mapping from (dpA is new delp after tracer_2d)
@@ -1000,27 +1007,94 @@ subroutine offline_tracer_advection(q, ple0, ple1, mfx, mfy, cx, cy, &
                           isd, ied, jsd, jed, 0.) 
              if (fill) call fillz(ie-is+1, npz, 1, q1(:,j,:), dp2(:,j,:))
           enddo
-          ! Rescale tracers based on ple1 at destination timestep
-          !------------------------------------------------------
 
-          scalingFactor = calcScalingFactor(q1, dp2, ple1, npx, npy, npz, gridstruct, bd)
-          !scalingFactors = computeScalingFactors(q1, dp2, ple1, npx, npy, npz)
-
-          ! Return tracers
-          !---------------
-          q(is:ie,js:je,1:npz,iq) = q1(is:ie,js:je,1:npz) * scalingFactor
-          !do k =1,npz
-             !do j = js,je
-                !do i = is,ie
-                   !q(i,j,k,iq) = q1(i,j,k)
-                !enddo
-             !enddo
-          !enddo
+       ! GCHP update to restrict mass balance operation to the troposphere:
+       !   ! Rescale tracers based on ple1 at destination timestep
+       !   !------------------------------------------------------
+       !
+       !   scalingFactor = calcScalingFactor(q1, dp2, ple1, npx, npy, npz, gridstruct, bd)
+       !   !scalingFactors = computeScalingFactors(q1, dp2, ple1, npx, npy, npz)
+       !
+       !   ! Return tracers
+       !   !---------------
+       !   q(is:ie,js:je,1:npz,iq) = q1(is:ie,js:je,1:npz) * scalingFactor
+       !   !do k =1,npz
+       !      !do j = js,je
+       !         !do i = is,ie
+       !            !q(i,j,k,iq) = q1(i,j,k)
+       !         !enddo
+       !      !enddo
+       !   !enddo
+          scalingFactor = calcScalingFactorTrop(bd, q1, dp2, ple1, npx, npy, npz, &
+                                             kStart, gridstruct)
+          q(is:ie,js:je,1:(kStart-1),iq) = q1(is:ie,js:je,1:(kStart-1))
+          q(is:ie,js:je,kStart:npz,iq) = q1(is:ie,js:je,kStart:npz) * scalingFactor
 
        enddo
 
 end subroutine offline_tracer_advection
+!------------------------------------------------------------------------------------
+          
+         ! GCHP update to restrict mass balance operation to the troposphere
+         function calcScalingFactorTrop(q1, dp2, ple1, npx, npy, npz, kStart) result(scaling)
+         use mpp_mod, only: mpp_sum
+         integer, intent(in) :: npx
+         integer, intent(in) :: npy
+         integer, intent(in) :: npz
+         integer, intent(in) :: kStart
+         real(REAL8), intent(in) :: q1(:,:,:)
+         real(REAL8), intent(in) :: dp2(:,:,:)
+         real(REAL8), intent(in) :: ple1(:,:,:)
+         real(REAL8) :: scaling
 
+         integer :: k
+         real(REAL8) :: partialSums(3,npz), globalSums(3)
+         real(REAL8), parameter :: TINY_DENOMINATOR = tiny(1.d0)
+         !real(REAL8), parameter :: TINY_DENOMINATOR = 1.d-5
+         real(REAL8) :: tempSum
+
+         !-------
+         ! Compute partial sum on local array first to minimize communication.
+         ! This algorithm will not be strongly repdroducible under changes do domain
+         ! decomposition, but uses far less communication bandwidth (and memory BW)
+         ! then the preceding implementation.
+         !-------
+         partialSums = 0.d0
+         do k = 1, npz
+            ! numerator
+            partialSums(1,k) = sum(q1(:,:,k)*dp2(:,:,k)*area(is:ie,js:je))
+            ! denominator
+            tempSum = sum(q1(:,:,k)*(ple1(:,:,k+1)-ple1(:,:,k))*area(is:ie,js:je))
+            partialSums(2,k) = tempSum
+            if (k.lt.kStart) then
+               partialSums(3,k) = tempSum
+            end if
+         end do
+
+         globalSums(1) = sum(partialSums(1,:))
+         globalSums(2) = sum(partialSums(2,:))
+         globalSums(3) = sum(partialSums(3,:))
+
+         ! Get total pre-advection mass, total post-advection mass, and total
+         ! strat mass after advection
+         call mpp_sum(globalSums, 3)
+
+         ! Subtract stratospheric mass
+         globalSums(1) = globalSums(1) - globalSums(3)
+         globalSums(2) = globalSums(2) - globalSums(3)
+
+         if (globalSums(2) > TINY_DENOMINATOR) then
+            scaling =  globalSums(1) / globalSums(2)
+            !#################################################################
+            ! This line was added to ensure strong reproducibility of the code
+            ! SDE 2017-02-17: Disabled as it compromises mass conservation
+            !#################################################################
+            !scaling = REAL(scaling, KIND=REAL4)
+         else
+            scaling = 1.d0
+         end if
+
+         end function calcScalingFactorTrop
 !------------------------------------------------------------------------------------
 
          function calcScalingFactor(q1, dp2, ple1, npx, npy, npz, gridstruct, bd) result(scaling)
