@@ -102,6 +102,7 @@ CODE :=  allgather.code           bcast.code             recv.code      \
 
 SRCS :=  ESMFL_Mod.F90            MAPL_HeapMod.F90       MAPL_VarSpecMod.F90\
          MAPL_Base.F90            MAPL_InterpMod.F90     hinterp.F\
+         MAPL_ErrorHandling.F90 \
          MAPL_Config.F90\
          MAPL_CFIO.F90            MAPL_IO.F90            \
          MAPL_Comms.F90           MAPL_LocStreamMod.F90  MAPL_Mod.F90\
@@ -111,14 +112,15 @@ SRCS :=  ESMFL_Mod.F90            MAPL_HeapMod.F90       MAPL_VarSpecMod.F90\
          MAPL_HistoryGridComp.F90 MAPL_Cap.F90           hash.c\
          MAPL_CapGridComp.F90\
          MAPL_GridType.F90 \
-	 MAPL_GridSpec.F90 \
-	 MAPL_AbstractRegridder.F90\
-	 MAPL_LatLonToLatLonRegridder.F90\
-	 MAPL_TilingRegridder.F90\
-	 MAPL_ConservativeRegridder.F90\
-	 MAPL_VotingRegridder.F90\
-	 MAPL_FractionalRegridder.F90\
-	 MAPL_IdentityRegridder.F90\
+         MAPL_GridSpec.F90 \
+         MAPL_AbstractRegridder.F90\
+         MAPL_EsmfRegridder.F90\
+         MAPL_LatLonToLatLonRegridder.F90\
+         MAPL_TilingRegridder.F90\
+         MAPL_ConservativeRegridder.F90\
+         MAPL_VotingRegridder.F90\
+         MAPL_FractionalRegridder.F90\
+         MAPL_IdentityRegridder.F90\
          MAPL_CapGridComp.F90\
          MAPL_KeywordEnforcer.F90 \
          MAPL_Range.F90  \
@@ -135,16 +137,22 @@ SRCS :=  ESMFL_Mod.F90            MAPL_HeapMod.F90       MAPL_VarSpecMod.F90\
          MAPL_LatLonGridFactory.F90 \
          MAPL_LatLonToLatLonRegridder.F90 \
          MAPL_TripolarGridFactory.F90 \
+         AbstractCommSplitter.F90 SimpleCommSplitter.F90 SplitCommunicator.F90 CommGroupDescription.F90\
          MAPL_StringVector.F90 \
          MAPL_DirPath.F90 \
          c_mapl_locstream_F.c\
          memuse.c                 MAPL_MemUtils.F90      MAPL_Hash.F90 \
          MAPL_MaxMinMod.F90     MAPL_SimpleBundleMod.F90 \
          MAPL_OrbGridCompMod.F90  MAPL_NominalOrbitsMod.F90 MAPL_ExtDataGridCompMod.F90 \
+         MAPL_ExtData_IOBundleMod.F90\
+         MAPL_ExtData_IOBundleVectorMod.F90\
          MAPL_NewArthParser.F90   MAPL_ShmemMod.F90      MAPL_LoadBalance.F90 MAPL_CFIOServer.F90 \
          MAPL_DefGridName.F90 MAPL_VerticalInterpMod.F90 MAPL_Throw.F90 MAPL_MinMax.F90 \
          MAPL_StringIntegerMap.F90 CFIOCollection.F90 ESMF_CFIOPtrVectorMod.F90 Regrid_Functions_Mod.F90 \
-         MAPL_HistoryCollection.F90 MAPL_TransposeRegridder.F90 MAPL_GetLatLonCoord.F90 MAPL_EsmfRegridder.F90
+         MAPL_HistoryCollection.F90 MAPL_TransposeRegridder.F90 MAPL_GetLatLonCoord.F90 MAPL_EsmfRegridder.F90 \
+         MAPL_newCFIO.F90 MAPL_newCFIOitem.F90 MAPL_VerticalMethods.F90 MAPL_TimeMethods.F90\
+	 MAPL_NUOPCWrapperMod.F90 MAPL_ServerManager.F90 MAPL_ESMFTimeVectorMod.F90
+
 
 # Hack to allow runs on jaguar
 # FOPT = $(FOPT0) 
@@ -158,13 +166,17 @@ OBJS := $(addsuffix .o, $(basename $(SRCS)))
 DEPS := $(addsuffix .d, $(basename $(SRCS))) \
         $(addsuffix .d, $(basename $(BINS)))
 
-INC_DIRS = . $(INC_ESMF) $(INC_MPI) $(INC_SDF) $(INC_gFTL)
+INC_DIRS = . $(INC_ESMF) $(INC_MPI) $(INC_SDF) $(INC_gFTL) $(INC_FLAP)
 MOD_DIRS = $(INC_DIRS) $(INC_CFIO) $(INC_GMAO_pFIO)
 
 USER_FINCS = $(foreach dir,$(INC_DIRS),$(I)$(dir))
 USER_FMODS = $(foreach dir,$(MOD_DIRS),$(M)$(dir)) 
-USER_FDEFS = $(D)MAPL $(D)DO_COMMAS $(D)TWO_SIDED_COMM
+USER_FDEFS = $(D)MAPL $(D)DO_COMMAS $(D)TWO_SIDED_COMM $(D)__ifort_18
 USER_LDFLAGS = $(OMPFLAG)
+
+ifeq ($(IFORT_MAJOR),18)
+  USER_FDEFS += $(D)__ifort_18
+endif
 
 FREAL = $(FREAL4) # for now, require 32 bit reals (R4)
 THIS_CFIO = MAPL_cfio_r4
@@ -210,7 +222,7 @@ $(LIB) lib : $(DEPS) $(OBJS)
 	$(FC) $(LDFLAGS) -o $@ $*.o $(LIB) \
               $(LIB_ESMF) $(LIB_CFIO) $(LIB_GMAO_pFIO) \
               $(wildcard $(LIB_MFHDF3)) $(LIB_SDF)\
-              $(LIB_MPI) $(LIB_SYS)
+              $(LIB_MPI) $(LIB_SYS) $(LIB_FLAP)
 
 test: $(TESTS)
 	  @ argv="$(TESTS)" ;\

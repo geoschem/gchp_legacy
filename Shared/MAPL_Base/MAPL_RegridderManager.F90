@@ -115,6 +115,7 @@ contains
       integer :: status
       character(len=*), parameter :: Iam= MOD_NAME // 'make_regridder_from_grids'
       type (RegridderSpec) :: spec
+      integer (kind=ESMF_KIND_I8) :: id_in, id_out
 
       character(len=:), allocatable :: grid_type_in, grid_type_out
       type (RegridderTypeSpec) :: type_spec
@@ -134,7 +135,11 @@ contains
       end if
 
       ! Special case if two grids are the same
-      if (get_factory_id(grid_in) == get_factory_id(grid_out)) then
+      id_in = get_factory_id(grid_in,rc=status)
+      _VERIFY(status)
+      id_out = get_factory_id(grid_out,rc=status)
+      _VERIFY(status)
+      if (id_in==id_out) then
          regridder => identity_regridder()
          _RETURN(_SUCCESS)
       end if
@@ -226,6 +231,7 @@ contains
       integer :: status
       character(len=*), parameter :: Iam= MOD_NAME // 'make_regridder_from_grids'
       type (RegridderSpec) :: spec
+      integer(ESMF_KIND_I8) :: id_in, id_out
 
       type (EsmfRegridder), pointer :: esmf_regridder
 
@@ -235,8 +241,16 @@ contains
         call this%init()
       end if
 
+      id_in = get_factory_id(grid_in,rc=status)
+      _VERIFY(status)
+      id_out = get_factory_id(grid_out,rc=status)
+      _VERIFY(status)
       ! Special case if two grids are the same
-      if (get_factory_id(grid_in) == get_factory_id(grid_out)) then
+      id_in = get_factory_id(grid_in,rc=status)
+      _VERIFY(status)
+      id_out = get_factory_id(grid_out,rc=status)
+      _VERIFY(status)
+      if (id_in==id_out) then
          regridder => identity_regridder()
          _RETURN(_SUCCESS)
       end if

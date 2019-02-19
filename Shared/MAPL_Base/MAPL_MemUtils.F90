@@ -14,6 +14,7 @@ module MAPL_MemUtilsMod
   use MAPL_CommsMod
   use MAPL_IOMod
   use MAPL_ShmemMod
+  use MAPL_ErrorHandlingMod
   use, intrinsic :: iso_fortran_env, only: INT64
   use, intrinsic :: iso_fortran_env, only: REAL64
 
@@ -50,6 +51,7 @@ module MAPL_MemUtilsMod
   public MAPL_MemUtilsWrite
   public MAPL_MemUtilsIsDisabled
   public MAPL_MemUtilsFree
+  public MAPL_MemCommited
 
 #ifdef _CRAY
   public :: hplen
@@ -84,7 +86,7 @@ module MAPL_MemUtilsMod
                
       DISABLED = .true.
             
-      RETURN_(ESMF_SUCCESS)
+      _RETURN(ESMF_SUCCESS)
 
     end subroutine MAPL_MemUtilsDisable
             
@@ -130,7 +132,7 @@ module MAPL_MemUtilsMod
          MAPL_memUtilsMode=MAPL_MemUtilsModeBase
       endif
      
-      RETURN_(ESMF_SUCCESS)
+      _RETURN(ESMF_SUCCESS)
     end subroutine MAPL_MemUtilsInit
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -324,24 +326,24 @@ module MAPL_MemUtilsMod
     integer :: comm
 
     call ESMF_VMGet(vm,mpicommunicator=comm,rc=status)
-    VERIFY_(status)
+    _VERIFY(status)
 
     if( PRESENT(always) )then
         if( .NOT.always ) then
-            RETURN_(ESMF_SUCCESS)
+            _RETURN(ESMF_SUCCESS)
         endif
         call MAPL_MemUtilsWriteComm(text,comm=comm,always=always,rc=status)
-        VERIFY_(STATUS)
+        _VERIFY(STATUS)
     else
         if( DISABLED ) then
-            RETURN_(ESMF_SUCCESS)
+            _RETURN(ESMF_SUCCESS)
         endif
         call MAPL_MemUtilsWriteComm(text,comm=comm,rc=status)
-        VERIFY_(STATUS)
+        _VERIFY(STATUS)
     end if
 
 
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
   end subroutine MAPL_MemUtilsWriteVM
 
   subroutine MAPL_MemUtilsWriteComm( text, comm, always, RC )
@@ -377,11 +379,11 @@ module MAPL_MemUtilsMod
 
     if( PRESENT(always) )then
         if( .NOT.always ) then
-            RETURN_(ESMF_SUCCESS)
+            _RETURN(ESMF_SUCCESS)
         endif
     else
         if( DISABLED ) then
-            RETURN_(ESMF_SUCCESS)
+            _RETURN(ESMF_SUCCESS)
         endif
     end if
 #if defined(__sgi) || defined(__aix) || defined(__SX)
@@ -392,28 +394,28 @@ module MAPL_MemUtilsMod
     call MPI_Comm_Size(comm_,npes,status)
     if (MAPL_MemUtilsMode == MAPL_MemUtilsModeFull) then
        lhwm = mhwm; call MPI_AllReduce(lhwm,ghwm,1,MPI_REAL,MPI_MAX,comm_,status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
        mmin = mrss; call MPI_AllReduce(mmin,gmin,1,MPI_REAL,MPI_MIN,comm_,status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
        mmax = mrss; call MPI_AllReduce(mmax,gmax,1,MPI_REAL,MPI_MAX,comm_,status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
        mavg = mrss; call MPI_AllReduce(mavg,gavg,1,MPI_REAL,MPI_SUM,comm_,status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
        gavg = gavg/npes
        mstd = (mrss-gavg)**2; call MPI_AllReduce(mstd,gstd,1,MPI_REAL,MPI_SUM,comm_,status)
        gstd = sqrt( gstd/npes )
        gmax_save = gmax
        lcommitlimit  = commitlimit;  call MPI_AllReduce(lcommitlimit,gcommitlimit,1,MPI_REAL,MPI_MAX,comm_,status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
        lcommitted_as = committed_as; call MPI_AllReduce(lcommitted_as,gcommitted_as,1,MPI_REAL,MPI_MAX,comm_,status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     end if
 
     if (MAPL_MemUtilsMode == MAPL_MemUtilsModeFull .or. MAPL_MemUtilsMode == MAPL_MemUtilsModeBase) then
        lmem  = memused;  call MPI_AllReduce(lmem,gmem,1,MPI_REAL,MPI_MAX,comm_,status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
        lswap = swapused; call MPI_AllReduce(lswap,gswap,1,MPI_REAL,MPI_MAX,comm_,status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     end if
 
     if (MAPL_MemUtilsMode == MAPL_MemUtilsModeBase) then
@@ -442,10 +444,60 @@ module MAPL_MemUtilsMod
 
     end if
 
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
   end subroutine MAPL_MemUtilsWriteComm
 
 !#######################################################################
+
+subroutine MAPL_MemCommited ( memtotal, committed_as, percent_committed, RC )
+
+real, intent(out) :: memtotal, committed_as, percent_committed
+integer, optional, intent(OUT  ) :: RC
+
+! This routine returns the memory usage on Linux systems.
+! It does this by querying a system file (file_name below).
+
+character(len=32) :: meminfo   = '/proc/meminfo'
+character(len=32) :: string
+integer :: mem_unit
+real    :: multiplier
+
+character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_MemUtils:MAPL_MemCommited"
+integer :: status
+
+#ifdef sysDarwin
+  memtotal = 0.0
+  committed_as = 0.0
+  percent_committed = 0.0
+  RETURN_(ESMF_SUCCESS)
+#endif
+
+  multiplier = 1.0
+
+  call get_unit(mem_unit)
+  open(UNIT=mem_unit,FILE=meminfo,FORM='formatted',IOSTAT=STATUS)
+  _VERIFY(STATUS)
+  do; read (mem_unit,'(a)', end=20) string
+    if ( INDEX ( string, 'MemTotal:' ) == 1 ) then  ! High Water Mark
+      read (string(10:LEN_TRIM(string)-2),*) memtotal
+      if (TRIM(string(LEN_TRIM(string)-1:)) == "kB" ) &
+        multiplier = 1.0/1024. ! Convert from kB to MB
+      memtotal = memtotal * multiplier
+    endif
+    if ( INDEX ( string, 'Committed_AS:' ) == 1 ) then  ! Resident Memory
+      read (string(14:LEN_TRIM(string)-2),*) committed_as
+      if (TRIM(string(LEN_TRIM(string)-1:)) == "kB" ) &
+        multiplier = 1.0/1024. ! Convert from kB to MB
+      committed_as = committed_as * multiplier
+    endif
+  enddo
+20 close(mem_unit)
+
+   percent_committed = 100.0*(committed_as/memtotal)
+
+   _RETURN(ESMF_SUCCESS)
+end subroutine MAPL_MemCommited
+
 
 subroutine mem_dump ( memhwm, memrss, memused, swapused, commitlimit, committed_as, RC )
 
@@ -471,7 +523,7 @@ integer :: status
 
   call get_unit(mem_unit)
   open(UNIT=mem_unit,FILE=proc_self,FORM='formatted',IOSTAT=STATUS)
-  VERIFY_(STATUS)
+  _VERIFY(STATUS)
   do; read (mem_unit,'(a)', end=10) string
     if ( INDEX ( string, 'VmHWM:' ) == 1 ) then  ! High Water Mark
       read (string(7:LEN_TRIM(string)-2),*) memhwm
@@ -490,7 +542,7 @@ integer :: status
 
   call get_unit(mem_unit)
   open(UNIT=mem_unit,FILE=meminfo,FORM='formatted',IOSTAT=STATUS)
-  VERIFY_(STATUS)
+  _VERIFY(STATUS)
   do; read (mem_unit,'(a)', end=20) string
     if ( INDEX ( string, 'MemTotal:' ) == 1 ) then  ! High Water Mark
       read (string(10:LEN_TRIM(string)-2),*) memtot
@@ -534,7 +586,7 @@ integer :: status
    memused = memtot-memfree
    swapused = swaptot-swapfree
 
-   RETURN_(ESMF_SUCCESS)
+   _RETURN(ESMF_SUCCESS)
 end subroutine mem_dump
 
 subroutine MAPL_MemUtilsFree ( totmemfree, RC )
@@ -562,7 +614,7 @@ integer :: status
 
   call get_unit(mem_unit)
   open(UNIT=mem_unit,FILE=meminfo,FORM='formatted',IOSTAT=STATUS)
-  VERIFY_(STATUS)
+  _VERIFY(STATUS)
   do; read (mem_unit,'(a)', end=20) string
     if ( INDEX ( string, 'MemFree:' ) == 1 ) then  ! Free memory
       read (string(9:LEN_TRIM(string)-2),*) memfree
@@ -587,7 +639,7 @@ integer :: status
 
   totmemfree = memfree + cached + buffers
 
-   RETURN_(ESMF_SUCCESS)
+   _RETURN(ESMF_SUCCESS)
 end subroutine MAPL_MemUtilsFree
 
 subroutine get_unit ( iunit )

@@ -24,6 +24,7 @@ module MAPL_SunMod
   use MAPL_BaseMod
   use MAPL_IOMod
   use MAPL_CommsMod
+  use MAPL_ErrorHandlingMod
   use netcdf
 
   implicit none
@@ -150,7 +151,7 @@ type(MAPL_SunOrbit) function MAPL_SunOrbitCreate(CLOCK,       &
       character(len=ESMF_MAXSTR), parameter :: IAm = "SunOrbitCreate"
 
       integer :: YEARS_PER_CYCLE, DAYS_PER_CYCLE
-      integer :: K, KP
+      integer :: KM, K, KP
       real*8  :: T1, T2, T3, T4, FUN, Y, SOB, OMG, PRH, TT
       real*8  :: YEARLEN
       integer :: STATUS
@@ -184,19 +185,19 @@ type(MAPL_SunOrbit) function MAPL_SunOrbitCreate(CLOCK,       &
 
       if(associated(ORBIT%TH)) deallocate(ORBIT%TH)
       allocate(ORBIT%TH(DAYS_PER_CYCLE), stat=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
  
       if(associated(ORBIT%ZC)) deallocate(ORBIT%ZC)
       allocate(ORBIT%ZC(DAYS_PER_CYCLE), stat=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       if(associated(ORBIT%ZS)) deallocate(ORBIT%ZS)
       allocate(ORBIT%ZS(DAYS_PER_CYCLE), stat=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       if(associated(ORBIT%PP)) deallocate(ORBIT%PP)
       allocate(ORBIT%PP(DAYS_PER_CYCLE), stat=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       ORBIT%CLOCK           = CLOCK
       ORBIT%OB              = OBLIQUITY
@@ -246,7 +247,7 @@ type(MAPL_SunOrbit) function MAPL_SunOrbitCreate(CLOCK,       &
 
       MAPL_SunOrbitCreate = ORBIT
 
-      RETURN_(ESMF_SUCCESS)
+      _RETURN(ESMF_SUCCESS)
 
     end function MAPL_SunOrbitCreate
 
@@ -270,13 +271,14 @@ type(MAPL_SunOrbit) function MAPL_SunOrbitCreate(CLOCK,       &
 !EOP
 
        character(len=ESMF_MAXSTR), parameter :: IAm = "SunOrbitDestroy"
+       integer :: STATUS
 
        if(associated(ORBIT%TH)) deallocate(ORBIT%TH)
        if(associated(ORBIT%ZC)) deallocate(ORBIT%ZC)
        if(associated(ORBIT%ZS)) deallocate(ORBIT%ZS)
        if(associated(ORBIT%PP)) deallocate(ORBIT%PP)
 
-       RETURN_(ESMF_SUCCESS)
+       _RETURN(ESMF_SUCCESS)
 
      end subroutine MAPL_SunOrbitDestroy
 
@@ -304,9 +306,10 @@ type(MAPL_SunOrbit) function MAPL_SunOrbitCreate(CLOCK,       &
 !EOPI
 
        character(len=ESMF_MAXSTR), parameter :: IAm = "SunOrbitCreated"
+       integer :: STATUS
 
        MAPL_SunOrbitCreated = associated(ORBIT%TH)
-       RETURN_(ESMF_SUCCESS)
+       _RETURN(ESMF_SUCCESS)
        return
 
      end function MAPL_SunOrbitCreated
@@ -359,7 +362,7 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
        character(len=ESMF_MAXSTR), parameter :: IAm = "SunOrbitQuery"
        integer :: STATUS
 
-       ASSERT_(MAPL_SunOrbitCreated(ORBIT,RC=STATUS))
+       _ASSERT(MAPL_SunOrbitCreated(ORBIT,RC=STATUS),'needs informative message')
 
        if(present(CLOCK          )) CLOCK           = ORBIT%CLOCK
        if(present(OBLIQUITY      )) OBLIQUITY       = ORBIT%OB
@@ -372,7 +375,7 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
        if(present(ZS             )) ZS => ORBIT%ZS
        if(present(ZC             )) ZC => ORBIT%ZC
 
-       RETURN_(ESMF_SUCCESS)
+       _RETURN(ESMF_SUCCESS)
 
      end subroutine MAPL_SunOrbitQuery
 
@@ -514,82 +517,82 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
 !   Begin
 
       call ESMF_ArrayGet(LONS, RANK=RANK, RC=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       select case(RANK)
 
       case(1)
          call ESMF_ArrayGet(LATS, localDE=0, farrayptr=LATS1, RC=STATUS)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
          call ESMF_ArrayGet(LONS,localDE=0, farrayptr=LONS1, RC=STATUS)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
          call ESMF_ArrayGet(ZTH ,localDE=0, farrayptr=ZTH1, RC=STATUS)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
          call ESMF_ArrayGet(SLR ,localDE=0, farrayptr=SLR1, RC=STATUS)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
 
          if(present(ZTHB) .and. present(ZTHD)) then
             call ESMF_ArrayGet(ZTHB ,localDE=0, farrayptr=ZTHB1 ,RC=STATUS)
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
             call ESMF_ArrayGet(ZTHD ,localDE=0, farrayptr=ZTHD1 ,RC=STATUS)
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
             call MAPL_SunGetInsolation(LONS1,LATS1,ORBIT,ZTH1,SLR1,INTV,CLOCK,&
                  TIME,currTime,DIST=DIST,ZTHB=ZTHB1,ZTHD=ZTHD1,RC=STATUS)
          elseif(present(ZTHB)) then
             call ESMF_ArrayGet(ZTHB ,localDE=0, farrayptr=ZTHB1 ,RC=STATUS)
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
             call MAPL_SunGetInsolation(LONS1,LATS1,ORBIT,ZTH1,SLR1,INTV,CLOCK,&
                  TIME,currTime,DIST=DIST,ZTHB=ZTHB1,RC=STATUS)
          elseif(present(ZTHD)) then
             call ESMF_ArrayGet(ZTHD ,localDE=0, farrayptr=ZTHD1 ,RC=STATUS)
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
             call MAPL_SunGetInsolation(LONS1,LATS1,ORBIT,ZTH1,SLR1,INTV,CLOCK,&
                  TIME,currTime,DIST=DIST,ZTHD=ZTHD1,RC=STATUS)
          else
             call MAPL_SunGetInsolation(LONS1,LATS1,ORBIT,ZTH1,SLR1,INTV,CLOCK,&
                  TIME,currTime,DIST=DIST,RC=STATUS)
          endif
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
 
       case(2)
          call ESMF_ArrayGet(LATS,localDE=0, farrayptr=LATS2,RC=STATUS)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
          call ESMF_ArrayGet(LONS,localDE=0, farrayptr=LONS2,RC=STATUS)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
          call ESMF_ArrayGet(ZTH ,localDE=0, farrayptr=ZTH2 ,RC=STATUS)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
          call ESMF_ArrayGet(SLR ,localDE=0, farrayptr=SLR2 ,RC=STATUS)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
 
          if(present(ZTHB) .and. present(ZTHD)) then
             call ESMF_ArrayGet(ZTHB ,localDE=0, farrayptr=ZTHB2 ,RC=STATUS)
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
             call ESMF_ArrayGet(ZTHD ,localDE=0, farrayptr=ZTHD2 ,RC=STATUS)
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
             call MAPL_SunGetInsolation(LONS2,LATS2,ORBIT,ZTH2,SLR2,INTV,CLOCK,&
                  TIME,currTime,DIST=DIST,ZTHB=ZTHB2,ZTHD=ZTHD2,RC=STATUS)
          elseif(present(ZTHB)) then
             call ESMF_ArrayGet(ZTHB ,localDE=0, farrayptr=ZTHB2 ,RC=STATUS)
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
             call MAPL_SunGetInsolation(LONS2,LATS2,ORBIT,ZTH2,SLR2,INTV,CLOCK,&
                  TIME,currTime,DIST=DIST,ZTHB=ZTHB2,RC=STATUS)
          elseif(present(ZTHD)) then
             call ESMF_ArrayGet(ZTHD ,localDE=0, farrayptr=ZTHD2 ,RC=STATUS)
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
             call MAPL_SunGetInsolation(LONS2,LATS2,ORBIT,ZTH2,SLR2,INTV,CLOCK,&
                  TIME,currTime,DIST=DIST,ZTHD=ZTHD2,RC=STATUS)
          else
             call MAPL_SunGetInsolation(LONS2,LATS2,ORBIT,ZTH2,SLR2,INTV,CLOCK,&
                  TIME,currTime,DIST=DIST,RC=STATUS)
          endif
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
 
       case default
-         RETURN_(ESMF_FAILURE)
+         _RETURN(ESMF_FAILURE)
 
       end select
 
-      RETURN_(ESMF_SUCCESS)
+      _RETURN(ESMF_SUCCESS)
 
     end subroutine SOLAR_ARR_INT
 
@@ -600,6 +603,7 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
       integer, optional,    intent(OUT) :: RC
 
       character(len=ESMF_MAXSTR)      :: IAm = "GetIDAY"
+      integer                         :: STATUS
 
       real :: ANOMALY
 
@@ -613,16 +617,16 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
       case (MAPL_SunSummerSolstice )
          ANOMALY = MAPL_PI/2.0
       case  default
-         RETURN_(ESMF_FAILURE)
+         _RETURN(ESMF_FAILURE)
       end select
 
       do IDAY=1,ORBIT%DAYS_PER_CYCLE-1
          if(ORBIT%TH(IDAY)<=ANOMALY .and. ORBIT%TH(IDAY+1)>ANOMALY) then
-            RETURN_(ESMF_SUCCESS)
+            _RETURN(ESMF_SUCCESS)
          end if
       end do
 
-      RETURN_(ESMF_FAILURE)
+      _RETURN(ESMF_FAILURE)
     end subroutine GETIDAY
 !==========================================================================
     
@@ -638,12 +642,12 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
       character(len=ESMF_MAXSTR) :: IAm = "MAPL_SunGetSolarConstantByTime"
 
       call ESMF_TimeGet (TIME, YY=YY, DayOfYear=DOY, RC=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       call MAPL_SunGetSolarConstantByYearDoY(YY,DOY,SC,HK, RC=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
-      RETURN_(ESMF_SUCCESS)
+      _RETURN(ESMF_SUCCESS)
     end subroutine MAPL_SunGetSolarConstantByTime
 
 !-------------------------------------------------------------------------
@@ -1464,13 +1468,13 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
          HK(6) = ChouBand6(i1)*(1.-F) + ChouBand6(i2)*F
          HK(7) = ChouBand7(i1)*(1.-F) + ChouBand7(i2)*F
          HK(8) = ChouBand8(i1)*(1.-F) + ChouBand8(i2)*F
-         ASSERT_(abs(1.0-sum(HK))<1.e-4)
+         _ASSERT(abs(1.0-sum(HK))<1.e-4,'needs informative message')
       else
-         ASSERT_(.false.)
+         _ASSERT(.false.,'needs informative message')
       endif
    end if
 
-   RETURN_(ESMF_SUCCESS)
+   _RETURN(ESMF_SUCCESS)
    end subroutine MAPL_SunGetSolarConstantByYearDoY
 
 !-------------------------------------------------------------------------
@@ -1550,7 +1554,7 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
       if (STATUS /= NF90_NOERR) then
          write (*,*) trim(Iam)//': Error opening file ', trim(fileName), status
          write (*,*) nf90_strerror(status)
-         ASSERT_(.false.)
+         _ASSERT(.false.,'needs informative message')
       end if
 
       ! Read in dimensions
@@ -1560,14 +1564,14 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
       if (STATUS /= NF90_NOERR) then
          write (*,*) trim(Iam)//': Error getting ndate dimid', status
          write (*,*) nf90_strerror(status)
-         ASSERT_(.false.)
+         _ASSERT(.false.,'needs informative message')
       end if
 
       status = nf90_inquire_dimension(ncid, dimid_ndate, len = ndate)
       if (STATUS /= NF90_NOERR) then
          write (*,*) trim(Iam)//': Error getting ndate length', status
          write (*,*) nf90_strerror(status)
-         ASSERT_(.false.)
+         _ASSERT(.false.,'needs informative message')
       end if
 
       if (present(HK)) then
@@ -1575,14 +1579,14 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
          if (STATUS /= NF90_NOERR) then
             write (*,*) trim(Iam)//': Error getting nbin_sorad dimid', status
             write (*,*) nf90_strerror(status)
-            ASSERT_(.false.)
+            _ASSERT(.false.,'needs informative message')
          end if
 
          status = nf90_inquire_dimension(ncid, dimid_nbin_sorad, len = nbin_sorad)
          if (STATUS /= NF90_NOERR) then
             write (*,*) trim(Iam)//': Error getting nbin_sorad length', status
             write (*,*) nf90_strerror(status)
-            ASSERT_(.false.)
+            _ASSERT(.false.,'needs informative message')
          end if
       end if
 
@@ -1591,14 +1595,14 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
          if (STATUS /= NF90_NOERR) then
             write (*,*) trim(Iam)//': Error getting nbin_meso_phot dimid', status
             write (*,*) nf90_strerror(status)
-            ASSERT_(.false.)
+            _ASSERT(.false.,'needs informative message')
          end if
 
          status = nf90_inquire_dimension(ncid, dimid_nbin_meso_phot, len = nbin_meso_phot)
          if (STATUS /= NF90_NOERR) then
             write (*,*) trim(Iam)//': Error getting nbin_meso_phot length', status
             write (*,*) nf90_strerror(status)
-            ASSERT_(.false.)
+            _ASSERT(.false.,'needs informative message')
          end if
       end if
 
@@ -1607,14 +1611,14 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
          if (STATUS /= NF90_NOERR) then
             write (*,*) trim(Iam)//': Error getting nbin_jcalc4 dimid', status
             write (*,*) nf90_strerror(status)
-            ASSERT_(.false.)
+            _ASSERT(.false.,'needs informative message')
          end if
 
          status = nf90_inquire_dimension(ncid, dimid_nbin_jcalc4, len = nbin_jcalc4)
          if (STATUS /= NF90_NOERR) then
             write (*,*) trim(Iam)//': Error getting nbin_jcalc4 length', status
             write (*,*) nf90_strerror(status)
-            ASSERT_(.false.)
+            _ASSERT(.false.,'needs informative message')
          end if
       end if
 
@@ -1622,27 +1626,27 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
       ! -------------------
 
       allocate(date_year(ndate), source=0, stat=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       allocate(date_month(ndate), source=0, stat=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       allocate(tsi(ndate), source=0.0, stat=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       if (present(HK) ) then
          allocate(coef_sorad(nbin_sorad,ndate), source=0.0, stat=status)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
       end if
 
       if (present(MESOPHOT) ) then
          allocate(coef_meso_phot(nbin_meso_phot,ndate), source=0.0, stat=status)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
       end if
 
       if (present(JCALC4) ) then
          allocate(coef_jcalc4(nbin_jcalc4,ndate), source=0.0, stat=status)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
       end if
 
       ! Read in date_year
@@ -1652,14 +1656,14 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
       if (STATUS /= NF90_NOERR) then
          write (*,*) trim(Iam)//': Error getting date_year varid', status
          write (*,*) nf90_strerror(status)
-         ASSERT_(.false.)
+         _ASSERT(.false.,'needs informative message')
       end if
 
       status = nf90_get_var(ncid, varid_date_year, date_year)
       if (STATUS /= NF90_NOERR) then
          write (*,*) trim(Iam)//': Error getting date_year variable', status
          write (*,*) nf90_strerror(status)
-         ASSERT_(.false.)
+         _ASSERT(.false.,'needs informative message')
       end if
 
       ! Read in date_month
@@ -1669,14 +1673,14 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
       if (STATUS /= NF90_NOERR) then
          write (*,*) trim(Iam)//': Error getting date_month varid', status
          write (*,*) nf90_strerror(status)
-         ASSERT_(.false.)
+         _ASSERT(.false.,'needs informative message')
       end if
 
       status = nf90_get_var(ncid, varid_date_month, date_month)
       if (STATUS /= NF90_NOERR) then
          write (*,*) trim(Iam)//': Error getting date_month variable', status
          write (*,*) nf90_strerror(status)
-         ASSERT_(.false.)
+         _ASSERT(.false.,'needs informative message')
       end if
 
       ! Read in tsi
@@ -1686,14 +1690,14 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
       if (STATUS /= NF90_NOERR) then
          write (*,*) trim(Iam)//': Error getting tsi varid', status
          write (*,*) nf90_strerror(status)
-         ASSERT_(.false.)
+         _ASSERT(.false.,'needs informative message')
       end if
 
       status = nf90_get_var(ncid, varid_tsi, tsi)
       if (STATUS /= NF90_NOERR) then
          write (*,*) trim(Iam)//': Error getting tsi variable', status
          write (*,*) nf90_strerror(status)
-         ASSERT_(.false.)
+         _ASSERT(.false.,'needs informative message')
       end if
 
       ! Read in coef_sorad
@@ -1705,14 +1709,14 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
          if (STATUS /= NF90_NOERR) then
             write (*,*) trim(Iam)//': Error getting coef_sorad varid', status
             write (*,*) nf90_strerror(status)
-            ASSERT_(.false.)
+            _ASSERT(.false.,'needs informative message')
          end if
 
          status = nf90_get_var(ncid, varid_coef_sorad, coef_sorad)
          if (STATUS /= NF90_NOERR) then
             write (*,*) trim(Iam)//': Error getting coef_sorad variable', status
             write (*,*) nf90_strerror(status)
-            ASSERT_(.false.)
+            _ASSERT(.false.,'needs informative message')
          end if
 
       end if
@@ -1726,14 +1730,14 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
          if (STATUS /= NF90_NOERR) then
             write (*,*) trim(Iam)//': Error getting coef_meso_phot varid', status
             write (*,*) nf90_strerror(status)
-            ASSERT_(.false.)
+            _ASSERT(.false.,'needs informative message')
          end if
 
          status = nf90_get_var(ncid, varid_coef_meso_phot, coef_meso_phot)
          if (STATUS /= NF90_NOERR) then
             write (*,*) trim(Iam)//': Error getting coef_meso_phot variable', status
             write (*,*) nf90_strerror(status)
-            ASSERT_(.false.)
+            _ASSERT(.false.,'needs informative message')
          end if
 
       end if
@@ -1747,14 +1751,14 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
          if (STATUS /= NF90_NOERR) then
             write (*,*) trim(Iam)//': Error getting coef_jcalc4 varid', status
             write (*,*) nf90_strerror(status)
-            ASSERT_(.false.)
+            _ASSERT(.false.,'needs informative message')
          end if
 
          status = nf90_get_var(ncid, varid_coef_jcalc4, coef_jcalc4)
          if (STATUS /= NF90_NOERR) then
             write (*,*) trim(Iam)//': Error getting coef_jcalc4 variable', status
             write (*,*) nf90_strerror(status)
-            ASSERT_(.false.)
+            _ASSERT(.false.,'needs informative message')
          end if
 
       end if
@@ -1762,14 +1766,14 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
       ! Time interpolation parameters
       ! -----------------------------
       call MAPL_ClimInterpFac(CLOCK, INDX1, INDX2, FAC, RC=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       ! Time: Year and month
       ! --------------------
       call ESMF_ClockGet(CLOCK, CURRTIME=time, RC=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       call ESMF_TimeGet(time, YY=YY, MM=MM, DD=DD, RC=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       ! This index search routine below is adaptedfrom PChemGridComp
       !
@@ -1818,42 +1822,42 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
       ! Close the file
       ! --------------
       STATUS = nf90_close(ncid)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       ! Bounds check
       ! ------------
       if (PRESENT(HK)) then
-         ASSERT_(ABS(1.0-SUM(HK)) < 1.E-4)
+         _ASSERT(ABS(1.0-SUM(HK)) < 1.E-4,'needs informative message')
       end if
 
       ! Deallocate our arrays
       ! ---------------------
 
       deallocate(date_year, stat=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       deallocate(date_month, stat=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       deallocate(tsi, stat=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       if (present(HK)) then
          deallocate(coef_sorad, stat=status)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
       end if
 
       if (present(MESOPHOT)) then
          deallocate(coef_meso_phot, stat=status)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
       end if
 
       if (present(JCALC4)) then
          deallocate(coef_jcalc4, stat=status)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
       end if
 
-      RETURN_(ESMF_SUCCESS)
+      _RETURN(ESMF_SUCCESS)
 
    end subroutine MAPL_SunGetSolarConstantFromNetcdfFile
 
@@ -1864,7 +1868,7 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
 !
 ! !INTERFACE:
 
-   subroutine MAPL_SunGetSolarConstantFromNRLFile(CLOCK,filename_in,SC,MG,SB,rc)
+   subroutine MAPL_SunGetSolarConstantFromNRLFile(CLOCK,filename_in,SC,MG,SB,PersistSolar,rc)
 
 ! !DESCRIPTION:
 !
@@ -1884,6 +1888,7 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
       real, intent(out)                  :: SC
       real, intent(out)                  :: MG
       real, intent(out)                  :: SB
+      logical, optional, intent(in)      :: PersistSolar
       integer, optional, intent(out)     :: rc
 
       type(ESMF_VM)              :: VM
@@ -1914,6 +1919,8 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
       integer :: deId, NPES
       logical :: outOfTable
 
+      logical :: PersistSolar_
+
       integer, parameter :: YEAR_NOT_FOUND = -99
 
       logical, parameter :: DEBUGPRINT = .FALSE.
@@ -1925,13 +1932,19 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
 
       character(len=ESMF_MAXSTR) :: IAm = "MAPL_SunGetSolarConstantFromNRLFile"
 
+      if (present(PersistSolar)) then
+         PersistSolar_ = PersistSolar
+      else
+         PersistSolar_ = .TRUE.
+      end if
+
       call ESMF_VMGetCurrent(vm, rc=status)
 
       call ESMF_VmGet(VM, localPet=deId, petCount=npes, rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       amIRoot = (deId == 0)
 
-      if (.not. TableCreated) then
+      CREATE_TABLE: if (.not. TableCreated) then
 
          ! Open the file
          ! -------------
@@ -1940,10 +1953,10 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
 
          ! Does the file exist?
          inquire( FILE=FILENAME, EXIST=found )
-         ASSERT_( FOUND )
+         _ASSERT( FOUND ,'needs informative message')
 
          UNIT = GETFILE(filename, DO_OPEN=0, form="formatted", rc=status)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
 
          open(unit=unit, file=filename)
 
@@ -1958,19 +1971,19 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
             ! -------------------
 
             allocate(yearTable(numlines), source=0, stat=status)
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
 
             allocate(doyTable(numlines), source=0, stat=status)
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
 
             allocate(tsi(numlines), source=0.0, stat=status)
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
 
             allocate(mgindex(numlines), source=0.0, stat=status)
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
 
             allocate(sbindex(numlines), source=0.0, stat=status)
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
 
             ! Read in arrays
             ! --------------
@@ -1990,9 +2003,9 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
 
          TableCreated = .TRUE.
 
-      end if
+      end if CREATE_TABLE
 
-      if (amIRoot) then
+      ON_ROOT: if (amIRoot) then
 
          ! Now we need to find the two bracketing days
          ! -------------------------------------------
@@ -2000,14 +2013,14 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
          ! Get current time
          ! ----------------
          call ESMF_ClockGet(CLOCK, CURRTIME=currentTime, RC=STATUS)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
 
          call ESMF_TimeGet( currentTime, YY = currentYear, &
                                          MM = currentMon,  &
                                          DD = currentDay,  &
                                   dayOfYear = currentDOY,  &
                                          RC = STATUS       )
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
 
          ! Test if current time is outside our file
          ! ----------------------------------------
@@ -2022,10 +2035,10 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
             outOfTable = .TRUE.
          end if
 
-         ! If we are out of the table, we must recenter
-         ! our day to be based on the last complete Solar Cycle
-         ! ----------------------------------------------------
-         OUT_OF_TABLE: if (outOfTable) then
+         ! If we are out of the table and not persisting, we must 
+         ! recenter our day to be based on the last complete Solar Cycle
+         ! -------------------------------------------------------------
+         OUT_OF_TABLE_AND_CYCLE: if ( outOfTable .and. (.not. PersistSolar_) ) then
 
             ! Create an ESMF_Time at start of Cycle 23
             ! ----------------------------------------
@@ -2036,7 +2049,7 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
                                               M = 00,    &
                                               S = 00,    &
                                              RC = STATUS )
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
 
             ! Create an ESMF_Time at start of Cycle 24
             ! ----------------------------------------
@@ -2047,7 +2060,7 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
                                               M = 00,    &
                                               S = 00,    &
                                              RC = STATUS )
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
 
             ! Create TimeInterval based on interval 
             ! from start of latest Cycle 24
@@ -2063,11 +2076,11 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
 
             ! Store our original time just in case
             ! ------------------------------------
-            origTime = currentTime
+            origTime     = currentTime
             originalYear = currentYear
             originalMon  = currentMon
             originalDay  = currentDay
-            origDOY  = currentDOY
+            origDOY      = currentDOY
 
             ! Make our "current" time the one calculated above
             ! ------------------------------------------------
@@ -2081,20 +2094,25 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
                                             DD = currentDay,  &
                                      dayOfYear = currentDOY,  &
                                             RC = STATUS       )
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
 
 
             ! Debugging Prints
             ! ----------------
             if (DEBUGPRINT) then
+               write (*,'(1X,A)') 'Off the end of table, moving into last complete cycle'
+               write (*,*)
+
                write (*,'(1X,A,1X,I4,A,I0.2,A,I0.2)') 'Original Year/Mon/Day to Find:   ', originalYear,'-',originalMon,'-',originalDay
                write (*,'(1X,A,1X,I0.3)')             'Original Day of Year:            ', origDOY
+               write (*,*)
 
                write (*,'(1X,A,1X,I4,A,I0.2,A,I0.2)') 'New Year/Mon/Day to Find:        ', currentYear,'-',currentMon,'-',currentDay
                write (*,'(1X,A,1X,I0.3)')             'New Day of Year:                 ', currentDOY
-            endif
+               write (*,*)
+            end if
 
-         end if OUT_OF_TABLE
+         end if OUT_OF_TABLE_AND_CYCLE
 
          ! Create an ESMF_Time on noon of current day
          ! ------------------------------------------
@@ -2105,7 +2123,7 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
                                              M = 00,          &
                                              S = 00,          &
                                             RC = STATUS       )
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
 
          ! Figure out bracketing days for interpolation
          ! NOTE: nextNoon is mainly for debugging purposes
@@ -2132,7 +2150,7 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
          ! of the size of the timeinterval to the next noon
          ! --------------------------------------------------
          call ESMF_TimeIntervalGet(intToNextNoon, d_r8=days_r8, rc=STATUS)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
          FAC = real(days_r8)
 
          ! Use our find_file_index function to get the index for previous noon
@@ -2140,47 +2158,75 @@ subroutine  MAPL_SunOrbitQuery(ORBIT,           &
          INDX1 = find_file_index(numlines, yearTable, prevNoonYear, prevDOY)
          INDX2 = INDX1 + 1
 
-         ! Linear Interpolation to the given day-of-month
-         ! ----------------------------------------------
+         ! If we are outOfTable and we have the PersistSolar
+         ! option we just use the last value in the table...
+         ! -------------------------------------------------
+         OUT_OF_TABLE_AND_PERSIST: if ( outOfTable .and. PersistSolar_) then
 
-         SC =     tsi(INDX1)*FAC +     tsi(INDX2)*(1.0-FAC)
-         MG = mgindex(INDX1)*FAC + mgindex(INDX2)*(1.0-FAC)
-         SB = sbindex(INDX1)*FAC + sbindex(INDX2)*(1.0-FAC)
+            SC =     tsi(numlines)
+            MG = mgindex(numlines)
+            SB = sbindex(numlines)
 
-         ! Debugging Prints
-         ! ----------------
-         if (DEBUGPRINT) then
-            write (*,'(1X,A,1X,I3)')   'First DOY to Find:   ', prevDOY
-            write (*,'(1X,A,1X,I6)')   'file_index for date: ', INDX1
-            write (*,'(1X,A,1X,I4)')   'yearTable(date):     ', yearTable(INDX1)
-            write (*,'(1X,A,1X,I3)')   'doyTable(date):      ', doyTable(INDX1)
-            write (*,'(1X,A,1X,F8.3)') 'tsi(date):           ', tsi(INDX1)
-            write (*,'(1X,A,1X,F8.6)') 'mgindex(date):       ', mgindex(INDX1)
-            write (*,'(1X,A,1X,F9.4)') 'sbindex(date):       ', sbindex(INDX1)
-            write (*,*) 
-            write (*,'(1X,A,1X,I3)')   'Second DOY to Find:  ', nextDOY
-            write (*,'(1X,A,1X,I6)')   'file_index for date: ', INDX2
-            write (*,'(1X,A,1X,I4)')   'yearTable(date):     ', yearTable(INDX2)
-            write (*,'(1X,A,1X,I3)')   'doyTable(date):      ', doyTable(INDX2)
-            write (*,'(1X,A,1X,F8.3)') 'tsi(date):           ', tsi(INDX2)
-            write (*,'(1X,A,1X,F8.6)') 'mgindex(date):       ', mgindex(INDX2)
-            write (*,'(1X,A,1X,F9.4)') 'sbindex(date):       ', sbindex(INDX2)
-            write (*,*) 
-            write (*,'(1X,A,1X,F8.6)') 'Interpolation Factor:', FAC
-         end if
-      end if
+            ! Debugging Prints
+            ! ----------------
+            if (DEBUGPRINT) then
+               write (*,'(1X,A)') 'Off the end of table, persisting last values'
+               write (*,*)
+               write (*,'(1X,A,1X,F8.3)') 'tsi at end of table:     ', tsi(numlines)
+               write (*,'(1X,A,1X,F8.6)') 'mgindex at end of table: ', mgindex(numlines)
+               write (*,'(1X,A,1X,F9.4)') 'sbindex at end of table: ', sbindex(numlines)
+               write (*,*) 
+            end if
+
+         ! Otherwise we interpolate to the table
+         ! -------------------------------------
+         else
+
+            ! Linear Interpolation to the given day-of-month
+            ! ----------------------------------------------
+
+            SC =     tsi(INDX1)*FAC +     tsi(INDX2)*(1.0-FAC)
+            MG = mgindex(INDX1)*FAC + mgindex(INDX2)*(1.0-FAC)
+            SB = sbindex(INDX1)*FAC + sbindex(INDX2)*(1.0-FAC)
+
+            ! Debugging Prints
+            ! ----------------
+            if (DEBUGPRINT) then
+               write (*,'(1X,A,1X,I3)')   'First DOY to Find:   ', prevDOY
+               write (*,'(1X,A,1X,I6)')   'file_index for date: ', INDX1
+               write (*,'(1X,A,1X,I4)')   'yearTable(date):     ', yearTable(INDX1)
+               write (*,'(1X,A,1X,I3)')   'doyTable(date):      ', doyTable(INDX1)
+               write (*,'(1X,A,1X,F8.3)') 'tsi(date):           ', tsi(INDX1)
+               write (*,'(1X,A,1X,F8.6)') 'mgindex(date):       ', mgindex(INDX1)
+               write (*,'(1X,A,1X,F9.4)') 'sbindex(date):       ', sbindex(INDX1)
+               write (*,*) 
+
+               write (*,'(1X,A,1X,I3)')   'Second DOY to Find:  ', nextDOY
+               write (*,'(1X,A,1X,I6)')   'file_index for date: ', INDX2
+               write (*,'(1X,A,1X,I4)')   'yearTable(date):     ', yearTable(INDX2)
+               write (*,'(1X,A,1X,I3)')   'doyTable(date):      ', doyTable(INDX2)
+               write (*,'(1X,A,1X,F8.3)') 'tsi(date):           ', tsi(INDX2)
+               write (*,'(1X,A,1X,F8.6)') 'mgindex(date):       ', mgindex(INDX2)
+               write (*,'(1X,A,1X,F9.4)') 'sbindex(date):       ', sbindex(INDX2)
+               write (*,*) 
+
+               write (*,'(1X,A,1X,F8.6)') 'Interpolation Factor:', FAC
+               write (*,*) 
+            end if
+         end if OUT_OF_TABLE_AND_PERSIST
+      end if ON_ROOT
 
       ! Broadcast the values
       ! --------------------
 
       call MAPL_CommsBcast(vm, DATA=SC, N=1, ROOT=0, RC=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       call MAPL_CommsBcast(vm, DATA=MG, N=1, ROOT=0, RC=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       call MAPL_CommsBcast(vm, DATA=SB, N=1, ROOT=0, RC=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
-      RETURN_(ESMF_SUCCESS)
+      _RETURN(ESMF_SUCCESS)
 
       contains
          

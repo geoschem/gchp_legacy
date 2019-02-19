@@ -240,7 +240,7 @@ contains
    end function spec_less_than
 
 end module MAPL_RegridderSpecMod
-
+#undef _UNUSED_DUMMY
 
 module MAPL_RegridderSpecRouteHandleMapMod
    use MAPL_RegridderSpecMod

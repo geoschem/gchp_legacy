@@ -1,6 +1,7 @@
 
 #include "MAPL_Exceptions.h"
 #include "MAPL_ErrLog.h"
+#include "unused_dummy.H"
 
 #undef  GET_POINTER
 #define GET_POINTER     ESMFL_StateGetPointerToData

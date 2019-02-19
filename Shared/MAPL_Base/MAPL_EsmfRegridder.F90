@@ -858,6 +858,8 @@ contains
                  & factorList=factorList, factorIndexList=factorIndexList, &
                  & routehandle=this%route_handle, rc=status)
             _VERIFY(status)
+         case default
+            _ASSERT(.false.)
          end select
          call ESMF_FieldSMMStore(src_field,dst_field,dummy_rh,this%transpose_route_handle, &
               & factorList,factorIndexList,srcTermProcessing=srcTermProcessing, &
