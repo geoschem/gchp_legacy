@@ -1,22 +1,66 @@
 !***********************************************************************
-!*                   GNU General Public License                        *
-!* This file is a part of fvGFS.                                       *
-!*                                                                     *
-!* fvGFS is free software; you can redistribute it and/or modify it    *
-!* and are expected to follow the terms of the GNU General Public      *
-!* License as published by the Free Software Foundation; either        *
-!* version 2 of the License, or (at your option) any later version.    *
-!*                                                                     *
-!* fvGFS is distributed in the hope that it will be useful, but        *
-!* WITHOUT ANY WARRANTY; without even the implied warranty of          *
-!* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU   *
-!* General Public License for more details.                            *
-!*                                                                     *
-!* For the full text of the GNU General Public License,                *
-!* write to: Free Software Foundation, Inc.,                           *
-!*           675 Mass Ave, Cambridge, MA 02139, USA.                   *
-!* or see:   http://www.gnu.org/licenses/gpl.html                      *
+!*                   GNU Lesser General Public License                 
+!*
+!* This file is part of the FV3 dynamical core.
+!*
+!* The FV3 dynamical core is free software: you can redistribute it 
+!* and/or modify it under the terms of the
+!* GNU Lesser General Public License as published by the
+!* Free Software Foundation, either version 3 of the License, or 
+!* (at your option) any later version.
+!*
+!* The FV3 dynamical core is distributed in the hope that it will be 
+!* useful, but WITHOUT ANYWARRANTY; without even the implied warranty 
+!* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+!* See the GNU General Public License for more details.
+!*
+!* You should have received a copy of the GNU Lesser General Public
+!* License along with the FV3 dynamical core.  
+!* If not, see <http://www.gnu.org/licenses/>.
 !***********************************************************************
+
+!>@brief The module 'fv_tracer2d.F90' performs sub-cycled tracer advection.
+!>@see \cite lin2004vertically
+
+! Modules Included:
+! <table>
+! <tr>
+!     <th>Module Name</th>
+!     <th>Functions Included</th>
+!   </tr>
+! <table>
+!   <tr>
+!     <td>boundary_mod</td>
+!     <td>nested_grid_BC_apply_intT</td>
+!   </tr>
+!   <tr>
+!     <td>fv_arrays_mod</td>
+!     <td>fv_grid_type, fv_nest_type, fv_atmos_type, fv_grid_bounds_type</td>
+!   </tr>
+!   <tr>
+!   <tr>
+!     <td>fv_mp_mod</td>
+!     <td>mp_reduce_max, ng, mp_gather, is_master, group_halo_update_type, 
+!         start_group_halo_update, complete_group_halo_update</td>
+!   </tr>
+!    <tr>
+!     <td>fv_timing_mod</td>
+!     <td>timing_on, timing_off</td>
+!   </tr>
+!  <tr>
+!     <td>mpp_mod</td>
+!     <td>mpp_error, FATAL, mpp_broadcast, mpp_send, mpp_recv, mpp_sum, mpp_max</td>
+!   </tr>
+!   <tr>
+!     <td>mpp_domains_mod</td>
+!     <td>mpp_update_domains, CGRID_NE, domain2d</td>
+!   </tr>
+!   <tr>
+!     <td>tp_core_mod</td>
+!     <td>fv_tp_2d, copy_corners</td>
+!   </tr>
+! </table>
+
 module fv_tracer2d_mod
    use tp_core_mod,       only: fv_tp_2d, copy_corners
    use fv_mp_mod,         only: mp_reduce_max
@@ -36,43 +80,39 @@ public :: tracer_2d, tracer_2d_nested, tracer_2d_1L, offline_tracer_advection
 
 real, allocatable, dimension(:,:,:) :: nest_fx_west_accum, nest_fx_east_accum, nest_fx_south_accum, nest_fx_north_accum
 
-!---- version number -----
-   character(len=128) :: version = '$Id$'
-   character(len=128) :: tagname = '$Name$'
-
 contains
 
-!-----------------------------------------------------------------------
-! !ROUTINE: Perform 2D horizontal-to-lagrangian transport
-!-----------------------------------------------------------------------
-
-
-
+!>@brief The subroutine 'tracer_2d_1L' performs 2-D horizontal-to-lagrangian transport.
+!>@details This subroutine is called if 'z_tracer = .true.'
+!! It modifies 'tracer_2d' so that each layer uses a different diagnosed number 
+!! of split tracer timesteps. This potentially accelerates tracer advection when there
+!! is a large difference in layer-maximum wind speeds (cf. polar night jet).
 subroutine tracer_2d_1L(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, npy, npz,   &
-                        nq,  hord, q_split, dt, id_divg, q_pack, nord_tr, trdm, dpA)
+                        nq,  hord, q_split, dt, id_divg, q_pack, nord_tr, trdm, lim_fac, dpA)
 
       type(fv_grid_bounds_type), intent(IN) :: bd
       integer, intent(IN) :: npx
       integer, intent(IN) :: npy
       integer, intent(IN) :: npz
-      integer, intent(IN) :: nq    ! number of tracers to be advected
+      integer, intent(IN) :: nq    !< number of tracers to be advected
       integer, intent(IN) :: hord, nord_tr
       integer, intent(IN) :: q_split
       integer, intent(IN) :: id_divg
       real   , intent(IN) :: dt, trdm
+      real   , intent(IN) :: lim_fac
       type(group_halo_update_type), intent(inout) :: q_pack
-      real   , intent(INOUT) :: q(bd%isd:bd%ied,bd%jsd:bd%jed,npz,nq)   ! Tracers
-      real   , intent(INOUT) :: dp1(bd%isd:bd%ied,bd%jsd:bd%jed,npz)        ! DELP before dyn_core
-      real   , intent(INOUT) :: mfx(bd%is:bd%ie+1,bd%js:bd%je,  npz)    ! Mass Flux X-Dir
-      real   , intent(INOUT) :: mfy(bd%is:bd%ie  ,bd%js:bd%je+1,npz)    ! Mass Flux Y-Dir
-      real   , intent(INOUT) ::  cx(bd%is:bd%ie+1,bd%jsd:bd%jed  ,npz)  ! Courant Number X-Dir
-      real   , intent(INOUT) ::  cy(bd%isd:bd%ied,bd%js :bd%je +1,npz)  ! Courant Number Y-Dir
+      real   , intent(INOUT) :: q(bd%isd:bd%ied,bd%jsd:bd%jed,npz,nq)   !< Tracers
+      real   , intent(INOUT) :: dp1(bd%isd:bd%ied,bd%jsd:bd%jed,npz)    !< DELP before dyn_core
+      real   , intent(INOUT) :: mfx(bd%is:bd%ie+1,bd%js:bd%je,  npz)    !< Mass Flux X-Dir
+      real   , intent(INOUT) :: mfy(bd%is:bd%ie  ,bd%js:bd%je+1,npz)    !< Mass Flux Y-Dir
+      real   , intent(INOUT) ::  cx(bd%is:bd%ie+1,bd%jsd:bd%jed  ,npz)  !< Courant Number X-Dir
+      real   , intent(INOUT) ::  cy(bd%isd:bd%ied,bd%js :bd%je +1,npz)  !< Courant Number Y-Dir
       real   , optional, intent(OUT) :: dpA(bd%is:bd%ie,bd%js:bd%je)    ! DELP after advection
       type(fv_grid_type), intent(IN), target :: gridstruct
       type(domain2d), intent(INOUT) :: domain
 
 ! Local Arrays
-      real :: qn2(bd%isd:bd%ied,bd%jsd:bd%jed,nq)   ! 3D tracers
+      real :: qn2(bd%isd:bd%ied,bd%jsd:bd%jed,nq)   !< 3D tracers
       real :: dp2(bd%is:bd%ie,bd%js:bd%je)
       real :: fx(bd%is:bd%ie+1,bd%js:bd%je )
       real :: fy(bd%is:bd%ie , bd%js:bd%je+1)
@@ -155,7 +195,7 @@ subroutine tracer_2d_1L(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, n
   call mp_reduce_max(cmax,npz)
 
 !$OMP parallel do default(none) shared(is,ie,js,je,isd,ied,jsd,jed,npz,cx,xfx, &
-!$OMP                                  cy,yfx,mfx,mfy,mfx2,mfy2,cx2,cy2,cmax)   &
+!$OMP                                  cy,yfx,mfx,mfy,cmax,mfx2,mfy2,cx2,cy2)   &
 !$OMP                          private(nsplt, frac)
   do k=1,npz
 
@@ -222,8 +262,8 @@ subroutine tracer_2d_1L(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, n
            enddo
         enddo
 
-!$OMP parallel do default(none) shared(k,nsplt,it,is,ie,js,je,isd,ied,jsd,jed,npx,npy,cx,xfx,hord,trdm, &
-!$OMP                                  nord_tr,nq,gridstruct,bd,cy,yfx,mfx2,mfy2,qn2,q,ra_x,ra_y,dp1,dp2,rarea,cx2,cy2) &
+!$OMP parallel do default(none) shared(k,nsplt,it,is,ie,js,je,isd,ied,jsd,jed,npx,npy,cx2,xfx,hord,trdm, &
+!$OMP                                  nord_tr,nq,gridstruct,bd,cy2,yfx,mfx2,mfy2,qn2,q,ra_x,ra_y,dp1,dp2,rarea,lim_fac) & 
 !$OMP                          private(fx,fy)
         do iq=1,nq
         if ( nsplt /= 1 ) then
@@ -236,7 +276,7 @@ subroutine tracer_2d_1L(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, n
            endif
            call fv_tp_2d(qn2(isd,jsd,iq), cx2(is,jsd,k), cy2(isd,js,k), &
                          npx, npy, hord, fx, fy, xfx(is,jsd,k), yfx(isd,js,k), &
-                         gridstruct, bd, ra_x, ra_y, mfx=mfx2(is,js,k), mfy=mfy2(is,js,k))
+                         gridstruct, bd, ra_x, ra_y, lim_fac, mfx=mfx2(is,js,k), mfy=mfy2(is,js,k))
            if ( it < nsplt ) then   ! not last call
               do j=js,je
               do i=is,ie
@@ -253,7 +293,7 @@ subroutine tracer_2d_1L(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, n
         else
            call fv_tp_2d(q(isd,jsd,k,iq), cx2(is,jsd,k), cy2(isd,js,k), &
                          npx, npy, hord, fx, fy, xfx(is,jsd,k), yfx(isd,js,k), &
-                         gridstruct, bd, ra_x, ra_y, mfx=mfx2(is,js,k), mfy=mfy2(is,js,k))
+                         gridstruct, bd, ra_x, ra_y, lim_fac, mfx=mfx2(is,js,k), mfy=mfy2(is,js,k))
            do j=js,je
               do i=is,ie
                  q(i,j,k,iq) = (q(i,j,k,iq)*dp1(i,j,k)+((fx(i,j)-fx(i+1,j))+(fy(i,j)-fy(i,j+1)))*rarea(i,j))/dp2(i,j)
@@ -283,26 +323,27 @@ subroutine tracer_2d_1L(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, n
 
 end subroutine tracer_2d_1L
 
-
+!>@brief The subroutine 'tracer_2d' is the standard routine for sub-cycled tracer advection.
 subroutine tracer_2d(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, npy, npz,   &
-                     nq,  hord, q_split, dt, id_divg, q_pack, nord_tr, trdm, dpA)
+                     nq,  hord, q_split, dt, id_divg, q_pack, nord_tr, trdm, lim_fac, dpA)
 
       type(fv_grid_bounds_type), intent(IN) :: bd
       integer, intent(IN) :: npx
       integer, intent(IN) :: npy
       integer, intent(IN) :: npz
-      integer, intent(IN) :: nq    ! number of tracers to be advected
+      integer, intent(IN) :: nq    !< number of tracers to be advected
       integer, intent(IN) :: hord, nord_tr
       integer, intent(IN) :: q_split
       integer, intent(IN) :: id_divg
       real   , intent(IN) :: dt, trdm
+      real   , intent(IN) :: lim_fac
       type(group_halo_update_type), intent(inout) :: q_pack
-      real   , intent(INOUT) :: q(bd%isd:bd%ied,bd%jsd:bd%jed,npz,nq)   ! Tracers
-      real   , intent(INOUT) :: dp1(bd%isd:bd%ied,bd%jsd:bd%jed,npz)        ! DELP before dyn_core
-      real   , intent(INOUT) :: mfx(bd%is:bd%ie+1,bd%js:bd%je,  npz)    ! Mass Flux X-Dir
-      real   , intent(INOUT) :: mfy(bd%is:bd%ie  ,bd%js:bd%je+1,npz)    ! Mass Flux Y-Dir
-      real   , intent(INOUT) ::  cx(bd%is:bd%ie+1,bd%jsd:bd%jed  ,npz)  ! Courant Number X-Dir
-      real   , intent(INOUT) ::  cy(bd%isd:bd%ied,bd%js :bd%je +1,npz)  ! Courant Number Y-Dir
+      real   , intent(INOUT) :: q(bd%isd:bd%ied,bd%jsd:bd%jed,npz,nq)   !< Tracers
+      real   , intent(INOUT) :: dp1(bd%isd:bd%ied,bd%jsd:bd%jed,npz)    !< DELP before dyn_core
+      real   , intent(INOUT) :: mfx(bd%is:bd%ie+1,bd%js:bd%je,  npz)    !< Mass Flux X-Dir
+      real   , intent(INOUT) :: mfy(bd%is:bd%ie  ,bd%js:bd%je+1,npz)    !< Mass Flux Y-Dir
+      real   , intent(INOUT) ::  cx(bd%is:bd%ie+1,bd%jsd:bd%jed  ,npz)  !< Courant Number X-Dir
+      real   , intent(INOUT) ::  cy(bd%isd:bd%ied,bd%js :bd%je +1,npz)  !< Courant Number Y-Dir
       real   , optional, intent(OUT) :: dpA(bd%is:bd%ie,bd%js:bd%je,npz)! DELP after advection
       type(fv_grid_type), intent(IN), target :: gridstruct
       type(domain2d), intent(INOUT) :: domain
@@ -456,7 +497,7 @@ subroutine tracer_2d(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, npy,
                        call timing_off('COMM_TOTAL')
 
 !$OMP parallel do default(none) shared(is,ie,js,je,isd,ied,jsd,jed,npz,dp1,mfx,mfy,rarea,nq,ksplt,&
-!$OMP                                  area,xfx,yfx,q,cx,cy,npx,npy,hord,gridstruct,bd,it,nsplt,nord_tr,trdm) &
+!$OMP                                  area,xfx,yfx,q,cx,cy,npx,npy,hord,gridstruct,bd,it,nsplt,nord_tr,trdm,lim_fac,dpA) &
 !$OMP                          private(dp2, ra_x, ra_y, fx, fy)
      do k=1,npz
 
@@ -483,12 +524,12 @@ subroutine tracer_2d(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, npy,
          if ( it==1 .and. trdm>1.e-4 ) then
             call fv_tp_2d(q(isd,jsd,k,iq), cx(is,jsd,k), cy(isd,js,k), &
                           npx, npy, hord, fx, fy, xfx(is,jsd,k), yfx(isd,js,k), &
-                          gridstruct, bd, ra_x, ra_y, mfx=mfx(is,js,k), mfy=mfy(is,js,k),   &
+                          gridstruct, bd, ra_x, ra_y, lim_fac, mfx=mfx(is,js,k), mfy=mfy(is,js,k),   &
                           mass=dp1(isd,jsd,k), nord=nord_tr, damp_c=trdm)
          else
             call fv_tp_2d(q(isd,jsd,k,iq), cx(is,jsd,k), cy(isd,js,k), &
                           npx, npy, hord, fx, fy, xfx(is,jsd,k), yfx(isd,js,k), &
-                          gridstruct, bd, ra_x, ra_y, mfx=mfx(is,js,k), mfy=mfy(is,js,k))
+                          gridstruct, bd, ra_x, ra_y, lim_fac, mfx=mfx(is,js,k), mfy=mfy(is,js,k))
          endif
             do j=js,je
                do i=is,ie
@@ -524,28 +565,31 @@ subroutine tracer_2d(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, npy,
 
    enddo  ! nsplt
 
+
 end subroutine tracer_2d
+
 
 subroutine tracer_2d_nested(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, npy, npz,   &
                      nq,  hord, q_split, dt, id_divg, q_pack, nord_tr, trdm, &
-                     k_split, neststruct, parent_grid)
+                     k_split, neststruct, parent_grid, lim_fac)
 
       type(fv_grid_bounds_type), intent(IN) :: bd
       integer, intent(IN) :: npx
       integer, intent(IN) :: npy
       integer, intent(IN) :: npz
-      integer, intent(IN) :: nq    ! number of tracers to be advected
+      integer, intent(IN) :: nq    !< number of tracers to be advected
       integer, intent(IN) :: hord, nord_tr
       integer, intent(IN) :: q_split, k_split
       integer, intent(IN) :: id_divg
       real   , intent(IN) :: dt, trdm
+      real   , intent(IN) :: lim_fac
       type(group_halo_update_type), intent(inout) :: q_pack
-      real   , intent(INOUT) :: q(bd%isd:bd%ied,bd%jsd:bd%jed,npz,nq)   ! Tracers
-      real   , intent(INOUT) :: dp1(bd%isd:bd%ied,bd%jsd:bd%jed,npz)        ! DELP before dyn_core
-      real   , intent(INOUT) :: mfx(bd%is:bd%ie+1,bd%js:bd%je,  npz)    ! Mass Flux X-Dir
-      real   , intent(INOUT) :: mfy(bd%is:bd%ie  ,bd%js:bd%je+1,npz)    ! Mass Flux Y-Dir
-      real   , intent(INOUT) ::  cx(bd%is:bd%ie+1,bd%jsd:bd%jed  ,npz)  ! Courant Number X-Dir
-      real   , intent(INOUT) ::  cy(bd%isd:bd%ied,bd%js :bd%je +1,npz)  ! Courant Number Y-Dir
+      real   , intent(INOUT) :: q(bd%isd:bd%ied,bd%jsd:bd%jed,npz,nq)   !< Tracers
+      real   , intent(INOUT) :: dp1(bd%isd:bd%ied,bd%jsd:bd%jed,npz)    !< DELP before dyn_core
+      real   , intent(INOUT) :: mfx(bd%is:bd%ie+1,bd%js:bd%je,  npz)    !< Mass Flux X-Dir
+      real   , intent(INOUT) :: mfy(bd%is:bd%ie  ,bd%js:bd%je+1,npz)    !< Mass Flux Y-Dir
+      real   , intent(INOUT) ::  cx(bd%is:bd%ie+1,bd%jsd:bd%jed  ,npz)  !< Courant Number X-Dir
+      real   , intent(INOUT) ::  cy(bd%isd:bd%ied,bd%js :bd%je +1,npz)  !< Courant Number Y-Dir
       type(fv_grid_type), intent(IN), target :: gridstruct
       type(fv_nest_type), intent(INOUT) :: neststruct
       type(fv_atmos_type), intent(INOUT) :: parent_grid
@@ -711,7 +755,7 @@ subroutine tracer_2d_nested(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, np
 
 
 !$OMP parallel do default(none) shared(is,ie,js,je,isd,ied,jsd,jed,npz,dp1,mfx,mfy,rarea,nq, &
-!$OMP                                  area,xfx,yfx,q,cx,cy,npx,npy,hord,gridstruct,bd,it,nsplt,nord_tr,trdm) &
+!$OMP                                  area,xfx,yfx,q,cx,cy,npx,npy,hord,gridstruct,bd,it,nsplt,nord_tr,trdm,lim_fac) &
 !$OMP                          private(dp2, ra_x, ra_y, fx, fy)
       do k=1,npz
 
@@ -736,12 +780,12 @@ subroutine tracer_2d_nested(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, np
          if ( it==1 .and. trdm>1.e-4 ) then
             call fv_tp_2d(q(isd,jsd,k,iq), cx(is,jsd,k), cy(isd,js,k), &
                           npx, npy, hord, fx, fy, xfx(is,jsd,k), yfx(isd,js,k), &
-                          gridstruct, bd, ra_x, ra_y, mfx=mfx(is,js,k), mfy=mfy(is,js,k),   &
+                          gridstruct, bd, ra_x, ra_y, lim_fac, mfx=mfx(is,js,k), mfy=mfy(is,js,k),   &
                           mass=dp1(isd,jsd,k), nord=nord_tr, damp_c=trdm)
          else
             call fv_tp_2d(q(isd,jsd,k,iq), cx(is,jsd,k), cy(isd,js,k), &
                           npx, npy, hord, fx, fy, xfx(is,jsd,k), yfx(isd,js,k), &
-                          gridstruct, bd, ra_x, ra_y, mfx=mfx(is,js,k), mfy=mfy(is,js,k))
+                          gridstruct, bd, ra_x, ra_y, lim_fac, mfx=mfx(is,js,k), mfy=mfy(is,js,k))
          endif
             do j=js,je
                do i=is,ie
@@ -831,7 +875,7 @@ subroutine offline_tracer_advection(q, ple0, ple1, mfx, mfy, cx, cy, &
       real ::  cyL(bd%isd:bd%ied  ,bd%js :bd%je +1,npz)  ! Courant Number Y-Dir
       real :: mfxL(bd%is :bd%ie +1,bd%js :bd%je   ,npz)  ! Mass Flux X-Dir
       real :: mfyL(bd%is :bd%ie   ,bd%js :bd%je +1,npz)  ! Mass Flux Y-Dir
-      real ::  dpL(bd%isd :bd%ied   ,bd%jsd :bd%jed   ,npz)  ! Pressure Thickness
+      real ::  dpL(bd%is :bd%ie   ,bd%js :bd%je   ,npz)  ! Pressure Thickness
       real ::  dpA(bd%is :bd%ie   ,bd%js :bd%je   ,npz)  ! Pressure Thickness
 ! Local Tracer Arrays
       real ::   q1(bd%is:bd%ie  ,bd%js:bd%je, npz   )! 2D Tracers
@@ -849,7 +893,6 @@ subroutine offline_tracer_advection(q, ple0, ple1, mfx, mfy, cx, cy, &
 
 ! Local indices
       integer     :: i,j,k,n,iq
-      integer     :: kStart
 
       real :: scalingFactor
 
@@ -894,7 +937,7 @@ subroutine offline_tracer_advection(q, ple0, ple1, mfx, mfy, cx, cy, &
     mfyL(is:ie,js:je+1,:) = yL(is:ie,js:je+1,:)
 
 ! Fill local tracers and pressure thickness
-    dpL(is:ie,js:je,:) = ple0(:,:,2:npz+1) - ple0(:,:,1:npz)
+    dpL(:,:,:) = ple0(:,:,2:npz+1) - ple0(:,:,1:npz)
     q3(is:ie,js:je,:,:) = q(is:ie,js:je,:,:)
 
     if ( z_tracer ) then
@@ -912,7 +955,7 @@ subroutine offline_tracer_advection(q, ple0, ple1, mfx, mfy, cx, cy, &
          call tracer_2d_1L(q2, dpL(is,js,k), mfxL(is,js,k), mfyL(is,js,k), cxL(is,js,k), cyL(is,js,k), &
                          gridstruct, bd, domain, npx, npy, npz, nq,    &
                          flagstruct%hord_tr, q_split, dt, 0, i_pack, &
-                         flagstruct%nord_tr, flagstruct%trdm2, dpA=dpA)
+                         flagstruct%nord_tr, flagstruct%trdm2, flagstruct%lim_fac, dpA=dpA)
          do iq=1,nq
             do j=js,je
                do i=is,ie                   ! To_do list:
@@ -926,7 +969,7 @@ subroutine offline_tracer_advection(q, ple0, ple1, mfx, mfy, cx, cy, &
          call start_group_halo_update(i_pack, q3, domain)
          call tracer_2d(q3, dpL, mfxL, mfyL, cxL, cyL, gridstruct, bd, domain, npx, npy, npz, nq,    &
                         flagstruct%hord_tr, q_split, dt, 0, i_pack, &
-                        flagstruct%nord_tr, flagstruct%trdm2, dpA=dpA)
+                        flagstruct%nord_tr, flagstruct%trdm2, flagstruct%lim_fac, dpA=dpA)
     endif
 
 !------------------------------------------------------------------
@@ -935,138 +978,48 @@ subroutine offline_tracer_advection(q, ple0, ple1, mfx, mfy, cx, cy, &
 ! It requires less memory than mapn_ppm
 !------------------------------------------------------------------
 
-    ! GCHP update to restrict mass balance operation to the troposphere
-    ! Identify the first layer which is affected by surface pressure
-    kStart=0
-    do k=1,npz
-       if ((kStart.le.0).and.(bk(k+1).gt.0d0)) kStart=k
-    end do
+       do iq=1,nq
+          do j=js,je
+           ! pressures mapping from (dpA is new delp after tracer_2d)
+             pe1(:,1) = ptop
+             do k=2,npz+1
+               pe1(:,k) = pe1(:,k-1) + dpA(:,j,k-1)
+             enddo
+           ! pressures mapping to
+             pe2(:,1) = ptop
+             pe2(:,npz+1) = pe1(:,npz+1)
+             do k=2,npz
+                 pe2(:  ,k) = ak(k) + bk(k)*pe1(:,npz+1)
+             enddo
+             do k=1,npz
+                dp2(:,j,k) = pe2(:,k+1) - pe2(:,k)
+             enddo
+             call map1_q2(npz, pe1, q3(isd,jsd,1,iq),      &
+                          npz, pe2, q1(:,j,:), dp2(:,j,:), &
+                          is, ie, 0, kord, j,              &
+                          isd, ied, jsd, jed, 0.) 
+             if (fill) call fillz(ie-is+1, npz, 1, q1(:,j,:), dp2(:,j,:))
+          enddo
+          ! Rescale tracers based on ple1 at destination timestep
+          !------------------------------------------------------
 
-    do iq=1,nq
-       do j=js,je
-        ! pressures mapping from (dpA is new delp after tracer_2d)
-          pe1(:,1) = ptop
-          do k=2,npz+1
-            pe1(:,k) = pe1(:,k-1) + dpA(:,j,k-1)
-          enddo
-        ! pressures mapping to
-          pe2(:,1) = ptop
-          pe2(:,npz+1) = pe1(:,npz+1)
-          do k=2,npz
-              pe2(:  ,k) = ak(k) + bk(k)*pe1(:,npz+1)
-          enddo
-          do k=1,npz
-             dp2(:,j,k) = pe2(:,k+1) - pe2(:,k)
-          enddo
-          call map1_q2(npz, pe1, q3(isd,jsd,1,iq),      &
-                       npz, pe2, q1(:,j,:), dp2(:,j,:), &
-                       is, ie, 0, kord, j,              &
-                       isd, ied, jsd, jed, 0.) 
-          if (fill) call fillz(ie-is+1, npz, 1, q1(:,j,:), dp2(:,j,:))
+          scalingFactor = calcScalingFactor(q1, dp2, ple1, npx, npy, npz, gridstruct, bd)
+          !scalingFactors = computeScalingFactors(q1, dp2, ple1, npx, npy, npz)
+
+          ! Return tracers
+          !---------------
+          q(is:ie,js:je,1:npz,iq) = q1(is:ie,js:je,1:npz) * scalingFactor
+          !do k =1,npz
+             !do j = js,je
+                !do i = is,ie
+                   !q(i,j,k,iq) = q1(i,j,k)
+                !enddo
+             !enddo
+          !enddo
+
        enddo
 
-       ! GCHP update to restrict mass balance operation to the troposphere
-       !! Rescale tracers based on ple1 at destination timestep
-       !!------------------------------------------------------
-       !
-       !scalingFactor = calcScalingFactor(q1, dp2, ple1, npx, npy, npz, gridstruct, bd)
-       !!scalingFactors = computeScalingFactors(q1, dp2, ple1, npx, npy, npz)
-       !
-       !! Return tracers
-       !!---------------
-       !q(is:ie,js:je,1:npz,iq) = q1(is:ie,js:je,1:npz) * scalingFactor
-       !!do k =1,npz
-       !   !do j = js,je
-       !      !do i = is,ie
-       !         !q(i,j,k,iq) = q1(i,j,k)
-       !      !enddo
-       !   !enddo
-       !!enddo
-       !scalingFactor = 1.d0
-       scalingFactor = calcScalingFactorTrop(bd, q1, dp2, ple1, npx, npy, npz, &
-                                             kStart, gridstruct)
-       q(is:ie,js:je,1:(kStart-1),iq) = q1(is:ie,js:je,1:(kStart-1))
-       q(is:ie,js:je,kStart:npz,iq) = q1(is:ie,js:je,kStart:npz) * scalingFactor
-
-    enddo
-
 end subroutine offline_tracer_advection
-
-!------------------------------------------------------------------------------------
-          
-         ! GCHP update to restrict mass balance operation to the troposphere
-         function calcScalingFactorTrop(bd, q1, dp2, ple1, npx, npy, npz, &
-                                        kStart, gridstruct ) result(scaling)
-         use mpp_mod, only: mpp_sum
-         type(fv_grid_bounds_type), intent(IN) :: bd
-         integer, intent(in) :: npx
-         integer, intent(in) :: npy
-         integer, intent(in) :: npz
-         integer, intent(in) :: kStart
-         type(fv_grid_type), intent(IN), target :: gridstruct
-         real, intent(in) :: q1(:,:,:)
-         real, intent(in) :: dp2(:,:,:)
-         real, intent(in) :: ple1(:,:,:)
-         real :: scaling
-
-         integer :: k
-         real :: partialSums(3,npz), globalSums(3)
-         real, parameter :: TINY_DENOMINATOR = tiny(1.d0)
-         !real, parameter :: TINY_DENOMINATOR = 1.d-5
-         real :: tempSum
-
-         real, pointer, dimension(:,:) :: area
-         integer :: is,  ie,  js,  je
-
-         !-------
-         ! Compute partial sum on local array first to minimize communication.
-         ! This algorithm will not be strongly repdroducible under changes do domain
-         ! decomposition, but uses far less communication bandwidth (and memory BW)
-         ! then the preceding implementation.
-         !-------
-
-         is  = bd%is
-         ie  = bd%ie
-         js  = bd%js
-         je  = bd%je
-         area => gridstruct%area
-
-         partialSums = 0.d0
-         do k = 1, npz
-            ! numerator
-            partialSums(1,k) = sum(q1(:,:,k)*dp2(:,:,k)*area(is:ie,js:je))
-            ! denominator
-            tempSum = sum(q1(:,:,k)*(ple1(:,:,k+1)-ple1(:,:,k))*area(is:ie,js:je))
-            partialSums(2,k) = tempSum
-            if (k.lt.kStart) then
-               partialSums(3,k) = tempSum
-            end if
-         end do
-
-         globalSums(1) = sum(partialSums(1,:))
-         globalSums(2) = sum(partialSums(2,:))
-         globalSums(3) = sum(partialSums(3,:))
-
-         ! Get total pre-advection mass, total post-advection mass, and total
-         ! strat mass after advection
-         call mpp_sum(globalSums, 3)
-
-         ! Subtract stratospheric mass
-         globalSums(1) = globalSums(1) - globalSums(3)
-         globalSums(2) = globalSums(2) - globalSums(3)
-
-         if (globalSums(2) > TINY_DENOMINATOR) then
-            scaling =  globalSums(1) / globalSums(2)
-            !#################################################################
-            ! This line was added to ensure strong reproducibility of the code
-            ! SDE 2017-02-17: Disabled as it compromises mass conservation
-            !#################################################################
-            !scaling = REAL(scaling, KIND=REAL4)
-         else
-            scaling = 1.d0
-         end if
-
-         end function calcScalingFactorTrop
 
 !------------------------------------------------------------------------------------
 

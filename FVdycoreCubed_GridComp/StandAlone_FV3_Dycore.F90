@@ -1,13 +1,13 @@
 #define I_AM_MAIN
 
 #include "MAPL_Generic.h"
+#define _RC rc=status); _VERIFY(status
 
-Program StandAlone_FV3_Dycore
-
-
-  use MAPL_Mod
-  use FVdycoreCubed_GridComp,      only: SetServices
-
+program StandAlone_FV3_Dycore
+   use MAPL_Mod
+   use FVdycoreCubed_GridComp,      only: SetServices
+   use MPI
+   use FLAP
 
    implicit none
 
@@ -15,15 +15,19 @@ Program StandAlone_FV3_Dycore
 
 !EOC
 
-   integer           :: STATUS
-   character(len=18) :: Iam="StandAlone_FV3_Dycore"
+   character(*), parameter :: IAM = __FILE__
 
-   logical           :: AmIRoot
+   type (MAPL_Cap) :: cap
+   type (command_line_interface) :: options
+   integer :: status
 
-   call MAPL_CAP(SetServices, AmIRoot=AmIRoot, rc=STATUS)
-   VERIFY_(STATUS)
+   call options%init( &
+        description = 'FV Standalone Dycore', &
+        authors     = 'S.J. Lin, R. Rood, W. Putman')
 
-   call exit(0)
+   cap = MAPL_Cap('Standalone FV3 Dycore', SetServices)
+   call cap%add_command_line_options(options, _RC)
+   call cap%run(options, _RC)
 
  end Program StandAlone_FV3_Dycore
 

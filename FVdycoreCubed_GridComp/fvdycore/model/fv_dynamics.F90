@@ -1,23 +1,121 @@
 !***********************************************************************
-!*                   GNU General Public License                        *
-!* This file is a part of fvGFS.                                       *
-!*                                                                     *
-!* fvGFS is free software; you can redistribute it and/or modify it    *
-!* and are expected to follow the terms of the GNU General Public      *
-!* License as published by the Free Software Foundation; either        *
-!* version 2 of the License, or (at your option) any later version.    *
-!*                                                                     *
-!* fvGFS is distributed in the hope that it will be useful, but        *
-!* WITHOUT ANY WARRANTY; without even the implied warranty of          *
-!* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU   *
-!* General Public License for more details.                            *
-!*                                                                     *
-!* For the full text of the GNU General Public License,                *
-!* write to: Free Software Foundation, Inc.,                           *
-!*           675 Mass Ave, Cambridge, MA 02139, USA.                   *
-!* or see:   http://www.gnu.org/licenses/gpl.html                      *
+!*                   GNU Lesser General Public License                 
+!*
+!* This file is part of the FV3 dynamical core.
+!*
+!* The FV3 dynamical core is free software: you can redistribute it 
+!* and/or modify it under the terms of the
+!* GNU Lesser General Public License as published by the
+!* Free Software Foundation, either version 3 of the License, or 
+!* (at your option) any later version.
+!*
+!* The FV3 dynamical core is distributed in the hope that it will be 
+!* useful, but WITHOUT ANYWARRANTY; without even the implied warranty 
+!* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+!* See the GNU General Public License for more details.
+!*
+!* You should have received a copy of the GNU Lesser General Public
+!* License along with the FV3 dynamical core.  
+!* If not, see <http://www.gnu.org/licenses/>.
 !***********************************************************************
+
+!>@brief The module 'fv_dynamics' is the top-level routine for the dynamical core.
+!>@details It executes on the dt_atmos (or p_split) loop.
+
 module fv_dynamics_mod
+
+! Modules Included:
+! <table>
+!   <tr>
+!     <th>Module Name</th>
+!     <th>Functions Included</th>
+!   </tr>
+!   <tr>
+!     <td>boundary_mod</td>
+!     <td>nested_grid_BC_apply_intT</td>
+!   </tr>
+!   <tr>
+!     <td>constants_mod</td>
+!     <td>grav, pi=>pi_8, radius, hlv, rdgas, omega, rvgas, cp_vapor</td>
+!   </tr>
+!   <tr>
+!     <td>diag_manager_mod</td>
+!     <td>send_data</td>
+!   </tr>
+!   <tr>
+!     <td>dyn_core_mod</td>
+!     <td>dyn_core, del2_cubed, init_ijk_mem</td>
+!   </tr>
+!   <tr>
+!     <td>field_manager_mod</td>
+!     <td>MODEL_ATMOS</td>
+!   </tr>
+!   <tr>
+!     <td>fv_arrays_mod</td>
+!     <td>fv_grid_type, fv_flags_type, fv_atmos_type, fv_nest_type, fv_diag_type, fv_grid_bounds_type</td>
+!   </tr>
+!   <tr>
+!     <td>fv_diagnostics_mod</td>
+!     <td>fv_time, prt_mxm, range_check, prt_minmax</td>
+!   </tr>
+!   <tr>
+!     <td>fv_fill_mod</td>
+!     <td>fill2D</td>
+!   </tr>
+!   <tr>
+!     <td>fv_grid_utils_mod</td>
+!     <td>cubed_to_latlon, c2l_ord2, g_sum</td>
+!   </tr>
+!   <tr>
+!     <td>fv_mapz_mod</td>
+!     <td>compute_total_energy, Lagrangian_to_Eulerian, moist_cv, moist_cp</td>
+!   </tr>
+!   <tr>
+!     <td>fv_mp_mod</td>
+!     <td>is_master,group_halo_update_type, start_group_halo_update, complete_group_halo_update</td>
+!   </tr>
+!   <tr>
+!     <td>fv_nesting_mod</td>
+!     <td>setup_nested_grid_BCs</td>
+!   </tr>
+!   <tr>
+!     <td>fv_nwp_mod</td>
+!     <td>do_adiabatic_init</td>
+!   </tr>
+!   <tr>
+!     <td>fv_restart_mod</td>
+!     <td>d2a_setup, d2c_setup</td>
+!   </tr>
+!   <tr>
+!     <td>fv_sg_mod</td>
+!     <td>neg_adj3</td>
+!   </tr>
+!   <tr>
+!     <td>fv_timing_mod</td>
+!     <td>timing_on, timing_off</td>
+!   </tr>
+!   <tr>
+!     <td>fv_tracer2d_mod</td>
+!     <td>tracer_2d, tracer_2d_1L, tracer_2d_nested</td>
+!   </tr>
+!   <tr>
+!     <td>mpp_mod/td>
+!     <td>mpp_pe</td>
+!   </tr>
+!   <tr>
+!     <td>mpp_domains_mod/td>
+!     <td>DGRID_NE, CGRID_NE, mpp_update_domains, domain2D</td>
+!   </tr>
+!   <tr>
+!     <td>fv_sg_mod</td>
+!     <td>neg_adj3</td>
+!   </tr>
+!   <tr>
+!     <td>tracer_manager_mod</td>
+!     <td>get_tracer_index</td>
+!   </tr>
+! </table>
+
    use constants_mod,       only: grav, pi=>pi_8, radius, hlv, rdgas, omega, rvgas, cp_vapor
    use dyn_core_mod,        only: dyn_core, del2_cubed, init_ijk_mem
    use fv_mapz_mod,         only: compute_total_energy, Lagrangian_to_Eulerian, moist_cv, moist_cp
@@ -54,16 +152,14 @@ implicit none
    logical :: bad_range = .false.
    real, allocatable ::  rf(:)
    integer :: kmax=1
+   integer :: k_rf = 0
+
    real :: agrav
 #ifdef HIWPP
    real, allocatable:: u00(:,:,:), v00(:,:,:)
 #endif
 private
 public :: fv_dynamics
-
-!---- version number -----
-   character(len=128) :: version = '$Id$'
-   character(len=128) :: tagname = '$Name$'
 
 contains
 
@@ -77,9 +173,9 @@ contains
                         ps, pe, pk, peln, pkz, phis, q_con, omga, ua, va, uc, vc,          &
                         ak, bk, mfx, mfy, cx, cy, ze0, hybrid_z, &
                         gridstruct, flagstruct, neststruct, idiag, bd, &
-                        parent_grid, domain, time_total)
+                        parent_grid, domain, diss_est, time_total)
 
-    real, intent(IN) :: bdt  ! Large time-step
+    real, intent(IN) :: bdt  !< Large time-step
     real, intent(IN) :: consv_te
     real, intent(IN) :: kappa, cp_air
     real, intent(IN) :: zvir, ptop
@@ -88,26 +184,27 @@ contains
     integer, intent(IN) :: npx
     integer, intent(IN) :: npy
     integer, intent(IN) :: npz
-    integer, intent(IN) :: nq_tot             ! transported tracers
+    integer, intent(IN) :: nq_tot             !< transported tracers
     integer, intent(IN) :: ng
     integer, intent(IN) :: ks
     integer, intent(IN) :: ncnst
-    integer, intent(IN) :: n_split        ! small-step horizontal dynamics
-    integer, intent(IN) :: q_split        ! tracer
+    integer, intent(IN) :: n_split        !< small-step horizontal dynamics
+    integer, intent(IN) :: q_split        !< tracer
     logical, intent(IN) :: fill
     logical, intent(IN) :: reproduce_sum
     logical, intent(IN) :: hydrostatic
-    logical, intent(IN) :: hybrid_z       ! Using hybrid_z for remapping
+    logical, intent(IN) :: hybrid_z       !< Using hybrid_z for remapping
 
     type(fv_grid_bounds_type), intent(IN) :: bd
-    real, intent(inout), dimension(bd%isd:bd%ied  ,bd%jsd:bd%jed+1,npz) :: u ! D grid zonal wind (m/s)
-    real, intent(inout), dimension(bd%isd:bd%ied+1,bd%jsd:bd%jed  ,npz) :: v ! D grid meridional wind (m/s)
-    real, intent(inout) :: w(   bd%isd:  ,bd%jsd:  ,1:)  !  W (m/s)
-    real, intent(inout) :: pt(  bd%isd:bd%ied  ,bd%jsd:bd%jed  ,npz)  ! temperature (K)
-    real, intent(inout) :: delp(bd%isd:bd%ied  ,bd%jsd:bd%jed  ,npz)  ! pressure thickness (pascal)
-    real, intent(inout) :: q(   bd%isd:bd%ied  ,bd%jsd:bd%jed  ,npz, ncnst) ! specific humidity and constituents
-    real, intent(inout) :: delz(bd%isd:,bd%jsd:,1:)   ! delta-height (m); non-hydrostatic only
-    real, intent(inout) ::  ze0(bd%is:, bd%js: ,1:) ! height at edges (m); non-hydrostatic
+    real, intent(inout), dimension(bd%isd:bd%ied  ,bd%jsd:bd%jed+1,npz) :: u !< D grid zonal wind (m/s)
+    real, intent(inout), dimension(bd%isd:bd%ied+1,bd%jsd:bd%jed  ,npz) :: v !< D grid meridional wind (m/s)
+    real, intent(inout) :: w(   bd%isd:  ,bd%jsd:  ,1:) !<  W (m/s)
+    real, intent(inout) :: pt(  bd%isd:bd%ied  ,bd%jsd:bd%jed  ,npz)  !< temperature (K)
+    real, intent(inout) :: delp(bd%isd:bd%ied  ,bd%jsd:bd%jed  ,npz)  !< pressure thickness (pascal)
+    real, intent(inout) :: q(   bd%isd:bd%ied  ,bd%jsd:bd%jed  ,npz, ncnst) !< specific humidity and constituents
+    real, intent(inout) :: delz(bd%isd:,bd%jsd:,1:)   !< delta-height (m); non-hydrostatic only
+    real, intent(inout) ::  ze0(bd%is:, bd%js: ,1:) !< height at edges (m); non-hydrostatic
+    real, intent(inout), dimension(bd%isd:bd%ied  ,bd%jsd:bd%jed,npz) :: diss_est! diffusion estimate for SKEB
 ! ze0 no longer used
 
 !-----------------------------------------------------------------------
@@ -115,19 +212,19 @@ contains
 ! The 5 vars below can be re-computed from delp and ptop.
 !-----------------------------------------------------------------------
 ! dyn_aux:
-    real, intent(inout) :: ps  (bd%isd:bd%ied  ,bd%jsd:bd%jed)           ! Surface pressure (pascal)
-    real, intent(inout) :: pe  (bd%is-1:bd%ie+1, npz+1,bd%js-1:bd%je+1)  ! edge pressure (pascal)
-    real, intent(inout) :: pk  (bd%is:bd%ie,bd%js:bd%je, npz+1)          ! pe**kappa
-    real, intent(inout) :: peln(bd%is:bd%ie,npz+1,bd%js:bd%je)           ! ln(pe)
-    real, intent(inout) :: pkz (bd%is:bd%ie,bd%js:bd%je,npz)             ! finite-volume mean pk
+    real, intent(inout) :: ps  (bd%isd:bd%ied  ,bd%jsd:bd%jed)           !< Surface pressure (pascal)
+    real, intent(inout) :: pe  (bd%is-1:bd%ie+1, npz+1,bd%js-1:bd%je+1)  !< edge pressure (pascal)
+    real, intent(inout) :: pk  (bd%is:bd%ie,bd%js:bd%je, npz+1)          !< pe**kappa
+    real, intent(inout) :: peln(bd%is:bd%ie,npz+1,bd%js:bd%je)           !< ln(pe)
+    real, intent(inout) :: pkz (bd%is:bd%ie,bd%js:bd%je,npz)             !< finite-volume mean pk
     real, intent(inout):: q_con(bd%isd:, bd%jsd:, 1:)
     
 !-----------------------------------------------------------------------
 ! Others:
 !-----------------------------------------------------------------------
-    real, intent(inout) :: phis(bd%isd:bd%ied,bd%jsd:bd%jed)       ! Surface geopotential (g*Z_surf)
-    real, intent(inout) :: omga(bd%isd:bd%ied,bd%jsd:bd%jed,npz)   ! Vertical pressure velocity (pa/s)
-    real, intent(inout) :: uc(bd%isd:bd%ied+1,bd%jsd:bd%jed  ,npz) ! (uc,vc) mostly used as the C grid winds
+    real, intent(inout) :: phis(bd%isd:bd%ied,bd%jsd:bd%jed)       !< Surface geopotential (g*Z_surf)
+    real, intent(inout) :: omga(bd%isd:bd%ied,bd%jsd:bd%jed,npz)   !< Vertical pressure velocity (pa/s)
+    real, intent(inout) :: uc(bd%isd:bd%ied+1,bd%jsd:bd%jed  ,npz) !< (uc,vc) mostly used as the C grid winds
     real, intent(inout) :: vc(bd%isd:bd%ied  ,bd%jsd:bd%jed+1,npz)
 
     real, intent(inout), dimension(bd%isd:bd%ied ,bd%jsd:bd%jed ,npz):: ua, va
@@ -165,7 +262,8 @@ contains
       real, dimension(bd%is:bd%ie):: cvm
       real, allocatable :: dp1(:,:,:), dtdt_m(:,:,:), cappa(:,:,:)
       real(kind=8), allocatable :: psx(:,:)
-      real(kind=8), allocatable :: dpx(:,:)
+      !real(kind=8), allocatable :: dpx(:,:)
+      real(kind=8), allocatable :: dpx(:,:,:) !needed for OpenMP
       real:: akap, rdg, ph1, ph2, mdt, gam, amdt, u0
       integer:: kord_tracer(ncnst)
       integer :: i,j,k, n, iq, n_map, nq, nwat, k_split
@@ -254,28 +352,39 @@ contains
       endif
 
 #ifdef MAPL_MODE
-      select case (nwat)
-       case (0)
-             sphum = 1
-           cld_amt = -1   ! to cause trouble if (mis)used
-       case (1)
-             sphum = 1
-           liq_wat = -1   ! to cause trouble if (mis)used
-           ice_wat = -1   ! to cause trouble if (mis)used
-           rainwat = -1   ! to cause trouble if (mis)used
-           snowwat = -1   ! to cause trouble if (mis)used
-           graupel = -1   ! to cause trouble if (mis)used
-           cld_amt = -1   ! to cause trouble if (mis)used
-           theta_d = -1   ! to cause trouble if (mis)used
-       case (3)
-             sphum = 1
-           liq_wat = 2
-           ice_wat = 3
-           rainwat = -1   ! to cause trouble if (mis)used
-           snowwat = -1   ! to cause trouble if (mis)used
-           graupel = -1   ! to cause trouble if (mis)used
-           cld_amt = -1   ! to cause trouble if (mis)used
-           theta_d = -1   ! to cause trouble if (mis)used
+      select case(nwat)
+      case(0)
+       sphum = 1
+       liq_wat = -1
+       ice_wat = -1
+       rainwat = -1
+       snowwat = -1
+       graupel = -1
+       cld_amt = -1
+      case(1)
+       sphum = 1
+       liq_wat = -1
+       ice_wat = -1
+       rainwat = -1
+       snowwat = -1
+       graupel = -1
+       cld_amt = -1
+      case(3)
+       sphum = 1
+       liq_wat = 2
+       ice_wat = 3
+       rainwat = -1
+       snowwat = -1
+       graupel = -1
+       cld_amt = -1
+      case(6)
+       sphum = 1
+       liq_wat = 2
+       ice_wat = 3
+       rainwat = 4
+       snowwat = 5
+       graupel = 6
+       cld_amt = 7
       end select
 #else
       if ( nwat==0 ) then
@@ -290,6 +399,7 @@ contains
            graupel = get_tracer_index (MODEL_ATMOS, 'graupel')
            cld_amt = get_tracer_index (MODEL_ATMOS, 'cld_amt')
       endif
+
       theta_d = get_tracer_index (MODEL_ATMOS, 'theta_d')
 #endif
 
@@ -393,10 +503,16 @@ contains
                            ptop, ua, va, u, v, delp, teq, ps2, m_fac)
       endif
 
-      if( flagstruct%tau > 0. ) then
+      if( .not.flagstruct%RF_fast .and. flagstruct%tau > 0. ) then
         if ( gridstruct%grid_type<4 ) then
+!         if ( flagstruct%RF_fast ) then
+!            call Ray_fast(abs(dt), npx, npy, npz, pfull, flagstruct%tau, u, v, w,  &
+!                          dp_ref, ptop, hydrostatic, flagstruct%rf_cutoff, bd)
+!         else
              call Rayleigh_Super(abs(bdt), npx, npy, npz, ks, pfull, phis, flagstruct%tau, u, v, w, pt,  &
-                  ua, va, delz, gridstruct%agrid, cp_air, rdgas, ptop, hydrostatic, (.not. neststruct%nested), flagstruct%rf_cutoff, gridstruct, domain, bd)
+                  ua, va, delz, gridstruct%agrid, cp_air, rdgas, ptop, hydrostatic,    &
+                 (.not. neststruct%nested), flagstruct%rf_cutoff, gridstruct, domain, bd)
+!         endif
         else
              call Rayleigh_Friction(abs(bdt), npx, npy, npz, ks, pfull, flagstruct%tau, u, v, w, pt,  &
                   ua, va, delz, cp_air, rdgas, ptop, hydrostatic, .true., flagstruct%rf_cutoff, gridstruct, domain, bd)
@@ -442,8 +558,8 @@ contains
   last_step = .false.
   mdt = bdt / real(k_split)
 
+  allocate ( dtdt_m(is:ie,js:je,npz) )
   if ( idiag%id_mdt > 0 .and. (.not. do_adiabatic_init) ) then
-       allocate ( dtdt_m(is:ie,js:je,npz) )
 !$OMP parallel do default(none) shared(is,ie,js,je,npz,dtdt_m)
        do k=1,npz
           do j=js,je
@@ -455,12 +571,12 @@ contains
   endif
 
 !DryMassRoundoffControl
-      allocate(psx(isd:ied,jsd:jed),dpx(is:ie,js:je))
+      allocate(psx(isd:ied,jsd:jed),dpx(is:ie,js:je,npz))
       psx(:,:) = 0.0
       do j=js,je
          do i=is,ie
             psx(i,j) = pe(i,npz+1,j)
-            dpx(i,j) = 0.0
+            dpx(i,j,:) = 0.0
          enddo
       enddo
                                                   call timing_on('FV_DYN_LOOP')
@@ -509,7 +625,7 @@ contains
 #endif
                     pkz, peln, q_con, ak, bk, dpx, ks, &
                     gridstruct, flagstruct, neststruct, idiag, bd, &
-                    domain, n_map==1, i_pack, last_step, time_total)
+                    domain, n_map==1, i_pack, last_step, diss_est,time_total)
                                            call timing_off('DYN_CORE')
 
 
@@ -524,9 +640,12 @@ contains
 !DryMassRoundoffControl
       if(last_step) then
          if (hydrostatic) then
+         do k = 2, npz
+            dpx(:,:,1) = dpx(:,:,1) + dpx(:,:,k)
+         enddo
          do j=js,je
             do i=is,ie
-               psx(i,j) = psx(i,j) + dpx(i,j)
+               psx(i,j) = psx(i,j) + dpx(i,j,1)
             enddo
          enddo
                                         call timing_on('COMM_TOTAL')
@@ -542,7 +661,7 @@ contains
       end if
 
 #ifdef SW_DYNAMICS
-!$OMP parallel do default(none) shared(is,ie,js,je,delp,agrav)
+!!$OMP parallel do default(none) shared(is,ie,js,je,ps,delp,agrav)
       do j=js,je
          do i=is,ie
             ps(i,j) = delp(i,j,1) * agrav
@@ -559,20 +678,21 @@ contains
          call tracer_2d_nested(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, npy, npz, nq,    &
                         flagstruct%hord_tr, q_split, mdt, idiag%id_divg, i_pack(10), &
                         flagstruct%nord_tr, flagstruct%trdm2, &
-                        k_split, neststruct, parent_grid)          
+                        k_split, neststruct, parent_grid, flagstruct%lim_fac)
        else
          if ( flagstruct%z_tracer ) then
          call tracer_2d_1L(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, npy, npz, nq,    &
                         flagstruct%hord_tr, q_split, mdt, idiag%id_divg, i_pack(10), &
-                        flagstruct%nord_tr, flagstruct%trdm2)
+                        flagstruct%nord_tr, flagstruct%trdm2, flagstruct%lim_fac)
          else
          call tracer_2d(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, npy, npz, nq,    &
                         flagstruct%hord_tr, q_split, mdt, idiag%id_divg, i_pack(10), &
-                        flagstruct%nord_tr, flagstruct%trdm2)
+                        flagstruct%nord_tr, flagstruct%trdm2, flagstruct%lim_fac)
          endif
        endif
                                              call timing_off('tracer_2d')
 
+#ifdef FILL2D
      if ( flagstruct%hord_tr<8 .and. flagstruct%moist_phys ) then
                                                   call timing_on('Fill2D')
        if ( liq_wat > 0 )  &
@@ -587,6 +707,7 @@ contains
         call fill2D(is, ie, js, je, ng, npz, q(isd,jsd,1,graupel), delp, gridstruct%area, domain, neststruct%nested, npx, npy)
                                                   call timing_off('Fill2D')
      endif
+#endif
 
          if( last_step .and. idiag%id_divg>0 ) then
              used = send_data(idiag%id_divg, dp1, fv_time) 
@@ -669,8 +790,8 @@ contains
        enddo
 !      call prt_mxm('Fast DTDT (deg/Day)', dtdt_m, is, ie, js, je, 0, npz, 1., gridstruct%area_64, domain)
        used = send_data(idiag%id_mdt, dtdt_m, fv_time)
-       deallocate ( dtdt_m )
   endif
+  deallocate ( dtdt_m )
 
   if( nwat==6 ) then
      if (cld_amt > 0) then
@@ -791,31 +912,153 @@ contains
 #endif
   end subroutine fv_dynamics
 
+#ifdef USE_RF_FAST
+  subroutine Rayleigh_fast(dt, npx, npy, npz, pfull, tau, u, v, w,  &
+                          ks, dp, ptop, hydrostatic, rf_cutoff, bd)
+! Simple "inline" version of the Rayleigh friction
+    real, intent(in):: dt
+    real, intent(in):: tau              !< time scale (days)
+    real, intent(in):: ptop, rf_cutoff
+    real, intent(in),  dimension(npz):: pfull
+    integer, intent(in):: npx, npy, npz, ks
+    logical, intent(in):: hydrostatic
+    type(fv_grid_bounds_type), intent(IN) :: bd
+    real, intent(inout):: u(bd%isd:bd%ied  ,bd%jsd:bd%jed+1,npz) !< D grid zonal wind (m/s)
+    real, intent(inout):: v(bd%isd:bd%ied+1,bd%jsd:bd%jed,npz) !< D grid meridional wind (m/s)
+    real, intent(inout):: w(bd%isd:      ,bd%jsd:      ,1: ) !< cell center vertical wind (m/s)
+    real, intent(in):: dp(npz)
+!
+    real(kind=R_GRID):: rff(npz)
+    real, parameter:: sday = 86400. !< seconds per day
+    real, dimension(bd%is:bd%ie+1):: dmv
+    real, dimension(bd%is:bd%ie):: dmu
+    real:: tau0, dm
+    integer i, j, k
+
+    integer :: is,  ie,  js,  je
+    integer :: isd, ied, jsd, jed
+
+      is  = bd%is
+      ie  = bd%ie
+      js  = bd%js
+      je  = bd%je
+      isd = bd%isd
+      ied = bd%ied
+      jsd = bd%jsd
+      jed = bd%jed
+
+     if ( .not. RF_initialized ) then
+          tau0 = tau * sday
+          allocate( rf(npz) )
+          rf(:) = 1.
+
+          if( is_master() ) write(6,*) 'Fast Rayleigh friction E-folding time (days):'
+          do k=1, npz
+             if ( pfull(k) < rf_cutoff ) then
+                  rff(k) = dt/tau0*sin(0.5*pi*log(rf_cutoff/pfull(k))/log(rf_cutoff/ptop))**2
+! Re-FACTOR rf
+                  if( is_master() ) write(6,*) k, 0.01*pfull(k), dt/(rff(k)*sday)
+                  kmax = k
+                  rff(k) = 1.d0 / (1.0d0+rff(k))
+                   rf(k) = rff(k)
+             else
+                  exit
+             endif
+          enddo
+          dm = 0.
+          do k=1,ks
+             if ( pfull(k) < 100.E2 ) then
+                  dm = dm + dp(k)
+                  k_rf = k
+             else
+                  exit
+             endif
+          enddo
+          if( is_master() ) write(6,*) 'k_rf=', k_rf, 0.01*pfull(k_rf), 'dm=', dm
+          RF_initialized = .true.
+     endif
+
+!$OMP parallel do default(none) shared(k_rf,is,ie,js,je,kmax,pfull,rf_cutoff,w,rf,dp,u,v,hydrostatic) &
+!$OMP          private(dm, dmu, dmv)
+     do j=js,je+1
+
+        dm = 0.
+        do k=1, k_rf
+           dm = dm + dp(k)
+        enddo
+
+        dmu(:) = 0.
+        dmv(:) = 0.
+        do k=1,kmax
+           do i=is,ie
+                dmu(i) = dmu(i) + (1.-rf(k))*dp(k)*u(i,j,k)
+              u(i,j,k) = rf(k)*u(i,j,k)
+           enddo
+           if ( j/=je+1 ) then
+              do i=is,ie+1
+                   dmv(i) = dmv(i) + (1.-rf(k))*dp(k)*v(i,j,k)
+                 v(i,j,k) = rf(k)*v(i,j,k)
+              enddo
+              if ( .not. hydrostatic ) then
+                do i=is,ie
+                   w(i,j,k) = rf(k)*w(i,j,k)
+                enddo
+              endif
+           endif
+        enddo
+
+        do i=is,ie
+           dmu(i) = dmu(i) / dm
+        enddo
+        if ( j/=je+1 ) then
+           do i=is,ie+1
+              dmv(i) = dmv(i) / dm
+           enddo
+        endif
+
+        do k=1, k_rf
+           do i=is,ie
+              u(i,j,k) = u(i,j,k) + dmu(i)
+           enddo
+           if ( j/=je+1 ) then
+              do i=is,ie+1
+                 v(i,j,k) = v(i,j,k) + dmv(i)
+              enddo
+           endif
+        enddo
+
+     enddo
+
+ end subroutine Rayleigh_fast
+#endif
+
+
 
  subroutine Rayleigh_Super(dt, npx, npy, npz, ks, pm, phis, tau, u, v, w, pt,  &
-                           ua, va, delz, agrid, cp, rg, ptop, hydrostatic, conserve, rf_cutoff, gridstruct, domain, bd)
+                           ua, va, delz, agrid, cp, rg, ptop, hydrostatic,     &
+                           conserve, rf_cutoff, gridstruct, domain, bd)
     real, intent(in):: dt
-    real, intent(in):: tau              ! time scale (days)
+    real, intent(in):: tau              !< time scale (days)
     real, intent(in):: cp, rg, ptop, rf_cutoff
     real, intent(in),  dimension(npz):: pm
     integer, intent(in):: npx, npy, npz, ks
     logical, intent(in):: hydrostatic
     logical, intent(in):: conserve
     type(fv_grid_bounds_type), intent(IN) :: bd
-    real, intent(inout):: u(bd%isd:bd%ied  ,bd%jsd:bd%jed+1,npz) ! D grid zonal wind (m/s)
-    real, intent(inout):: v(bd%isd:bd%ied+1,bd%jsd:bd%jed,npz) ! D grid meridional wind (m/s)
-    real, intent(inout)::  w(bd%isd:      ,bd%jsd:      ,1: ) ! cell center vertical wind (m/s)
-    real, intent(inout):: pt(bd%isd:bd%ied,bd%jsd:bd%jed,npz) ! temp
+    real, intent(inout):: u(bd%isd:bd%ied  ,bd%jsd:bd%jed+1,npz) !< D grid zonal wind (m/s)
+    real, intent(inout):: v(bd%isd:bd%ied+1,bd%jsd:bd%jed,npz) !< D grid meridional wind (m/s)
+    real, intent(inout)::  w(bd%isd:      ,bd%jsd:      ,1: ) !< cell center vertical wind (m/s)
+    real, intent(inout):: pt(bd%isd:bd%ied,bd%jsd:bd%jed,npz) !< temp
     real, intent(inout):: ua(bd%isd:bd%ied,bd%jsd:bd%jed,npz) ! 
     real, intent(inout):: va(bd%isd:bd%ied,bd%jsd:bd%jed,npz) ! 
-    real, intent(inout):: delz(bd%isd:    ,bd%jsd:      ,1: ) ! delta-height (m); non-hydrostatic only
+    real, intent(inout):: delz(bd%isd:    ,bd%jsd:      ,1: ) !< delta-height (m); non-hydrostatic only
     real,   intent(in) :: agrid(bd%isd:bd%ied,  bd%jsd:bd%jed,2)
-    real, intent(in) :: phis(bd%isd:bd%ied,bd%jsd:bd%jed)     ! Surface geopotential (g*Z_surf)
+    real, intent(in) :: phis(bd%isd:bd%ied,bd%jsd:bd%jed)     !< Surface geopotential (g*Z_surf)
     type(fv_grid_type), intent(IN) :: gridstruct
     type(domain2d), intent(INOUT) :: domain
 !
     real, allocatable ::  u2f(:,:,:)
-    real, parameter:: u0   = 60.   ! scaling velocity
+    real, parameter:: u0   = 60.   !< scaling velocity
     real, parameter:: sday = 86400.
     real rcv, tau0
     integer i, j, k
@@ -966,26 +1209,26 @@ contains
                               ua, va, delz, cp, rg, ptop, hydrostatic, conserve, &
                               rf_cutoff, gridstruct, domain, bd)
     real, intent(in):: dt
-    real, intent(in):: tau              ! time scale (days)
+    real, intent(in):: tau              !< time scale (days)
     real, intent(in):: cp, rg, ptop, rf_cutoff
     real, intent(in),  dimension(npz):: pm
     integer, intent(in):: npx, npy, npz, ks
     logical, intent(in):: hydrostatic
     logical, intent(in):: conserve
     type(fv_grid_bounds_type), intent(IN) :: bd
-    real, intent(inout):: u(bd%isd:bd%ied  ,bd%jsd:bd%jed+1,npz) ! D grid zonal wind (m/s)
-    real, intent(inout):: v(bd%isd:bd%ied+1,bd%jsd:bd%jed,npz) ! D grid meridional wind (m/s)
-    real, intent(inout)::  w(bd%isd:      ,bd%jsd:      ,1: ) ! cell center vertical wind (m/s)
-    real, intent(inout):: pt(bd%isd:bd%ied,bd%jsd:bd%jed,npz) ! temp
+    real, intent(inout):: u(bd%isd:bd%ied  ,bd%jsd:bd%jed+1,npz) !< D grid zonal wind (m/s)
+    real, intent(inout):: v(bd%isd:bd%ied+1,bd%jsd:bd%jed,npz) !< D grid meridional wind (m/s)
+    real, intent(inout)::  w(bd%isd:      ,bd%jsd:      ,1: ) !< cell center vertical wind (m/s)
+    real, intent(inout):: pt(bd%isd:bd%ied,bd%jsd:bd%jed,npz) !< temp
     real, intent(inout):: ua(bd%isd:bd%ied,bd%jsd:bd%jed,npz) ! 
     real, intent(inout):: va(bd%isd:bd%ied,bd%jsd:bd%jed,npz) ! 
-    real, intent(inout):: delz(bd%isd:    ,bd%jsd:      ,1: ) ! delta-height (m); non-hydrostatic only
+    real, intent(inout):: delz(bd%isd:    ,bd%jsd:      ,1: ) !< delta-height (m); non-hydrostatic only
     type(fv_grid_type), intent(IN) :: gridstruct
     type(domain2d), intent(INOUT) :: domain
 ! local:
     real, allocatable ::  u2f(:,:,:)
-    real, parameter:: sday = 86400.
-    real, parameter:: u000 = 4900.   ! scaling velocity  **2
+    real, parameter:: sday = 86400.  !< seconds per day
+    real, parameter:: u000 = 4900.   !< scaling velocity  **2
     real  rcv
     integer i, j, k
 
@@ -1100,6 +1343,7 @@ contains
 
  end subroutine Rayleigh_Friction
 
+!>@brief The subroutine 'compute_aam' computes vertically (mass) integrated Atmospheric Angular Momentum.
  subroutine compute_aam(npz, is, ie, js, je, isd, ied, jsd, jed, gridstruct, bd,   &
                         ptop, ua, va, u, v, delp, aam, ps, m_fac)
 ! Compute vertically (mass) integrated Atmospheric Angular Momentum
@@ -1107,8 +1351,8 @@ contains
     integer, intent(in):: is,  ie,  js,  je
     integer, intent(in):: isd, ied, jsd, jed
     real, intent(in):: ptop
-    real, intent(inout):: u(isd:ied  ,jsd:jed+1,npz) ! D grid zonal wind (m/s)
-    real, intent(inout):: v(isd:ied+1,jsd:jed,npz) ! D grid meridional wind (m/s)
+    real, intent(inout):: u(isd:ied  ,jsd:jed+1,npz) !< D grid zonal wind (m/s)
+    real, intent(inout):: v(isd:ied+1,jsd:jed,npz) !< D grid meridional wind (m/s)
     real, intent(inout):: delp(isd:ied,jsd:jed,npz)
     real, intent(inout), dimension(isd:ied,jsd:jed, npz):: ua, va
     real, intent(out):: aam(is:ie,js:je)

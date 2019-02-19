@@ -141,7 +141,7 @@ contains
       ! ---------------------------------------
     
       call ESMF_GridCompGet( GC, NAME=COMP_NAME, vm=vm, RC=STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       Iam = trim(COMP_NAME) // 'SetServices'
 
 !BOS
@@ -155,7 +155,7 @@ contains
          PRECISION  = ESMF_KIND_R8,                                &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddImportSpec ( gc,                                  &
          SHORT_NAME = 'MFY',                                       &
@@ -164,7 +164,7 @@ contains
          PRECISION  = ESMF_KIND_R8,                                &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddImportSpec ( gc,                                  &
          SHORT_NAME = 'CX',                                        &
@@ -173,7 +173,7 @@ contains
          PRECISION  = ESMF_KIND_R8,                                &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddImportSpec ( gc,                                  &
          SHORT_NAME = 'CY',                                        &
@@ -182,7 +182,7 @@ contains
          PRECISION  = ESMF_KIND_R8,                                &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddImportSpec ( gc,                                  &
          SHORT_NAME = 'PLE0',                                      &
@@ -191,7 +191,7 @@ contains
          PRECISION  = ESMF_KIND_R8,                                &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationEdge,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddImportSpec ( gc,                                  &
          SHORT_NAME = 'PLE1',                                      &
@@ -200,49 +200,17 @@ contains
          PRECISION  = ESMF_KIND_R8,                                &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationEdge,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
-    ! Not used in GCHP; use TRACERS instead (ewl, 12/6/19)
-    !call MAPL_AddImportSpec(GC,                                  &
-    !   SHORT_NAME         = 'TRADV',                             &
-    !   LONG_NAME          = 'advected_quantities',               &
-    !   units              = 'X',                                 &
-    !   DIMS               = MAPL_DimsHorzVert,                   &
-    !   VLOCATION          = MAPL_VLocationCenter,                &
-    !   DATATYPE           = MAPL_BundleItem,                     &
-    !                                                  RC=STATUS  )
-    ! VERIFY_(STATUS)
-
-    ! Add for GCHP (ewl, 12/1/19)
-    call MAPL_AddImportSpec ( gc,                                  &
-         SHORT_NAME = 'DryPLE0',                                   &
-         LONG_NAME  = 'dry_pressure_at_layer_edges_before_advection',&
-         UNITS      = 'Pa',                                        &
-         PRECISION  = ESMF_KIND_R8,                                &
-         DIMS       = MAPL_DimsHorzVert,                           &
-         VLOCATION  = MAPL_VLocationEdge,             RC=STATUS  )
-     VERIFY_(STATUS)
-
-    ! Add for GCHP (ewl, 12/1/19)
-    call MAPL_AddImportSpec ( gc,                                  &
-         SHORT_NAME = 'DryPLE1',                                   &
-         LONG_NAME  = 'dry_pressure_at_layer_edges_after_advection',&               
-         UNITS      = 'Pa',                                        &
-         PRECISION  = ESMF_KIND_R8,                                &
-         DIMS       = MAPL_DimsHorzVert,                           &
-         VLOCATION  = MAPL_VLocationEdge,             RC=STATUS  )
-     VERIFY_(STATUS)
-
-    ! Add for GCHP (ewl, 12/1/19)
     call MAPL_AddImportSpec(GC,                                  &
-       SHORT_NAME         = 'TRACERS',                           &
+       SHORT_NAME         = 'TRADV',                             &
        LONG_NAME          = 'advected_quantities',               &
        units              = 'X',                                 &
        DIMS               = MAPL_DimsHorzVert,                   &
        VLOCATION          = MAPL_VLocationCenter,                &
        DATATYPE           = MAPL_BundleItem,                     &
                                                       RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
 ! !EXPORT STATE:
      call MAPL_AddExportSpec ( gc,                                  &
@@ -251,27 +219,7 @@ contains
           UNITS      = 'm+2'  ,                                     &
           DIMS       = MAPL_DimsHorzOnly,                           &
           VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
-
-     ! Add for GCHP (ewl, 12/1/19)
-     call MAPL_AddExportSpec ( gc,                                  &
-          SHORT_NAME = 'PLE',                                       &
-          LONG_NAME  = 'pressure_at_layer_edges',                   &
-          UNITS      = 'Pa'   ,                                     &
-          PRECISION  = ESMF_KIND_R8,                                &
-          DIMS       = MAPL_DimsHorzVert,                           &
-          VLOCATION  = MAPL_VLocationEdge,               RC=STATUS  )
-     VERIFY_(STATUS)
-
-     ! Add for GCHP (ewl, 12/1/19)
-     call MAPL_AddExportSpec ( gc,                                  &
-          SHORT_NAME = 'DryPLE',                                    &
-          LONG_NAME  = 'dry_pressure_at_layer_edges',               &
-          UNITS      = 'Pa'   ,                                     &
-          PRECISION  = ESMF_KIND_R8,                                &
-          DIMS       = MAPL_DimsHorzVert,                           &
-          VLOCATION  = MAPL_VLocationEdge,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
 
 ! 3D Tracers
@@ -283,7 +231,7 @@ contains
              UNITS      = '1',                                    &
              DIMS       = MAPL_DimsHorzVert,                      &
              VLOCATION  = MAPL_VLocationCenter,               RC=STATUS  )
-        VERIFY_(STATUS)
+        _VERIFY(STATUS)
      enddo
 
 !EOS
@@ -291,43 +239,43 @@ contains
       ! Set the Profiling timers
       !-------------------------
       call MAPL_TimerAdd(GC,    name="INITIALIZE"  ,RC=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       call MAPL_TimerAdd(GC,    name="RUN"         ,RC=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       call MAPL_TimerAdd(GC,    name="FINALIZE"    ,RC=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       call MAPL_TimerAdd(GC,    name="TOTAL"       ,RC=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
 
 ! Register methods with MAPL
 ! --------------------------
 
       call MAPL_GridCompSetEntryPoint ( GC, ESMF_METHOD_INITIALIZE,  Initialize, RC=status )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       call MAPL_GridCompSetEntryPoint ( GC, ESMF_METHOD_RUN,          Run,       RC=status )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       call MAPL_GridCompSetEntryPoint ( gc, ESMF_METHOD_FINALIZE,     Finalize,  RC=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       ! Check if AdvCore is running without FV3_DynCoreIsRunning, if yes then setup the MAPL Grid 
       ! ----------------------------------------------------------------------------
       call MAPL_GetObjectFromGC (GC, MAPL,  RC=STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       call MAPL_GetResource(MAPL, DYCORE, 'DYCORE:', default="", RC=STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       call MAPL_GetResource(MAPL, AdvCore_Advection , label='AdvCore_Advection:', &
                                   default=AdvCore_Advection, RC=STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(adjustl(DYCORE)=="FV3") FV3_DynCoreIsRunning = .true.
 
 
       ! Start up FMS/MPP
       !-------------------------------------------
       call ESMF_VMGet(VM,mpiCommunicator=comm,rc=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       call fms_init(comm)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       if (.NOT. FV3_DynCoreIsRunning) then
          call fv_init1(FV_Atm, dt, grids_on_my_pe, p_split)
@@ -339,10 +287,10 @@ contains
       ! Get Domain decomposition
       !-------------------------
       call MAPL_GetResource( MAPL, nx, 'NX:', default=0, RC=STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       FV_Atm(1)%layout(1) = nx
       call MAPL_GetResource( MAPL, ny, 'NY:', default=0, RC=STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if (FV_Atm(1)%flagstruct%grid_type == 4) then
          FV_Atm(1)%layout(2) = ny
       else
@@ -353,11 +301,11 @@ contains
       !---------------------------
 ! FV grid dimensions setup from MAPL
       call MAPL_GetResource( MAPL, FV_Atm(1)%flagstruct%npx, 'IM:', default= 32, RC=STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       call MAPL_GetResource( MAPL, FV_Atm(1)%flagstruct%npy, 'JM:', default=192, RC=STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       call MAPL_GetResource( MAPL, FV_Atm(1)%flagstruct%npz, 'LM:', default= 72, RC=STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 ! FV likes npx;npy in terms of cell vertices
       if (FV_Atm(1)%flagstruct%npy == 6*FV_Atm(1)%flagstruct%npx) then
          FV_Atm(1)%flagstruct%ntiles = 6
@@ -370,7 +318,7 @@ contains
       endif
 
       call MAPL_GetResource( MAPL, ndt, 'RUN_DT:', default=0, RC=STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       DT = ndt
 
       ! Start up FV if AdvCore is running without FV3_DynCoreIsRunning
@@ -379,17 +327,13 @@ contains
          call fv_init2(FV_Atm, dt, grids_on_my_pe, p_split)
       end if
 
-      ! Register prototype of cubed sphere grid and associated regridders
-      !------------------------------------------------------------------
-      call register_grid_and_regridders()
-
 
       ! Ending with a Generic SetServices call is a MAPL requirement 
       !-------------------------------------------------------------
       call MAPL_GenericSetServices    ( GC, rc=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
-      RETURN_(ESMF_SUCCESS)
+      _RETURN(ESMF_SUCCESS)
 
       end subroutine SetServices
 
@@ -439,20 +383,20 @@ contains
 
       Iam = "Initialize"
       call ESMF_GridCompGet ( GC, name=COMP_NAME, config=CF, vm=VM, RC=STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       Iam = trim(COMP_NAME) // trim(Iam)
 
       ! Retrieve the pointer to the state
       ! ---------------------------------
       call MAPL_GetObjectFromGC (GC, MAPL,  RC=STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       call MAPL_TimerOn(MAPL,"TOTAL")
       call MAPL_TimerOn(MAPL,"INITIALIZE")
 
       gridCreated=.false.
       call MAPL_GetObjectFromGC (GC, MAPL,  RC=STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       call ESMF_GridCompGet(GC,grid=grid,rc=status)
       if (status == ESMF_SUCCESS) then
          call ESMF_GridValidate(grid,rc=status)
@@ -461,11 +405,11 @@ contains
 
       if (.not.GridCreated) then
          call MAPL_GridCreate(GC, rc=status)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
       endif
 
       call MAPL_GenericInitialize(GC, IMPORT, EXPORT, CLOCK, RC=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       ! Compute Grid-Cell Area
       ! ----------------------
       if (.NOT. FV3_DynCoreIsRunning) then
@@ -475,14 +419,14 @@ contains
          JE = FV_Atm(1)%bd%jec
 
          call MAPL_GetPointer(EXPORT, temp2d, 'AREA', ALLOC=.TRUE., rc=status)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
          temp2d = FV_Atm(1)%gridstruct%area(IS:IE,JS:JE)
       endif
 
       call MAPL_TimerOff(MAPL,"INITIALIZE")
       call MAPL_TimerOff(MAPL,"TOTAL")
 
-      RETURN_(ESMF_SUCCESS)
+      _RETURN(ESMF_SUCCESS)
 
       end subroutine Initialize
 !EOC
@@ -554,7 +498,7 @@ contains
 
       Iam = 'Run'
       call ESMF_GridCompGet( GC, name=COMP_NAME, grid=ESMFGRID, RC=STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       Iam = trim(COMP_NAME) // Iam
 
 !WMP  if (AdvCore_Advection>0) then
@@ -562,11 +506,11 @@ contains
 ! Get parameters from generic state.
 !-----------------------------------
       call MAPL_GetObjectFromGC ( GC, MAPL, RC=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       call MAPL_Get( MAPL, IM=IM, JM=JM, LM=LM,   &
                                 RUNALARM = ALARM, &
                                       RC = STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       call MAPL_TimerOn(MAPL,"TOTAL")
       call MAPL_TimerOn(MAPL,"RUN")
@@ -574,13 +518,13 @@ contains
 ! Get AKs and BKs for vertical grid
 !----------------------------------
       AllOCATE( AK(LM+1) ,stat=STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       AllOCATE( BK(LM+1) ,stat=STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       AllOCATE( AK_r8(LM+1) ,stat=STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       AllOCATE( BK_r8(LM+1) ,stat=STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       call set_eta(LM,LS,ptop_r8,pint_r8,ak_r8,bk_r8)
       ptop=ptop_r8
       pint=pint_r8
@@ -588,56 +532,55 @@ contains
       bk=bk_r8
 
       CALL MAPL_GetPointer(IMPORT, PLE0, 'PLE0', ALLOC = .TRUE., RC=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       CALL MAPL_GetPointer(IMPORT, PLE1, 'PLE1', ALLOC = .TRUE., RC=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       CALL MAPL_GetPointer(IMPORT, MFX,   'MFX', ALLOC = .TRUE., RC=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       CALL MAPL_GetPointer(IMPORT, MFY,   'MFY', ALLOC = .TRUE., RC=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       CALL MAPL_GetPointer(IMPORT, CX,     'CX', ALLOC = .TRUE., RC=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       CALL MAPL_GetPointer(IMPORT, CY,     'CY', ALLOC = .TRUE., RC=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       ! The quantities to be advected come as friendlies in a bundle
       !  in the import state.
       !--------------------------------------------------------------
 
-      ! Customize for GCHP: Change TRADV to TRACERS (ewl, 2/6/19)
-      call ESMF_StateGet(IMPORT, "TRACERS", TRADV, rc=STATUS)
-      VERIFY_(STATUS)
+      call ESMF_StateGet(IMPORT, "TRADV", TRADV, rc=STATUS)
+      _VERIFY(STATUS)
       call ESMF_FieldBundleGet(TRADV, fieldCount=NQ,    rc=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       if (NQ > 0) then
          ! We allocate a list of tracers big enough to hold all items in the bundle
          !-------------------------------------------------------------------------
          ALLOCATE( TRACERS(IM,JM,LM,NQ),stat=STATUS )
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
          ALLOCATE( advTracers(NQ),stat=STATUS )
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
 
          ! Go through the bundle copying the friendlies into the tracer list.
          !-------------------------------------------------------------------------
          do N=1,NQ
             call ESMF_FieldBundleGet (TRADV, fieldIndex=N, field=FIELD, RC=STATUS)
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
             call ESMF_FieldGet  (field, array=array, name=fieldName, RC=STATUS)
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
             call ESMF_ArrayGet(array,typekind=kind, rc=status )
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
             advTracers(N)%is_r4 = (kind == ESMF_TYPEKIND_R4)   ! Is real*4?
             advTracers(N)%tName = fieldName
 
             if (advTracers(N)%is_r4) then
                call ESMF_ArrayGet(array,farrayptr=tracer_r4, rc=status )
-               VERIFY_(STATUS)
+               _VERIFY(STATUS)
                advTracers(N)%content_r4 => tracer_r4
                TRACERS(:,:,:,N) = advTracers(N)%content_r4
             else
                call ESMF_ArrayGet(array,farrayptr=tracer_r8, rc=status )
-               VERIFY_(STATUS)
+               _VERIFY(STATUS)
                advTracers(N)%content => tracer_r8
                TRACERS(:,:,:,N) = advTracers(N)%content
             end if
@@ -711,7 +654,7 @@ contains
 ! Fill Export States
             write(myTracer, "('TEST_TRACER',i1.1)") N-1
             call MAPL_GetPointer(EXPORT, temp3D, TRIM(myTracer), rc=status)
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
             if ((associated(temp3D)) .and. (N<=ntracers)) then
                temp3D = TRACERS(:,:,:,N)
             endif
@@ -720,23 +663,23 @@ contains
          ! Deallocate the list of tracers
          !-------------------------------------------------------------------------
          DEALLOCATE( TRACERS,stat=STATUS )
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
 
       end if ! NQ > 0
 
       deallocate( advTracers, stat=STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       DEALLOCATE( AK ,stat=STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       DEALLOCATE( BK ,stat=STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       call MAPL_TimerOff(MAPL,"RUN")
       call MAPL_TimerOff(MAPL,"TOTAL")
 
 !WMP  end if ! AdvCore_Advection
 
-      RETURN_(ESMF_SUCCESS)
+      _RETURN(ESMF_SUCCESS)
 
       end subroutine Run
 !EOC
@@ -776,7 +719,7 @@ contains
 
       Iam = 'Finalize'
       call ESMF_GridCompGet( GC, NAME=COMP_NAME, RC=STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       Iam = trim(COMP_NAME) // TRIM(Iam)
 
       ! Clean up FV if AdvCore is running without FV3_DynCoreIsRunning
@@ -786,9 +729,9 @@ contains
       endif
 
       call MAPL_GenericFinalize(GC, IMPORT, EXPORT, CLOCK, RC)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
-      RETURN_(ESMF_SUCCESS)
+      _RETURN(ESMF_SUCCESS)
       end subroutine Finalize
 
 
@@ -826,31 +769,8 @@ subroutine global_integral (QG,Q,PLE,IM,JM,KM,NQ)
      deallocate( qsum1 )
 
 end subroutine global_integral
+
 !EOC
 !------------------------------------------------------------------------------
-
-  subroutine register_grid_and_regridders()
-     use MAPL_GridManagerMod, only: grid_manager
-     use CubedSphereGridFactoryMod, only: CubedSphereGridFactory
-     use MAPL_RegridderManagerMod, only: regridder_manager
-     use MAPL_RegridderSpecMod, only: REGRID_METHOD_BILINEAR
-     use LatLonToCubeRegridderMod
-     use CubeToLatLonRegridderMod
-     use CubeToCubeRegridderMod
-     
-     type (CubedSphereGridFactory) :: factory
-     
-     type (CubeToLatLonRegridder) :: cube_to_latlon_prototype
-     type (LatLonToCubeRegridder) :: latlon_to_cube_prototype
-     type (CubeToCubeRegridder) :: cube_to_cube_prototype
-     
-     call grid_manager%add_prototype('Cubed-Sphere',factory)
-     associate (method => REGRID_METHOD_BILINEAR, mgr => regridder_manager)
-       call mgr%add_prototype('Cubed-Sphere', 'LatLon', method, cube_to_latlon_prototype)
-       call mgr%add_prototype('LatLon', 'Cubed-Sphere', method, latlon_to_cube_prototype)
-       call mgr%add_prototype('Cubed-Sphere', 'Cubed-Sphere', method, cube_to_cube_prototype)
-     end associate
-
-  end subroutine register_grid_and_regridders
 
 end module AdvCore_GridCompMod

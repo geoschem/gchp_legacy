@@ -79,7 +79,7 @@ DEPS := $(notdir $(addsuffix .d, $(basename $(SRCS))))
 DEPS := $(filter-out nsclock.d threadloc.d, $(DEPS)) # filter these out
 
 INC_DIRS = . $(INC_GFDL_FMS) \
-            $(INC_GMAO_SHARED) $(INC_SDF) $(INC_ESMF) $(INC_MPI)
+            $(INC_GMAO_SHARED) $(INC_SDF) $(INC_ESMF) $(INC_MPI) $(INC_GMAO_pFIO)
 MOD_DIRS = . $(INC_DIRS) 
 SRC_DIRS = $(sort $(dir $(SRCS)))
 
@@ -89,6 +89,10 @@ USER_FMODS  = $(foreach dir,$(MOD_DIRS),$(M)$(dir))
 vpath % $(SRC_DIRS) $(INC_DIRS) $(MOD_DIRS)
 
 USER_FDEFS   = $(D)MAPL_MODE $(D)SPMD $(D)TIMING
+
+# If Non-Hydrostatic FV3 uncomment this line
+#USER_FDEFS  += $(D)USE_COND $(D)MOIST_CAPPA
+
 USER_CDEFS   = $(USER_FDEFS)
 
 # The FV_PRECISION variable is exported from the parent

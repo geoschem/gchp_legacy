@@ -1,22 +1,55 @@
 !***********************************************************************
-!*                   GNU General Public License                        *
-!* This file is a part of fvGFS.                                       *
-!*                                                                     *
-!* fvGFS is free software; you can redistribute it and/or modify it    *
-!* and are expected to follow the terms of the GNU General Public      *
-!* License as published by the Free Software Foundation; either        *
-!* version 2 of the License, or (at your option) any later version.    *
-!*                                                                     *
-!* fvGFS is distributed in the hope that it will be useful, but        *
-!* WITHOUT ANY WARRANTY; without even the implied warranty of          *
-!* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU   *
-!* General Public License for more details.                            *
-!*                                                                     *
-!* For the full text of the GNU General Public License,                *
-!* write to: Free Software Foundation, Inc.,                           *
-!*           675 Mass Ave, Cambridge, MA 02139, USA.                   *
-!* or see:   http://www.gnu.org/licenses/gpl.html                      *
+!*                   GNU Lesser General Public License                 
+!*
+!* This file is part of the FV3 dynamical core.
+!*
+!* The FV3 dynamical core is free software: you can redistribute it 
+!* and/or modify it under the terms of the
+!* GNU Lesser General Public License as published by the
+!* Free Software Foundation, either version 3 of the License, or 
+!* (at your option) any later version.
+!*
+!* The FV3 dynamical core is distributed in the hope that it will be 
+!* useful, but WITHOUT ANYWARRANTY; without even the implied warranty 
+!* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+!* See the GNU General Public License for more details.
+!*
+!* You should have received a copy of the GNU Lesser General Public
+!* License along with the FV3 dynamical core.  
+!* If not, see <http://www.gnu.org/licenses/>.
 !***********************************************************************
+
+!>@brief The module 'fv_sg' performs FV sub-grid mixing.
+
+! Modules Included:
+! <table>
+! <tr>
+!     <th>Module Name</th>
+!     <th>Functions Included</th>
+!   </tr>
+!   <tr>
+!     <td>constants_mod</td>
+!     <td>rdgas, rvgas, cp_air, cp_vapor, hlv, hlf, kappa, grav</td>
+!   </tr>
+!   <tr>
+!     <td>field_manager_mod</td>
+!     <td>MODEL_ATMOS</td>
+!   </tr>
+!   <tr>
+!   <tr>
+!     <td>fv_mp_mod</td>
+!     <td>mp_reduce_min, is_master</td>
+!   </tr>
+!   <tr>
+!     <td>gfdl_cloud_microphys_mod</td>
+!     <td>wqs1, wqs2, wqsat2_moist</td>
+!   </tr>
+!   <tr>
+!     <td>tracer_manager_mod</td>
+!     <td>get_tracer_index</td>
+!   </tr>
+! </table>
+
 module fv_sg_mod
 
 !-----------------------------------------------------------------------
@@ -25,7 +58,7 @@ module fv_sg_mod
   use constants_mod,      only: rdgas, rvgas, cp_air, cp_vapor, hlv, hlf, kappa, grav
   use tracer_manager_mod, only: get_tracer_index
   use field_manager_mod,  only: MODEL_ATMOS
-  use lin_cld_microphys_mod, only: wqs2, wqsat2_moist
+  use gfdl_cloud_microphys_mod, only: wqs2, wqsat2_moist
   use fv_mp_mod,          only: mp_reduce_min, is_master
 
 implicit none
@@ -35,21 +68,21 @@ public  fv_subgrid_z, qsmith, neg_adj3
 
   real, parameter:: esl = 0.621971831
   real, parameter:: tice = 273.16
-! real, parameter:: c_ice = 2106.  ! Emanuel table, page 566
-  real, parameter:: c_ice = 1972.  !  -15 C
-  real, parameter:: c_liq = 4.1855e+3    ! GFS
-! real, parameter:: c_liq = 4218.        ! ECMWF-IFS
-  real, parameter:: cv_vap = cp_vapor - rvgas  ! 1384.5
+! real, parameter:: c_ice = 2106.  !< \cite emanuel1994atmospheric table, page 566
+  real, parameter:: c_ice = 1972.  !<  -15 C
+  real, parameter:: c_liq = 4.1855e+3    !< GFS
+! real, parameter:: c_liq = 4218.        !< ECMWF-IFS
+  real, parameter:: cv_vap = cp_vapor - rvgas  !< 1384.5
   real, parameter:: c_con = c_ice
 
 ! real, parameter:: dc_vap =  cp_vapor - c_liq   ! = -2368.
-  real, parameter:: dc_vap =  cv_vap - c_liq   ! = -2368.
-  real, parameter:: dc_ice =  c_liq - c_ice      ! = 2112.
+  real, parameter:: dc_vap =  cv_vap - c_liq   !< = -2368.
+  real, parameter:: dc_ice =  c_liq - c_ice      !< = 2112.
 ! Values at 0 Deg C
   real, parameter:: hlv0 = 2.5e6
   real, parameter:: hlf0 = 3.3358e5
-! real, parameter:: hlv0 = 2.501e6   ! Emanual Appendix-2
-! real, parameter:: hlf0 = 3.337e5   ! Emanual
+! real, parameter:: hlv0 = 2.501e6   ! \cite emanuel1994atmospheri Appendix-2
+! real, parameter:: hlf0 = 3.337e5   ! \cite emanuel1994atmospheri
   real, parameter:: t_ice = 273.16
   real, parameter:: ri_max = 1.
   real, parameter:: ri_min = 0.25
@@ -57,20 +90,21 @@ public  fv_subgrid_z, qsmith, neg_adj3
   real, parameter:: t2_min = 165.
   real, parameter:: t2_max = 315.
   real, parameter:: t3_max = 325.
-  real, parameter:: Lv0 =  hlv0 - dc_vap*t_ice   ! = 3.147782e6
-  real, parameter:: Li0 =  hlf0 - dc_ice*t_ice   ! = -2.431928e5 
+  real, parameter:: Lv0 =  hlv0 - dc_vap*t_ice   !< = 3.147782e6
+  real, parameter:: Li0 =  hlf0 - dc_ice*t_ice   !< = -2.431928e5 
 
-  real, parameter:: zvir =  rvgas/rdgas - 1.     ! = 0.607789855
+  real, parameter:: zvir =  rvgas/rdgas - 1.     !< = 0.607789855
   real, allocatable:: table(:),des(:)
   real:: lv00, d0_vap
 
-!---- version number -----
-  character(len=128) :: version = '$Id$'
-  character(len=128) :: tagname = '$Name$'
-
 contains
 
+
 #if defined(GFS_PHYS) || defined(MAPL_MODE)
+!>@brief The subroutine 'fv_subgrid_z' performs dry convective adjustment mixing.
+!>@details Two different versions of this subroutine are implemented:
+!!-one for the GFS physics
+!!-one for the GFDL physics
  subroutine fv_subgrid_z( isd, ied, jsd, jed, is, ie, js, je, km, nq, dt,    &
                          tau, nwat, delp, pe, peln, pkz, ta, qa, ua, va,  &
                          hydrostatic, w, delz, u_dt, v_dt, t_dt, k_bot )
@@ -78,12 +112,12 @@ contains
 !-------------------------------------------
       integer, intent(in):: is, ie, js, je, km, nq, nwat
       integer, intent(in):: isd, ied, jsd, jed
-      integer, intent(in):: tau         ! Relaxation time scale
-      real, intent(in):: dt             ! model time step
+      integer, intent(in):: tau         !< Relaxation time scale
+      real, intent(in):: dt             !< model time step
       real, intent(in)::   pe(is-1:ie+1,km+1,js-1:je+1) 
       real, intent(in):: peln(is  :ie,  km+1,js  :je)
-      real, intent(in):: delp(isd:ied,jsd:jed,km)      ! Delta p at each model level
-      real, intent(in):: delz(isd:,jsd:,1:)      ! Delta z at each model level
+      real, intent(in):: delp(isd:ied,jsd:jed,km)      !< Delta p at each model level
+      real, intent(in):: delz(isd:,jsd:,1:)      !< Delta z at each model level
       real, intent(in)::  pkz(is:ie,js:je,km)
       logical, intent(in)::  hydrostatic
       integer, intent(in), optional:: k_bot
@@ -91,8 +125,8 @@ contains
       real, intent(inout):: ua(isd:ied,jsd:jed,km)
       real, intent(inout):: va(isd:ied,jsd:jed,km)
       real, intent(inout)::  w(isd:,jsd:,1:)
-      real, intent(inout):: ta(isd:ied,jsd:jed,km)      ! Temperature
-      real, intent(inout):: qa(isd:ied,jsd:jed,km,nq)   ! Specific humidity & tracers
+      real, intent(inout):: ta(isd:ied,jsd:jed,km)      !< Temperature
+      real, intent(inout):: qa(isd:ied,jsd:jed,km,nq)   !< Specific humidity & tracers
       real, intent(inout):: u_dt(isd:ied,jsd:jed,km) 
       real, intent(inout):: v_dt(isd:ied,jsd:jed,km) 
       real, intent(inout):: t_dt(is:ie,js:je,km) 
@@ -136,17 +170,39 @@ contains
       endif
 
 #ifdef MAPL_MODE
-      sphum = 1
       if ( nwat == 0 ) then
+         sphum = 1
          xvir = 0.
          rz = 0.
       else
          xvir = zvir
          rz = rvgas - rdgas          ! rz = zvir * rdgas
-         if ( nwat == 3) then
-            liq_wat = 2
-            ice_wat = 3
-         endif
+         select case(nwat)
+         case(1)
+          sphum = 1
+          liq_wat = -1
+          ice_wat = -1
+          rainwat = -1
+          snowwat = -1
+          graupel = -1
+          cld_amt = -1
+         case(3)
+          sphum = 1
+          liq_wat = 2
+          ice_wat = 3
+          rainwat = -1
+          snowwat = -1
+          graupel = -1
+          cld_amt = -1
+         case(6)
+          sphum = 1
+          liq_wat = 2
+          ice_wat = 3
+          rainwat = 4
+          snowwat = 5
+          graupel = 6
+          cld_amt = 7
+         end select
       endif
 #else
       sphum = get_tracer_index (MODEL_ATMOS, 'sphum')
@@ -243,6 +299,13 @@ contains
              cpm(i) = (1.-(q0(i,k,sphum)+q_liq))*cp_air + q0(i,k,sphum)*cp_vapor + q_liq*c_liq
              cvm(i) = (1.-(q0(i,k,sphum)+q_liq))*cv_air + q0(i,k,sphum)*cv_vap   + q_liq*c_liq
           enddo
+       elseif ( nwat==5 ) then
+          do i=is,ie
+             q_liq = q0(i,k,liq_wat) + q0(i,k,rainwat)
+             q_sol = q0(i,k,ice_wat) + q0(i,k,snowwat)
+             cpm(i) = (1.-(q0(i,k,sphum)+q_liq+q_sol))*cp_air + q0(i,k,sphum)*cp_vapor + q_liq*c_liq + q_sol*c_ice
+             cvm(i) = (1.-(q0(i,k,sphum)+q_liq+q_sol))*cv_air + q0(i,k,sphum)*cv_vap   + q_liq*c_liq + q_sol*c_ice
+          enddo
        else
           do i=is,ie
              q_liq = q0(i,k,liq_wat) + q0(i,k,rainwat)
@@ -303,6 +366,12 @@ contains
             qcon(i,k) = q0(i,k,liq_wat) + q0(i,k,rainwat)
          enddo
       enddo
+   elseif ( nwat==5 ) then
+      do k=1,kbot
+         do i=is,ie
+            qcon(i,k) = q0(i,k,liq_wat)+q0(i,k,ice_wat)+q0(i,k,snowwat)+q0(i,k,rainwat)
+         enddo
+      enddo
    else
       do k=1,kbot
          do i=is,ie
@@ -327,7 +396,7 @@ contains
 ! top layer unphysically warm
                ri = 0.
             elseif ( tv2<t_min ) then
-               ri = min(ri, 0.2)
+               ri = min(ri, 0.1)
             endif
 ! Adjustment for K-H instability:
 ! Compute equivalent mass flux: mc
@@ -359,6 +428,9 @@ contains
                     qcon(i,km1) = q0(i,km1,liq_wat) + q0(i,km1,ice_wat)
                  elseif ( nwat==4 ) then  ! K_warm_rain scheme with fake ice
                     qcon(i,km1) = q0(i,km1,liq_wat) + q0(i,km1,rainwat)
+                 elseif ( nwat==5 ) then  ! K_warm_rain scheme with fake ice
+                    qcon(i,km1) = q0(i,km1,liq_wat) + q0(i,km1,ice_wat) +                  &
+                                  q0(i,km1,snowwat) + q0(i,km1,rainwat)
                  else
                     qcon(i,km1) = q0(i,km1,liq_wat) + q0(i,km1,ice_wat) +                  &
                                   q0(i,km1,snowwat) + q0(i,km1,rainwat) + q0(i,km1,graupel)
@@ -436,6 +508,13 @@ contains
                q_liq = q0(i,kk,liq_wat) + q0(i,kk,rainwat)
                cpm(i) = (1.-(q0(i,kk,sphum)+q_liq))*cp_air + q0(i,kk,sphum)*cp_vapor + q_liq*c_liq
                cvm(i) = (1.-(q0(i,kk,sphum)+q_liq))*cv_air + q0(i,kk,sphum)*cv_vap   + q_liq*c_liq
+            enddo
+           elseif ( nwat == 5 ) then
+            do i=is,ie
+               q_liq = q0(i,kk,liq_wat) + q0(i,kk,rainwat)
+               q_sol = q0(i,kk,ice_wat) + q0(i,kk,snowwat)
+               cpm(i) = (1.-(q0(i,kk,sphum)+q_liq+q_sol))*cp_air + q0(i,kk,sphum)*cp_vapor + q_liq*c_liq + q_sol*c_ice
+               cvm(i) = (1.-(q0(i,kk,sphum)+q_liq+q_sol))*cv_air + q0(i,kk,sphum)*cv_vap   + q_liq*c_liq + q_sol*c_ice
             enddo
            else
             do i=is,ie
@@ -520,12 +599,12 @@ contains
 !-------------------------------------------
       integer, intent(in):: is, ie, js, je, km, nq, nwat
       integer, intent(in):: isd, ied, jsd, jed
-      integer, intent(in):: tau         ! Relaxation time scale
-      real, intent(in):: dt             ! model time step
+      integer, intent(in):: tau         !< Relaxation time scale
+      real, intent(in):: dt             !< model time step
       real, intent(in)::   pe(is-1:ie+1,km+1,js-1:je+1) 
       real, intent(in):: peln(is  :ie,  km+1,js  :je)
-      real, intent(in):: delp(isd:ied,jsd:jed,km)      ! Delta p at each model level
-      real, intent(in):: delz(isd:,jsd:,1:)      ! Delta z at each model level
+      real, intent(in):: delp(isd:ied,jsd:jed,km)      !< Delta p at each model level
+      real, intent(in):: delz(isd:,jsd:,1:)      !< Delta z at each model level
       real, intent(in)::  pkz(is:ie,js:je,km)
       logical, intent(in)::  hydrostatic
    integer, intent(in), optional:: k_bot
@@ -533,8 +612,8 @@ contains
       real, intent(inout):: ua(isd:ied,jsd:jed,km)
       real, intent(inout):: va(isd:ied,jsd:jed,km)
       real, intent(inout)::  w(isd:,jsd:,1:)
-      real, intent(inout):: ta(isd:ied,jsd:jed,km)      ! Temperature
-      real, intent(inout):: qa(isd:ied,jsd:jed,km,nq)   ! Specific humidity & tracers
+      real, intent(inout):: ta(isd:ied,jsd:jed,km)      !< Temperature
+      real, intent(inout):: qa(isd:ied,jsd:jed,km,nq)   !< Specific humidity & tracers
       real, intent(inout):: u_dt(isd:ied,jsd:jed,km) 
       real, intent(inout):: v_dt(isd:ied,jsd:jed,km) 
       real, intent(inout):: t_dt(is:ie,js:je,km) 
@@ -661,6 +740,13 @@ contains
              cpm(i) = (1.-(q0(i,k,sphum)+q_liq))*cp_air + q0(i,k,sphum)*cp_vapor + q_liq*c_liq
              cvm(i) = (1.-(q0(i,k,sphum)+q_liq))*cv_air + q0(i,k,sphum)*cv_vap   + q_liq*c_liq
           enddo
+       elseif ( nwat==5 ) then
+          do i=is,ie
+             q_liq = q0(i,k,liq_wat) + q0(i,k,rainwat)
+             q_sol = q0(i,k,ice_wat) + q0(i,k,snowwat)
+             cpm(i) = (1.-(q0(i,k,sphum)+q_liq+q_sol))*cp_air + q0(i,k,sphum)*cp_vapor + q_liq*c_liq + q_sol*c_ice
+             cvm(i) = (1.-(q0(i,k,sphum)+q_liq+q_sol))*cv_air + q0(i,k,sphum)*cv_vap   + q_liq*c_liq + q_sol*c_ice
+          enddo
        else
           do i=is,ie
              q_liq = q0(i,k,liq_wat) + q0(i,k,rainwat)
@@ -721,6 +807,11 @@ contains
             qcon(i,k) = q0(i,k,liq_wat) + q0(i,k,rainwat)
          enddo
       enddo
+   elseif ( nwat==5 ) then
+      do k=1,kbot
+         do i=is,ie
+            qcon(i,k) = q0(i,k,liq_wat)+q0(i,k,ice_wat)+q0(i,k,snowwat)+q0(i,k,rainwat)
+         enddo
    else
       do k=1,kbot
          do i=is,ie
@@ -770,6 +861,9 @@ contains
                     qcon(i,km1) = q0(i,km1,liq_wat) + q0(i,km1,ice_wat)
                  elseif ( nwat==4 ) then  ! K_warm_rain scheme with fake ice
                     qcon(i,km1) = q0(i,km1,liq_wat) + q0(i,km1,rainwat)
+                 elseif ( nwat==5 ) then
+                    qcon(i,km1) = q0(i,km1,liq_wat) + q0(i,km1,ice_wat) +                  &
+                                  q0(i,km1,snowwat) + q0(i,km1,rainwat)
                  else
                     qcon(i,km1) = q0(i,km1,liq_wat) + q0(i,km1,ice_wat) +                  &
                                   q0(i,km1,snowwat) + q0(i,km1,rainwat) + q0(i,km1,graupel)
@@ -847,6 +941,13 @@ contains
                q_liq = q0(i,kk,liq_wat) + q0(i,kk,rainwat)
                cpm(i) = (1.-(q0(i,kk,sphum)+q_liq))*cp_air + q0(i,kk,sphum)*cp_vapor + q_liq*c_liq
                cvm(i) = (1.-(q0(i,kk,sphum)+q_liq))*cv_air + q0(i,kk,sphum)*cv_vap   + q_liq*c_liq
+            enddo
+           elseif ( nwat == 5 ) then
+            do i=is,ie
+               q_liq = q0(i,kk,liq_wat) + q0(i,kk,rainwat)
+               q_sol = q0(i,kk,ice_wat) + q0(i,kk,snowwat)
+               cpm(i) = (1.-(q0(i,kk,sphum)+q_liq+q_sol))*cp_air + q0(i,kk,sphum)*cp_vapor + q_liq*c_liq + q_sol*c_ice
+               cvm(i) = (1.-(q0(i,kk,sphum)+q_liq+q_sol))*cv_air + q0(i,kk,sphum)*cv_vap   + q_liq*c_liq + q_sol*c_ice
             enddo
            else
             do i=is,ie
@@ -1137,9 +1238,9 @@ contains
 ! This is designed for 6-class micro-physics schemes
  integer, intent(in):: is, ie, js, je, ng, kbot
  logical, intent(in):: hydrostatic
- real, intent(in):: dp(is-ng:ie+ng,js-ng:je+ng,kbot)  ! total delp-p
+ real, intent(in):: dp(is-ng:ie+ng,js-ng:je+ng,kbot)  !< total delp-p
  real, intent(in):: delz(is-ng:,js-ng:,1:)
- real, intent(in):: peln(is:ie,kbot+1,js:je)           ! ln(pe)
+ real, intent(in):: peln(is:ie,kbot+1,js:je)           !< ln(pe)
  logical, intent(in), OPTIONAL :: check_negative
  real, intent(inout), dimension(is-ng:ie+ng,js-ng:je+ng,kbot)::    &
                                  pt, qv, ql, qr, qi, qs, qg

@@ -21,7 +21,7 @@
 
       use mpp_mod, only: mpp_error, FATAL
 #if defined(SPMD)
-      use fv_mp_mod, only: is_master, mp_reduce_max, mp_reduce_min, mp_barrier
+      use fv_mp_mod, only: is_master, mp_reduce_max
 #endif
 !
 ! ... Use system etime() function for timing
@@ -49,8 +49,6 @@
 
       type (tms), private   :: accum(nblks), last(nblks)
 
-      real(kind=8) , public :: comm_timer
-      real(kind=8) , public :: wait_timer
       real , private       :: us_tmp1(nblks,2)
       real , private       :: us_tmp2(nblks,2)
 
@@ -150,15 +148,9 @@
         endif
 
 #if defined(SPMD)
-!C   WMP: let's sync up cores before timming and place load imbalances in sys time
         wclk = MPI_Wtime()
-        last(iblk)%sys = wclk
-        if (trim(UC_blk_name) == 'COMM_TOTAL') call mp_barrier()
-        wclk = MPI_Wtime()
-        accum(iblk)%sys = accum(iblk)%sys + wclk - last(iblk)%sys
-        wait_timer = accum(iblk)%sys
-!C   WMP: usr time is now timing just the segment without load imbalances
         last(iblk)%usr = wclk
+        last(iblk)%sys = 0.0
 #else
 # if defined( IRIX64 ) || ( defined FFC )
         totim = etime(tarray)
@@ -215,10 +207,9 @@
 #if defined(SPMD)
         wclk = MPI_Wtime()
         accum(iblk)%usr = accum(iblk)%usr + wclk - last(iblk)%usr
+        accum(iblk)%sys = 0.0
         last(iblk)%usr  = wclk
-        if (trim(UC_blk_name) == 'COMM_TOTAL') then
-           comm_timer = accum(iblk)%usr
-        endif
+        last(iblk)%sys  = 0.0
 #else
 # if defined( IRIX64 ) || ( defined FFC ) 
         totim = etime(tarray)
@@ -265,8 +256,8 @@
            tmpmax = accum(n)%usr
            call mp_reduce_max(tmpmax)
            tmp(n)%usr = tmpmax
-           tmpmax = accum(n)%usr
-           call mp_reduce_min(tmpmax)
+           tmpmax = accum(n)%sys
+           call mp_reduce_max(tmpmax)
            tmp(n)%sys = tmpmax
         enddo
         if ( is_master() ) then
@@ -281,13 +272,13 @@
         print *,                                  &
         '  -----------------------------------------------------'
         print *,                                  &
-        '     Block          Max time    Min Time   Load Imbalance'
+        '     Block                    User time  System Time   Total Time   GID '
         print *,                                  &
         '  -----------------------------------------------------'
 
         do n = 1, tblk
-           print '(3x,a20,2x,3(1x,f12.4))', blkname(n),     &
-               tmp(n)%usr, tmp(n)%sys, tmp(n)%usr - tmp(n)%sys
+           print '(3x,a20,2x,3(1x,f12.4), 2x, I6)', blkname(n),     &
+               tmp(n)%usr, tmp(n)%sys, tmp(n)%usr + tmp(n)%sys, gid
         end do
 
 

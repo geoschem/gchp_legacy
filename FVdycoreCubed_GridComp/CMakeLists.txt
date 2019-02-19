@@ -1,7 +1,5 @@
 esma_set_this ()
 
-set (alldirs fvdycore)
-
 set (srcs
   sw.f90 jw.f90 testcases_3_4_5_6_stand_alone.f90
   GetWeightsC2C.F90
@@ -18,46 +16,39 @@ set (srcs
   CubeToLatLon.F90
   )
 
-include_directories (${include_FVdycoreCubed_GridComp})
-include_directories (${include_fvdycore})
-include_directories (${include_MAPL_Base})
-include_directories (${include_GMAO_hermes})
-include_directories (${include_GMAO_mpeu})
-include_directories (${include_GEOS_shared})
-include_directories (${INC_ESMF})
+if (FV_PRECISION MATCHES R4)
+   add_definitions (-DSINGLE_FV -DOVERLOAD_R4)
+  list(APPEND dependencies GFDL_fms_r4)
+else ()
+  list(APPEND dependencies GFDL_fms_r8)
+  string(REPLACE " " ";" tmp ${FREAL8})
+endif ()
 
-add_library (${this} ${srcs})
+set(dependencies MAPL_Base GMAO_hermes GEOS_Shared)
+esma_add_library (${this}
+  SRCS ${srcs}
+  SUBCOMPONENTS fvdycore
+  DEPENDENCIES ${dependencies}
+  INCLUDES ${INC_ESMF})
+
+set (CMAKE_Fortran_FLAGS_RELEASE "${GEOS_Fortran_FLAGS_VECT}")
+
 if (CRAY_POINTER)
   set_target_properties (${this} PROPERTIES COMPILE_FLAGS ${CRAY_POINTER})
 endif()
-set_target_properties (${this} PROPERTIES Fortran_MODULE_DIRECTORY ${include_${this}})
 
 add_definitions (-DSPMD -DMAPL_MODE)
-
-if (FV_PRECISION MATCHES R4)
-   # Use default real
-   add_definitions (-DSINGLE_FV -DOVERLOAD_R4)
-   include_directories (${include_GFDL_fms_r4})
-   target_link_libraries (${this} MAPL_Base GMAO_mpeu GMAO_hermes GEOS_Shared GFDL_fms_r4)
-else ()
-   string(REPLACE " " ";" tmp ${FREAL8})
-   include_directories (${include_GFDL_fms_r8})
-   target_link_libraries (${this} MAPL_Base GMAO_mpeu GMAO_hermes GEOS_Shared GFDL_fms_r8)
-endif ()
 
 foreach(flag ${tmp})
    target_compile_options (${this} PRIVATE $<$<COMPILE_LANGUAGE:Fortran>:${flag}>)
 endforeach()
 
-
 add_executable (StandAlone_FV3_Dycore.x StandAlone_FV3_Dycore.F90)
 set_target_properties (StandAlone_FV3_Dycore.x PROPERTIES LINK_FLAGS "${OpenMP_Fortran_FLAGS}")
-target_link_libraries(StandAlone_FV3_Dycore.x ${this} MAPL_Base GMAO_pFIO)
+target_link_libraries(StandAlone_FV3_Dycore.x ${this})
 
 add_executable (rs_scale.x rs_scale.F90)
 set_target_properties (rs_scale.x PROPERTIES LINK_FLAGS "${OpenMP_Fortran_FLAGS}")
-target_link_libraries(rs_scale.x ${this} )
-
-esma_config_subcomponents (${this} ${alldirs})
+target_link_libraries(rs_scale.x ${this} GMAO_pFIO )
 
 

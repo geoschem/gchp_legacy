@@ -1,27 +1,55 @@
 !***********************************************************************
-!*                   GNU General Public License                        *
-!* This file is a part of fvGFS.                                       *
-!*                                                                     *
-!* fvGFS is free software; you can redistribute it and/or modify it    *
-!* and are expected to follow the terms of the GNU General Public      *
-!* License as published by the Free Software Foundation; either        *
-!* version 2 of the License, or (at your option) any later version.    *
-!*                                                                     *
-!* fvGFS is distributed in the hope that it will be useful, but        *
-!* WITHOUT ANY WARRANTY; without even the implied warranty of          *
-!* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU   *
-!* General Public License for more details.                            *
-!*                                                                     *
-!* For the full text of the GNU General Public License,                *
-!* write to: Free Software Foundation, Inc.,                           *
-!*           675 Mass Ave, Cambridge, MA 02139, USA.                   *
-!* or see:   http://www.gnu.org/licenses/gpl.html                      *
+!*                   GNU Lesser General Public License                 
+!*
+!* This file is part of the FV3 dynamical core.
+!*
+!* The FV3 dynamical core is free software: you can redistribute it 
+!* and/or modify it under the terms of the
+!* GNU Lesser General Public License as published by the
+!* Free Software Foundation, either version 3 of the License, or 
+!* (at your option) any later version.
+!*
+!* The FV3 dynamical core is distributed in the hope that it will be 
+!* useful, but WITHOUT ANYWARRANTY; without even the implied warranty 
+!* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+!* See the GNU General Public License for more details.
+!*
+!* You should have received a copy of the GNU Lesser General Public
+!* License along with the FV3 dynamical core.  
+!* If not, see <http://www.gnu.org/licenses/>.
 !***********************************************************************
+
+!>@brief The module 'nh_utils' peforms non-hydrostatic computations.
+!@author S. J. Lin, NOAA/GFDL
+!>@todo Include moisture effect in pt
+
 module nh_utils_mod
-! Developer: S.-J. Lin, NOAA/GFDL
-! To do list:
-! include moisture effect in pt
-!------------------------------
+
+! Modules Included:
+! <table>
+! <tr>
+!     <th>Module Name</th>
+!     <th>Functions Included</th>
+!   </tr>
+!   <tr>
+!     <td>constants_mod</td>
+!     <td>rdgas, cp_air, grav</td>
+!   </tr>
+!   <tr>
+!     <td>fv_arrays_mod</td>
+!     <td>fv_grid_bounds_type, fv_grid_type</td>
+!   </tr>
+!   <tr>
+!   <tr>
+!     <td>sw_core_mod</td>
+!     <td>fill_4corners, del6_vt_flux</td>
+!   </tr>
+!   <tr>
+!     <td>tp_core_mod</td>
+!     <td>fv_tp_2d</td>
+!   </tr>
+! </table>
+
    use constants_mod,     only: rdgas, cp_air, grav
    use tp_core_mod,       only: fv_tp_2d
    use sw_core_mod,       only: fill_4corners, del6_vt_flux
@@ -181,7 +209,7 @@ CONTAINS
 
 
   subroutine update_dz_d(ndif, damp, hord, is, ie, js, je, km, ng, npx, npy, area, rarea,   &
-                         dp0, zs, zh, crx, cry, xfx, yfx, delz, ws, rdt, gridstruct, bd)
+                         dp0, zs, zh, crx, cry, xfx, yfx, delz, ws, rdt, gridstruct, bd, lim_fac)
 
   type(fv_grid_bounds_type), intent(IN) :: bd
   integer, intent(in):: is, ie, js, je, ng, km, npx, npy
@@ -199,6 +227,7 @@ CONTAINS
   real, intent(inout), dimension(is-ng:ie+ng,js:je+1,km):: cry, yfx
   real, intent(out)   :: ws(is:ie,js:je)
   type(fv_grid_type), intent(IN), target :: gridstruct
+  real, intent(in) :: lim_fac
 !-----------------------------------------------------
 ! Local array:
   real, dimension(is:   ie+1, js-ng:je+ng,km+1):: crx_adv, xfx_adv
@@ -234,7 +263,7 @@ CONTAINS
 
 !$OMP parallel do default(none) shared(is,ie,js,je,isd,ied,jsd,jed,km,area,xfx_adv,yfx_adv, &
 !$OMP                                  damp,zh,crx_adv,cry_adv,npx,npy,hord,gridstruct,bd,  &
-!$OMP                                  ndif,rarea) &
+!$OMP                                  ndif,rarea,lim_fac) &
 !$OMP                          private(z2, fx2, fy2, ra_x, ra_y, fx, fy,wk2)
   do k=1,km+1
 
@@ -256,7 +285,7 @@ CONTAINS
         enddo
      enddo
      call fv_tp_2d(z2, crx_adv(is,jsd,k), cry_adv(isd,js,k), npx,  npy, hord, &
-                  fx, fy, xfx_adv(is,jsd,k), yfx_adv(isd,js,k), gridstruct, bd, ra_x, ra_y)
+                  fx, fy, xfx_adv(is,jsd,k), yfx_adv(isd,js,k), gridstruct, bd, ra_x, ra_y, lim_fac)
      call del6_vt_flux(ndif(k), npx, npy, damp(k), z2, wk2, fx2, fy2, gridstruct, bd)
      do j=js,je
         do i=is,ie
@@ -266,7 +295,7 @@ CONTAINS
      enddo
    else
      call fv_tp_2d(zh(isd,jsd,k), crx_adv(is,jsd,k), cry_adv(isd,js,k), npx,  npy, hord, &
-                   fx, fy, xfx_adv(is,jsd,k), yfx_adv(isd,js,k), gridstruct, bd, ra_x, ra_y)
+                   fx, fy, xfx_adv(is,jsd,k), yfx_adv(isd,js,k), gridstruct, bd, ra_x, ra_y, lim_fac)
      do j=js,je
         do i=is,ie
            zh(i,j,k) = (zh(i,j,k)*area(i,j)+(fx(i,j)-fx(i+1,j))+(fy(i,j)-fy(i,j+1)))   &
@@ -404,8 +433,8 @@ CONTAINS
   end subroutine Riem_Solver_c
 
 
-!GFDL - This routine will not give absoulte reproducibility when compiled with -fast-transcendentals.
-!GFDL - It is now inside of nh_core.F90 and being compiled without -fast-transcendentals.
+!>GFDL - This routine will not give absoulte reproducibility when compiled with -fast-transcendentals.
+!! GFDL - It is now inside of nh_core.F90 and being compiled without -fast-transcendentals.
   subroutine Riem_Solver3test(ms, dt,   is,   ie,   js, je, km, ng,    &
                           isd, ied, jsd, jed, akap, cappa, cp,     &
                           ptop, zs, q_con, w,  delz, pt,  &
@@ -576,8 +605,8 @@ CONTAINS
   subroutine imp_diff_w(j, is, ie, js, je, ng, km, cd, delz, ws, w, w3)
   integer, intent(in) :: j, is, ie, js, je, km, ng
   real, intent(in) :: cd
-  real, intent(in) :: delz(is-ng:ie+ng, km)  ! delta-height (m)
-  real, intent(in) :: w(is:ie, km)  ! vertical vel. (m/s)
+  real, intent(in) :: delz(is-ng:ie+ng, km)  !< delta-height (m)
+  real, intent(in) :: w(is:ie, km)  !< vertical vel. (m/s)
   real, intent(in) :: ws(is:ie)
   real, intent(out) :: w3(is-ng:ie+ng,js-ng:je+ng,km)
 ! Local:
@@ -1200,12 +1229,12 @@ CONTAINS
 
     do k=1,km
        do i=is, ie
-          w1(i,k) = w2(i,k)
 #ifdef MOIST_CAPPA
           pe(i,k) = exp(gm2(i,k)*log(-dm2(i,k)/dz2(i,k)*rgas*pt2(i,k))) - pm2(i,k)
 #else
           pe(i,k) = exp(gama*log(-dm2(i,k)/dz2(i,k)*rgas*pt2(i,k))) - pm2(i,k)
 #endif
+          w1(i,k) = w2(i,k)
        enddo
     enddo
 

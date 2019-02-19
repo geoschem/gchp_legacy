@@ -967,8 +967,8 @@ contains
     !               calculate latlon unit vector                       !
     !------------------------------------------------------------------!
     do l=1,ntiles
-       do j=0,npx
-          do i=0,npy
+       do j=0,npy
+          do i=0,npx
              call latlon2xyz(sph_corner(:,i  ,j  ,l), xyz_corner(:,1))
              call latlon2xyz(sph_corner(:,i+1,j  ,l), xyz_corner(:,2))
              call latlon2xyz(sph_corner(:,i  ,j+1,l), xyz_corner(:,3))

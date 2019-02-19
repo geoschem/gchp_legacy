@@ -1,13 +1,13 @@
 module external_ic_mod
 
 #ifdef MAPL_MODE
-#define DEALLOCGLOB_(A) if(associated(A)) then;A=0;call MAPL_DeAllocNodeArray(A,rc=STATUS);if(STATUS==MAPL_NoShm) deallocate(A,stat=STATUS);NULLIFY(A);endif
+#define DEALLOCGLOB_(A) if(associated(A)) then;A=0;if(MAPL_ShmInitialized) then; call MAPL_DeAllocNodeArray(A,rc=status);else; deallocate(A);endif;NULLIFY(A);endif
 #endif
 
 #ifndef DYCORE_SOLO
    use amip_interp_mod,    only: i_sst, j_sst, sst_ncep
 #endif
-   use fv_arrays_mod,  only: REAL4, REAL8, FVPRC
+   use fv_arrays_mod,      only: REAL4, REAL8, FVPRC, R_GRID
    use fms_mod,            only: file_exist, read_data, field_exist
    use fms_io_mod,         only: get_tile_string, field_size
    use mpp_mod,            only: mpp_error, FATAL, NOTE, mpp_broadcast,mpp_npes
@@ -16,18 +16,15 @@ module external_ic_mod
    use tracer_manager_mod, only: get_tracer_names, get_number_tracers, get_tracer_index
    use field_manager_mod,  only: MODEL_ATMOS
 
-#ifndef MAPL_MODE
    use constants_mod,     only: pi=>pi_8, omega, grav, kappa, rdgas, rvgas, cp_air
-#else
-   use MAPL_MOD,          only: MAPL_PI_R8, MAPL_OMEGA, MAPL_GRAV, &
-         MAPL_KAPPA, MAPL_RGAS, MAPL_RVAP, &
-         MAPL_CP
+#ifdef MAPL_MODE
    use MAPL_IOMod
    use MAPL_ShmemMod
+   use pFIO
 #endif
    use, intrinsic :: iso_fortran_env, only: REAL64, REAL32
 
-   use fv_arrays_mod,     only: fv_atmos_type, fv_grid_type, fv_grid_bounds_type, FVPRC, REAL4, REAL8
+   use fv_arrays_mod,     only: fv_atmos_type, fv_grid_type, fv_grid_bounds_type
    use fv_diagnostics_mod,only: prt_maxmin
    use fv_mp_mod,         only: is_master, ng, mp_barrier, mp_gather, mp_bcst, &
          is,js,ie,je, isd,jsd,ied,jed, fill_corners, YDir
@@ -52,16 +49,6 @@ module external_ic_mod
 #include "mpif.h"
 
    private
-
-#ifdef MAPL_MODE
-   real(FVPRC), parameter :: PI           = MAPL_PI_R8
-   real(FVPRC), parameter :: OMEGA        = MAPL_OMEGA
-   real(FVPRC), parameter :: GRAV         = MAPL_GRAV
-   real(FVPRC), parameter :: KAPPA        = MAPL_KAPPA
-   real(FVPRC), parameter :: RDGAS        = MAPL_RGAS
-   real(FVPRC), parameter :: RVGAS        = MAPL_RVAP
-   real(FVPRC), parameter :: CP_AIR       = MAPL_CP
-#endif
 
    real(FVPRC), parameter:: zvir = rvgas/rdgas - 1.
    real(FVPRC) :: deg2rad
@@ -496,12 +483,19 @@ contains
 
       integer            :: filetype
       logical            :: isNC4
-      type(MAPL_NCIO)    :: ncio
+      type(Netcdf4_Fileformatter) :: formatter
+      type(FileMetadata), allocatable :: cfg(:)
+      type(StringIntegerMap) :: dims
       integer            :: nDims, nVars, ivar, dimSizes(3)
       character(len=128) :: vname
       real(FVPRC),   allocatable  :: gslice_r4(:,:)
       real*8, allocatable  :: gslice_r8(:,:)
       integer            :: tileoff,lvar_cnt
+      character(len=128), allocatable :: vnames(:)
+      character(len=:), pointer :: var_name
+      type(StringVariableMap), pointer :: vars
+      type(StringVariableMapIterator) :: iter
+
 
 !bma added
       character(len=128) :: moist_order(9) = (/"Q   ","QLLS","QLCN","CLLS","CLCN","QILS","QICN","NCPL","NCPI"/)
@@ -537,8 +531,13 @@ contains
 
          if (isNC4) then
 
-            NCIO = MAPL_NCIOOpen(fname)
-            call MAPL_NCIOGetDimSizes(NCIO,lon=im,lat=jm,lev=km)
+            allocate(cfg(1))
+            call formatter%open(fname,pFIO_READ,rc=status)
+            cfg(1) = formatter%read(rc=status)
+            im =cfg(1)%get_dimension('lon',rc=status)
+            jm =cfg(1)%get_dimension('lat',rc=status)
+            km =cfg(1)%get_dimension('lev',rc=status)
+             
             allocate(gslice_r8(im,jm))
 
          else
@@ -608,13 +607,13 @@ contains
          allocate ( bk0(km+1) )
          allocate ( akbk_r8(km+1) )
          if (isNC4) then
-            call MAPL_VarRead(NCIO,"AK",akbk_r8)
+            call MAPL_VarRead(formatter,"AK",akbk_r8)
          else
             read (IUNIT, IOSTAT=status) akbk_r8
          end if
          ak0 = akbk_r8
          if (isNC4) then
-            call MAPL_VarRead(NCIO,"BK",akbk_r8)
+            call MAPL_VarRead(formatter,"BK",akbk_r8)
          else
             read (IUNIT, IOSTAT=status) akbk_r8
          end if
@@ -629,7 +628,7 @@ contains
          if (isNC4) then
             tileoff = (tile-1)*(jm/ntiles)
             do k=1,km
-               call MAPL_VarRead(NCIO,"U",gslice_r8,lev=k)
+               call MAPL_VarRead(formatter,"U",gslice_r8,lev=k)
                u0(is_i:ie_i,js_i:je_i,k) = gslice_r8(is_i:ie+i,tileoff+js_i:tileoff+je_i)
             enddo
          else
@@ -645,7 +644,7 @@ contains
          if (isNC4) then
             tileoff = (tile-1)*(jm/ntiles)
             do k=1,km
-               call MAPL_VarRead(NCIO,"V",gslice_r8,lev=k)
+               call MAPL_VarRead(formatter,"V",gslice_r8,lev=k)
                v0(is_i:ie_i,js_i:je_i,k) = gslice_r8(is_i:ie+i,tileoff+js_i:tileoff+je_i)
             enddo
          else
@@ -691,7 +690,7 @@ contains
          if (isNC4) then
             tileoff = (tile-1)*(jm/ntiles)
             do k=1,km
-               call MAPL_VarRead(NCIO,"PT",gslice_r8,lev=k)
+               call MAPL_VarRead(formatter,"PT",gslice_r8,lev=k)
                t0(is_i:ie_i,js_i:je_i,k) = gslice_r8(is_i:ie+i,tileoff+js_i:tileoff+je_i)
             enddo
          else
@@ -704,7 +703,7 @@ contains
          ps0(:,:) = 0.0
          if (isNC4) then
             tileoff = (tile-1)*(jm/ntiles)
-            call MAPL_VarRead(NCIO,"PE",gslice_r8,lev=km+1)
+            call MAPL_VarRead(formatter,"PE",gslice_r8,lev=km+1)
             ps0(is_i:ie_i,js_i:je_i) = gslice_r8(is_i:ie+i,tileoff+js_i:tileoff+je_i)
          else
             slice_2d = npts*npts*ntiles
@@ -721,7 +720,7 @@ contains
          if (isNC4) then
             tileoff = (tile-1)*(jm/ntiles)
             do k=1,km
-               call MAPL_VarRead(NCIO,"PKZ",gslice_r8,lev=k)
+               call MAPL_VarRead(formatter,"PKZ",gslice_r8,lev=k)
                pkz0(is_i:ie_i,js_i:je_i) = gslice_r8(is_i:ie+i,tileoff+js_i:tileoff+je_i)
                t0(is_i:ie_i,js_i:je_i,k) = t0(is_i:ie_i,js_i:je_i,k)*pkz0(is_i:ie_i,js_i:je_i)
             enddo
@@ -737,7 +736,8 @@ contains
          deallocate ( pkz0 )
 
          if (isNC4) then
-            call MAPL_NCIOClose(NCIO,destroy=.true.)
+            call formatter%close()
+            deallocate(cfg)
             deallocate(gslice_r8)
          end if
 
@@ -812,8 +812,10 @@ contains
             else
                lvar_cnt = 0
                allocate(gslice_r4(im,jm))
-               NCIO = MAPL_NCIOOpen("moist_internal_restart_in")
-               call MAPL_NCIOGetDimSizes(NCIO,nVars=nVars)
+               allocate(cfg(1))
+               call formatter%open("moist_internal_restart_in",pFIO_READ,rc=status)
+               cfg(1) = formatter%read(rc=status)
+               call MAPL_IOCountNonDimVars(cfg(1),nvars,rc=status)
                if (nVars /= iq_moist1-iq_moist0+1) call mpp_error(FATAL,'Wrong number of variables in moist file') 
                tileoff = (tile-1)*(jm/ntiles)
             end if
@@ -826,7 +828,7 @@ contains
                      call mpp_update_domains(q0(:,:,k), domain_i)
                   else
                      vname = trim(moist_order(lvar_cnt))
-                     call MAPL_VarRead(NCIO,vname,gslice_r4,lev=k)
+                     call MAPL_VarRead(formatter,vname,gslice_r4,lev=k)
                      q0(is_i:ie_i,js_i:je_i,k)=gslice_r4(is_i:ie+i,tileoff+js_i:tileoff+je_i)
                   end if
                   call mpp_update_domains(q0(:,:,k), domain_i)
@@ -842,12 +844,13 @@ contains
                   enddo
 
                enddo
-               if (ivar == 1) t0(is_i:ie_i,js_i:je_i,:) = (t0(is_i:ie_i,js_i:je_i,:)/(1.0 + zvir*q0(is_i:ie_i,js_i:je_i,:)))
+          !WMP if (ivar == 1) t0(is_i:ie_i,js_i:je_i,:) = (t0(is_i:ie_i,js_i:je_i,:)/(1.0 + zvir*q0(is_i:ie_i,js_i:je_i,:)))
                call prt_maxmin( 'Q_geos_moist', q0, is_i, ie_i, js_i, je_i, ng_i, km, 1._FVPRC)
             enddo
 
             if (filetype == 0) then
-               call MAPL_NCIOClose(NCIO,destroy=.true.)
+               call formatter%close()
+               deallocate(cfg)
                deallocate(gslice_r4)
             end if
 
@@ -866,12 +869,29 @@ contains
             else
                lvar_cnt = 0 
                allocate(gslice_r4(im,jm))
-               NCIO = MAPL_NCIOOpen("gocart_internal_restart_in")
-               call MAPL_NCIOGetDimSizes(NCIO,nVars=nVars)
+               allocate(cfg(1))
+               call formatter%open("gocart_internal_restart_in",pFIO_READ,rc=status)
+               cfg(1) = formatter%read(rc=status)
+               call MAPL_IOCountNonDimVars(cfg(1),nvars,rc=status)
                if (nVars /= iq_gocart1-iq_gocart0+1) call mpp_error(FATAL,'Wrong number of variables in gocart file') 
                tileoff = (tile-1)*(jm/ntiles)
+
+               allocate(vnames(nVars))
+               vars => cfg(1)%get_variables()
+               iter = vars%begin()
+        
+               lvar_cnt=0 
+               do while(iter /= vars%end())
+                  var_name => iter%key()
+                  if (.not.cfg(1)%is_coordinate_variable(var_name)) then
+                     lvar_cnt=lvar_cnt+1
+                     vnames(lvar_cnt)=var_name
+                  end if
+                  call iter%next()
+               enddo
             end if
 
+            lvar_cnt = 0
             do ivar=iq_gocart0,iq_gocart1
                if (filetype ==0) lvar_cnt=lvar_cnt+1
                do k=1,km
@@ -879,8 +899,7 @@ contains
                      call parallel_read_file_r4('gocart_internal_restart_in', npts, is_i,ie_i, js_i,je_i, 1, offset, q0(is_i:ie_i,js_i:je_i,k))
                      call mpp_update_domains(q0(:,:,k), domain_i)
                   else
-                     call MAPL_NCIOGetVarName(NCIO,lvar_cnt,vname)
-                     call MAPL_VarRead(NCIO,vname,gslice_r4,lev=k)
+                     call MAPL_VarRead(formatter,vnames(lvar_cnt),gslice_r4,lev=k)
                      q0(is_i:ie_i,js_i:je_i,k)=gslice_r4(is_i:ie+i,tileoff+js_i:tileoff+je_i)
                   end if
                   call mpp_update_domains(q0(:,:,k), domain_i)
@@ -900,7 +919,9 @@ contains
             enddo
 
             if (filetype == 0) then
-               call MAPL_NCIOClose(NCIO,destroy=.true.)
+               call formatter%close()
+               deallocate(cfg)
+               deallocate(vnames)
                deallocate(gslice_r4)
             end if
 
@@ -918,12 +939,29 @@ contains
             else
                lvar_cnt = 0 
                allocate(gslice_r4(im,jm))
-               NCIO = MAPL_NCIOOpen("pchem_internal_restart_in")
-               call MAPL_NCIOGetDimSizes(NCIO,nVars=nVars)
+               allocate(cfg(1))
+               call formatter%open("pchem_internal_restart_in",pFIO_READ,rc=status)
+               cfg(1) = formatter%read(rc=status)
+               call MAPL_IOCountNonDimVars(cfg(1),nvars,rc=status)
                if (nVars /= iq_pchem1-iq_pchem0+1) call mpp_error(FATAL,'Wrong number of variables in pchem file') 
                tileoff = (tile-1)*(jm/ntiles)
+
+               allocate(vnames(nVars))
+               vars => cfg(1)%get_variables()
+               iter = vars%begin()
+        
+               lvar_cnt=0 
+               do while(iter /= vars%end())
+                  var_name => iter%key()
+                  if (.not.cfg(1)%is_coordinate_variable(var_name)) then
+                     lvar_cnt=lvar_cnt+1
+                     vnames(lvar_cnt)=var_name
+                  end if
+                  call iter%next()
+               enddo
             end if
 
+            lvar_cnt=0
             do ivar=iq_pchem0,iq_pchem1
                if (filetype == 0) lvar_cnt=lvar_cnt+1
                do k=1,km
@@ -931,8 +969,7 @@ contains
                      call parallel_read_file_r4('pchem_internal_restart_in', npts, is_i,ie_i, js_i,je_i, 1, offset, q0(is_i:ie_i,js_i:je_i,k))
                      call mpp_update_domains(q0(:,:,k), domain_i)
                   else
-                     call MAPL_NCIOGetVarName(NCIO,lvar_cnt,vname)
-                     call MAPL_VarRead(NCIO,vname,gslice_r4,lev=k)
+                     call MAPL_VarRead(formatter,vnames(lvar_cnt),gslice_r4,lev=k)
                      q0(is_i:ie_i,js_i:je_i,k)=gslice_r4(is_i:ie+i,tileoff+js_i:tileoff+je_i)
                   end if
                   call mpp_update_domains(q0(:,:,k), domain_i)
@@ -952,7 +989,9 @@ contains
             enddo
 
             if (filetype == 0) then
-               call MAPL_NCIOClose(NCIO,destroy=.true.)
+               call formatter%close()
+               deallocate(cfg)
+               deallocate(vnames)
                deallocate(gslice_r4)
             end if
 
@@ -1060,13 +1099,20 @@ contains
 
       integer            :: filetype
       logical            :: isNC4
-      type(MAPL_NCIO)    :: ncio
       integer            :: nDims, nVars, ivar, dimSizes(3)
       character(len=128) :: vname
       integer :: iq_moist0 , iq_moist1
       integer :: iq_gocart0, iq_gocart1
       integer :: iq_pchem0 , iq_pchem1
       integer :: lvar_cnt
+      type(Netcdf4_Fileformatter) :: formatter
+      type(FileMetadata), allocatable :: cfg(:)
+      character(len=128), allocatable :: vnames(:)
+      character(len=:), pointer :: var_name
+      type(StringVariableMap), pointer :: vars
+      type(StringVariableMapIterator) :: iter
+
+
 !bma added
       character(len=128) :: moist_order(9) = (/"Q   ","QLLS","QLCN","CLLS","CLCN","QILS","QICN","NCPL","NCPI"/)
 
@@ -1100,8 +1146,12 @@ contains
 
          if (isNC4) then
 
-            NCIO = MAPL_NCIOOpen(fname)
-            call MAPL_NCIOGetDimSizes(NCIO,lon=im,lat=jm,lev=km)
+            allocate(cfg(1))
+            call formatter%open(fname,pFIO_READ,rc=status)
+            cfg(1) = formatter%read(rc=status)
+            im =cfg(1)%get_dimension('lon',rc=status)
+            jm =cfg(1)%get_dimension('lat',rc=status)
+            km =cfg(1)%get_dimension('lev',rc=status)
 
          else
 
@@ -1135,13 +1185,13 @@ contains
          allocate ( bk0(km+1) )
          allocate ( akbk_r8(km+1) )
          if (isNC4) then
-            call MAPL_VarRead(NCIO,"AK",akbk_r8)
+            call MAPL_VarRead(formatter,"AK",akbk_r8)
          else
             read (IUNIT, IOSTAT=status) akbk_r8
          end if
          ak0 = akbk_r8
          if (isNC4) then
-            call MAPL_VarRead(NCIO,"BK",akbk_r8)
+            call MAPL_VarRead(formatter,"BK",akbk_r8)
          else
             read (IUNIT, IOSTAT=status) akbk_r8
          end if
@@ -1155,7 +1205,7 @@ contains
          allocate (  u0(im,jm,km) )
          do k=1,km
             if (isNC4) then
-               call MAPL_VarRead(NCIO,"U",r8latlon,lev=k)
+               call MAPL_VarRead(formatter,"U",r8latlon,lev=k)
             else
                read (IUNIT, IOSTAT=status) r8latlon
             end if
@@ -1168,7 +1218,7 @@ contains
          allocate (  v0(im,jm,km) )
          do k=1,km
             if (isNC4) then
-               call MAPL_VarRead(NCIO,"V",r8latlon,lev=k)
+               call MAPL_VarRead(formatter,"V",r8latlon,lev=k)
             else
                read (IUNIT, IOSTAT=status) r8latlon
             end if
@@ -1216,7 +1266,7 @@ contains
          allocate (  t0(im,jm,km) )
          do k=1,km
             if (isNC4) then
-               call MAPL_VarRead(NCIO,"PT",r8latlon,lev=k)
+               call MAPL_VarRead(formatter,"PT",r8latlon,lev=k)
             else
                read (IUNIT, IOSTAT=status) r8latlon
             end if
@@ -1228,7 +1278,7 @@ contains
 ! Read PE
          do k=1,km+1 
             if (isNC4) then
-               call MAPL_VarRead(NCIO,"PE",r8latlon,lev=k)
+               call MAPL_VarRead(formatter,"PE",r8latlon,lev=k)
             else
                read (IUNIT, IOSTAT=status) r8latlon
             end if
@@ -1240,7 +1290,7 @@ contains
          allocate ( pkz0(im,jm) )
          do k=1,km
             if (isNC4) then
-               call MAPL_VarRead(NCIO,"PKZ",r8latlon,lev=k)
+               call MAPL_VarRead(formatter,"PKZ",r8latlon,lev=k)
             else
                read (IUNIT, IOSTAT=status) r8latlon
             end if
@@ -1254,7 +1304,8 @@ contains
          call print_memuse_stats('get_geos_latlon_ic: converted T')
          deallocate ( pkz0 )
          if (isNC4) then
-            call MAPL_NCIOClose(NCIO,destroy=.true.)
+            call formatter%close()
+            deallocate(cfg)
          else
             close (IUNIT)
          end if
@@ -1343,8 +1394,9 @@ contains
                open(IUNIT,file="moist_internal_restart_in" ,access='sequential',form='unformatted',status='old')
             else
                lvar_cnt = 0
-               NCIO = MAPL_NCIOOpen("moist_internal_restart_in")
-               call MAPL_NCIOGetDimSizes(NCIO,nVars=nVars)
+               call formatter%open("moist_internal_restart_in",pFIO_READ,rc=status)
+               cfg = formatter%read(rc=status)
+               call MAPL_IOCountNonDimVars(cfg(1),nvars,rc=status)
                if (nVars /= iq_moist1-iq_moist0+1) call mpp_error(FATAL,'Wrong number of variables in moist file')
             end if
 
@@ -1355,7 +1407,7 @@ contains
                      read (IUNIT, IOSTAT=status) r4latlon
                   else
                      vname = trim(moist_order(lvar_cnt))
-                     call MAPL_VarRead(NCIO,vname,r4latlon,lev=k)
+                     call MAPL_VarRead(formatter,vname,r4latlon,lev=k)
                   end if
                   q0(1       :im/2,:,k) = r4latlon(im/2 + 1 :im  , :) ! Regrid from -180:180 to 0:360
                   q0(im/2 + 1:im  ,:,k) = r4latlon(1        :im/2, :) ! Regrid from -180:180 to 0:360
@@ -1373,7 +1425,8 @@ contains
                if (is_master()) call pmaxmin( 'MOIST_Q_',  q0(:,:,:), im*jm, km, 1.0_FVPRC)
             enddo
             if (filetype == 0) then
-               call MAPL_NCIOClose(NCIO,destroy=.true.)
+               call formatter%close()
+               deallocate(cfg)
             else
                close(IUNIT)
             end if
@@ -1393,19 +1446,34 @@ contains
                open(IUNIT,file="gocart_internal_restart_in" ,access='sequential',form='unformatted',status='old')
             else
                lvar_cnt = 0
-               NCIO = MAPL_NCIOOpen("gocart_internal_restart_in")
-               call MAPL_NCIOGetDimSizes(NCIO,nVars=nVars)
+               allocate(cfg(1))
+               call formatter%open("gocart_internal_restart_in",pFIO_READ,rc=status)
+               cfg(1) = formatter%read(rc=status)
+               call MAPL_IOCountNonDimVars(cfg(1),nvars,rc=status)
                if (nVars /= iq_gocart1-iq_gocart0+1) call mpp_error(FATAL,'Wrong number of variables in gocart file')
+
+               allocate(vnames(nVars))
+               vars => cfg(1)%get_variables()
+               iter = vars%begin()
+
+               do while(iter /= vars%end())
+                  var_name => iter%key()
+                  if (.not.cfg(1)%is_coordinate_variable(var_name)) then
+                     lvar_cnt=lvar_cnt+1
+                     vnames(lvar_cnt)=var_name
+                  end if
+               enddo
+
             end if
 
+            lvar_cnt=0
             do ivar=iq_gocart0,iq_gocart1
                if (filetype ==0) lvar_cnt=lvar_cnt+1
                do k=1,km
                   if (filetype /= 0) then
                      read (IUNIT, IOSTAT=status) r4latlon
                   else
-                     call MAPL_NCIOGetVarName(NCIO,lvar_cnt,vname)
-                     call MAPL_VarRead(NCIO,vname,r4latlon,lev=k)
+                     call MAPL_VarRead(formatter,vnames(lvar_cnt),r4latlon,lev=k)
                   end if
                   q0(1       :im/2,:,k) = r4latlon(im/2 + 1 :im  , :) ! Regrid from -180:180 to 0:360
                   q0(im/2 + 1:im  ,:,k) = r4latlon(1        :im/2, :) ! Regrid from -180:180 to 0:360
@@ -1424,7 +1492,9 @@ contains
             enddo
 
             if (filetype == 0) then
-               call MAPL_NCIOClose(NCIO,destroy=.true.)
+               call formatter%close()
+               deallocate(cfg)
+               deallocate(vnames)
             else
                close(IUNIT)
             end if
@@ -1443,9 +1513,24 @@ contains
                open(IUNIT,file="pchem_internal_restart_in" ,access='sequential',form='unformatted',status='old')
             else
                lvar_cnt = 0
-               NCIO = MAPL_NCIOOpen("pchem_internal_restart_in")
-               call MAPL_NCIOGetDimSizes(NCIO,nVars=nVars)
+               allocate(cfg(1))
+               call formatter%open("pchem_internal_restart_in",pFIO_READ,rc=status)
+               cfg(1) = formatter%read(rc=status)
+               call MAPL_IOCountNonDimVars(cfg(1),nvars,rc=status)
                if (nVars /= iq_pchem1-iq_pchem0+1) call mpp_error(FATAL,'Wrong number of variables in pchem file')
+
+               allocate(vnames(nVars))
+               vars => cfg(1)%get_variables()
+               iter = vars%begin()
+
+               do while(iter /= vars%end())
+                  var_name => iter%key()
+                  if (.not.cfg(1)%is_coordinate_variable(var_name)) then
+                     lvar_cnt=lvar_cnt+1
+                     vnames(lvar_cnt)=var_name
+                  end if
+               enddo
+
             end if
 
             do ivar=iq_pchem0,iq_pchem1
@@ -1454,8 +1539,7 @@ contains
                   if (filetype /= 0) then
                      read (IUNIT, IOSTAT=status) r4latlon
                   else
-                     call MAPL_NCIOGetVarName(NCIO,lvar_cnt,vname)
-                     call MAPL_VarRead(NCIO,vname,r4latlon,lev=k)
+                     call MAPL_VarRead(formatter,vnames(lvar_cnt),r4latlon,lev=k)
                   end if
                   q0(1       :im/2,:,k) = r4latlon(im/2 + 1 :im  , :) ! Regrid from -180:180 to 0:360
                   q0(im/2 + 1:im  ,:,k) = r4latlon(1        :im/2, :) ! Regrid from -180:180 to 0:360
@@ -1474,7 +1558,9 @@ contains
             enddo
 
             if (filetype == 0) then
-               call MAPL_NCIOClose(NCIO,destroy=.true.)
+               call formatter%close()
+               deallocate(cfg)
+               deallocate(vnames)
             else
                close(IUNIT)
             end if
@@ -2841,6 +2927,7 @@ contains
 !------------------------------------------------------------------!
 ! calculate xyz cell corners and cell centers                      !
 !------------------------------------------------------------------!
+                        tmp = 0.0
                         allocate(xyz_corner_in (3, isd_i:ied_i+1, jsd_i:jed_i+1), &
                               xyz_corner_out(3, is   :ie   +1, js   :je   +1))
                         do j=js_i,je_i+1

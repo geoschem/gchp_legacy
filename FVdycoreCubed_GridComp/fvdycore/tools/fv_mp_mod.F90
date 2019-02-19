@@ -1,27 +1,72 @@
 !***********************************************************************
-!*                   GNU General Public License                        *
-!* This file is a part of fvGFS.                                       *
-!*                                                                     *
-!* fvGFS is free software; you can redistribute it and/or modify it    *
-!* and are expected to follow the terms of the GNU General Public      *
-!* License as published by the Free Software Foundation; either        *
-!* version 2 of the License, or (at your option) any later version.    *
-!*                                                                     *
-!* fvGFS is distributed in the hope that it will be useful, but        *
-!* WITHOUT ANY WARRANTY; without even the implied warranty of          *
-!* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU   *
-!* General Public License for more details.                            *
-!*                                                                     *
-!* For the full text of the GNU General Public License,                *
-!* write to: Free Software Foundation, Inc.,                           *
-!*           675 Mass Ave, Cambridge, MA 02139, USA.                   *
-!* or see:   http://www.gnu.org/licenses/gpl.html                      *
+!*                   GNU Lesser General Public License                 
+!*
+!* This file is part of the FV3 dynamical core.
+!*
+!* The FV3 dynamical core is free software: you can redistribute it 
+!* and/or modify it under the terms of the
+!* GNU Lesser General Public License as published by the
+!* Free Software Foundation, either version 3 of the License, or 
+!* (at your option) any later version.
+!*
+!* The FV3 dynamical core is distributed in the hope that it will be 
+!* useful, but WITHOUT ANYWARRANTY; without even the implied warranty 
+!* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+!* See the GNU General Public License for more details.
+!*
+!* You should have received a copy of the GNU Lesser General Public
+!* License along with the FV3 dynamical core.  
+!* If not, see <http://www.gnu.org/licenses/>.
 !***********************************************************************
-!------------------------------------------------------------------------------
-!BOP
-!
-! !MODULE: fv_mp_mod --- SPMD parallel decompostion/communication module
+
+!>@brief The module 'fv_mp_mod' is a single program multiple data (SPMD)
+!! parallel decompostion/communication module
       module fv_mp_mod
+
+! <table>
+! <tr>
+!     <th>Module Name</th>
+!     <th>Functions Included</th>
+!   </tr>
+!   <tr>
+!     <td>ensemble_manager_mod</td>
+!     <td>get_ensemble_id</td>
+!   </tr>
+!   <tr>
+!     <td>fms_mod</td>
+!     <td>fms_init, fms_end</td>
+!   </tr>
+!   <tr>
+!     <td>fms_io_mod</td>
+!     <td>set_domain</td>
+!   </tr>
+!   <tr>
+!     <td>fv_arrays_mod</td>
+!     <td>fv_atmos_type</td>
+!   </tr>
+!     <td>mpp_mod</td>
+!     <td>FATAL, MPP_DEBUG, NOTE, MPP_CLOCK_SYNC,MPP_CLOCK_DETAILED, WARNING,
+!         mpp_pe, mpp_npes, mpp_node, mpp_root_pe, mpp_error, mpp_set_warn_level,
+!         mpp_declare_pelist, mpp_set_current_pelist, mpp_sync, mpp_clock_begin,
+!         mpp_clock_end, mpp_clock_id,mpp_chksum, stdout, stderr, mpp_broadcast,
+!         mpp_send, mpp_recv, mpp_sync_self, EVENT_RECV, mpp_gather,mpp_get_current_pelist,</td>
+!   </tr>
+!   <tr>
+!     <td>mpp_domains_mod</td>
+!     <td>GLOBAL_DATA_DOMAIN, BITWISE_EXACT_SUM, BGRID_NE, FOLD_NORTH_EDGE, CGRID_NE,
+!         MPP_DOMAIN_TIME, CYCLIC_GLOBAL_DOMAIN, NUPDATE,EUPDATE, XUPDATE, YUPDATE, SCALAR_PAIR,
+!         domain1D, domain2D, DomainCommunicator2D, mpp_get_ntile_count,mpp_get_compute_domain,
+!         mpp_get_data_domain,mpp_global_field, mpp_global_sum, mpp_global_max, mpp_global_min,
+!         mpp_domains_init, mpp_domains_exit, mpp_broadcast_domain,mpp_check_field,
+!         mpp_define_layout,mpp_get_neighbor_pe, mpp_define_mosaic, mpp_define_io_domain,
+!         NORTH, NORTH_EAST, EAST, SOUTH_EAST, SOUTH, SOUTH_WEST, WEST, NORTH_WEST,
+!         mpp_start_group_update, mpp_complete_group_update,mpp_create_group_update,
+!         mpp_reset_group_update_field,group_halo_update_type => mpp_group_update_type,
+!         mpp_define_domains, mpp_define_nest_domains, nest_domain_type,
+!         pp_get_C2F_index, mpp_update_nest_fine, mpp_get_F2C_index, mpp_update_nest_coarse,
+!         mpp_get_domain_shift</td>
+!   </tr>
+! </table>
 
 #if defined(SPMD)
 ! !USES:
@@ -35,7 +80,7 @@
       use mpp_domains_mod, only : GLOBAL_DATA_DOMAIN, BITWISE_EXACT_SUM, BGRID_NE, FOLD_NORTH_EDGE, CGRID_NE
       use mpp_domains_mod, only : MPP_DOMAIN_TIME, CYCLIC_GLOBAL_DOMAIN, NUPDATE,EUPDATE, XUPDATE, YUPDATE, SCALAR_PAIR
       use mpp_domains_mod, only : domain1D, domain2D, DomainCommunicator2D, mpp_get_ntile_count
-      use mpp_domains_mod, only : mpp_get_compute_domain, mpp_get_data_domain, mpp_domains_set_stack_size
+      use mpp_domains_mod, only : mpp_get_compute_domain, mpp_get_data_domain
       use mpp_domains_mod, only : mpp_global_field, mpp_global_sum, mpp_global_max, mpp_global_min
       use mpp_domains_mod, only : mpp_domains_init, mpp_domains_exit, mpp_broadcast_domain
       use mpp_domains_mod, only : mpp_check_field, mpp_define_layout 
@@ -49,7 +94,7 @@
       use mpp_parameter_mod, only : WUPDATE, EUPDATE, SUPDATE, NUPDATE, XUPDATE, YUPDATE
       use fv_arrays_mod, only: fv_atmos_type
       use fms_io_mod, only: set_domain
-      use mpp_mod, only : mpp_get_current_pelist, mpp_set_current_pelist
+      use mpp_mod, only : mpp_get_current_pelist
       use mpp_domains_mod, only : mpp_define_domains
       use mpp_domains_mod, only : mpp_define_nest_domains, nest_domain_type
       use mpp_domains_mod, only : mpp_get_C2F_index, mpp_update_nest_fine
@@ -136,48 +181,70 @@
         MODULE PROCEDURE fill_corners_dgrid_r8
       END INTERFACE
 
+      !> The interface 'mp_bcast contains routines that call SPMD broadcast  
+      !! (one-to-many communication).
       INTERFACE mp_bcst
-        MODULE PROCEDURE mp_bcst_i4
+        MODULE PROCEDURE mp_bcst_i
         MODULE PROCEDURE mp_bcst_r4
         MODULE PROCEDURE mp_bcst_r8
+        MODULE PROCEDURE mp_bcst_1d_r4
+        MODULE PROCEDURE mp_bcst_1d_r8
+        MODULE PROCEDURE mp_bcst_2d_r4
+        MODULE PROCEDURE mp_bcst_2d_r8
         MODULE PROCEDURE mp_bcst_3d_r4
         MODULE PROCEDURE mp_bcst_3d_r8
         MODULE PROCEDURE mp_bcst_4d_r4
         MODULE PROCEDURE mp_bcst_4d_r8
-        MODULE PROCEDURE mp_bcst_3d_i8
-        MODULE PROCEDURE mp_bcst_4d_i8
+        MODULE PROCEDURE mp_bcst_1d_i
+        MODULE PROCEDURE mp_bcst_2d_i
+        MODULE PROCEDURE mp_bcst_3d_i
+        MODULE PROCEDURE mp_bcst_4d_i
       END INTERFACE
 
+      !> The interface 'mp_reduce_min' contains routines that call SPMD_REDUCE. 
+      !! The routines compute the minima of values and place the
+      !! absolute minimum value in a result. 
       INTERFACE mp_reduce_min
         MODULE PROCEDURE mp_reduce_min_r4
         MODULE PROCEDURE mp_reduce_min_r8
       END INTERFACE
 
+      !> The interface 'mp_reduce_max' contains routines that call SPMD_REDUCE. 
+      !! The routines compute the maxima of values and place the
+      !! absolute maximum value in a result. 
       INTERFACE mp_reduce_max
         MODULE PROCEDURE mp_reduce_max_r4_1d
         MODULE PROCEDURE mp_reduce_max_r4
         MODULE PROCEDURE mp_reduce_max_r8_1d
         MODULE PROCEDURE mp_reduce_max_r8
-        MODULE PROCEDURE mp_reduce_max_i4
+        MODULE PROCEDURE mp_reduce_max_i
       END INTERFACE
 
+      
+      !> The interface 'mp_reduce_sum' contains routines that call SPMD_REDUCE. 
+      !! The routines compute the sums of values and place the
+      !! net sum in a result. 
       INTERFACE mp_reduce_sum
         MODULE PROCEDURE mp_reduce_sum_r4
         MODULE PROCEDURE mp_reduce_sum_r4_1d
+        MODULE PROCEDURE mp_reduce_sum_r4_1darr
+        MODULE PROCEDURE mp_reduce_sum_r4_2darr
         MODULE PROCEDURE mp_reduce_sum_r8
         MODULE PROCEDURE mp_reduce_sum_r8_1d
+        MODULE PROCEDURE mp_reduce_sum_r8_1darr
+        MODULE PROCEDURE mp_reduce_sum_r8_2darr
       END INTERFACE
-
-      INTERFACE mp_gather !WARNING only works with one level (ldim == 1)
+     
+      !> The interface 'mp_gather contains routines that call SPMD Gather. 
+      !! The routines aggregate elements from many processes into one process. 
+      ! WARNING only works with one level (ldim == 1)
+      INTERFACE mp_gather 
         MODULE PROCEDURE mp_gather_4d_r4
         MODULE PROCEDURE mp_gather_3d_r4
         MODULE PROCEDURE mp_gather_3d_r8
       END INTERFACE
 
       integer :: halo_update_type = 1
-!---- version number -----
-      character(len=128) :: version = '$Id$'
-      character(len=128) :: tagname = '$Name$'
 
 contains
 
@@ -190,9 +257,7 @@ contains
 
 !-------------------------------------------------------------------------------
 ! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !
-!
-!     mp_start :: Start SPMD processes
-!
+!>@brief The subroutine 'mp_start' starts SPMD processes
         subroutine mp_start(commID, halo_update_type_in)
           integer, intent(in), optional :: commID
           integer, intent(in), optional :: halo_update_type_in
@@ -251,9 +316,7 @@ contains
 
 !-------------------------------------------------------------------------------
 ! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !
-!
-!     mp_barrier :: Wait for all SPMD processes
-!
+!>@brief The subroutine 'mp_barrier' waits for all SPMD processes
       subroutine mp_barrier()
         
          call MPI_BARRIER(commglobal, ierror)
@@ -265,9 +328,7 @@ contains
 
 !-------------------------------------------------------------------------------
 ! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !
-!
-!     mp_stop :: Stop SPMD processes
-!
+!>@brief The subroutine 'mp_stop' stops all SPMD processes
       subroutine mp_stop()
 
          call MPI_BARRIER(commglobal, ierror)
@@ -282,9 +343,7 @@ contains
 
 !-------------------------------------------------------------------------------
 ! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !
-!
-!     domain_decomp :: Setup domain decomp
-!
+!>@brief The subroutine 'domain_decomp' sets up the domain decomposition.
       subroutine domain_decomp(npx,npy,nregions,grid_type,nested,Atm,layout,io_layout)
 
          integer, intent(IN)  :: npx,npy,grid_type
@@ -324,15 +383,6 @@ contains
 
 
          call mpp_domains_init(MPP_DOMAIN_TIME)
-
-       ! call mpp_domains_set_stack_size(10000)
-       ! call mpp_domains_set_stack_size(900000)
-       !  call mpp_domains_set_stack_size(1500000)
-#ifdef SMALL_PE
-         call mpp_domains_set_stack_size(6000000)
-#else
-         call mpp_domains_set_stack_size(3000000)
-#endif
 
          select case(nregions)
          case ( 1 )  ! Lat-Lon "cyclic"
@@ -663,13 +713,14 @@ contains
 !-------------------------------------------------------------------------------
 
 subroutine start_var_group_update_2d(group, array, domain, flags, position, whalo, ehalo, shalo, nhalo, complete)
-  type(group_halo_update_type), intent(inout) :: group
-  real, dimension(:,:),         intent(inout) :: array
-  type(domain2D),               intent(inout) :: domain
-  integer,      optional,       intent(in)    :: flags
-  integer,      optional,       intent(in)    :: position
+  type(group_halo_update_type), intent(inout) :: group !< The data type that store information for group update
+  real, dimension(:,:),         intent(inout) :: array !< The array which is having its halos points exchanged
+  type(domain2D),               intent(inout) :: domain !< contains domain information
+  integer,      optional,       intent(in)    :: flags !< Optional integer indicating which directions the data should be sent
+  integer,      optional,       intent(in)    :: position  !< An optional argument indicating the position
   integer,      optional,       intent(in)    :: whalo, ehalo, shalo, nhalo
-  logical,      optional,       intent(in)    :: complete
+  logical,      optional,       intent(in)    :: complete !< Optional argument indicating whether the halo updates
+                                                          !! should be initiated immediately or wait for second pass_..._start call
   real                                        :: d_type
   logical                                     :: is_complete
 ! Arguments: 
@@ -703,13 +754,14 @@ end subroutine start_var_group_update_2d
 
 
 subroutine start_var_group_update_3d(group, array, domain, flags, position, whalo, ehalo, shalo, nhalo, complete)
-  type(group_halo_update_type), intent(inout) :: group
-  real, dimension(:,:,:),       intent(inout) :: array
-  type(domain2D),               intent(inout) :: domain
-  integer,           optional,  intent(in)    :: flags
-  integer,           optional,  intent(in)    :: position
+  type(group_halo_update_type), intent(inout) :: group !< The data type that store information for group update
+  real, dimension(:,:,:),       intent(inout) :: array !< The array which is having its halos points exchanged
+  type(domain2D),               intent(inout) :: domain !< contains domain information
+  integer,           optional,  intent(in)    :: flags !< Optional integer indicating which directions the data should be sent 
+  integer,           optional,  intent(in)    :: position !< An optional argument indicating the position
   integer,      optional,       intent(in)    :: whalo, ehalo, shalo, nhalo
-  logical,      optional,       intent(in)    :: complete
+  logical,      optional,       intent(in)    :: complete !< Optional argument indicating whether the halo updates
+                                                          !! should be initiated immediately or wait for second pass_..._start call
   real                                        :: d_type
   logical                                     :: is_complete
 
@@ -743,13 +795,15 @@ subroutine start_var_group_update_3d(group, array, domain, flags, position, whal
 end subroutine start_var_group_update_3d
 
 subroutine start_var_group_update_4d(group, array, domain, flags, position, whalo, ehalo, shalo, nhalo, complete)
-  type(group_halo_update_type), intent(inout) :: group
-  real, dimension(:,:,:,:),     intent(inout) :: array
-  type(domain2D),               intent(inout) :: domain
-  integer,           optional,  intent(in)    :: flags
-  integer,           optional,  intent(in)    :: position
+  type(group_halo_update_type), intent(inout) :: group !< The data type that store information for group update
+  real, dimension(:,:,:,:),     intent(inout) :: array !< The array which is having its halos points exchanged
+  type(domain2D),               intent(inout) :: domain !< contains domain information
+  integer,           optional,  intent(in)    :: flags !< Optional integer indicating which directions the data should be sent 
+  integer,           optional,  intent(in)    :: position !< An optional argument indicating the position
+                                                          !! This is may be CORNER, but is CENTER by default
   integer,      optional,       intent(in)    :: whalo, ehalo, shalo, nhalo
-  logical,      optional,       intent(in)    :: complete
+  logical,      optional,       intent(in)    :: complete !< Optional argument indicating whether the halo updates
+                                                          !! should be initiated immediately or wait for second pass_..._start call
   real                                        :: d_type
   logical                                     :: is_complete
 
@@ -787,13 +841,18 @@ end subroutine start_var_group_update_4d
 
 
 subroutine start_vector_group_update_2d(group, u_cmpt, v_cmpt, domain, flags, gridtype, whalo, ehalo, shalo, nhalo, complete)
-  type(group_halo_update_type), intent(inout) :: group
-  real,       dimension(:,:),   intent(inout) :: u_cmpt, v_cmpt
-  type(domain2d),               intent(inout) :: domain
-  integer,            optional, intent(in)    :: flags
-  integer,            optional, intent(in)    :: gridtype
+  type(group_halo_update_type), intent(inout) :: group !< The data type that store information for group update
+  real,       dimension(:,:),   intent(inout) :: u_cmpt, v_cmpt !< The nominal zonal (u) and meridional (v)
+                                                                !! components of the vector pair that 
+                                                                !! is having its halos points exchanged
+  type(domain2d),               intent(inout) :: domain !< Contains domain decomposition information
+  integer,            optional, intent(in)    :: flags !< Optional integer indicating which directions the data should be sent 
+  integer,            optional, intent(in)    :: gridtype !< An optional flag, which may be one of A_GRID, BGRID_NE,
+                                                          !! CGRID_NE or DGRID_NE, indicating where the two components of th 
+                                                          !! vector are discretized
   integer,      optional,       intent(in)    :: whalo, ehalo, shalo, nhalo
-  logical,      optional,       intent(in)    :: complete
+  logical,      optional,       intent(in)    :: complete !< Optional argument indicating whether the halo updates
+                                                          !! should be initiated immediately or wait for second pass_..._start call
   real                                        :: d_type
   logical                                     :: is_complete
 
@@ -832,13 +891,18 @@ subroutine start_vector_group_update_2d(group, u_cmpt, v_cmpt, domain, flags, gr
 end subroutine start_vector_group_update_2d
 
 subroutine start_vector_group_update_3d(group, u_cmpt, v_cmpt, domain, flags, gridtype, whalo, ehalo, shalo, nhalo, complete)
-  type(group_halo_update_type), intent(inout) :: group
-  real,       dimension(:,:,:), intent(inout) :: u_cmpt, v_cmpt
-  type(domain2d),               intent(inout) :: domain
-  integer,            optional, intent(in)    :: flags
-  integer,            optional, intent(in)    :: gridtype
+  type(group_halo_update_type), intent(inout) :: group !< The data type that store information for group update
+  real,       dimension(:,:,:), intent(inout) :: u_cmpt, v_cmpt !! The nominal zonal (u) and meridional (v)
+                                                                !! components of the vector pair that 
+                                                                !! is having its halos points exchanged.
+  type(domain2d),               intent(inout) :: domain !< Contains domain decomposition information
+  integer,            optional, intent(in)    :: flags !< Optional integer indicating which directions the data should be sent
+  integer,            optional, intent(in)    :: gridtype !< An optional flag, which may be one of A_GRID, BGRID_NE,
+                                                          !! CGRID_NE or DGRID_NE, indicating where the two components of th 
+                                                          !! vector are discretized
   integer,      optional,       intent(in)    :: whalo, ehalo, shalo, nhalo
-  logical,      optional,       intent(in)    :: complete
+  logical,      optional,       intent(in)    :: complete !< Optional argument indicating whether the halo updates
+                                                          !! should be initiated immediately or wait for second pass_..._start call
   real                                        :: d_type
   logical                                     :: is_complete
 
@@ -878,8 +942,8 @@ end subroutine start_vector_group_update_3d
 
 
 subroutine complete_group_halo_update(group, domain)
-  type(group_halo_update_type), intent(inout) :: group
-  type(domain2d),               intent(inout) :: domain
+  type(group_halo_update_type), intent(inout) :: group !< The data type that store information for group update
+  type(domain2d),               intent(inout) :: domain !< Contains domain decomposition information
   real                                        :: d_type
 
 ! Arguments: 
@@ -969,7 +1033,7 @@ end subroutine switch_current_Atm
       subroutine fill_corners_2d_r4(q, npx, npy, FILL, AGRID, BGRID)
          real(kind=4), DIMENSION(isd:,jsd:), intent(INOUT):: q
          integer, intent(IN):: npx,npy
-         integer, intent(IN):: FILL  ! X-Dir or Y-Dir 
+         integer, intent(IN):: FILL  !< X-Dir or Y-Dir 
          logical, OPTIONAL, intent(IN) :: AGRID, BGRID 
          integer :: i,j
 
@@ -1049,7 +1113,7 @@ end subroutine switch_current_Atm
       subroutine fill_corners_2d_r8(q, npx, npy, FILL, AGRID, BGRID)
          real(kind=8), DIMENSION(isd:,jsd:), intent(INOUT):: q
          integer, intent(IN):: npx,npy
-         integer, intent(IN):: FILL  ! X-Dir or Y-Dir 
+         integer, intent(IN):: FILL  ! <X-Dir or Y-Dir 
          logical, OPTIONAL, intent(IN) :: AGRID, BGRID 
          integer :: i,j
 
@@ -1128,8 +1192,8 @@ end subroutine switch_current_Atm
 ! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !!
 !     fill_corners_xy_2d_r8
       subroutine fill_corners_xy_2d_r8(x, y, npx, npy, DGRID, AGRID, CGRID, VECTOR)
-         real(kind=8), DIMENSION(isd:,jsd:), intent(INOUT):: x !(isd:ied  ,jsd:jed+1)
-         real(kind=8), DIMENSION(isd:,jsd:), intent(INOUT):: y !(isd:ied+1,jsd:jed  )
+         real(kind=8), DIMENSION(isd:,jsd:), intent(INOUT):: x !<(isd:ied  ,jsd:jed+1)
+         real(kind=8), DIMENSION(isd:,jsd:), intent(INOUT):: y !<(isd:ied+1,jsd:jed  )
          integer, intent(IN):: npx,npy
          logical, OPTIONAL, intent(IN) :: DGRID, AGRID, CGRID, VECTOR
          integer :: i,j
@@ -1160,8 +1224,8 @@ end subroutine switch_current_Atm
 ! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !!
 !     fill_corners_xy_2d_r4
       subroutine fill_corners_xy_2d_r4(x, y, npx, npy, DGRID, AGRID, CGRID, VECTOR)
-         real(kind=4), DIMENSION(isd:,jsd:), intent(INOUT):: x !(isd:ied  ,jsd:jed+1)
-         real(kind=4), DIMENSION(isd:,jsd:), intent(INOUT):: y !(isd:ied+1,jsd:jed  )
+         real(kind=4), DIMENSION(isd:,jsd:), intent(INOUT):: x !<(isd:ied  ,jsd:jed+1)
+         real(kind=4), DIMENSION(isd:,jsd:), intent(INOUT):: y !<(isd:ied+1,jsd:jed  )
          integer, intent(IN):: npx,npy
          logical, OPTIONAL, intent(IN) :: DGRID, AGRID, CGRID, VECTOR
          integer :: i,j
@@ -1192,8 +1256,8 @@ end subroutine switch_current_Atm
 ! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !!
 !     fill_corners_xy_3d_r8
       subroutine fill_corners_xy_3d_r8(x, y, npx, npy, npz, DGRID, AGRID, CGRID, VECTOR)
-         real(kind=8), DIMENSION(isd:,jsd:,:), intent(INOUT):: x !(isd:ied  ,jsd:jed+1)
-         real(kind=8), DIMENSION(isd:,jsd:,:), intent(INOUT):: y !(isd:ied+1,jsd:jed  )
+         real(kind=8), DIMENSION(isd:,jsd:,:), intent(INOUT):: x !<(isd:ied  ,jsd:jed+1)
+         real(kind=8), DIMENSION(isd:,jsd:,:), intent(INOUT):: y !<(isd:ied+1,jsd:jed  )
          integer, intent(IN):: npx,npy,npz
          logical, OPTIONAL, intent(IN) :: DGRID, AGRID, CGRID, VECTOR
          integer :: i,j,k
@@ -1232,8 +1296,8 @@ end subroutine switch_current_Atm
 ! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !!
 !     fill_corners_xy_3d_r4
       subroutine fill_corners_xy_3d_r4(x, y, npx, npy, npz, DGRID, AGRID, CGRID, VECTOR)
-         real(kind=4), DIMENSION(isd:,jsd:,:), intent(INOUT):: x !(isd:ied  ,jsd:jed+1)
-         real(kind=4), DIMENSION(isd:,jsd:,:), intent(INOUT):: y !(isd:ied+1,jsd:jed  )
+         real(kind=4), DIMENSION(isd:,jsd:,:), intent(INOUT):: x !<(isd:ied  ,jsd:jed+1)
+         real(kind=4), DIMENSION(isd:,jsd:,:), intent(INOUT):: y !<(isd:ied+1,jsd:jed  )
          integer, intent(IN):: npx,npy,npz
          logical, OPTIONAL, intent(IN) :: DGRID, AGRID, CGRID, VECTOR
          integer :: i,j,k
@@ -1855,9 +1919,7 @@ end subroutine switch_current_Atm
 
 !-------------------------------------------------------------------------------
 ! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !
-!       
-!     mp_gather_4d_r4 :: Call SPMD Gather 
-!     
+!>@brief  The subroutine 'mp_gather_4d_r4' calls SPMD Gather. 
       subroutine mp_gather_4d_r4(q, i1,i2, j1,j2, idim, jdim, kdim, ldim)
          integer, intent(IN)  :: i1,i2, j1,j2
          integer, intent(IN)  :: idim, jdim, kdim, ldim
@@ -2101,14 +2163,14 @@ end subroutine switch_current_Atm
 !-------------------------------------------------------------------------------
 ! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !
 !
-!     mp_bcst_i4 :: Call SPMD broadcast 
+!     mp_bcst_i :: Call SPMD broadcast 
 !
-      subroutine mp_bcst_i4(q)
+      subroutine mp_bcst_i(q)
          integer, intent(INOUT)  :: q
 
          call MPI_BCAST(q, 1, MPI_INTEGER, masterproc, commglobal, ierror)
 
-      end subroutine mp_bcst_i4
+      end subroutine mp_bcst_i
 !
 ! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ !
 !-------------------------------------------------------------------------------
@@ -2139,6 +2201,70 @@ end subroutine switch_current_Atm
          call MPI_BCAST(q, 1, MPI_DOUBLE_PRECISION, masterproc, commglobal, ierror)
 
       end subroutine mp_bcst_r8
+!
+! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ !
+!-------------------------------------------------------------------------------
+
+!-------------------------------------------------------------------------------
+! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !
+!
+!     mp_bcst_1d_r4 :: Call SPMD broadcast 
+!
+      subroutine mp_bcst_1d_r4(q, idim)
+         integer, intent(IN)  :: idim
+         real(kind=4), intent(INOUT)  :: q(idim)
+
+         call MPI_BCAST(q, idim, MPI_REAL, masterproc, commglobal, ierror)
+
+      end subroutine mp_bcst_1d_r4
+!
+! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ !
+!-------------------------------------------------------------------------------
+
+!-------------------------------------------------------------------------------
+! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !
+!
+!     mp_bcst_1d_r8 :: Call SPMD broadcast 
+!
+      subroutine mp_bcst_1d_r8(q, idim)
+         integer, intent(IN)  :: idim
+         real(kind=8), intent(INOUT)  :: q(idim)
+
+         call MPI_BCAST(q, idim, MPI_DOUBLE_PRECISION, masterproc, commglobal, ierror)
+
+      end subroutine mp_bcst_1d_r8
+!
+! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ !
+!-------------------------------------------------------------------------------
+
+!-------------------------------------------------------------------------------
+! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !
+!
+!     mp_bcst_2d_r4 :: Call SPMD broadcast 
+!
+      subroutine mp_bcst_2d_r4(q, idim, jdim)
+         integer, intent(IN)  :: idim, jdim
+         real(kind=4), intent(INOUT)  :: q(idim,jdim)
+
+         call MPI_BCAST(q, idim*jdim, MPI_REAL, masterproc, commglobal, ierror)
+
+      end subroutine mp_bcst_2d_r4
+!
+! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ !
+!-------------------------------------------------------------------------------
+
+!-------------------------------------------------------------------------------
+! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !
+!
+!     mp_bcst_2d_r8 :: Call SPMD broadcast 
+!
+      subroutine mp_bcst_2d_r8(q, idim, jdim)
+         integer, intent(IN)  :: idim, jdim
+         real(kind=8), intent(INOUT)  :: q(idim,jdim)
+
+         call MPI_BCAST(q, idim*jdim, MPI_DOUBLE_PRECISION, masterproc, commglobal, ierror)
+
+      end subroutine mp_bcst_2d_r8
 !
 ! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ !
 !-------------------------------------------------------------------------------
@@ -2210,15 +2336,15 @@ end subroutine switch_current_Atm
 !-------------------------------------------------------------------------------
 ! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !
 !
-!     mp_bcst_3d_i8 :: Call SPMD broadcast
+!     mp_bcst_3d_i :: Call SPMD broadcast
 !
-      subroutine mp_bcst_3d_i8(q, idim, jdim, kdim)
+      subroutine mp_bcst_3d_i(q, idim, jdim, kdim)
          integer, intent(IN)  :: idim, jdim, kdim
          integer, intent(INOUT)  :: q(idim,jdim,kdim)
 
          call MPI_BCAST(q, idim*jdim*kdim, MPI_INTEGER, masterproc, commglobal, ierror)
 
-      end subroutine mp_bcst_3d_i8
+      end subroutine mp_bcst_3d_i
 !
 ! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ !
 !-------------------------------------------------------------------------------
@@ -2226,15 +2352,46 @@ end subroutine switch_current_Atm
 !-------------------------------------------------------------------------------
 ! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !
 !
-!     mp_bcst_4d_i8 :: Call SPMD broadcast
+!     mp_bcst_1d_i :: Call SPMD broadcast
 !
-      subroutine mp_bcst_4d_i8(q, idim, jdim, kdim, ldim)
+      subroutine mp_bcst_1d_i(q, idim)
+         integer, intent(IN)  :: idim
+         integer, intent(INOUT)  :: q(idim)
+
+         call MPI_BCAST(q, idim, MPI_INTEGER, masterproc, commglobal, ierror)
+
+      end subroutine mp_bcst_1d_i
+!
+! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ !
+!-------------------------------------------------------------------------------
+
+!-------------------------------------------------------------------------------
+! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !
+!
+!     mp_bcst_2d_i :: Call SPMD broadcast
+!
+      subroutine mp_bcst_2d_i(q, idim, jdim)
+         integer, intent(IN)  :: idim, jdim
+         integer, intent(INOUT)  :: q(idim,jdim)
+
+         call MPI_BCAST(q, idim*jdim, MPI_INTEGER, masterproc, commglobal, ierror)
+
+      end subroutine mp_bcst_2d_i
+!
+! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ !
+!-------------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
+! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !
+!
+!     mp_bcst_4d_i :: Call SPMD broadcast
+!
+      subroutine mp_bcst_4d_i(q, idim, jdim, kdim, ldim)
          integer, intent(IN)  :: idim, jdim, kdim, ldim
          integer, intent(INOUT)  :: q(idim,jdim,kdim,ldim)
 
          call MPI_BCAST(q, idim*jdim*kdim*ldim, MPI_INTEGER, masterproc, commglobal, ierror)
 
-      end subroutine mp_bcst_4d_i8
+      end subroutine mp_bcst_4d_i
 !
 ! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ !
 !-------------------------------------------------------------------------------
@@ -2348,9 +2505,9 @@ end subroutine switch_current_Atm
 !-------------------------------------------------------------------------------
 ! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !
 !
-!     mp_bcst_4d_i4 :: Call SPMD REDUCE_MAX 
+!     mp_bcst_4d_i :: Call SPMD REDUCE_MAX 
 !
-      subroutine mp_reduce_max_i4(mymax)
+      subroutine mp_reduce_max_i(mymax)
          integer, intent(INOUT)  :: mymax
 
          integer :: gmax
@@ -2360,7 +2517,7 @@ end subroutine switch_current_Atm
 
          mymax = gmax
 
-      end subroutine mp_reduce_max_i4
+      end subroutine mp_reduce_max_i
 !
 ! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ !
 !-------------------------------------------------------------------------------
@@ -2403,6 +2560,53 @@ end subroutine switch_current_Atm
       end subroutine mp_reduce_sum_r8
 !
 ! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ !
+!-------------------------------------------------------------------------------
+
+
+!-------------------------------------------------------------------------------
+! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+! !
+!
+!     mp_reduce_sum_r4_1darr :: Call SPMD REDUCE_SUM
+!
+      subroutine mp_reduce_sum_r4_1darr(mysum, npts)
+         integer, intent(in)  :: npts
+         real(kind=4), intent(inout)  :: mysum(npts)
+         real(kind=4)                 :: gsum(npts)
+
+         gsum = 0.0
+         call MPI_ALLREDUCE( mysum, gsum, npts, MPI_REAL, MPI_SUM, &
+                             commglobal, ierror )
+
+         mysum = gsum
+
+      end subroutine mp_reduce_sum_r4_1darr
+!
+! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+! !
+!-------------------------------------------------------------------------------
+
+!-------------------------------------------------------------------------------
+! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+! !
+!
+!     mp_reduce_sum_r4_2darr :: Call SPMD REDUCE_SUM
+!
+      subroutine mp_reduce_sum_r4_2darr(mysum, npts1,npts2)
+         integer, intent(in)  :: npts1,npts2
+         real(kind=4), intent(inout)  :: mysum(npts1,npts2)
+         real(kind=4)                 :: gsum(npts1,npts2)
+
+         gsum = 0.0
+         call MPI_ALLREDUCE( mysum, gsum, npts1*npts2, MPI_REAL, MPI_SUM, &
+                             commglobal, ierror )
+
+         mysum = gsum
+
+      end subroutine mp_reduce_sum_r4_2darr
+!
+! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+! !
 !-------------------------------------------------------------------------------
 
 !-------------------------------------------------------------------------------
@@ -2460,6 +2664,53 @@ end subroutine switch_current_Atm
 !
 ! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ !
 !-------------------------------------------------------------------------------
+! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+! !
+!
+!     mp_reduce_sum_r8_1darr :: Call SPMD REDUCE_SUM
+!
+      subroutine mp_reduce_sum_r8_1darr(mysum, npts)
+         integer, intent(in)  :: npts
+         real(kind=8), intent(inout)  :: mysum(npts)
+         real(kind=8)                 :: gsum(npts)
+
+         gsum = 0.0
+
+         call MPI_ALLREDUCE( mysum, gsum, npts, MPI_DOUBLE_PRECISION, &
+                             MPI_SUM,                                 &
+                             commglobal, ierror )
+
+         mysum = gsum
+
+      end subroutine mp_reduce_sum_r8_1darr
+!
+! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+! !
+
+!-------------------------------------------------------------------------------
+! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+! !
+!
+!     mp_reduce_sum_r8_2darr :: Call SPMD REDUCE_SUM
+!
+      subroutine mp_reduce_sum_r8_2darr(mysum, npts1,npts2)
+         integer, intent(in)  :: npts1,npts2
+         real(kind=8), intent(inout)  :: mysum(npts1,npts2)
+         real(kind=8)                 :: gsum(npts1,npts2)
+
+         gsum = 0.0
+
+         call MPI_ALLREDUCE( mysum, gsum, npts1*npts2,      &
+                             MPI_DOUBLE_PRECISION, MPI_SUM, &
+                             commglobal, ierror )
+
+         mysum = gsum
+
+      end subroutine mp_reduce_sum_r8_2darr
+!
+! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+! !
+
 #else
       implicit none
       private

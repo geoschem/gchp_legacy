@@ -286,9 +286,9 @@ function simple_cs_grid_creator(IM_World,JM_World,NX,NY,rc) result(esmfgrid)
         coordDep1 = (/1,2/),           &
         coordDep2 = (/1,2/),           &
         rc=status)
-   VERIFY_(STATUS)
+   _VERIFY(STATUS)
 
-   RETURN_(ESMF_SUCCESS)
+   _RETURN(ESMF_SUCCESS)
 
 end function simple_cs_grid_creator
 
