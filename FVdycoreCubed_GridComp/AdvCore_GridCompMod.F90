@@ -202,15 +202,47 @@ contains
          VLOCATION  = MAPL_VLocationEdge,             RC=STATUS  )
      _VERIFY(STATUS)
 
+    ! Not used in GCHP; use TRACERS instead
+    !call MAPL_AddImportSpec(GC,                                  &
+    !   SHORT_NAME         = 'TRADV',                             &
+    !   LONG_NAME          = 'advected_quantities',               &
+    !   units              = 'X',                                 &
+    !   DIMS               = MAPL_DimsHorzVert,                   &
+    !   VLOCATION          = MAPL_VLocationCenter,                &
+    !   DATATYPE           = MAPL_BundleItem,                     &
+    !                                                  RC=STATUS  )
+    ! _VERIFY(STATUS)
+
+    ! Add for GCHP
+    call MAPL_AddImportSpec ( gc,                                  &
+         SHORT_NAME = 'DryPLE0',                                   &
+         LONG_NAME  = 'dry_pressure_at_layer_edges_before_advection',&
+         UNITS      = 'Pa',                                        &
+         PRECISION  = ESMF_KIND_R8,                                &
+         DIMS       = MAPL_DimsHorzVert,                           &
+         VLOCATION  = MAPL_VLocationEdge,             RC=STATUS  )
+     VERIFY_(STATUS)
+
+    ! Add for GCHP
+    call MAPL_AddImportSpec ( gc,                                  &
+         SHORT_NAME = 'DryPLE1',                                   &
+         LONG_NAME  = 'dry_pressure_at_layer_edges_after_advection',&               
+         UNITS      = 'Pa',                                        &
+         PRECISION  = ESMF_KIND_R8,                                &
+         DIMS       = MAPL_DimsHorzVert,                           &
+         VLOCATION  = MAPL_VLocationEdge,             RC=STATUS  )
+     VERIFY_(STATUS)
+
+    ! Add for GCHP
     call MAPL_AddImportSpec(GC,                                  &
-       SHORT_NAME         = 'TRADV',                             &
+       SHORT_NAME         = 'TRACERS',                           &
        LONG_NAME          = 'advected_quantities',               &
        units              = 'X',                                 &
        DIMS               = MAPL_DimsHorzVert,                   &
        VLOCATION          = MAPL_VLocationCenter,                &
        DATATYPE           = MAPL_BundleItem,                     &
                                                       RC=STATUS  )
-     _VERIFY(STATUS)
+     VERIFY_(STATUS)
 
 ! !EXPORT STATE:
      call MAPL_AddExportSpec ( gc,                                  &
@@ -221,6 +253,25 @@ contains
           VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
      _VERIFY(STATUS)
 
+     ! Add for GCHP (ewl, 12/1/19)
+     call MAPL_AddExportSpec ( gc,                                  &
+          SHORT_NAME = 'PLE',                                       &
+          LONG_NAME  = 'pressure_at_layer_edges',                   &
+          UNITS      = 'Pa'   ,                                     &
+          PRECISION  = ESMF_KIND_R8,                                &
+          DIMS       = MAPL_DimsHorzVert,                           &
+          VLOCATION  = MAPL_VLocationEdge,               RC=STATUS  )
+     VERIFY_(STATUS)
+
+     ! Add for GCHP (ewl, 12/1/19)
+     call MAPL_AddExportSpec ( gc,                                  &
+          SHORT_NAME = 'DryPLE',                                    &
+          LONG_NAME  = 'dry_pressure_at_layer_edges',               &
+          UNITS      = 'Pa'   ,                                     &
+          PRECISION  = ESMF_KIND_R8,                                &
+          DIMS       = MAPL_DimsHorzVert,                           &
+          VLOCATION  = MAPL_VLocationEdge,               RC=STATUS  )
+     VERIFY_(STATUS)
 
 ! 3D Tracers
      do ntracer=1,ntracers
@@ -548,7 +599,9 @@ contains
       !  in the import state.
       !--------------------------------------------------------------
 
-      call ESMF_StateGet(IMPORT, "TRADV", TRADV, rc=STATUS)
+      ! Customize for GCHP: Change TRADV to TRACERS (ewl, 2/6/19)
+      !call ESMF_StateGet(IMPORT, "TRADV", TRADV, rc=STATUS)
+      call ESMF_StateGet(IMPORT, "TRACERS", TRADV, rc=STATUS)
       _VERIFY(STATUS)
       call ESMF_FieldBundleGet(TRADV, fieldCount=NQ,    rc=STATUS)
       _VERIFY(STATUS)
