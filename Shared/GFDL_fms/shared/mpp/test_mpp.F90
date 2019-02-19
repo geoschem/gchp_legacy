@@ -143,7 +143,7 @@ program test   !test various aspects of mpp_mod
   print *, 'pe, max(pe+1)=', pe, a(1)
   !pelist check
   call mpp_sync()
-  call flush(out_unit,istat)
+  flush(out_unit,istat)
   if( npes.GE.2 )then
      if( pe.EQ.root )print *, 'Test of pelists: bcast, sum and max using PEs 0...npes-2 (excluding last PE)'
      call mpp_declare_pelist( (/(i,i=0,npes-2)/) )

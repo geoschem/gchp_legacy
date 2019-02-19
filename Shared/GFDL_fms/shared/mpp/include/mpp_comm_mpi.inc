@@ -198,7 +198,7 @@ subroutine mpp_exit()
      end if
 
      call mpp_sync()
-     call FLUSH( out_unit )
+     flush( out_unit )
 
      if( pe.EQ.root_pe )then
         write( out_unit,'(/a,i6,a)' ) 'Tabulating mpp_clock statistics across ', npes, ' PEs...'
@@ -208,7 +208,7 @@ subroutine mpp_exit()
      end if
      write( log_unit,'(/37x,a)' ) 'time'
 
-     call FLUSH( out_unit )
+     flush( out_unit )
      call mpp_sync()
      do i = 1,clock_num
         if( .NOT.ANY(peset(clocks(i)%peset_num)%list(:).EQ.pe) )cycle
@@ -263,12 +263,12 @@ subroutine mpp_exit()
 
   end if
 
-  call FLUSH( out_unit )
+  flush( out_unit )
 
 ! close down etc_unit: 9
   inquire(unit=etc_unit, opened=opened)
   if (opened) then
-   call FLUSH (etc_unit)
+   flush (etc_unit)
    close(etc_unit)
   endif
 

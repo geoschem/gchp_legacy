@@ -43,7 +43,7 @@ subroutine mpp_error_basic( errortype, errormsg )
 #endif
      if(pe==root_pe)write( out_unit,'(/a/)' )trim(text)
      if( errortype.EQ.FATAL .OR. warnings_are_fatal )then
-        call FLUSH(out_unit)
+        flush(out_unit)
 #ifdef sgi_mipspro
         call TRACE_BACK_STACK_AND_PRINT()
 #endif

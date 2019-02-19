@@ -7,8 +7,7 @@ set (srcs
   MAPL_pFUnit_Throw.F90
 )  
 
-message("${this}")
-add_library (${this}  EXCLUDE_FROM_ALL ${srcs})
+esma_add_library (${this} EXCLUDE_FROM_ALL SRCS ${srcs})
 
 include_directories (${INC_ESMF})
 include_directories (${INC_NETCDF})

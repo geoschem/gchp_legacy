@@ -23,6 +23,7 @@
       use ESMF_CFIOVarInfoMod
       use ESMF_CFIOFileMod
       use netcdf
+      use, intrinsic :: ISO_FORTRAN_ENV, only: REAL64
 
       implicit none
 !------------------------------------------------------------------------------
@@ -193,14 +194,14 @@
 
 !      get integer attributes from iList
        if ( associated(cfio%iList) ) then
-          call getMaxLenCnt(maxLen, cfio%nAttInt, iList=cfio%iList)
-          allocate(cfio%attIntNames(cfio%nAttInt),                           &
-                   cfio%attIntCnts(cfio%nAttInt),                            &
-                   cfio%attInts(cfio%nAttInt,maxLen), stat=rtcode)
-          if (err("can't allocate mem: attIntCnts",rtcode,-2) .lt. 0) then  
-             if ( present(rc) ) rc = rtcode
-             return
-          end if
+!@@          call getMaxLenCnt(maxLen, cfio%nAttInt, iList=cfio%iList)
+!@@          allocate(cfio%attIntNames(cfio%nAttInt),                           &
+!@@                   cfio%attIntCnts(cfio%nAttInt),                            &
+!@@                   cfio%attInts(cfio%nAttInt,maxLen), stat=rtcode)
+!@@          if (err("can't allocate mem: attIntCnts",rtcode,-2) .lt. 0) then  
+!@@             if ( present(rc) ) rc = rtcode
+!@@             return
+!@@          end if
 
           call getList(iList=cfio%iList, intAttNames=cfio%attIntNames,       &
                        intAttCnts=cfio%attIntCnts, intAtts=cfio%attInts )
@@ -229,14 +230,14 @@
 
 !      get real attributes from rList
        if ( associated(cfio%rList) ) then
-          call getMaxLenCnt(maxLen, cfio%nAttReal, rList=cfio%rList)
-          allocate(cfio%attRealNames(cfio%nAttReal),                       &
-                   cfio%attRealCnts(cfio%nAttReal),                        &
-                   cfio%attReals(cfio%nAttReal,maxLen), stat=rtcode)
-          if (err("can't allocate mem: attRealNames",rtcode,-2) .lt. 0) then  
-             if ( present(rc) ) rc = rtcode
-             return
-          end if
+!@@          call getMaxLenCnt(maxLen, cfio%nAttReal, rList=cfio%rList)
+!@@          allocate(cfio%attRealNames(cfio%nAttReal),                       &
+!@@                   cfio%attRealCnts(cfio%nAttReal),                        &
+!@@                   cfio%attReals(cfio%nAttReal,maxLen), stat=rtcode)
+!@@          if (err("can't allocate mem: attRealNames",rtcode,-2) .lt. 0) then  
+!@@             if ( present(rc) ) rc = rtcode
+!@@             return
+!@@          end if
 
           call getList(rList=cfio%rList, realAttNames=cfio%attRealNames,   &
                        realAttCnts=cfio%attRealCnts, realAtts=cfio%attReals )
@@ -266,14 +267,14 @@
 
 !      get char attributes from cList
        if ( associated(cfio%cList) ) then
-          call getMaxLenCnt(maxLen, cfio%nAttChar, cList=cfio%cList)
-          allocate(cfio%attCharNames(cfio%nAttChar),                      &
-                   cfio%attCharCnts(cfio%nAttChar),                       &
-                   cfio%attChars(cfio%nAttChar), stat=rtcode)
-          if (err("can't allocate mem: attCharNames",rtcode,-2) .lt. 0) then  
-             if ( present(rc) ) rc = rtcode
-             return
-          end if
+!@@          call getMaxLenCnt(maxLen, cfio%nAttChar, cList=cfio%cList)
+!@@          allocate(cfio%attCharNames(cfio%nAttChar),                      &
+!@@                   cfio%attCharCnts(cfio%nAttChar),                       &
+!@@                   cfio%attChars(cfio%nAttChar), stat=rtcode)
+!@@          if (err("can't allocate mem: attCharNames",rtcode,-2) .lt. 0) then  
+!@@             if ( present(rc) ) rc = rtcode
+!@@             return
+!@@          end if
           call getList(cList=cfio%cList, charAttNames=cfio%attCharNames,  &
                        charAttCnts=cfio%attCharCnts, charAtts=cfio%attChars )
        end if
@@ -3163,7 +3164,7 @@
                lon2_64(i) = i ! index
             else
                lon2_64(i) = cfio%grids(ig)%lon(i+xOffset) ! lons at first face
-               if (lon2_64(i) > 180.0_8 ) lon2_64(i) = lon2_64(i) - 360.0_8
+               if (lon2_64(i) > 180.0d0 ) lon2_64(i) = lon2_64(i) - 360.0d0
             end if
          enddo
          do i=1,jm

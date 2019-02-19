@@ -262,6 +262,7 @@
          if (km .lt. 1) km = 1
          if ( trim(vName) .eq. trim(myName) ) exit
       end do
+!@      call ESMF_CFIOVarInfoDestroy(vars,rtcode)
       deallocate(vars)
 
       myKbeg = 1
@@ -365,6 +366,7 @@
          if ( trim(vName) .eq. trim(myName) ) exit
       end do
 
+!@      call ESMF_CFIOVarInfoDestroy(vars,rtcode)
       deallocate(vars)
 
       myKbeg = 1
@@ -453,6 +455,7 @@
       call ESMF_CFIOGridGet(grid, im=im, rc=rtcode)
       if ( rtcode .ne. 0 ) print *, "problem in calling ESMF_CFIORead"
 
+!@      call ESMF_CFIOVarInfoDestroy(vars,rtcode)
       deallocate(vars)
 
       myXbeg = 1

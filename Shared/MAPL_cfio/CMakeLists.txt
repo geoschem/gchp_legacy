@@ -2,7 +2,7 @@ esma_set_this ()
 string (REPLACE MAPL_cfio_ "" precision ${this})
 
 
-set (SRCS
+set (srcs
   ESMF_CFIOBaseMod.f
   ESMF_CFIOFileMod.F90    
   ESMF_CFIOGridMod.F90    
@@ -30,10 +30,7 @@ include_directories (${INC_ESMF})
 
 set (lib MAPL_cfio_${precision})
 
-add_library (${lib} STATIC ${SRCS})
-  
-target_include_directories (${lib} PRIVATE ${include_${this}})
-set_target_properties (${lib} PROPERTIES Fortran_MODULE_DIRECTORY ${include_${this}})
+esma_add_library (${lib} SRCS ${srcs})
 target_link_libraries (${lib} ${ESMF_LIBRARIES})
   
 if (precision MATCHES "r8")
