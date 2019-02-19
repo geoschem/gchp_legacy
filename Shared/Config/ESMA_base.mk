@@ -34,12 +34,9 @@ ifndef NODE             # same as SITE name, except sometimes SITE comes predefi
   NODE := $(shell uname -n)
 endif
 ifndef BPREC
-  # Customize for GCHP (ewl, 1/23/19)
-  #BPREC := 64#  Build with "-r8"
-  BPREC := 32 #  Build with "-r4" (ewl, 1/23/19)
+  BPREC := 64#  Build with "-r8"
 endif
 
-# Do we want to keep this for GCHP? (ewl, 1/23/2019)
 ifndef FV_PRECISION #  Toggle build precision for FV3. Set to R4 for single precision
   FV_PRECISION := R4
 endif
@@ -50,16 +47,13 @@ endif
 
 # Installation Directories
 # ------------------------
-  # Customize for GCHP (ewl, 1/23/19)
-  #ESMABIN = $(ESMADIR)/$(ARCH)/bin
-  ESMABIN = $(ESMADIR)/Config/bin
+  ESMABIN = $(ESMADIR)/$(ARCH)/bin
   ESMALIB = $(ESMADIR)/$(ARCH)/lib
   ESMAINC = $(ESMADIR)/$(ARCH)/include
   ESMAMOD = $(ESMADIR)/$(ARCH)/include
   ESMAETC = $(ESMADIR)/$(ARCH)/etc
   ESMADOC = $(ESMADIR)/$(ARCH)/doc
-  #ESMACFG = $(ESMADIR)/$(ARCH)/Config
-  ESMACFG = $(ESMADIR)/Config
+  ESMACFG = $(ESMADIR)/$(ARCH)/Config
   ESMATST = $(ESMAETC)/testsuites
   ESMAWFL = $(ESMADIR)/$(ARCH)/workflow
 
@@ -88,16 +82,12 @@ PERL        = /usr/bin/perl
 RANLIB      = /usr/bin/ranlib
 RANLIB_FLAGS= 
 RM          = /bin/rm -f
-# Customize for GCHP (ew, 1/23/2019)
-#SED         = sed                       
-SED         = /bin/sed                       
+SED         = sed                       
 TAR         = /bin/tar
 GZIP        = gzip -v
 BOPT        = O
 M4          = m4
-# Customize for GCHP (ewl, 1/23/2019)
-#FDP         = $(ESMABIN)/fdp
-FDP         = $(ESMADIR)/Config/fdp
+FDP         = $(ESMABIN)/fdp
 FDP_FLAGS   = -v
 STUB        = $(ESMABIN)/mapl_stub.pl
 ACG         = $(ESMABIN)/mapl_acg.pl 
@@ -140,110 +130,73 @@ LIB_SCI =
 INC_SYS =
 LIB_SYS =
 
-# Customize for GCHP (ewl, 1/23/19)
-#DIR_HDF5 = $(BASEDIR)/$(ARCH)
-#INC_HDF5 = $(DIR_HDF5)/include/hdf5
-#LIB_HDF5 = $(wildcard $(foreach lib,hdf5hl_fortran hdf5_hl hdf5_fortran hdf5 z sz gpfs,\
-#           $(BASELIB)/lib$(lib).a) )
-#
-#DIR_NETCDF = $(BASEDIR)/$(ARCH)
-#INC_NETCDF = $(DIR_NETCDF)/include/netcdf
-#ifneq ($(wildcard $(BASEBIN)/nf-config), )
-#    LIB_NETCDF := $(shell $(BASEBIN)/nf-config --flibs)
-#else
-#  ifneq ($(wildcard $(BASEBIN)/nc-config), )
-#      LIB_NETCDF := $(shell $(BASEBIN)/nc-config --flibs)
-#  else
-#      LIB_NETCDF = $(BASELIB)/libnetcdf.a $(LIB_HDF5)
-#  endif
-#endif
-INC_NETCDF :=$(GC_INCLUDE)
-ifdef GC_F_INCLUDE
-   INC_NETCDF +=$(GC_F_INCLUDE)
+DIR_HDF5 = $(BASEDIR)/$(ARCH)
+INC_HDF5 = $(DIR_HDF5)/include/hdf5
+LIB_HDF5 = $(wildcard $(foreach lib,hdf5hl_fortran hdf5_hl hdf5_fortran hdf5 z sz gpfs,\
+           $(BASELIB)/lib$(lib).a) )
+
+DIR_NETCDF = $(BASEDIR)/$(ARCH)
+INC_NETCDF = $(DIR_NETCDF)/include/netcdf
+ifneq ($(wildcard $(BASEBIN)/nf-config), )
+    LIB_NETCDF := $(shell $(BASEBIN)/nf-config --flibs)
+else
+  ifneq ($(wildcard $(BASEBIN)/nc-config), )
+      LIB_NETCDF := $(shell $(BASEBIN)/nc-config --flibs)
+  else
+      LIB_NETCDF = $(BASELIB)/libnetcdf.a $(LIB_HDF5)
+  endif
 endif
-LIB_NETCDF :=$(NCL)
 
-# Customize for GCHP (ewl, 1/23/19)
-#DIR_HDF = $(BASEDIR)/$(ARCH)
-#INC_HDF = $(DIR_HDF)/include/hdf
-#LIB_HDF = $(wildcard $(foreach lib,mfhdf df hdfjpeg jpeg hdfz z sz,\
-#          $(BASELIB)/lib$(lib).a) )
-#
-#ifeq ($(ESMA_SDF),hdf)
-#   INC_SDF = $(INC_HDF)
-#   LIB_SDF = $(LIB_HDF)
-#else
-#   INC_SDF = $(INC_NETCDF)
-#   LIB_SDF = $(LIB_NETCDF)
-#   ifneq ($(wildcard $(INC_SDF)/netcdf.inc), )
-#     ifneq ($(shell grep -c netcdf4 $(INC_SDF)/netcdf.inc),0)
-#        DEF_SDF += $(D)HAS_NETCDF4
-#     endif
-#     ifneq ($(shell grep -c 'netcdf version 3' $(INC_SDF)/netcdf.inc),0)
-#        DEF_SDF += $(D)HAS_NETCDF3
-#     endif
-#     ifneq ($(shell grep -c 'define H5_HAVE_PARALLEL 1' $(INC_HDF5)/H5pubconf.h),0)
-#        DEF_SDF += $(D)H5_HAVE_PARALLEL
-#        F2PY_FLAGS += --f77exec=$(FC) --f90exec=$(FC)
-#     endif
-#     ifneq ($(wildcard $(INC_SDF)/netcdf_par.h), )
-#        DEF_SDF += $(D)NETCDF_NEED_NF_MPIIO
-#     endif
-#   endif
-#endif
-INC_SDF = $(INC_NETCDF)
-LIB_SDF = $(LIB_NETCDF)
-DEF_SDF += $(D)HAS_NETCDF4 
-DEF_SDF += $(D)H5_HAVE_PARALLEL
+DIR_HDF = $(BASEDIR)/$(ARCH)
+INC_HDF = $(DIR_HDF)/include/hdf
+LIB_HDF = $(wildcard $(foreach lib,mfhdf df hdfjpeg jpeg hdfz z sz,\
+          $(BASELIB)/lib$(lib).a) )
 
-# Comment out in GCHP for now (ewl, 1/23/19)
-#F2PY += $(F2PY_FLAGS)
+ifeq ($(ESMA_SDF),hdf)
+   INC_SDF = $(INC_HDF)
+   LIB_SDF = $(LIB_HDF)
+else
+   INC_SDF = $(INC_NETCDF)
+   LIB_SDF = $(LIB_NETCDF)
+   ifneq ($(wildcard $(INC_SDF)/netcdf.inc), )
+     ifneq ($(shell grep -c netcdf4 $(INC_SDF)/netcdf.inc),0)
+        DEF_SDF += $(D)HAS_NETCDF4
+     endif
+     ifneq ($(shell grep -c 'netcdf version 3' $(INC_SDF)/netcdf.inc),0)
+        DEF_SDF += $(D)HAS_NETCDF3
+     endif
+     ifneq ($(shell grep -c 'define H5_HAVE_PARALLEL 1' $(INC_HDF5)/H5pubconf.h),0)
+        DEF_SDF += $(D)H5_HAVE_PARALLEL
+        F2PY_FLAGS += --f77exec=$(FC) --f90exec=$(FC)
+     endif
+     ifneq ($(wildcard $(INC_SDF)/netcdf_par.h), )
+        DEF_SDF += $(D)NETCDF_NEED_NF_MPIIO
+     endif
+   endif
+endif
+
+F2PY += $(F2PY_FLAGS)
 
 LIB_GCTP   = $(BASELIB)/libGctp.a
 LIB_HDFEOS = $(BASELIB)/libhdfeos.a
 LIB_EOS    = $(LIB_HDFEOS) $(LIB_GCTP)
 
-# Customize ESMF paths for GCHP (ewl, 1/23/19)
-#DIR_ESMF = $(BASEDIR)
-#INC_ESMF = $(DIR_ESMF)/$(ARCH)/include/esmf
-#MOD_ESMF = $(DIR_ESMF)/$(ARCH)/include/esmf
-#LIB_ESMF = $(DIR_ESMF)/$(ARCH)/lib/libesmf.a
-DIR_ESMF = $(ESMF_DIR)
-INC_ESMF = $(DIR_ESMF)/$(ARCH)/include/
-MOD_ESMF = $(DIR_ESMF)/$(ARCH)/mod/
-LIB_ESMF = $(DIR_ESMF)/$(ARCH)/lib/libesmf.so
+DIR_ESMF = $(BASEDIR)
+INC_ESMF = $(DIR_ESMF)/$(ARCH)/include/esmf
+MOD_ESMF = $(DIR_ESMF)/$(ARCH)/include/esmf
+LIB_ESMF = $(DIR_ESMF)/$(ARCH)/lib/libesmf.a
 
-## Customize for GCHP (ewl, 1/23/19)
-##INC_MPI = /usr/include
-##LIB_MPI = -lmpi
-#FC := mpif90
-#ifeq ($(ESMF_COMM),mvapich2)
-#   INC_MPI := $(MPI_ROOT)/include
-#   LIB_MPI := -L$(MPI_ROOT)/lib  -lmpich
-#else ifeq ($(ESMF_COMM),mpich)
-#   INC_MPI := $(MPI_ROOT)/include
-#   LIB_MPI := -L$(MPI_ROOT)/lib  -lmpich
-#else ifeq ($(ESMF_COMM),mpich2)
-#   INC_MPI := $(MPI_ROOT)/include
-#   LIB_MPI := -L$(MPI_ROOT)/lib  -lmpich
-#else ifeq ($(ESMF_COMM),openmpi)
-#   INC_MPI := $(shell mpif90 --showme:incdirs)
-#   LIB_MPI := $(shell mpif90 --showme:link)
-#   LIB_MPI += $(shell mpicxx --showme:link)
-#else ifeq ($(ESMF_COMM),mpi)
-#   # Generic MPI
-#   INC_MPI := $(MPI_ROOT)/include
-#   LIB_MPI := -L$(MPI_ROOT)/lib  -lmpi -lmpi++
-#else
-#   $(error Bad ESMF_COMM in ESMA_base.mk)
-#endif
+INC_MPI = /usr/include
+LIB_MPI = -lmpi
 
 DIR_THIS := $(shell basename `pwd`)
 INC_THIS = $(ESMAINC)/$(DIR_THIS)
 LIB_THIS = $(ESMALIB)/lib$(DIR_THIS).a
 
-# Customize for GCHP (ewl, 1/23/19)
-INC_gFTL = $(gFTL)/include
+INC_gFTL = $(BASEDIR)/$(ARCH)/gFTL/include
+
+INC_FLAP = $(BASEDIR)/$(ARCH)/include/FLAP
+LIB_FLAP = $(BASEDIR)/$(ARCH)/lib/libflap.a
 
 # This lines control linking in the Allinea 
 # profiling libraries. By default, they are not linked in.
@@ -273,9 +226,6 @@ endif
 CC        = gcc
 CXX       = g++
 CPP       = cpp
-
-# Add for GCHP (ewl, 1/23/19)
-PP        = -$(CPP)
 
 CFLAGS    = $(CDEFS) $(CINCS) $(COPT) $(USER_CFLAGS)
 CXXFLAGS  = $(CDEFS) $(CINCS) $(COPT) $(USER_CFLAGS)
@@ -307,23 +257,7 @@ BIG_ENDIAN  =
 BYTERECLEN  =
 OMPFLAG     =
 FREAL4      = 
-
-# Customize for GCHP (ewl, 1/23/19)
-#FREAL8      = -r8
-ifeq ("$(ESMF_COMPILER)","intel")
-  FREAL8      = -r8
-  FREE        =
-  CPPANSIX    = -ansi -DANSI_CPP 
-else ifeq ("$(ESMF_COMPILER)","gfortran")
-  FREAL8      = -fdefault-real-8 -fdefault-double-8
-  FREE        = -ffree-form -ffree-line-length-none -Wno-line-truncation -fno-range-check
-  CPPANSIX    = -std=gnu11 -nostdinc -C
-else
-  FREAL8      =
-  FREE        =
-  CPPANSIX    = -ansi -DANSI_CPP 
-endif
-
+FREAL8      = -r8
 ifeq ( "$(BPREC)","32" )
       FREAL = $(FREAL4)
 else
@@ -339,14 +273,10 @@ endif
 
 FDEFS     = $(D)sys$(ARCH) $(D)ESMA$(BPREC) $(DEF_SDF) $(USER_FDEFS)
 FINCS     = $(foreach dir,$(INC_ESMF), $(I)$(dir)) $(USER_FINCS)
-# Customize for GCHP (ewl, 1/23/19)
-#FMODS     = $(foreach dir,$(INC_ESMF), $(M)$(dir)) $(USER_FMODS)
-FMODS     = $(foreach dir,$(MOD_ESMF), $(M)$(dir)) $(USER_FMODS)
+FMODS     = $(foreach dir,$(INC_ESMF), $(M)$(dir)) $(USER_FMODS)
 XFLAGS    = 
 
-# Remove this for GCHP since reserved for compiler env var (ewl, 1/23/19)
-#FC        = f90
-
+FC        = f90
 fFLAGS    = $(FDEFS) $(FINCS) $(FMODS) $(FOPT) $(FREAL) $(FINT) $(XFLAGS) $(USER_FFLAGS)
 f90FLAGS  = $(FDEFS) $(FINCS) $(FMODS) $(FOPT) $(FREAL) $(FINT) $(XFLAGS) $(USER_FFLAGS)
 FFLAGS    = $(FDEFS) $(FINCS) $(FMODS) $(FOPT) $(FREAL) $(FINT) $(XFLAGS) $(USER_FFLAGS)
@@ -364,9 +294,7 @@ LDFLAGS = $(LDPATH) $(USER_LDFLAGS)
 #                     -----------------
 
 .SUFFIXES:
-# Customize for GCHP (ewl, 1/23/2019)
-#.SUFFIXES: .m4 .F90 .f90 .F .f .c .o .H .h .d .tex .dvi .pdf 
-.SUFFIXES: .P90 .m4 .F90 .f90 .F .f .c .o .H .h .d .tex .dvi .pdf
+.SUFFIXES: .m4 .F90 .f90 .F .f .c .o .H .h .d .tex .dvi .pdf 
 
 .c.o:
 	$(ESMA_TIMER) $(CC) -c $(CFLAGS) $<
@@ -385,12 +313,6 @@ LDFLAGS = $(LDPATH) $(USER_LDFLAGS)
 
 .F90.o:
 	$(ESMA_TIMER) $(FC) -c $(F90FLAGS) $<
-
-# Add for GCHP. Is this needed? (ewl, 1/23/2019)
-.P90.o:
-	@sed -e "/\!.*'/s/'//g" $< | $(CPP) $(CPPANSIX) $(FPPFLAGS) > $*___.f90
-	$(ESMA_TIMER) $(FC) -c $(f90FLAGS) -o $*.o $*___.f90
-	@$(RM) $*___.f90
 
 .H.h:
 	$(FPP) $(FPPFLAGS) $*.H > $*.h
@@ -418,10 +340,6 @@ LDFLAGS = $(LDPATH) $(USER_LDFLAGS)
 	-@$(CPP) $(FPPFLAGS) $< > $*___.f90
 	@$(PERL) $(FDP) -i $< $(FDP_FLAGS) -c $*___.f90
 	@$(RM) $*___.f90
-
-# Add for GCHP. Is this needed? (ewl, 1/23/2019)
-.P90.d:
-	@$(PERL) $(FDP) -i $< $(FDP_FLAGS) -c $<
 
 .m4.d:
 	$(M4) $(M4FLAGS) $*.m4 > $*___.F90
@@ -463,6 +381,4 @@ LDFLAGS = $(LDPATH) $(USER_LDFLAGS)
 	$(DVIPS) $*.dvi -o $*.ps # going thru ps tend to produce searchable PDF
 	$(PS2PDF) $*.ps
 	$(RM) -rf $*.ps
-
-
 

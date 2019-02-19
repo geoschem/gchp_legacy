@@ -2,15 +2,7 @@
   # GNU Fortran
   # -----------
 
-  # Customize for GCHP (ewl, 1/31/19)
-  #ifeq ($(ESMA_FC), gfortran)
-  ifeq ($(word 1,$(shell $(FC) --version)), GNU)
-
-     # Customize for GCHP (ewl, 1/31/19)
-     CC = gcc
-     CXX = c++
-     CPP = cpp
-
+  ifeq ($(ESMA_FC), gfortran)
      MKL_COMPILER = gnu_f
 
      EXTENDED_SOURCE := -ffixed-line-length-132
@@ -28,16 +20,11 @@
      ALIGNCOM = -falign-commons
      BYTERECLEN = -frecord-marker=4
 
-     # Customize for GCHP (ewl, 1/31/19)
-     #OMPFLAG = -fopenmp
-     OMPFLAG =
-
+     OMPFLAG = -fopenmp
      PP = -cpp
 
      ifeq ("$(BOPT)","g")
-        # Customize for GCHP (ewl, 1/31/19)
-        #FOPT = -O0 -g -fcheck=all,no-array-temps -finit-real=snan
-        FOPT = $(FOPTG) -fbacktrace -fcheck=bounds,do,mem,pointer,recursion -ffpe-trap=invalid,overflow,underflow
+        FOPT = -O0 -g -fcheck=all,no-array-temps -finit-real=snan
      else
      ifeq ("$(BOPT)","Og")
         FOPT = -Og -g
@@ -48,9 +35,7 @@
         #FOPT = $(FOPT3)
         #FOPT = $(FOPT3) -march=native -funroll-loops
         #FOPT = $(FOPT3) -march=native -funroll-loops -ffast-math
-        # Customize for GCHP (ewl, 1/31/19)
-        #FOPT = $(FOPT3) -march=westmere -mtune=generic -funroll-loops -g
-        FOPT = $(FOPT3) -falign-commons -funroll-loops -fcray-pointer
+        FOPT = $(FOPT3) -march=westmere -mtune=generic -funroll-loops -g
      endif
      endif
      endif
@@ -59,17 +44,11 @@
      # This is broken in GCC 8.1. For now just do not use
      #FOPT += -fcoarray=single
 
-     # Customize for GCHP (ewl, 1/31/19)
-     #CFLAGS   += -Wno-missing-include-dirs
-     #fFLAGS   += $(D)__GFORTRAN__ $(NO_RANGE_CHECK) -Wno-missing-include-dirs
-     #FFLAGS   += $(D)__GFORTRAN__ $(NO_RANGE_CHECK) -Wno-missing-include-dirs
-     #f90FLAGS += $(D)__GFORTRAN__ -ffree-line-length-none $(NO_RANGE_CHECK) -Wno-missing-include-dirs
-     #F90FLAGS += $(D)__GFORTRAN__ -ffree-line-length-none $(NO_RANGE_CHECK) -Wno-missing-include-dirs
      CFLAGS   += -Wno-missing-include-dirs
-     fFLAGS   += $(D)__GFORTRAN__ -Wno-missing-include-dirs
-     FFLAGS   += $(D)__GFORTRAN__ -Wno-missing-include-dirs
-     f90FLAGS += $(D)__GFORTRAN__ -Wno-missing-include-dirs
-     F90FLAGS += $(D)__GFORTRAN__ -Wno-missing-include-dirs
+     fFLAGS   += $(D)__GFORTRAN__ $(NO_RANGE_CHECK) -Wno-missing-include-dirs
+     FFLAGS   += $(D)__GFORTRAN__ $(NO_RANGE_CHECK) -Wno-missing-include-dirs
+     f90FLAGS += $(D)__GFORTRAN__ -ffree-line-length-none $(NO_RANGE_CHECK) -Wno-missing-include-dirs
+     F90FLAGS += $(D)__GFORTRAN__ -ffree-line-length-none $(NO_RANGE_CHECK) -Wno-missing-include-dirs
 
      # Define LIB_SYS
      # --------------
@@ -88,8 +67,5 @@
 
         LIB_SYS += -L$(GCC_DIR) -L$(GXX_DIR) -lstdc++ -lgcc_eh
      endif
-
-     # Customize LIB_SYS for GCHP (ewl, 1/31/19)
-     LIB_SYS = -ldl -lc -lpthread -lrt -lstdc++
 
   endif # gfortran
