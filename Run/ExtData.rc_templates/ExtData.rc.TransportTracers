@@ -58,12 +58,12 @@ SEAICE60 '1'       xy  C N Y F0;003000 none none SEAICE60   ./MetDir/%y4/%m2/{ME
 SEAICE70 '1'       xy  C N Y F0;003000 none none SEAICE70   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
 SEAICE80 '1'       xy  C N Y F0;003000 none none SEAICE80   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
 SEAICE90 '1'       xy  C N Y F0;003000 none none SEAICE90   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-SLP      'hPa'     xy  C N Y F0;003000 none none SLP        ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+SLP      {PRES_UNIT}       xy  C N Y F0;003000 none {PRES_SCALE} SLP        ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
 SNODP    '1'       xy  C N Y F0;003000 none none SNODP      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
 SNOMAS   '1'       xy  C N Y F0;003000 none none SNOMAS     ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
 RADSWG   '1'       xy  C N Y F0;003000 none none SWGDN      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
 TO3      'dobson'  xy  C N Y F0;003000 none none TO3        ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-TROPP    '1'       xy  C N Y F0;003000 none none TROPPT     ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+TROPP    {PRES_UNIT}       xy  C N Y F0;003000 none {PRES_SCALE} TROPPT     ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
 TSKIN    '1'       xy  C N Y F0;003000 none none TS         ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
 TS       '1'       xy  C N Y F0;003000 none none T2M        ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
 USTAR    '1'       xy  C N Y F0;003000 none none USTAR      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
@@ -72,8 +72,8 @@ V10M     'm s-1'   xy  C N N F0;003000 none none V10M       ./MetDir/%y4/%m2/{ME
 Z0       '1'       xy  C N Y F0;003000 none none Z0M        ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
 
 # --- Surface pressure, 3-hr instantaneous ---
-PS1      'hPa'     xy  E N Y 0         none none PS         ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.I3.{MET_RES}.{MET_EXT}
-PS2      'hPa'     xy  E N Y 0;001000  none none PS         ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.I3.{MET_RES}.{MET_EXT}
+PS1      {PRES_UNIT}     xy  E N Y 0         none {PRES_SCALE} PS         ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.I3.{MET_RES}.{MET_EXT}
+PS2      {PRES_UNIT}     xy  E N Y 0;001000  none {PRES_SCALE} PS         ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.I3.{MET_RES}.{MET_EXT}
 
 # --- 3D variables, 3-hr instantaneous ---
 SPHU1    'kg kg-1' xyz C N Y 0         none none QV         ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.I3.{MET_RES}.{MET_EXT}
