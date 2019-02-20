@@ -99,12 +99,16 @@ do
         met_resolution='025x03125'
         met_extension='nc'
         met_cn_year='2011'
+	pressure_unit='hPa'
+	pressure_scale='1.0 '
 	valid_met=1
     elif [[ ${met_num} = "2" ]]; then
 	met_name='MERRA2'
         met_resolution='05x0625'
         met_extension='nc4'
         met_cn_year='2015'
+	pressure_unit='Pa '
+	pressure_scale='0.01'
 	valid_met=1
     else
 	printf "Invalid meteorology option. Try again.\n"
@@ -225,6 +229,9 @@ sed -i -e "s|{MET_RES}|${met_resolution}|"   ${rundir}/ExtData.rc
 sed -i -e "s|{MET_EXT}|${met_extension}|"    ${rundir}/ExtData.rc
 sed -i -e "s|{MET_CN_YR}|${met_cn_year}|"    ${rundir}/ExtData.rc # 1st in line
 sed -i -e "s|{MET_CN_YR}|${met_cn_year}|"    ${rundir}/ExtData.rc # 2nd in line
+sed -i -e "s|{PRES_UNIT}|${pressure_unit}|"  ${rundir}/ExtData.rc
+sed -i -e "s|{PRES_SCALE}|${pressure_scale}|" ${rundir}/ExtData.rc
+
 
 # Special handling for start/end date based on simulation so that
 # start matches default initial restart files. Run directory is

@@ -53,7 +53,7 @@ fi
 # Set run directory path
 rundir=$PWD
 gcdir=$(readlink -f CodeDir)
-gchpdir=${codedir}/GCHP
+gchpdir=${gcdir}/GCHP
 
 # Check source your environment file. This requires first setting the gchp.env
 # symbolic link using script setEnvironment in the run directory. 
