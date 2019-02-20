@@ -1910,6 +1910,7 @@ CONTAINS
   
           ! Compute State_Met variables IREG, ILAND, IUSE, and FRCLND
           CALL Compute_Olson_Landmap( am_I_Root, Input_Opt, State_Met, RC )
+          ASSERT_(RC==GC_SUCCESS)
        ENDIF
        
        !=======================================================================
