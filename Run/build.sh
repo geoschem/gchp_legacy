@@ -147,14 +147,14 @@ fi
 if [[ $1 == "build" ]]; then
    cd ${gcdir}
    if [[ $2 == "--debug" ]]; then
-      make -j${SLURM_NTASKS} NC_DIAG=y   CHEM=standard  EXTERNAL_GRID=y  \
-                             DEBUG=y     TRACEBACK=y    MET=geosfp       \
-                             GRID=4x5    NO_REDUCED=y   BOUNDS=y         \
-                             FPEX=y      hpc
+      make -j${NUM_JOB_SLOTS} NC_DIAG=y   CHEM=standard  EXTERNAL_GRID=y  \
+                              DEBUG=y     TRACEBACK=y    MET=geosfp       \
+                              GRID=4x5    NO_REDUCED=y   BOUNDS=y         \
+                              FPEX=y      hpc
    else 
-      make -j${SLURM_NTASKS} NC_DIAG=y   CHEM=standard EXTERNAL_GRID=y   \
-                             DEBUG=n     TRACEBACK=y   MET=geosfp        \
-                             GRID=4x5    NO_REDUCED=y  hpc
+      make -j${NUM_JOB_SLOTS} NC_DIAG=y   CHEM=standard EXTERNAL_GRID=y   \
+                              DEBUG=n     TRACEBACK=y   MET=geosfp        \
+                              GRID=4x5    NO_REDUCED=y  hpc
    fi
 
 #### LEGACY OPTIONS (pre-12.2)
@@ -169,10 +169,10 @@ elif [[ $1 == "compile_debug"      ]]; then
    make clean
    cd ${gcdir}
    rm -f ${gcdir}/bin/geos
-   make -j${SLURM_NTASKS} NC_DIAG=y   CHEM=standard  EXTERNAL_GRID=y  \
-                          DEBUG=y     TRACEBACK=y    MET=geosfp       \
-                          GRID=4x5    NO_REDUCED=y   BOUNDS=y         \
-                          FPEX=y      hpc
+   make -j${NUM_JOB_SLOTS} NC_DIAG=y   CHEM=standard  EXTERNAL_GRID=y  \
+                           DEBUG=y     TRACEBACK=y    MET=geosfp       \
+                           GRID=4x5    NO_REDUCED=y   BOUNDS=y         \
+                           FPEX=y      hpc
 
 #-----------------------------------------------------------------------
 #   compile_standard
@@ -184,9 +184,9 @@ elif [[ $1 == "compile_standard"      ]]; then
    make clean
    cd ${gcdir}
    rm -f ${gcdir}/bin/geos
-   make -j${SLURM_NTASKS} NC_DIAG=y   CHEM=standard EXTERNAL_GRID=y   \
-                          DEBUG=n     TRACEBACK=y   MET=geosfp        \
-                          GRID=4x5    NO_REDUCED=y  hpc
+   make -j${NUM_JOB_SLOTS} NC_DIAG=y   CHEM=standard EXTERNAL_GRID=y   \
+                           DEBUG=n     TRACEBACK=y   MET=geosfp        \
+                           GRID=4x5    NO_REDUCED=y  hpc
 
 #-----------------------------------------------------------------------
 #   compile_mapl
@@ -196,15 +196,15 @@ elif [[ $1 == "compile_mapl"      ]]; then
    echo "WARNING: build.sh option compile_mapl will be deprecated in a future version, replaced with build_mapl."
    make realclean
    cd ${gchpdir}
-   make EXTERNAL_GRID=y  DEBUG=y   GRID=4x5      MET=geosfp      \
+   make EXTERNAL_GRID=y  DEBUG=y   GRID=4x5  MET=geosfp \
         NO_REDUCED=y     wipeout_fvdycore
-   make EXTERNAL_GRID=y  DEBUG=y   GRID=4x5      MET=geosfp      \
+   make EXTERNAL_GRID=y  DEBUG=y   GRID=4x5  MET=geosfp \
         NO_REDUCED=y     wipeout_mapl
    cd ${gcdir}
    rm -f ${gcdir}/bin/geos
-   make -j${SLURM_NTASKS} NC_DIAG=y   CHEM=standard EXTERNAL_GRID=y   \
-                          DEBUG=n     TRACEBACK=y   MET=geosfp        \
-                          GRID=4x5    NO_REDUCED=y  hpc
+   make -j${NUM_JOB_SLOTS} NC_DIAG=y   CHEM=standard EXTERNAL_GRID=y   \
+                           DEBUG=n     TRACEBACK=y   MET=geosfp        \
+                           GRID=4x5    NO_REDUCED=y  hpc
 
 #-----------------------------------------------------------------------
 #   compile_clean
@@ -217,9 +217,9 @@ elif [[ $1 == "compile_clean"      ]]; then
    make EXTERNAL_GRID=y the_nuclear_option
    cd ${gcdir}
    rm -f ${gcdir}/bin/geos
-   make -j${SLURM_NTASKS} NC_DIAG=y   CHEM=standard EXTERNAL_GRID=y   \
-                          DEBUG=n     TRACEBACK=y   MET=geosfp        \
-                          GRID=4x5    NO_REDUCED=y  hpc
+   make -j${NUM_JOB_SLOTS} NC_DIAG=y   CHEM=standard EXTERNAL_GRID=y   \
+                           DEBUG=n     TRACEBACK=y   MET=geosfp        \
+                           GRID=4x5    NO_REDUCED=y  hpc
 
 fi
 
