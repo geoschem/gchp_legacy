@@ -68,18 +68,11 @@
      # This is broken in GCC 8.1. For now just do not use
      #FOPT += -fcoarray=single
 
-     # Changed for GCHP
-     #CFLAGS   += -Wno-missing-include-dirs
-     #fFLAGS   += $(D)__GFORTRAN__ $(NO_RANGE_CHECK) -Wno-missing-include-dirs
-     #FFLAGS   += $(D)__GFORTRAN__ $(NO_RANGE_CHECK) -Wno-missing-include-dirs
-     #f90FLAGS += $(D)__GFORTRAN__ -ffree-line-length-none $(NO_RANGE_CHECK) -Wno-missing-include-dirs
-     #F90FLAGS += $(D)__GFORTRAN__ -ffree-line-length-none $(NO_RANGE_CHECK) -Wno-missing-include-dirs
      CFLAGS   += -Wno-missing-include-dirs
-     fFLAGS   += $(D)__GFORTRAN__ -Wno-missing-include-dirs
-     FFLAGS   += $(D)__GFORTRAN__ -Wno-missing-include-dirs
-     f90FLAGS += $(D)__GFORTRAN__ -Wno-missing-include-dirs
-     F90FLAGS += $(D)__GFORTRAN__ -Wno-missing-include-dirs
-     #---
+     fFLAGS   += $(D)__GFORTRAN__ $(NO_RANGE_CHECK) -Wno-missing-include-dirs
+     FFLAGS   += $(D)__GFORTRAN__ $(NO_RANGE_CHECK) -Wno-missing-include-dirs
+     f90FLAGS += $(D)__GFORTRAN__ -ffree-line-length-none $(NO_RANGE_CHECK) -Wno-missing-include-dirs
+     F90FLAGS += $(D)__GFORTRAN__ -ffree-line-length-none $(NO_RANGE_CHECK) -Wno-missing-include-dirs
 
      # Define LIB_SYS
      # --------------

@@ -151,8 +151,9 @@ SRCS :=  ESMFL_Mod.F90            MAPL_HeapMod.F90       MAPL_VarSpecMod.F90\
          MAPL_StringIntegerMap.F90 CFIOCollection.F90 ESMF_CFIOPtrVectorMod.F90 Regrid_Functions_Mod.F90 \
          MAPL_HistoryCollection.F90 MAPL_TransposeRegridder.F90 MAPL_GetLatLonCoord.F90 MAPL_EsmfRegridder.F90 \
          MAPL_newCFIO.F90 MAPL_newCFIOitem.F90 MAPL_VerticalMethods.F90 MAPL_TimeMethods.F90\
-	 MAPL_NUOPCWrapperMod.F90 MAPL_ServerManager.F90 MAPL_ESMFTimeVectorMod.F90
-
+	 MAPL_ServerManager.F90 MAPL_ESMFTimeVectorMod.F90
+# Remove MAPL_NUOPCWrapperMod.F90 from GCHP
+#	 MAPL_NUOPCWrapperMod.F90 MAPL_ServerManager.F90 MAPL_ESMFTimeVectorMod.F90
 
 # Hack to allow runs on jaguar
 # FOPT = $(FOPT0) 

@@ -117,8 +117,11 @@ contains
       class (*), intent(in) :: values(:,:)
       integer, optional, intent(out) :: rc
       class (*), allocatable :: values1d(:)
-      
-      values1d = reshape(values, [product(shape(values))])
+
+      ! Change for GCHP so compatible with ifort17
+      !values1d = reshape(values, [product(shape(values))])
+      ALLOCATE(values1d, source=reshape(values, [product(shape(values))])) 
+
       attr = UnlimitedEntity(values1d)
       attr%shape = shape(values)
 
@@ -131,7 +134,10 @@ contains
       integer, optional, intent(out) :: rc
       class (*), allocatable :: values1d(:)
       
-      values1d = reshape(values, [product(shape(values))])
+      ! Change for GCHP so compatible with ifort17
+      !values1d = reshape(values, [product(shape(values))])
+      ALLOCATE(values1d, source=reshape(values, [product(shape(values))])) 
+
       attr = UnlimitedEntity(values1d)
       attr%shape = shape(values)
       _RETURN(_SUCCESS)
@@ -143,7 +149,10 @@ contains
       integer, optional, intent(out) :: rc
       class (*), allocatable :: values1d(:)
       
-      values1d = reshape(values, [product(shape(values))])
+      ! Change for GCHP so compatible with ifort17
+      !values1d = reshape(values, [product(shape(values))])
+      ALLOCATE(values1d, source=reshape(values, [product(shape(values))])) 
+
       attr = UnlimitedEntity(values1d)
       attr%shape = shape(values)
       _RETURN(_SUCCESS)
