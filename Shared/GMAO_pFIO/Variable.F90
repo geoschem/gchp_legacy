@@ -211,8 +211,14 @@ contains
       character(len=*), intent(in) :: attr_name
       integer, optional, intent(out) :: rc
 
+      ! Add for GCHP
+      character(len=63) :: msg
+
       attr => this%attributes%at(attr_name)
-      _ASSERT(associated(attr), "no such attribute : " // trim(attr_name))
+      ! Change for GCHP to avoid compile error
+      !_ASSERT!(associated(attr), "no such attribute : " // trim(attr_name))
+      msg = "no such attribute : " // trim(attr_name)
+      _ASSERT(associated(attr), msg)
       _RETURN(_SUCCESS)
    end function get_attribute
 
@@ -225,8 +231,7 @@ contains
 
       rank = const_value%get_rank()
       dims = this%dimensions%size()
-
-      _ASSERT( dims == rank, "dimensions and rank don't match.  Add dimension first")
+      _ASSERT( dims == rank, "dimensions and rank don't match. Add dimensions first")
 
       this%const_value = const_value
       _RETURN(_SUCCESS)
