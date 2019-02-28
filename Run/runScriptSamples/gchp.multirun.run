@@ -6,6 +6,8 @@
 #SBATCH -p huce_intel
 #SBATCH --mem=50000
 #SBATCH --mail-type=ALL
+#SBATCH -o slurm.%j.out
+#SBATCH -e slurm.%j.err
 
 # Initial version: Lizzie Lundgren, 7/12/2018
 
@@ -16,17 +18,22 @@
 # NOTES:
 #  1. This run script is used within gchp.multirun.sh and should not be 
 #     used on its own. Use gchp.run instead if not doing multi-segmented runs.
-#  2. All stdout is sent to gchp.log without deleting the existing file..
-#  3. cap_restart is not deleted; the content is sent to the multirun log 
-#     and is used to determine if a GCHP run was successful. If it does not 
-#     exist at the end of the run, or if its content did not change since the
-#     last run, then all jobs will be cancelled.
+#  2. All stdout is sent to slurm.jobid.out so each run will have a separate run log.
+#  3. Log file multirun.log contains information about all runs, including job ids
+#     and cancellation information if a problem is encountered.
+#  3. Unlike at the start of gchp.run for single segmented runs, cap_restart is not 
+#     deleted at the start of multi-segemented runs; the content is sent to the 
+#     multirun log and is used to determine if a GCHP run was successful. If it does 
+#     not exist at the end of the run, or if its content did not change since the
+#     last run, then all jobs will be cancelled and a notification about that will be
+#     sent to multirun.log.
 
 # See SLURM documentation for descriptions of the above settings as well
 # as many other settings you may use.
 
-# Define GEOS-Chem log files
-gchplog="gchp.log"
+# Define GEOS-Chem log files, except stdout and stderr which are sent to
+# slurm.jobid.out and slurm.jobid.err, as configured with the sbatch commands at
+# the top of this script.
 multirunlog="multirun.log"
 runconfiglog="runConfig.log"
 
@@ -132,17 +139,17 @@ if [[ $? == 0 ]]; then
    echo "cores per nodes: ${planeCount}"
    
    # Echo start date
-   echo '===> Run started at' `date` >> ${gchplog}
+   echo '===> Run started at' `date`
    
    # Odyssey-specific setting to get around connection issues at high # cores
    export OMPI_MCL_btl=openib
 
    # Run the simulation
    # SLURM_NTASKS is #SBATCH -n and SLURM_NNODES is #SBATCH -N above
-   time srun -n ${coreCount} -N ${SLURM_NNODES} -m plane=${planeCount} --mpi=pmix ./geos >> ${gchplog}
+   time srun -n ${coreCount} -N ${SLURM_NNODES} -m plane=${planeCount} --mpi=pmix ./geos
    
    # Echo end date
-   echo '===> Run ended at' `date` >> ${gchplog}
+   echo '===> Run ended at' `date`
 fi
 
 # Check that cap_restart exists. If it does not, cancel all remaining jobs
