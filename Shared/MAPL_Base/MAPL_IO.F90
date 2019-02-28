@@ -7048,6 +7048,7 @@ module MAPL_IOMod
     integer                            :: dna
     logical                            :: bootstrapable_
     logical                            :: isPresent
+    character(len=255)                 :: msg
     
     ! get a list of variables in the file so we can skip if the 
     ! variable in the state is not in the file and it is bootstrapable
@@ -7188,7 +7189,8 @@ module MAPL_IOMod
                      call ESMF_AttributeSet ( field, name='RESTART', &
                              value=MAPL_RestartBootstrap, rc=status)
                   else
-                     _ASSERT(.false., "  Could not find field "//trim(FieldName)//" in "//trim(filename))
+                     msg = "  Could not find field "//trim(FieldName)//" in "//trim(filename)
+                     _ASSERT(.false., trim(msg))
                   end if
                end if
 
@@ -7245,7 +7247,8 @@ module MAPL_IOMod
                     call ESMF_AttributeSet ( field, name='RESTART', &
                             value=MAPL_RestartBootstrap, rc=status)
                 else
-                    _ASSERT(.false., "  Could not find field "//trim(Fieldname)//" in "//trim(filename))
+                    msg = "  Could not find field "//trim(Fieldname)//" in "//trim(filename)
+                    _ASSERT(.false., trim(msg))
                 end if
              end if
 

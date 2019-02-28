@@ -203,6 +203,8 @@ contains
 
    type(ESMF_StateItem_Flag)  :: itemType
    logical                    :: isPresent
+
+   character(len=255)         :: msg
    
 !   integer                    :: gridRank
 
@@ -226,8 +228,9 @@ contains
 ! Make sure field is not in bundle
 
       call ESMF_FieldBundleGet(BUNDLE, FIELDNAME=NameInBundle, isPresent=isPresent, rc=STATUS)
-      _VERIFY(STATUS) 
-      _ASSERT(.not. isPresent, trim(NameInBundle) // ' not found in bundle.')
+      _VERIFY(STATUS)
+      msg =  trim(NameInBundle) // ' not found in bundle.'
+      _ASSERT(.not. isPresent, trim(msg))
 
 ! Get Field from State
 

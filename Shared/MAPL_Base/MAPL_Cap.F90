@@ -677,6 +677,7 @@ contains
       character(*), intent(in) :: flag_name
       class (KeywordEnforcer), optional, intent(in) :: unusable
       integer, optional, intent(out) :: rc
+      character(len=255) :: msg
 
       _UNUSED_DUMMY(unusable)
 
@@ -690,7 +691,8 @@ contains
       case ('multi_on_error')
          this%esmf_logging_mode = ESMF_LOGKIND_MULTI_ON_ERROR
       case default
-         _FAIL("Unsupported ESMF logging option: "//flag_name)
+         msg = "Unsupported ESMF logging option: "//flag_name
+         _FAIL(trim(msg))
       end select
 
       _RETURN(_SUCCESS)

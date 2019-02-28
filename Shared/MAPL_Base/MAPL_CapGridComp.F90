@@ -167,6 +167,8 @@ contains
     procedure(), pointer :: root_set_services
     type(MAPL_CapGridComp), pointer :: cap
 
+    character(len=255) :: msg
+
     _UNUSED_DUMMY(import_state)
     _UNUSED_DUMMY(export_state)
     _UNUSED_DUMMY(clock)
@@ -351,7 +353,8 @@ contains
        case("MINMAX")
           timerMode = MAPL_TimerModeMinMax      ! this is the default
        case default
-          _FAIL('Unsupported option for timerModeStr: '//trim(timerModeStr))
+          msg = 'Unsupported option for timerModeStr: '//trim(timerModeStr)
+          _FAIL(trim(msg))
        end select TestTimerMode
        call MAPL_TimerModeSet(timerMode, RC=status)
        _VERIFY(status)
@@ -1203,6 +1206,8 @@ contains
     integer        :: UNIT
     integer        :: datetime(2)
 
+    character(len=255) :: msg
+
     ! Begin
     !------
 
@@ -1329,7 +1334,8 @@ contains
        call ESMF_CalendarSetDefault(ESMF_CALKIND_NOLEAP, RC=STATUS)
        _VERIFY(STATUS)
     else
-       _FAIL('Unsupported calendar:'//trim(calendar))
+       msg = 'Unsupported calendar:'//trim(calendar)
+       _FAIL(trim(msg))
     endif
 
     ! initialize start time for Alarm frequencies

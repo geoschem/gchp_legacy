@@ -123,6 +123,7 @@ contains
       integer, optional, intent(out) :: rc
 
       type (StringIntegerMapIterator) :: iter
+      character(len=255) :: msg
 
       _UNUSED_DUMMY(unusable)
       iter = this%dimensions%find(dim_name)
@@ -132,7 +133,8 @@ contains
          _RETURN(_SUCCESS)
       else
          extent = 0
-         _ASSERT(.false., 'FileMetadata::get_dimension() - no such dimension <'//dim_name//'>.')
+         msg = 'FileMetadata::get_dimension() - no such dimension <'//dim_name//'>.'
+         _ASSERT(.false., trim(msg))
       end if
       
    end function get_dimension
@@ -170,11 +172,13 @@ contains
       character(len=*), intent(in) :: attr_name
       class (KeywordEnforcer), optional, intent(in) :: unusable
       integer, optional, intent(out) :: rc
+      character(len=255) :: msg
 
       _UNUSED_DUMMY(unusable)
 
       ref => this%global%get_attribute(attr_name)
-      _ASSERT(associated(ref),'FileMetadata::get_attribute() - no such attribute <'//attr_name//'>.')
+      msg = 'FileMetadata::get_attribute() - no such attribute <'//attr_name//'>.'
+      _ASSERT(associated(ref), trim(msg))
       _RETURN(_SUCCESS)
    end function get_attribute
 
@@ -223,12 +227,14 @@ contains
       integer, optional, intent(out) :: rc
 
       class (Variable), pointer :: tmp
-      
+      character(len=255) :: msg      
+
       _UNUSED_DUMMY(unusable)
 
       tmp => this%variables%at(var_name)
 
-      _ASSERT(associated(tmp),'can not find '//trim(var_name))
+      msg = 'can not find '//trim(var_name)
+      _ASSERT(associated(tmp), trim(msg))
 
       select type (tmp)
       class is (CoordinateVariable)
@@ -249,12 +255,14 @@ contains
       integer, optional, intent(out) :: rc
 
       class (Variable), pointer :: tmp
-      
+      character(len=255) :: msg      
+
       _UNUSED_DUMMY(unusable)
 
       tmp => this%variables%at(var_name)
 
-      _ASSERT(associated(tmp), 'can not find the varaible '//trim(var_name))
+      msg = 'can not find the varaible '//trim(var_name)
+      _ASSERT(associated(tmp), trim(msg))
       select type (tmp)
       class is (CoordinateVariable)
          is_coordinate_variable = .true.
@@ -290,6 +298,7 @@ contains
       type (UnlimitedEntity), pointer :: const_value_ptr
       integer, allocatable :: shp(:), shp_const(:)
       integer :: empty(0)
+      character(len=255) :: msg
 
       _UNUSED_DUMMY(unusable)
 
@@ -301,7 +310,11 @@ contains
 
          dim_name => iter%get()
          dim_this => this%dimensions%at(dim_name)
-         _ASSERT( associated(dim_this),"FileMetadata::add_variable() - undefined dimension: " // dim_name)
+         if ( .not. associated(dim_this) ) then
+            msg = "FileMetadata::add_variable() - undefined dimension: " &
+                  // dim_name
+            _ASSERT( associated(dim_this), trim(msg))
+         end if
          shp =[shp,dim_this]
          call iter%next()
       end do
@@ -328,6 +341,7 @@ contains
       type (StringVectorIterator) :: iter
       integer, pointer :: dim_this
       character(len=:), pointer :: dim_name
+      character(len=255) :: msg
 
       _UNUSED_DUMMY(unusable)
 
@@ -337,7 +351,11 @@ contains
       do while (iter /= dims%end())
          dim_name => iter%get()
          dim_this => this%dimensions%at(dim_name)
-         _ASSERT( associated(dim_this), "FileMetadata:: modify_variable() - undefined dimension " // dim_name )
+         if ( .not. associated(dim_this) ) then
+            msg = "FileMetadata:: modify_variable() - undefined dimension " &
+                  // dim_name
+            _ASSERT( associated(dim_this), trim(msg) )
+         end if
          call iter%next()
       end do
 
