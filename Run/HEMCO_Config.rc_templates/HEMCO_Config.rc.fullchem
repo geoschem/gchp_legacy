@@ -122,7 +122,7 @@ Warnings:                    1
     --> QFED2                  :       false
     --> GFAS                   :       false
     --> SALT_SSALT_OFFLINE     :       true
-    --> SEA_SFLUX_OFFLINE      :       true
+    --> SEA_SFLUX_OFFLINE      :       false
     --> NOX_LTNG_OFFLINE       :       true
     --> DECAYING_PLANTS        :       true
     --> SHIP                   :       true
@@ -139,7 +139,7 @@ Warnings:                    1
     --> VOLCANO                :       true
 # -----------------------------------------------------------------------------
 100     Custom                 : off   - 
-101     SeaFlux                : off   DMS/ACET/ALD2
+101     SeaFlux                : on    DMS/ACET/ALD2
 102     ParaNOx                : on    NO/NO2/O3/HNO3
     --> LUT data format        :       txt
     --> LUT source dir         :       $ROOT/PARANOX/v2015-02
