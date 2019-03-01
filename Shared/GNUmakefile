@@ -39,7 +39,7 @@ esma_help :
 #                   Recurse Make in Sub-directories
 #                  --------------------------------
 
-# Change for GCHP
+# Reduce build list for GCHP
 #ALLDIRS = arpack pnagpack \
 #          GMAO_mpeu GMAO_pilgrim GMAO_mfhdf3 \
 #          GMAO_gfio GMAO_gfioeos GMAO_perllib \
@@ -50,13 +50,18 @@ esma_help :
 #          GMAO_iret GEOS_Util GMAO_pyobs GMAO_radmon GMAO_stoch \
 #          GMAO_ncdiag \
 #          GEOS_Pert
-ALLDIRS = arpack pnagpack \
-          GMAO_mpeu GMAO_pilgrim\
-          GMAO_gfio GMAO_perllib \
-          MAPL_cfio GMAO_pFIO \
-          MAPL_Base GEOS_Shared \
-          GMAO_etc  GMAO_hermes \
-          GFDL_fms  GEOS_Util
+ALLDIRS = GMAO_mpeu   \
+          GMAO_gfio   \
+          MAPL_cfio   \
+          GMAO_pFIO   \
+          MAPL_Base   \
+          GMAO_hermes \
+          GFDL_fms
+# Needed for advection: 
+#     GFDL_fms, GMAO_hermes (which needs GMAO_gfio which needs GMAO_mpeu)
+# Needed for MAPL: 
+#     GMAO_mpeu, MAPL_cfio, GMAO_pFIO, MAPL_Base
+# Eventually add MAPL_pFUnit for potential unit testing adaption
 #---
 
 SUBDIRS = $(wildcard $(ALLDIRS) )

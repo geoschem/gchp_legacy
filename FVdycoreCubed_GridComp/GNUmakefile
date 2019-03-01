@@ -40,8 +40,11 @@ esma_help help:
 THIS := $(shell basename `pwd`)
 LIB   = lib$(THIS).a
 #BINS  = StandAlone_FV3_Dycore.x interp_restarts.x c2c.x c2l_CFIO_offline.x 
-BINS  = StandAlone_DynAdvCore.x StandAlone_AdvCore.x StandAlone_FV3_Dycore.x interp_restarts.x c2c.x rs_scale.x
+# Comment out for GCHP
+#BINS  = StandAlone_DynAdvCore.x StandAlone_AdvCore.x StandAlone_FV3_Dycore.x interp_restarts.x c2c.x rs_scale.x
 #BINS  = StandAlone_DynAdvCore.x StandAlone_AdvCore.x StandAlone_FV3_Dycore.x c2l_CFIO_offline.x CreateTopography.x CreateInterpWeights.x interp_restarts.x c2c.x
+# Custom for GCHP
+BINS  = c2c.x rs_scale.x
 
 ALLDIRS = fvdycore
 
@@ -86,18 +89,31 @@ local_esma_doc local_doc:
 #                  --------------------
 
 
-SRCS := sw.f90 jw.f90 testcases_3_4_5_6_stand_alone.f90 \
-	GetWeightsC2C.F90 \
-	GetWeights.F90 \
+# Customize for GCHP
+#SRCS := sw.f90 jw.f90 testcases_3_4_5_6_stand_alone.f90 \
+#	GetWeightsC2C.F90 \
+#	GetWeights.F90 \
+#	CubeHalo.F90 \
+#        Cube2LatLon.F90 LatLon2Cube.F90 AppGridCreate.F90 FV_StateMod.F90 \
+#        AdvCore_GridCompMod.F90 \
+#        DynCore_GridCompMod.F90 CreateInterpWeights_GridCompMod.F90 \
+#        StandAlone_DynAdvCore_GridCompMod.F90\
+#	CubedSphereGridFactory.F90\
+#        CubeToLatLonRegridder.F90 \
+#        LatLonToCubeRegridder.F90 \
+#        CubeToCubeRegridder.F90 \
+#        CubeToLatLon.F90
+SRCS := GetWeightsC2C.F90 \
+        GetWeights.F90 \
 	CubeHalo.F90 \
-        Cube2LatLon.F90 LatLon2Cube.F90 AppGridCreate.F90 FV_StateMod.F90 \
+        FV_StateMod.F90 \
         AdvCore_GridCompMod.F90 \
-        DynCore_GridCompMod.F90 CreateInterpWeights_GridCompMod.F90 \
-        StandAlone_DynAdvCore_GridCompMod.F90\
+        CreateInterpWeights_GridCompMod.F90 \
 	CubedSphereGridFactory.F90\
         CubeToLatLonRegridder.F90 \
         LatLonToCubeRegridder.F90 \
         CubeToCubeRegridder.F90 \
+        LatLon2Cube.F90 \
         CubeToLatLon.F90
 
 OBJS := $(addsuffix .o, $(basename $(SRCS))) 
