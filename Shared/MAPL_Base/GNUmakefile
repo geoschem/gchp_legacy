@@ -167,7 +167,9 @@ OBJS := $(addsuffix .o, $(basename $(SRCS)))
 DEPS := $(addsuffix .d, $(basename $(SRCS))) \
         $(addsuffix .d, $(basename $(BINS)))
 
-INC_DIRS = . $(INC_ESMF) $(INC_MPI) $(INC_SDF) $(INC_gFTL) $(INC_FLAP)
+# Change for GCHP
+#INC_DIRS = . $(INC_ESMF) $(INC_MPI) $(INC_SDF) $(INC_gFTL) $(INC_FLAP)
+INC_DIRS = . $(INC_ESMF) $(INC_MPI) $(INC_SDF) $(INC_gFTL)
 MOD_DIRS = $(INC_DIRS) $(INC_CFIO) $(INC_GMAO_pFIO)
 
 USER_FINCS = $(foreach dir,$(INC_DIRS),$(I)$(dir))
@@ -219,11 +221,17 @@ $(LIB) lib : $(DEPS) $(OBJS)
 	$(AR) $(AR_FLAGS) $(LIB) $(OBJS)
 	$(RANLIB) $(RANLIB_FLAGS) $(LIB)
 
+# Change for GCHP
+#%.x : $(LIB) %.o
+#	$(FC) $(LDFLAGS) -o $@ $*.o $(LIB) \
+#              $(LIB_ESMF) $(LIB_CFIO) $(LIB_GMAO_pFIO) \
+#              $(wildcard $(LIB_MFHDF3)) $(LIB_SDF)\
+#              $(LIB_MPI) $(LIB_SYS) $(LIB_FLAP)
 %.x : $(LIB) %.o
 	$(FC) $(LDFLAGS) -o $@ $*.o $(LIB) \
               $(LIB_ESMF) $(LIB_CFIO) $(LIB_GMAO_pFIO) \
               $(wildcard $(LIB_MFHDF3)) $(LIB_SDF)\
-              $(LIB_MPI) $(LIB_SYS) $(LIB_FLAP)
+              $(LIB_MPI) $(LIB_SYS)
 
 test: $(TESTS)
 	  @ argv="$(TESTS)" ;\

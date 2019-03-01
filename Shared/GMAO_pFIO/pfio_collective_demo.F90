@@ -332,7 +332,8 @@ program main
    if(options%server_type == 'openmp') then
      if (required > provided) stop "provided thread is not enough for openmp"
      num_threads = 10
-     call omp_set_num_threads(num_threads) 
+     ! Comment out for GCHP
+     !call omp_set_num_threads(num_threads) 
    endif
 
    d_s => get_directory_service(options%server_type)

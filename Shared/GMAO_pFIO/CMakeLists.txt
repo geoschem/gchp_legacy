@@ -97,7 +97,8 @@ esma_add_library(${this} SRCS ${srcs})
 target_include_directories (${this} PUBLIC ${INC_ESMF} ${INC_gFTL} ${INC_NETCDF})
 target_link_libraries (${this} PUBLIC ${ESMF_LIBRARIES} ${MPI_Fortran_LIBRARIES})
 
-include_directories (${INC_FLAP})
+# Comment out for GCHP
+#include_directories (${INC_FLAP})
 
 
 #target_compile_options (${this} PRIVATE $<$<COMPILE_LANGUAGE:Fortran>:${OpenMP_Fortran_FLAGS}>)

@@ -234,8 +234,9 @@ LIB_THIS = $(ESMALIB)/lib$(DIR_THIS).a
 INC_gFTL = $(gFTL)/include
 #---
 
-INC_FLAP = $(BASEDIR)/$(ARCH)/include/FLAP
-LIB_FLAP = $(BASEDIR)/$(ARCH)/lib/libflap.a
+# Comment out for GCHP
+#INC_FLAP = $(BASEDIR)/$(ARCH)/include/FLAP
+#LIB_FLAP = $(BASEDIR)/$(ARCH)/lib/libflap.a
 
 # This lines control linking in the Allinea 
 # profiling libraries. By default, they are not linked in.
