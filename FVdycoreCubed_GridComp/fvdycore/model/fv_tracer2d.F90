@@ -901,6 +901,9 @@ subroutine offline_tracer_advection(q, ple0, ple1, mfx, mfy, cx, cy, &
       integer :: is,  ie,  js,  je
       integer :: isd, ied, jsd, jed
 
+      ! Add for GCHP
+      integer :: kstart
+
       is  = bd%is
       ie  = bd%ie
       js  = bd%js
@@ -1053,8 +1056,10 @@ end subroutine offline_tracer_advection
 
          integer :: k
          real :: partialSums(3,npz), globalSums(3)
-         real, parameter :: TINY_DENOMINATOR = tiny(1.d0)
-         !real, parameter :: TINY_DENOMINATOR = 1.d-5
+         ! Change this for GCHP to avoid error "warning #7919: The value was too small when converting to REAL(KIND=4); the result is zero"
+         !real, parameter :: TINY_DENOMINATOR = tiny(1.d0)
+         !!real, parameter :: TINY_DENOMINATOR = 1.d-5
+         real, parameter :: TINY_DENOMINATOR = 1.1d0
          real :: tempSum
 
          real, pointer, dimension(:,:) :: area
