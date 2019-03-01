@@ -13,7 +13,7 @@
 ! !USES:
       use ESMF
       use MAPL_Mod
-      use FV_StateMod, only : fv_computeMassFluxes_r8
+      !use FV_StateMod, only : fv_computeMassFluxes_r8
       use m_set_eta,  only : set_eta
 
       implicit none
@@ -663,8 +663,8 @@
       ! Use dry pressure at the start of the timestep to calculate mass
       ! fluxes. GMAO method uses mid-step UC, VC and PLE?
       PLEr8 = 1.00d0*(DryPLE0r8)
-      call fv_computeMassFluxes_r8(UCr8, VCr8, PLEr8, &
-                                   MFXr8, MFYr8, CXr8, CYr8, dt)
+      !call fv_computeMassFluxes_r8(UCr8, VCr8, PLEr8, &
+      !                             MFXr8, MFYr8, CXr8, CYr8, dt)
 
       !DEALLOCATE( UCr8, VCr8, PLEr8, PLE0, PLE1, DryPLE0, DryPLE1 )
       DEALLOCATE( UCr8, VCr8, PLEr8 )
