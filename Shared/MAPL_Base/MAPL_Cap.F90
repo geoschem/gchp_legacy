@@ -5,7 +5,8 @@
 module MAPL_CapMod
    use MPI
    use ESMF
-   use FLAP
+   ! Comment out for GCHP since not using command line tool
+   !use FLAP
    use MAPL_SimpleCommSplitterMod
    use MAPL_SplitCommunicatorMod
    use MAPL_KeywordEnforcerMod
@@ -21,7 +22,8 @@ module MAPL_CapMod
    public :: MAPL_Cap
 
    type :: MAPL_Cap
-      private
+      ! Make members of this derived type public for GCHP so can manually set
+      !private
       character(:), allocatable :: name
       procedure(), nopass, pointer :: set_services => null()
       integer :: comm_world = MPI_COMM_WORLD
@@ -62,9 +64,10 @@ module MAPL_CapMod
       procedure :: initialize_mpi
       procedure :: finalize_mpi
 
-      ! Methods for processing command line arguments
-      procedure, nopass :: add_command_line_options
-      procedure :: parse_command_line_arguments
+      ! Comment out for GCHP pending install of command line tool
+      !! Methods for processing command line arguments
+      !procedure, nopass :: add_command_line_options
+      !procedure :: parse_command_line_arguments
       procedure :: set_esmf_logging_mode
 
       !setters and getters
@@ -123,25 +126,35 @@ contains
 
     end function new_MAPL_Cap
 
-   
    ! 1. Start MPI if necessary
    ! 2. Parse command line options
    ! 3. Run the ensemble (default is 1 member)
    ! 4. Finalize MPI if initialized locally.
-   subroutine run(this, options, unusable, rc)
+! Edit for GCHP to remove dependency on command line interface
+   !subroutine run(this, options, unusable, rc)
+   subroutine run(this, unusable, rc)
       class (MAPL_Cap), intent(inout) :: this
-      type (command_line_interface), intent(inout) :: options
+      ! Comment out for GCHP
+      !type (command_line_interface), intent(inout) :: options
       class (KeywordEnforcer), optional, intent(in) :: unusable
       integer, optional, intent(out) :: rc
 
       integer :: status
 
       _UNUSED_DUMMY(unusable)
-
       call this%initialize_mpi(rc=status); _VERIFY(status)
-      call this%parse_command_line_arguments(options, rc=status); _VERIFY(status)
-      call this%run_ensemble(rc=status); _VERIFY(status)
 
+      ! Comment out GCHP; replace with manually setting options
+      !call this%parse_command_line_arguments(options, rc=status); _VERIFY(status)
+      this%npes_input_server = 0
+      this%npes_output_server = 0
+      this%nodes_input_server = 0
+      this%nodes_output_server = 0
+      this%ensemble_subdir_prefix = ''
+      call MPI_Comm_Size(this%comm_world, this%npes_model, status)
+      call MPI_Comm_Size(this%comm_world, this%npes_member, status)
+
+      call this%run_ensemble(rc=status); _VERIFY(status)
       call this%finalize_mpi(rc=status); _VERIFY(status)
       _RETURN(_SUCCESS)
 
@@ -159,7 +172,7 @@ contains
       integer :: subcommunicator
 
       _UNUSED_DUMMY(unusable)
-      
+
       subcommunicator = this%create_member_subcommunicator(this%comm_world, rc=status); _VERIFY(status)
       if (subcommunicator /= MPI_COMM_NULL) then
          call this%initialize_io_servers(subcommunicator, rc = status); _VERIFY(status)
@@ -525,151 +538,151 @@ contains
 
    end subroutine finalize_mpi
 
+   ! Comment out for GCHP
+   !! Static method
+   !subroutine add_command_line_options(options, unusable, rc)
+   !   type (command_line_interface), intent(inout) :: options
+   !   class (KeywordEnforcer), optional, intent(in) :: unusable
+   !   integer, optional, intent(out) :: rc
+   !
+   !   integer :: status
+   !   _UNUSED_DUMMY(unusable)
+   !
+   !   call options%add(switch='--esmf_logtype',                   &
+   !        help='ESMF Logging type',                   &
+   !        required=.false.,                           &
+   !        choices='none,single,multi,multi_on_error', &
+   !        def='none',                                 &
+   !        act='store',                                &
+   !        error=status)
+   !   _VERIFY(status)
+   !   call options%add(switch='--egress_file', &
+   !               help='Egress file name', &
+   !               required=.false.,        &
+   !               def='EGRESS',            &
+   !               act='store',             &
+   !               hidden=.true.,           &
+   !               error=status)
+   !   _VERIFY(status)
+   !   call options%add(switch='--cap_rc',            &
+   !        help='CAP resource file name', &
+   !        required=.false.,              &
+   !        def='CAP.rc',                  &
+   !        act='store',                   &
+   !        error=status)
+   !   _VERIFY(status)
+   !
+   !
+   !   call options%add(switch='--npes', &
+   !        help='# MPI processes used by model CapGridComp', &
+   !        required=.false., &
+   !        act='store', &
+   !        def='*', &
+   !        error=status)
+   !   _VERIFY(status)
+   !
+   !   call options%add(switch='--n_members', &
+   !        help='# MPI processes used by model CapGridComp1', &
+   !        required=.false., &
+   !        act='store', &
+   !        def='1', &
+   !        error=status)
+   !   _VERIFY(status)
+   !
+   !   call options%add(switch='--prefix', &
+   !        help='prefix for ensemble subdirectories', &
+   !        required=.false., &
+   !        act='store', &
+   !        def='mem', &
+   !        error=status)
+   !   _VERIFY(status)
+   !
+   !   call options%add(switch='--npes_input_server', &
+   !        help='# MPI processes used by input server', &
+   !        required=.false., &
+   !        def='0', &
+   !        exclude = '--nodes_input_server', &
+   !        act='store', &
+   !        error=status)
+   !   _VERIFY(status)
+   !   
+   !   call options%add(switch='--npes_output_server', &
+   !        help='# MPI processes used by output server', &
+   !        required=.false., &
+   !        def='0', &
+   !        exclude = '--nodes_output_server', &
+   !        act='store', &
+   !        error=status)
+   !   _VERIFY(status)
+   !
+   !   call options%add(switch='--nodes_input_server', &
+   !        help='# NCCS nodes (28 or more processors ) used by input server', &
+   !        required=.false., &
+   !        def='0', &
+   !        exclude = '--npes_input_server', &
+   !        act='store', &
+   !        error=status)
+   !   _VERIFY(status)
+   !   
+   !   call options%add(switch='--nodes_output_server', &
+   !        help='# NCCS nodes (28 or more processors) used by output server', &
+   !        required=.false., &
+   !        def='0', &
+   !        exclude = '--npes_output_server', &
+   !        act='store', &
+   !        error=status)
+   !   _VERIFY(status)
+   !   _RETURN(_SUCCESS)
+   !
+   !
+   !end subroutine add_command_line_options
 
-   ! Static method
-   subroutine add_command_line_options(options, unusable, rc)
-      type (command_line_interface), intent(inout) :: options
-      class (KeywordEnforcer), optional, intent(in) :: unusable
-      integer, optional, intent(out) :: rc
-
-      integer :: status
-      _UNUSED_DUMMY(unusable)
-
-      call options%add(switch='--esmf_logtype',                   &
-           help='ESMF Logging type',                   &
-           required=.false.,                           &
-           choices='none,single,multi,multi_on_error', &
-           def='none',                                 &
-           act='store',                                &
-           error=status)
-      _VERIFY(status)
-      call options%add(switch='--egress_file', &
-                  help='Egress file name', &
-                  required=.false.,        &
-                  def='EGRESS',            &
-                  act='store',             &
-                  hidden=.true.,           &
-                  error=status)
-      _VERIFY(status)
-      call options%add(switch='--cap_rc',            &
-           help='CAP resource file name', &
-           required=.false.,              &
-           def='CAP.rc',                  &
-           act='store',                   &
-           error=status)
-      _VERIFY(status)
-
-
-      call options%add(switch='--npes', &
-           help='# MPI processes used by model CapGridComp', &
-           required=.false., &
-           act='store', &
-           def='*', &
-           error=status)
-      _VERIFY(status)
-
-      call options%add(switch='--n_members', &
-           help='# MPI processes used by model CapGridComp1', &
-           required=.false., &
-           act='store', &
-           def='1', &
-           error=status)
-      _VERIFY(status)
-
-      call options%add(switch='--prefix', &
-           help='prefix for ensemble subdirectories', &
-           required=.false., &
-           act='store', &
-           def='mem', &
-           error=status)
-      _VERIFY(status)
-
-      call options%add(switch='--npes_input_server', &
-           help='# MPI processes used by input server', &
-           required=.false., &
-           def='0', &
-           exclude = '--nodes_input_server', &
-           act='store', &
-           error=status)
-      _VERIFY(status)
-      
-      call options%add(switch='--npes_output_server', &
-           help='# MPI processes used by output server', &
-           required=.false., &
-           def='0', &
-           exclude = '--nodes_output_server', &
-           act='store', &
-           error=status)
-      _VERIFY(status)
-
-      call options%add(switch='--nodes_input_server', &
-           help='# NCCS nodes (28 or more processors ) used by input server', &
-           required=.false., &
-           def='0', &
-           exclude = '--npes_input_server', &
-           act='store', &
-           error=status)
-      _VERIFY(status)
-      
-      call options%add(switch='--nodes_output_server', &
-           help='# NCCS nodes (28 or more processors) used by output server', &
-           required=.false., &
-           def='0', &
-           exclude = '--npes_output_server', &
-           act='store', &
-           error=status)
-      _VERIFY(status)
-      _RETURN(_SUCCESS)
-
-
-   end subroutine add_command_line_options
-
-
-   subroutine parse_command_line_arguments(this, options, unusable, rc)
-      class (MAPL_Cap), intent(inout) :: this
-      type (command_line_interface), intent(inout) :: options
-      class (KeywordEnforcer), optional, intent(in) :: unusable
-      integer, optional, intent(out) :: rc
-
-      integer :: status, ierror
-      character(80) :: buffer
-      integer :: npes_world
-
-      _UNUSED_DUMMY(unusable)
-
-      call options%get(val=buffer, switch='--egress_file', error=status); _VERIFY(status)
-      this%egress_file = trim(buffer)
-
-      call MPI_Comm_size(this%comm_world, npes_world, ierror); _VERIFY(ierror)
-      call options%get(val=buffer, switch='--npes', error=status); _VERIFY(status)
-      select case (trim(buffer))
-      case ('*')
-         this%npes_model = npes_world
-      case default
-         call options%get(val=this%npes_model, switch='--npes', error=status); _VERIFY(status)
-      end select
-
-      call options%get(val=this%npes_input_server, switch='--npes_input_server', error=status); _VERIFY(status)
-      call options%get(val=this%npes_output_server, switch='--npes_output_server', error=status); _VERIFY(status)
-      call options%get(val=this%nodes_input_server, switch='--nodes_input_server', error=status); _VERIFY(status)
-      call options%get(val=this%nodes_output_server, switch='--nodes_output_server', error=status); _VERIFY(status)
-
-      call options%get(val=buffer, switch='--esmf_logtype', error=status); _VERIFY(status)
-      call this%set_esmf_logging_mode(trim(buffer), rc=status); _VERIFY(status)
-
-      ! Ensemble specific options
-      call options%get(val=buffer, switch='--prefix', error=status); _VERIFY(status)
-      this%ensemble_subdir_prefix = trim(buffer)
-      call options%get(val=this%n_members, switch='--n_members', error=status); _VERIFY(status)
-      
-      call options%get(val=buffer, switch='--cap_rc', error=status); _VERIFY(status)
-      this%cap_rc_file = trim(buffer)
-      ! Note: we round down when computing the number of pe's in each
-      ! member.  This is either eneough for all members or not enough
-      ! for all members.
-      this%npes_member = npes_world / this%n_members
-
-   end subroutine parse_command_line_arguments
+   ! Comment out for GCHP
+   !subroutine parse_command_line_arguments(this, options, unusable, rc)
+   !   class (MAPL_Cap), intent(inout) :: this
+   !   type (command_line_interface), intent(inout) :: options
+   !   class (KeywordEnforcer), optional, intent(in) :: unusable
+   !   integer, optional, intent(out) :: rc
+   !
+   !   integer :: status, ierror
+   !   character(80) :: buffer
+   !   integer :: npes_world
+   !
+   !   _UNUSED_DUMMY(unusable)
+   !
+   !   call options%get(val=buffer, switch='--egress_file', error=status); _VERIFY(status)
+   !   this%egress_file = trim(buffer)
+   !
+   !   call MPI_Comm_size(this%comm_world, npes_world, ierror); _VERIFY(ierror)
+   !   call options%get(val=buffer, switch='--npes', error=status); _VERIFY(status)
+   !   select case (trim(buffer))
+   !   case ('*')
+   !      this%npes_model = npes_world
+   !   case default
+   !      call options%get(val=this%npes_model, switch='--npes', error=status); _VERIFY(status)
+   !   end select
+   !
+   !   call options%get(val=this%npes_input_server, switch='--npes_input_server', error=status); _VERIFY(status)
+   !   call options%get(val=this%npes_output_server, switch='--npes_output_server', error=status); _VERIFY(status)
+   !   call options%get(val=this%nodes_input_server, switch='--nodes_input_server', error=status); _VERIFY(status)
+   !   call options%get(val=this%nodes_output_server, switch='--nodes_output_server', error=status); _VERIFY(status)
+   !
+   !   call options%get(val=buffer, switch='--esmf_logtype', error=status); _VERIFY(status)
+   !   call this%set_esmf_logging_mode(trim(buffer), rc=status); _VERIFY(status)
+   !
+   !   ! Ensemble specific options
+   !   call options%get(val=buffer, switch='--prefix', error=status); _VERIFY(status)
+   !   this%ensemble_subdir_prefix = trim(buffer)
+   !   call options%get(val=this%n_members, switch='--n_members', error=status); _VERIFY(status)
+   !   
+   !   call options%get(val=buffer, switch='--cap_rc', error=status); _VERIFY(status)
+   !   this%cap_rc_file = trim(buffer)
+   !   ! Note: we round down when computing the number of pe's in each
+   !   ! member.  This is either eneough for all members or not enough
+   !   ! for all members.
+   !   this%npes_member = npes_world / this%n_members
+   !
+   !end subroutine parse_command_line_arguments
 
 
    subroutine set_esmf_logging_mode(this, flag_name, unusable, rc)
