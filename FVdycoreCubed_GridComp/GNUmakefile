@@ -104,16 +104,15 @@ local_esma_doc local_doc:
 #        CubeToCubeRegridder.F90 \
 #        CubeToLatLon.F90
 SRCS := GetWeightsC2C.F90 \
-        GetWeights.F90 \
+	GetWeights.F90 \
 	CubeHalo.F90 \
-        FV_StateMod.F90 \
+        Cube2LatLon.F90 LatLon2Cube.F90 AppGridCreate.F90 FV_StateMod.F90 \
         AdvCore_GridCompMod.F90 \
         CreateInterpWeights_GridCompMod.F90 \
 	CubedSphereGridFactory.F90\
         CubeToLatLonRegridder.F90 \
         LatLonToCubeRegridder.F90 \
         CubeToCubeRegridder.F90 \
-        LatLon2Cube.F90 \
         CubeToLatLon.F90
 
 OBJS := $(addsuffix .o, $(basename $(SRCS))) 
