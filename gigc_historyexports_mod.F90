@@ -159,14 +159,14 @@ CONTAINS
        ASSERT_(.FALSE.)
        RETURN
     ENDIF
-    CALL Print_DiagList( am_I_Root, HistoryConfig%DiagList, RC )
+    !CALL Print_DiagList( am_I_Root, HistoryConfig%DiagList, RC )
 
     CALL Init_HistoryExportsList( am_I_Root, HistoryConfig, RC )
     IF ( RC == GC_FAILURE ) THEN
        ASSERT_(.FALSE.)
        RETURN
     ENDIF
-    CALL Print_HistoryExportsList( am_I_Root, HistoryConfig, RC )
+    !CALL Print_HistoryExportsList( am_I_Root, HistoryConfig, RC )
 
   END SUBROUTINE Init_HistoryConfig
 !EOC
