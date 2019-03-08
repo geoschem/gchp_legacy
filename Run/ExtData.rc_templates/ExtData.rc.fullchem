@@ -113,6 +113,106 @@ PHIS     'm2 s-2'  xy  C N Y -         none none PHIS       ./MetDir/{MET_CN_YR}
 
 ###############################################################################
 ###
+### Land data (not handled by HEMCO)
+###
+###############################################################################
+
+#==============================================================================
+# Olson land types - conservative frac regridding of OLSON as float
+#==============================================================================
+OLSON00 1 xy C N F;0  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON01 1 xy C N F;1  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON02 1 xy C N F;2  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON03 1 xy C N F;3  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON04 1 xy C N F;4  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON05 1 xy C N F;5  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON06 1 xy C N F;6  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON07 1 xy C N F;7  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON08 1 xy C N F;8  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON09 1 xy C N F;9  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON10 1 xy C N F;10 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON11 1 xy C N F;11 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON12 1 xy C N F;12 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON13 1 xy C N F;13 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON14 1 xy C N F;14 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON15 1 xy C N F;15 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON16 1 xy C N F;16 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON17 1 xy C N F;17 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON18 1 xy C N F;18 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON19 1 xy C N F;19 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON20 1 xy C N F;20 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON21 1 xy C N F;21 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON22 1 xy C N F;22 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON23 1 xy C N F;23 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON24 1 xy C N F;24 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON25 1 xy C N F;25 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON26 1 xy C N F;26 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON27 1 xy C N F;27 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON28 1 xy C N F;28 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON29 1 xy C N F;29 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON30 1 xy C N F;30 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON31 1 xy C N F;31 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON32 1 xy C N F;32 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON33 1 xy C N F;33 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON34 1 xy C N F;34 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON35 1 xy C N F;35 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON36 1 xy C N F;36 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON37 1 xy C N F;37 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON38 1 xy C N F;38 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON39 1 xy C N F;39 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON40 1 xy C N F;40 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON41 1 xy C N F;41 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON42 1 xy C N F;42 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON43 1 xy C N F;43 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON44 1 xy C N F;44 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON45 1 xy C N F;45 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON46 1 xy C N F;46 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON47 1 xy C N F;47 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON48 1 xy C N F;48 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON49 1 xy C N F;49 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON50 1 xy C N F;50 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON51 1 xy C N F;51 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON52 1 xy C N F;52 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON53 1 xy C N F;53 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON54 1 xy C N F;54 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON55 1 xy C N F;55 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON56 1 xy C N F;56 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON57 1 xy C N F;57 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON58 1 xy C N F;58 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON59 1 xy C N F;59 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON60 1 xy C N F;60 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON61 1 xy C N F;61 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON62 1 xy C N F;62 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON63 1 xy C N F;63 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON64 1 xy C N F;64 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON65 1 xy C N F;65 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON66 1 xy C N F;66 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON67 1 xy C N F;67 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON68 1 xy C N F;68 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON69 1 xy C N F;69 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON70 1 xy C N F;70 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON71 1 xy C N F;71 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+OLSON72 1 xy C N F;72 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+
+#==============================================================================
+# MODIS Leaf Area Index (land type is 3rd dimension) 
+# Comment out and use Yuan processed MODIS XLAI product below
+#==============================================================================
+#XLAIMULTI cm2_cm-2 xyz E N Y %y4-%m2-%d2T00:00:00 none none XLAIMULTI ./ChemDataDir/MODIS_LAI_201707/For_Olson_2001/XLAI_for_GCHP/%y4/Condensed_MODIS_XLAI.025x025.%y4%m2.nc
+
+#==============================================================================
+# Yuan processed MODIS leaf area index data
+#==============================================================================
+XLAIMULTI cm2_cm-2 xyz E N Y %y4-%m2-%d2T00:00:00 none none XLAIMULTI ./MainDataDir/Yuan_XLAI/v2019-03/Condensed_Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+
+#==============================================================================
+# MODIS Chlorophyll-a (land type is 3rd dimension)
+# (uncomment if using the marine POA simulation) 
+#==============================================================================
+#XCHLRMULTI mg_m-3 xyz E N Y %y4-%m2-%d2T00:00:00 none none XCHLRMULTI ./ChemDataDir/MODIS_LAI_201204/For_Olson_2001/XCHLR_for_GCHP/%y4/Condensed_MODIS_CHLR.025x025.%y4%m2.nc
+
+###############################################################################
+###
 ### HEMCO Base Emissions (Update if HEMCO_Config.rc changes) 
 ###
 ###############################################################################
