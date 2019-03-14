@@ -202,14 +202,14 @@ OLSON72 1 xy C N F;72 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olso
 #
 # NOTE: Use this until MAPL v1.0.0 is released (bmy, 3/11/19)
 #==============================================================================
-#XLAIMULTI cm2_cm-2 xyz E N Y %y4-%m2-%d2T00:00:00 none none XLAIMULTI ./ChemDataDir/MODIS_LAI_201707/For_Olson_2001/XLAI_for_GCHP/%y4/Condensed_MODIS_XLAI.025x025.%y4%m2.nc
+XLAIMULTI cm2_cm-2 xyz E N Y %y4-%m2-%d2T00:00:00 none none XLAIMULTI ./ChemDataDir/MODIS_LAI_201707/For_Olson_2001/XLAI_for_GCHP/%y4/Condensed_MODIS_XLAI.025x025.%y4%m2.nc
 
 #==============================================================================
 # Yuan processed MODIS leaf area index data
 #
 # NOTE: Use these until MAPL v1.0.0 is released (bmy, 3/11/19)
 #==============================================================================
-XLAIMULTI cm2_cm-2 xyz E N Y %y4-%m2-%d2T00:00:00 none none XLAIMULTI ./MainDataDir/Yuan_XLAI/v2019-03/Condensed_Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAIMULTI cm2_cm-2 xyz E N Y %y4-%m2-%d2T00:00:00 none none XLAIMULTI ./MainDataDir/Yuan_XLAI/v2019-03/Condensed_Yuan_proc_MODIS_XLAI.025x025.%y4.nc
 
 #==============================================================================
 # MODIS Chlorophyll-a (land type is 3rd dimension)
