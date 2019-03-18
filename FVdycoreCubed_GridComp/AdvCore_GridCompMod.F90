@@ -1,4 +1,4 @@
- !------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
 #include "MAPL_Generic.h"
 !
 !------------------------------------------------------------------------------
@@ -520,6 +520,7 @@ contains
 ! Exports
       REAL(FVPRC), POINTER, DIMENSION(:,:,:)   :: PLE
       REAL(FVPRC), POINTER, DIMENSION(:,:,:)   :: DryPLE
+
 ! Locals
       REAL(FVPRC), POINTER, DIMENSION(:)       :: AK
       REAL(FVPRC), POINTER, DIMENSION(:)       :: BK
@@ -640,12 +641,16 @@ contains
          if (chk_mass) then
         ! Check Mass conservation
             if (firstRun .and. AdvCore_Advection>0) then
-               MASS0 = g_sum(FV_Atm(1)%domain, PLE0(:,:,LM), is,ie, js,je, FV_Atm(1)%ng, FV_Atm(1)%gridstruct%area_64, 1, .true.)
-               call global_integral(TMASS0, TRACERS, PLE0, IM,JM,LM,NQ)
+               MASS0 = g_sum(FV_Atm(1)%domain, DryPLE0(:,:,LM), is,ie, js,je, &
+                             FV_Atm(1)%ng, FV_Atm(1)%gridstruct%area_64, 1,   &
+                             .true.)
+               call global_integral(TMASS0, TRACERS, DryPLE0, IM,JM,LM,NQ)
                if (MASS0 /= 0.0) TMASS0=TMASS0/MASS0
             elseif (firstRun) then
-               MASS0 = g_sum(FV_Atm(1)%domain, PLE1(:,:,LM), is,ie, js,je, FV_Atm(1)%ng, FV_Atm(1)%gridstruct%area_64, 1, .true.)
-               call global_integral(TMASS0, TRACERS, PLE1, IM,JM,LM,NQ)
+               MASS0 = g_sum(FV_Atm(1)%domain, DryPLE1(:,:,LM), is,ie, js,je, &
+                             FV_Atm(1)%ng, FV_Atm(1)%gridstruct%area_64, 1,   &
+                             .true.)
+               call global_integral(TMASS0, TRACERS, DryPLE1, IM,JM,LM,NQ)
                if (MASS0 /= 0.0) TMASS0=TMASS0/MASS0
             endif
          endif
@@ -655,18 +660,26 @@ contains
          !------------------
          if (AdvCore_Advection>0) then
          call WRITE_PARALLEL("offline_tracer_advection")
-         call offline_tracer_advection(TRACERS, PLE0, PLE1, MFX, MFY, CX, CY, &
-                                       fv_atm(1)%gridstruct, fv_atm(1)%flagstruct, fv_atm(1)%bd, &
-                                       fv_atm(1)%domain, AK, BK, PTOP, FV_Atm(1)%npx, FV_Atm(1)%npy, FV_Atm(1)%npz,   &
-                                       NQ, hord_tr, kord_tr, q_split, k_split, dt, z_tracer, fill)
+         call offline_tracer_advection(TRACERS, DryPLE0, DryPLE1, MFX, MFY, &
+                                       CX, CY,                              &
+                                       fv_atm(1)%gridstruct,                &
+                                       fv_atm(1)%flagstruct,                &
+                                       fv_atm(1)%bd,                        &
+                                       fv_atm(1)%domain,                    &
+                                       AK, BK, PTOP,                        &
+                                       FV_Atm(1)%npx, FV_Atm(1)%npy,        &
+                                       FV_Atm(1)%npz,                       &
+                                       NQ, hord_tr, kord_tr, q_split,       &
+                                       k_split, dt, z_tracer, fill)
 
          endif
 
          ! Update tracer mass conservation
          !-------------------------------------------------------------------------
          if (chk_mass) then 
-            MASS1 = g_sum(FV_Atm(1)%domain, PLE1(:,:,LM), is,ie, js,je, FV_Atm(1)%ng, FV_Atm(1)%gridstruct%area_64, 1, .true.)
-            call global_integral(TMASS1, TRACERS, PLE1, IM,JM,LM,NQ)
+            MASS1 = g_sum(FV_Atm(1)%domain, DryPLE1(:,:,LM), is, ie, js, je,&
+                          FV_Atm(1)%ng, FV_Atm(1)%gridstruct%area_64, 1, .true.)
+            call global_integral(TMASS1, TRACERS, DryPLE1, IM,JM,LM,NQ)
             if (MASS1 /= 0.0) TMASS1=TMASS1/MASS1
          endif
 
@@ -713,8 +726,9 @@ contains
 
          ! Deallocate the list of tracers
          !-------------------------------------------------------------------------
-         DEALLOCATE( TRACERS,stat=STATUS )
-         _VERIFY(STATUS)
+            ! Must comment out deallocation of tracers in GCHP (bug)
+            !DEALLOCATE( TRACERS,stat=STATUS )
+            _VERIFY(STATUS)
 
       end if ! NQ > 0
 
@@ -843,16 +857,18 @@ end subroutine global_integral
      use CubeToCubeRegridderMod
      
      type (CubedSphereGridFactory) :: factory
-     
-     type (CubeToLatLonRegridder) :: cube_to_latlon_prototype
-     type (LatLonToCubeRegridder) :: latlon_to_cube_prototype
-     type (CubeToCubeRegridder) :: cube_to_cube_prototype
+     type (CubeToLatLonRegridder)  :: cube_to_latlon_prototype
+     type (LatLonToCubeRegridder)  :: latlon_to_cube_prototype
+     type (CubeToCubeRegridder)    :: cube_to_cube_prototype
      
      call grid_manager%add_prototype('Cubed-Sphere',factory)
      associate (method => REGRID_METHOD_BILINEAR, mgr => regridder_manager)
-       call mgr%add_prototype('Cubed-Sphere', 'LatLon', method, cube_to_latlon_prototype)
-       call mgr%add_prototype('LatLon', 'Cubed-Sphere', method, latlon_to_cube_prototype)
-       call mgr%add_prototype('Cubed-Sphere', 'Cubed-Sphere', method, cube_to_cube_prototype)
+       call mgr%add_prototype('Cubed-Sphere', 'LatLon', method, &
+                              cube_to_latlon_prototype)
+       call mgr%add_prototype('LatLon', 'Cubed-Sphere', method, &
+                              latlon_to_cube_prototype)
+       call mgr%add_prototype('Cubed-Sphere', 'Cubed-Sphere', method, &
+                              cube_to_cube_prototype)
      end associate
 
   end subroutine register_grid_and_regridders
