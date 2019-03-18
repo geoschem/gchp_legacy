@@ -202,17 +202,6 @@ contains
          VLOCATION  = MAPL_VLocationEdge,             RC=STATUS  )
      _VERIFY(STATUS)
 
-    ! Not used in GCHP; use TRACERS instead
-    !call MAPL_AddImportSpec(GC,                                  &
-    !   SHORT_NAME         = 'TRADV',                             &
-    !   LONG_NAME          = 'advected_quantities',               &
-    !   units              = 'X',                                 &
-    !   DIMS               = MAPL_DimsHorzVert,                   &
-    !   VLOCATION          = MAPL_VLocationCenter,                &
-    !   DATATYPE           = MAPL_BundleItem,                     &
-    !                                                  RC=STATUS  )
-    ! _VERIFY(STATUS)
-
     ! Add for GCHP
     call MAPL_AddImportSpec ( gc,                                  &
          SHORT_NAME = 'DryPLE0',                                   &
@@ -233,7 +222,18 @@ contains
          VLOCATION  = MAPL_VLocationEdge,             RC=STATUS  )
      VERIFY_(STATUS)
 
-    ! Add for GCHP
+    ! Not used in GCHP; use TRACERS instead
+    !call MAPL_AddImportSpec(GC,                                  &
+    !   SHORT_NAME         = 'TRADV',                             &
+    !   LONG_NAME          = 'advected_quantities',               &
+    !   units              = 'X',                                 &
+    !   DIMS               = MAPL_DimsHorzVert,                   &
+    !   VLOCATION          = MAPL_VLocationCenter,                &
+    !   DATATYPE           = MAPL_BundleItem,                     &
+    !                                                  RC=STATUS  )
+    ! _VERIFY(STATUS)
+
+    ! Add for GCHP: consider renaming to TRADV to match GEOS
     call MAPL_AddImportSpec(GC,                                  &
        SHORT_NAME         = 'TRACERS',                           &
        LONG_NAME          = 'advected_quantities',               &

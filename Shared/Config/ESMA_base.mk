@@ -39,9 +39,10 @@ ifndef BPREC
   BPREC := 32 #  Build with "-r4"
 endif
 
-ifndef FV_PRECISION #  Toggle build precision for FV3. Set to R4 for single precision
-  FV_PRECISION := R4
-endif
+# Comment out for GCHP: use REAL8
+#ifndef FV_PRECISION #  Toggle build precision for FV3. Set to R4 for single precision
+#  FV_PRECISION := R4
+#endif
 
 #                       ----------------
 #                       Main Directories
