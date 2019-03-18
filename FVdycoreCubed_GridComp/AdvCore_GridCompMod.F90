@@ -222,27 +222,15 @@ contains
          VLOCATION  = MAPL_VLocationEdge,             RC=STATUS  )
      VERIFY_(STATUS)
 
-    ! Not used in GCHP; use TRACERS instead
-    !call MAPL_AddImportSpec(GC,                                  &
-    !   SHORT_NAME         = 'TRADV',                             &
-    !   LONG_NAME          = 'advected_quantities',               &
-    !   units              = 'X',                                 &
-    !   DIMS               = MAPL_DimsHorzVert,                   &
-    !   VLOCATION          = MAPL_VLocationCenter,                &
-    !   DATATYPE           = MAPL_BundleItem,                     &
-    !                                                  RC=STATUS  )
-    ! _VERIFY(STATUS)
-
-    ! Add for GCHP: consider renaming to TRADV to match GEOS
     call MAPL_AddImportSpec(GC,                                  &
-       SHORT_NAME         = 'TRACERS',                           &
+       SHORT_NAME         = 'TRADV',                             &
        LONG_NAME          = 'advected_quantities',               &
        units              = 'X',                                 &
        DIMS               = MAPL_DimsHorzVert,                   &
        VLOCATION          = MAPL_VLocationCenter,                &
        DATATYPE           = MAPL_BundleItem,                     &
                                                       RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
 ! !EXPORT STATE:
      call MAPL_AddExportSpec ( gc,                                  &
@@ -611,9 +599,7 @@ contains
       !  in the import state.
       !--------------------------------------------------------------
 
-      ! Customize for GCHP: Change TRADV to TRACERS (ewl, 2/6/19)
-      !call ESMF_StateGet(IMPORT, "TRADV", TRADV, rc=STATUS)
-      call ESMF_StateGet(IMPORT, "TRACERS", TRADV, rc=STATUS)
+      call ESMF_StateGet(IMPORT, "TRADV", TRADV, rc=STATUS)
       _VERIFY(STATUS)
       call ESMF_FieldBundleGet(TRADV, fieldCount=NQ,    rc=STATUS)
       _VERIFY(STATUS)
