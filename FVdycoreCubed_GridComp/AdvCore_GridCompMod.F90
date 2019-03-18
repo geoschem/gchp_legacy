@@ -726,7 +726,7 @@ contains
 
          ! Deallocate the list of tracers
          !-------------------------------------------------------------------------
-            ! Must comment out deallocation of tracers in GCHP (bug)
+            ! Must comment out deallocation of tracers in GCHP (unresolved bug)
             !DEALLOCATE( TRACERS,stat=STATUS )
             _VERIFY(STATUS)
 
