@@ -202,7 +202,7 @@ contains
          VLOCATION  = MAPL_VLocationEdge,             RC=STATUS  )
      _VERIFY(STATUS)
 
-    ! Add for GCHP
+    ! Add dry pressure 0 import for GCHP
     call MAPL_AddImportSpec ( gc,                                  &
          SHORT_NAME = 'DryPLE0',                                   &
          LONG_NAME  = 'dry_pressure_at_layer_edges_before_advection',&
@@ -212,7 +212,7 @@ contains
          VLOCATION  = MAPL_VLocationEdge,             RC=STATUS  )
      VERIFY_(STATUS)
 
-    ! Add for GCHP
+    ! Add dry pressure 1 import for GCHP
     call MAPL_AddImportSpec ( gc,                                  &
          SHORT_NAME = 'DryPLE1',                                   &
          LONG_NAME  = 'dry_pressure_at_layer_edges_after_advection',&               
@@ -253,7 +253,7 @@ contains
           VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
      _VERIFY(STATUS)
 
-     ! Add for GCHP (ewl, 12/1/19)
+     ! Add pressure export for GCHP
      call MAPL_AddExportSpec ( gc,                                  &
           SHORT_NAME = 'PLE',                                       &
           LONG_NAME  = 'pressure_at_layer_edges',                   &
@@ -263,7 +263,7 @@ contains
           VLOCATION  = MAPL_VLocationEdge,               RC=STATUS  )
      VERIFY_(STATUS)
 
-     ! Add for GCHP (ewl, 12/1/19)
+     ! Add dry pressure export for GCHP
      call MAPL_AddExportSpec ( gc,                                  &
           SHORT_NAME = 'DryPLE',                                    &
           LONG_NAME  = 'dry_pressure_at_layer_edges',               &
@@ -526,7 +526,12 @@ contains
       REAL(FVPRC), POINTER, DIMENSION(:,:,:)   :: MFY
       REAL(FVPRC), POINTER, DIMENSION(:,:,:)   :: PLE0
       REAL(FVPRC), POINTER, DIMENSION(:,:,:)   :: PLE1
+      REAL(FVPRC), POINTER, DIMENSION(:,:,:)   :: DryPLE0
+      REAL(FVPRC), POINTER, DIMENSION(:,:,:)   :: DryPLE1
 
+! Exports
+      REAL(FVPRC), POINTER, DIMENSION(:,:,:)   :: PLE
+      REAL(FVPRC), POINTER, DIMENSION(:,:,:)   :: DryPLE
 ! Locals
       REAL(FVPRC), POINTER, DIMENSION(:)       :: AK
       REAL(FVPRC), POINTER, DIMENSION(:)       :: BK
@@ -588,6 +593,10 @@ contains
       CALL MAPL_GetPointer(IMPORT, PLE0, 'PLE0', ALLOC = .TRUE., RC=STATUS)
       _VERIFY(STATUS)
       CALL MAPL_GetPointer(IMPORT, PLE1, 'PLE1', ALLOC = .TRUE., RC=STATUS)
+      _VERIFY(STATUS)
+      CALL MAPL_GetPointer(IMPORT, DryPLE0, 'DryPLE0', ALLOC=.TRUE., RC=STATUS)
+      _VERIFY(STATUS)
+      CALL MAPL_GetPointer(IMPORT, DryPLE1, 'DryPLE1', ALLOC=.TRUE., RC=STATUS)
       _VERIFY(STATUS)
       CALL MAPL_GetPointer(IMPORT, MFX,   'MFX', ALLOC = .TRUE., RC=STATUS)
       _VERIFY(STATUS)
@@ -722,6 +731,15 @@ contains
          _VERIFY(STATUS)
 
       end if ! NQ > 0
+
+      ! Update the dry and wet pressure edge arrays
+      call MAPL_GetPointer ( EXPORT, DryPLE, 'DryPLE', ALLOC=.TRUE., RC=STATUS )
+      VERIFY_(STATUS)
+      DryPLE(:,:,:) = DryPLE1(:,:,:)
+
+      call MAPL_GetPointer ( EXPORT, PLE, 'PLE', ALLOC=.TRUE., RC=STATUS )
+      VERIFY_(STATUS)
+      PLE(:,:,:) = PLE1(:,:,:)
 
       deallocate( advTracers, stat=STATUS )
       _VERIFY(STATUS)
