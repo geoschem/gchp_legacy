@@ -627,10 +627,10 @@ CONTAINS
     ENDIF
     current => HistoryConfig%HistoryExportsList%head
     DO WHILE ( ASSOCIATED( current ) )
+       IF ( am_I_Root ) PRINT *, "adding export: ", TRIM(current%name)       
        ! Create an export for this item
        IF ( current%rank == 3 ) THEN
           IF ( current%vloc == VLocationCenter ) THEN
-             IF ( am_I_Root ) PRINT *, "adding export: ", TRIM(current%name)
              CALL MAPL_AddExportSpec(GC,                                     &
                                      SHORT_NAME = TRIM(current%name),        &
                                      LONG_NAME  = TRIM(current%long_name),   &
