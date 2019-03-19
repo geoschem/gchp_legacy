@@ -241,7 +241,6 @@ ln -s ${gcdir}                                  ${rundir}/CodeDir
 # NOTE: CodeDir is set to point to GCHP/..; reset using setCodeDir in rundir.
 ln -s ${GC_DATA_ROOT}/CHEM_INPUTS               ${rundir}/ChemDataDir
 ln -s ${GC_DATA_ROOT}/HEMCO                     ${rundir}/MainDataDir
-ln -s ${GC_DATA_ROOT}/GCHP/TileFiles            ${rundir}/TileFiles
 ln -s ${GFTL}                                   ${rundir}/gFTL
 if [ "${met_name}" == "GEOSFP" ]; then
    ln -s ${GC_DATA_ROOT}/GEOS_0.25x0.3125/GEOS_FP  ${rundir}/MetDir
