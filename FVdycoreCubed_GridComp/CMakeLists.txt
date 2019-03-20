@@ -1,3 +1,6 @@
+# Miscellaneous configuration
+set(FV_PRECISION R4)
+
 esma_set_this ()
 
 set (srcs
@@ -14,7 +17,7 @@ set (srcs
   LatLonToCubeRegridder.F90 
   CubeToCubeRegridder.F90
   CubeToLatLon.F90
-  )
+)
 
 if (FV_PRECISION MATCHES R4)
    add_definitions (-DSINGLE_FV -DOVERLOAD_R4)
@@ -43,12 +46,14 @@ foreach(flag ${tmp})
    target_compile_options (${this} PRIVATE $<$<COMPILE_LANGUAGE:Fortran>:${flag}>)
 endforeach()
 
-add_executable (StandAlone_FV3_Dycore.x StandAlone_FV3_Dycore.F90)
-set_target_properties (StandAlone_FV3_Dycore.x PROPERTIES LINK_FLAGS "${OpenMP_Fortran_FLAGS}")
-target_link_libraries(StandAlone_FV3_Dycore.x ${this})
+# add_executable (StandAlone_FV3_Dycore.x StandAlone_FV3_Dycore.F90)
+# set_target_properties (StandAlone_FV3_Dycore.x PROPERTIES LINK_FLAGS "${OpenMP_Fortran_FLAGS}")
+# target_link_libraries(StandAlone_FV3_Dycore.x ${this} MAPL_Base GMAO_pFIO)
 
-add_executable (rs_scale.x rs_scale.F90)
-set_target_properties (rs_scale.x PROPERTIES LINK_FLAGS "${OpenMP_Fortran_FLAGS}")
-target_link_libraries(rs_scale.x ${this} GMAO_pFIO )
+# add_executable (rs_scale.x rs_scale.F90)
+# set_target_properties (rs_scale.x PROPERTIES LINK_FLAGS "${OpenMP_Fortran_FLAGS}")
+# target_link_libraries(rs_scale.x ${this} )
 
+# esma_config_subcomponents (${this} ${alldirs})
 
+add_subdirectory(fvdycore)
