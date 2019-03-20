@@ -1,3 +1,4 @@
+
 #include "MAPL_Generic.h"
 #include "unused_dummy.H"
 
@@ -969,13 +970,40 @@ contains
     
     integer :: n, status
     logical :: done
+    integer :: reverse_time
 
     type(MAPL_CapGridComp), pointer :: cap
     type (MAPL_MetaComp), pointer :: MAPLOBJ
     procedure(), pointer :: root_set_services
+    type(ESMF_Time)          :: stopTime, currTime
 
     cap => get_CapGridComp_from_gc(gc)
     MAPLOBJ => get_MetaComp_from_gc(gc)
+
+    ! Time Loop starts by checking for Segment Ending Time
+    !-----------------------------------------------------
+    ! Check if user wants to reverse time
+    call MAPL_Set(MAPLOBJ, name = cap%name, cf = cap%config, rc = status)
+    _VERIFY(status)
+    call MAPL_GetResource(MAPLOBJ, reverse_time, label='REVERSE_TIME:', &
+                          default=0, rc = status)
+    _VERIFY(STATUS)
+    if ( reverse_time == 1 ) then
+       ! Reverse the direction of clock. Now the calls to ESMF_ClockAdvance
+       ! would tick the clock backwards
+       call ESMF_ClockSet ( cap%clock, direction=ESMF_DIRECTION_REVERSE, &
+                            rc=status )
+       _VERIFY(STATUS)
+       
+       ! Also, for this example, we need to move current time to the end
+       ! In the adjoint code this step might not be needed,
+       ! since most likely you already would be at the stop time
+       call ESMF_ClockGet ( cap%clock, stopTime=stopTime, rc=status )
+       _VERIFY(STATUS)
+       currTime = stopTime ! we want to start from the "stop time"
+       call ESMF_ClockSet ( cap%clock, currTime=currTime, rc=status )
+       _VERIFY(STATUS)
+    endif
 
     if (.not. cap%printspec > 0) then
 
@@ -987,7 +1015,11 @@ contains
           _VERIFY(status)
 
           if (.not.cap%lperp) then
-             done = ESMF_ClockIsStopTime(cap%clock_hist, rc = status)
+             if ( reverse_time == 0 ) then
+                done = ESMF_ClockIsStopTime(cap%clock_hist, rc = status)
+             else
+                done = ESMF_ClockIsDone(cap%clock_hist, rc = status)
+             endif
              _VERIFY(status)
              if (done) exit
           endif
