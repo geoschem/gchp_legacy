@@ -18,6 +18,8 @@ include(esma_fortran_generator_list)
 include(${CMAKE_Fortran_COMPILER_ID})
 
 # Find required packages
+enable_language(C)
+enable_language(CXX)
 find_package(NetCDF REQUIRED COMPONENTS F90)
 find_package(MPI REQUIRED)
 find_package(OpenMP REQUIRED)
