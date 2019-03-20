@@ -17,15 +17,16 @@ include(esma_create_stub_component)
 include(esma_fortran_generator_list)
 include(${CMAKE_Fortran_COMPILER_ID})
 
-# Miscellaneous configuration
-set(F2PY_SUFFIX .so)
-set(INC_NETCDF ${NETCDF_F90_INCLUDE_DIR})
-
 # Find required packages
 find_package(NetCDF REQUIRED COMPONENTS F90)
 find_package(MPI REQUIRED)
 find_package(OpenMP REQUIRED)
 find_package(Threads REQUIRED)
+find_package(ESMF REQUIRED)
+
+# Miscellaneous configuration
+set(F2PY_SUFFIX .so)
+set(INC_NETCDF ${NETCDF_F90_INCLUDE_DIR})
 
 # Build subcomponents 
 esma_check_if_debug()
