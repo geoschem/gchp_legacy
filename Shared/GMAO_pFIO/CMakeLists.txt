@@ -17,19 +17,19 @@ set (srcs
   # pFIO Files
   KeywordEnforcer.F90
   Throw.F90
-  pFIO_ErrorHandling.F90
-  pFIO_ShaveMantissa.c
-  DownBit.F90
+  #pFIO_ErrorHandling.F90
+  #pFIO_ShaveMantissa.c
+  #DownBit.F90
   pFIO_Constants.F90
-  UnlimitedEntity.F90
+  #UnlimitedEntity.F90
   Attribute.F90
   Variable.F90
   CoordinateVariable.F90
-  StringVariableMap.F90
-  pfio_base.F90 
+  #StringVariableMap.F90
+  #pfio_base.F90 
   
   FileMetadata.F90
-  FileMetadataVector.F90
+  #FileMetadataVector.F90
   NetCDF4_FileFormatter.F90
   pFIO_Utilities.F90
   pFIO.F90
@@ -39,19 +39,19 @@ set (srcs
   TerminateMessage.F90
   DoneMessage.F90
   DummyMessage.F90
-  AddExtCollectionMessage.F90
+  #AddExtCollectionMessage.F90
   #CollectionIdMessage.F90
-  IDMessage.F90
+  #IDMessage.F90
   #RequestIdMessage.F90
   WaitRequestDataMessage.F90
-  AbstractDataMessage.F90
-  AbstractCollectiveDataMessage.F90
-  PrefetchDataMessage.F90
-  StageDataMessage.F90
-  CollectivePrefetchDataMessage.F90
-  CollectiveStageDataMessage.F90
-  AddHistCollectionMessage.F90
-  ModifyMetadataMessage.F90
+  #AbstractDataMessage.F90
+  #AbstractCollectiveDataMessage.F90
+  #PrefetchDataMessage.F90
+  #StageDataMessage.F90
+  #CollectivePrefetchDataMessage.F90
+  #CollectiveStageDataMessage.F90
+  #AddHistCollectionMessage.F90
+  #ModifyMetadataMessage.F90
   ProtocolParser.F90
 
   MpiMutex.F90
@@ -64,32 +64,43 @@ set (srcs
   IntegerSocketMap.F90
 
   AbstractServer.F90
-  BaseServer.F90
+  #BaseServer.F90
   MpiServer.F90
-#  OpenMPServer.F90
+  #OpenMPServer.F90
   ServerThread.F90
   ServerThreadVector.F90
   BaseThread.F90
   ClientThread.F90
-  ClientThreadVector.F90
+  #ClientThreadVector.F90
   ExtDataCollection.F90
-  HistoryCollection.F90
+  #HistoryCollection.F90
+ 
+  AddCollectionMessage.F90
+  CollectionIdMessage.F90
+  RequestIdMessage.F90
+  RequestDataMessage.F90
+  CollectiveRequestDataMessage.F90
+  MemReference.F90
+  MessageQueue.F90
+  SimpleDirectoryService.F90
+  OpenMPServer.F90
+  SimpleServer.F90
 
   IntegerMessageMap.F90
   IntegerRequestMap.F90
-  MessageVector.F90
+  #MessageVector.F90
   AbstractDataReference.F90
   ArrayReference.F90
-  LocalMemReference.F90
+  #LocalMemReference.F90
   ShmemReference.F90
-  RDMAReference.F90
+  #RDMAReference.F90
   AbstractRequestHandle.F90
   IntegerIntegerMap.F90
   StringIntegerMap.F90
-  StringInt64Map.F90
+  #StringInt64Map.F90
   StringVector.F90
-  StringStringMap.F90
-  )
+  #StringStringMap.F90
+)
 
 esma_add_library(${this} SRCS ${srcs})
 
@@ -109,30 +120,30 @@ foreach(dir ${OSX_EXTRA_LIBRARY_PATH})
   target_link_libraries(${this} PUBLIC "-Xlinker -rpath -Xlinker ${dir}")
 endforeach()
 
-add_executable (pfio_server_demo.x pfio_server_demo.F90)
-set_target_properties(pfio_server_demo.x PROPERTIES EXCLUDE_FROM_ALL TRUE)
+#add_executable (pfio_server_demo.x pfio_server_demo.F90)
+#set_target_properties(pfio_server_demo.x PROPERTIES EXCLUDE_FROM_ALL TRUE)
 #target_link_libraries (pfio_server_demo.x ${this} esmf_fullylinked ${OpenMP_Fortran_LIBRARIES})
 #set_target_properties(pfio_server_demo.x PROPERTIES LINK_FLAGS "${OpenMP_Fortran_FLAGS}")
 #set_target_properties(pfio_server_demo.x PROPERTIES LINK_FLAGS "${OpenMP_Fortran_LIBRARIES}")
 
-add_executable (pfio_parallel_netcdf_reproducer.x pfio_parallel_netcdf_reproducer.F90)
-set_target_properties(pfio_parallel_netcdf_reproducer.x PROPERTIES EXCLUDE_FROM_ALL TRUE)
+#add_executable (pfio_parallel_netcdf_reproducer.x pfio_parallel_netcdf_reproducer.F90)
+#set_target_properties(pfio_parallel_netcdf_reproducer.x PROPERTIES EXCLUDE_FROM_ALL TRUE)
 #target_link_libraries (pfio_parallel_netcdf_reproducer.x ${this} ${LIB_FLAP} ${OpenMP_Fortran_LIBRARIES})
 #set_target_properties(pfio_parallel_netcdf_reproducer.x PROPERTIES LINK_FLAGS "${OpenMP_Fortran_FLAGS}")
 #set_target_properties(pfio_parallel_netcdf_reproducer.x PROPERTIES LINK_FLAGS "${OpenMP_Fortran_LIBRARIES}")
 
 
-add_executable (pfio_collective_demo.x pfio_collective_demo.F90)
-set_target_properties(pfio_collective_demo.x PROPERTIES EXCLUDE_FROM_ALL TRUE)
+#add_executable (pfio_collective_demo.x pfio_collective_demo.F90)
+#set_target_properties(pfio_collective_demo.x PROPERTIES EXCLUDE_FROM_ALL TRUE)
 #target_link_libraries (pfio_collective_demo.x ${this} esmf_fullylinked ${OpenMP_Fortran_LIBRARIES})
-set_target_properties (pfio_collective_demo.x PROPERTIES Fortran_MODULE_DIRECTORY ${include_${this}})
+#set_target_properties (pfio_collective_demo.x PROPERTIES Fortran_MODULE_DIRECTORY ${include_${this}})
 #set_target_properties(pfio_collective_demo.x PROPERTIES LINK_FLAGS "${OpenMP_Fortran_FLAGS}")
 #set_target_properties(pfio_collective_demo.x PROPERTIES LINK_FLAGS "${OpenMP_Fortran_LIBRARIES}")
 
-add_executable (pfio_io_demo.x pfio_io_demo.F90)
-set_target_properties(pfio_io_demo.x PROPERTIES EXCLUDE_FROM_ALL TRUE)
+#add_executable (pfio_io_demo.x pfio_io_demo.F90)
+#set_target_properties(pfio_io_demo.x PROPERTIES EXCLUDE_FROM_ALL TRUE)
 #target_link_libraries (pfio_io_demo.x ${this} esmf_fullylinked ${OpenMP_Fortran_LIBRARIES})
-set_target_properties (pfio_io_demo.x PROPERTIES Fortran_MODULE_DIRECTORY ${include_${this}})
+#set_target_properties (pfio_io_demo.x PROPERTIES Fortran_MODULE_DIRECTORY ${include_${this}})
 #set_target_properties(pfio_io_demo.x PROPERTIES LINK_FLAGS "${OpenMP_Fortran_FLAGS}")
 #set_target_properties(pfio_io_demo.x PROPERTIES LINK_FLAGS "${OpenMP_Fortran_LIBRARIES}")
 
@@ -153,6 +164,6 @@ endif ()
 
 # Unit testing
 if (PFUNIT)
-  add_subdirectory(tests)
+	#  add_subdirectory(tests)
 endif ()
 

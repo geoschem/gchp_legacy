@@ -2,13 +2,12 @@
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 # Find required packages
-enable_language(C)
-enable_language(CXX)
 find_package(NetCDF REQUIRED COMPONENTS F90)
 find_package(MPI REQUIRED)
 find_package(OpenMP REQUIRED)
 find_package(Threads REQUIRED)
 find_package(ESMF REQUIRED)
+find_package(GFTL REQUIRED)
 
 # Import ESMA macros
 include(esma_check_if_debug)
@@ -24,6 +23,7 @@ include(${CMAKE_Fortran_COMPILER_ID})
 set(F2PY_SUFFIX .so)
 set(INC_NETCDF ${NETCDF_F90_INCLUDE_DIR})
 set(INC_ESMF ${ESMF_INCLUDE_DIRS})
+set(INC_gFTL ${GFTL_INCLUDE_DIRS})
 
 # Build subcomponents 
 esma_check_if_debug()
