@@ -107,7 +107,7 @@ source ./runConfig.sh
 # so as to preserve the configuration of the initial restart file to be 
 # used in the first run.
 if [ -e cap_restart ]; then
-   sed -i "s|GIGCchem_INTERNAL_RESTART_FILE\:.*|GIGCchem_INTERNAL_RESTART_FILE\:     +gcchem_internal_checkpoint.nc|" ./GCHP.rc
+   sed -i "s|GIGCchem_INTERNAL_RESTART_FILE\:.*|GIGCchem_INTERNAL_RESTART_FILE\:     +gcchem_internal_checkpoint.restart.nc|" ./GCHP.rc
 fi
 
 # Only run GCHP if runConfig.sh had no errors
@@ -140,6 +140,9 @@ if [[ $? == 0 ]]; then
    # Run the simulation
    # SLURM_NTASKS is #SBATCH -n and SLURM_NNODES is #SBATCH -N above
    time srun -n ${coreCount} -N ${SLURM_NNODES} -m plane=${planeCount} --mpi=pmix ./geos >> ${gchplog}
+
+   # Rename the restart (checkpoint) file so MAPL does not crash upon rerun
+   mv gcchem_internal_checkpoint.nc gccchem_internal_checkpoint.restart.nc
    
    # Echo end date
    echo '===> Run ended at' `date` >> ${gchplog}
