@@ -90,11 +90,8 @@ esma_fortran_generator_list (${this} ${EXTENDED_SOURCE})
 endif()
 
 #--------------------
-# Change for GCHP
-#target_include_directories (${this} PUBLIC ${INC_ESMF} ${INC_gFTL} ${INC_NETCDF} ${INC_FLAP})
-target_include_directories (${this} PUBLIC ${INC_ESMF} ${INC_gFTL} ${INC_NETCDF})
-#target_link_libraries (${this} PUBLIC ${ESMF_LIBRARIES} ${MPI_Fortran_LIBRARIES} ${LIB_FLAP})
-target_link_libraries (${this} PUBLIC ${ESMF_LIBRARIES} ${MPI_Fortran_LIBRARIES})
+target_include_directories (${this} PUBLIC ${INC_ESMF} ${INC_gFTL} ${INC_NETCDF} ${INC_FLAP})
+target_link_libraries (${this} PUBLIC ${ESMF_LIBRARIES} ${MPI_Fortran_LIBRARIES} ${LIB_FLAP})
 
 #--------------------
 # Copy include files that are used by other libraries.

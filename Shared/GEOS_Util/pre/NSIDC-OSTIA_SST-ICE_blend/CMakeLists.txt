@@ -1,6 +1,6 @@
-esma_set_this ()
+esma_set_this()
 
-add_library (${this}
+set (srcs
   bin2bin.F90
   check.F90
   fill_Land.F90
@@ -15,11 +15,9 @@ add_library (${this}
   read_Reynolds.F90
   )
 
-include_directories (${include_MAPL_Base})
-include_directories (${INC_ESMF})
-include_directories (${INC_NETCDF})
-target_link_libraries (${this} MAPL_Base ${NETCDF_LIBRARIES})
-
+esma_add_library (${this} SRCS ${srcs} DEPENDENCIES MAPL_Base)
+target_link_libraries (${this} PUBLIC ${NETCDF_LIBRARIES})
+target_include_directories (${this} PUBLIC ${INC_NETCDF})
 
 add_executable (regrid_forcing.x   regrid_forcing.F90)
 target_link_libraries (regrid_forcing.x ${this})

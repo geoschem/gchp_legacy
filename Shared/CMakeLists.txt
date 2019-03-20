@@ -2,9 +2,17 @@ esma_check_if_debug()
 
 esma_add_subdirectories(
   GMAO_mpeu
+  GMAO_pilgrim
+  GMAO_etc
   GMAO_pFIO 
   MAPL_Base 
+  GEOS_Shared
   GMAO_hermes
+  GEOS_Util 
+  Chem_Base
+  Chem_Shared
+  LANL_Shared
+  GMAO_perllib
   )
 
 if (PFUNIT)
