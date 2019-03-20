@@ -1,0 +1,11 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/git-commands/git-subrepo#readme
+;
+[subrepo]
+	remote = git@developer.nasa.gov:tclune/GEOS_cmake.git
+	branch = develop
+	commit = 7fa494852993e3a105a8215c4007bb8ab390b0ca
+	parent = de3e5c398150448186f77611a6fb008ed25917f2
+	cmdver = 0.3.1
