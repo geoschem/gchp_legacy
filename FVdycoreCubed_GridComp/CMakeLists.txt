@@ -42,6 +42,17 @@ endif()
 
 add_definitions (-DSPMD -DMAPL_MODE)
 
+if (FV_PRECISION MATCHES R4)
+   # Use default real
+   add_definitions (-DSINGLE_FV -DOVERLOAD_R4)
+   include_directories (${include_GFDL_fms_r4})
+   target_link_libraries (${this} fvdycore MAPL_Base GMAO_mpeu GMAO_hermes GEOS_Shared GFDL_fms_r4)
+else ()
+   string(REPLACE " " ";" tmp ${FREAL8})
+   include_directories (${include_GFDL_fms_r8})
+   target_link_libraries (${this} fvdycore MAPL_Base GMAO_mpeu GMAO_hermes GEOS_Shared GFDL_fms_r8)
+endif ()
+
 foreach(flag ${tmp})
    target_compile_options (${this} PRIVATE $<$<COMPILE_LANGUAGE:Fortran>:${flag}>)
 endforeach()
