@@ -14,10 +14,10 @@ target_include_directories(BaseTarget
 target_link_libraries(BaseTarget 
 	INTERFACE 
 		MAPL_Base MAPL_cfio_r4 GMAO_mpeu GMAO_pilgrim
-		FVdycoreCubed_GridComp fvdycore GFDL_fms GEOS_Shared GMAO_hermes 
+		FVdycoreCubed_GridComp fvdycore GFDL_fms_r4 GEOS_Shared GMAO_hermes 
 		${THIRD_PARTY_LIBNAMES} 
 		${NETCDF_LIBRARIES} 
 		${MPI_Fortran_LINK_FLAGS} ${MPI_Fortran_LIBRARIES} 
-		${OpenMP_Fortran_FLAGS}
+		${OpenMP_Fortran_FLAGS} /usr/lib/x86_64-linux-gnu/libstdc++.so.6
 )
 
