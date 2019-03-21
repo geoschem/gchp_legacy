@@ -20,6 +20,7 @@ add_library(GIGC STATIC
 target_link_libraries(GIGC
 	PUBLIC GeosCore
 )
+add_dependencies(GIGC registry)
 
 add_executable(geos
     GEOSChem.F90

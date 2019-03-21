@@ -59,7 +59,8 @@ if (precision STREQUAL "r4")
     ONLY gfioopen gfiocreate gfiodiminquire gfioinquire
     gfiogetvar gfiogetvart gfioputvar gfiogetbegdatetime
     gfiointerpxy gfiointerpnn gfiocoordnn gfioclose
-    LIBRARIES GMAO_gfio_r4 ${NETCDF_LIBRARIES}
+    LIBRARIES GMAO_gfio_r4 
+	CUSTOM_LIB ${NETCDF_LIBRARIES}
     )
 add_dependencies(GFIO_ ${this})
 endif ()

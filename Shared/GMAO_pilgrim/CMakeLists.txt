@@ -16,7 +16,7 @@ set (CMAKE_Fortran_FLAGS_RELEASE "-O2 ${common_Fortran_fpe_flags} ${ALIGNCOM}")
 
 esma_add_library(${this} SRCS ${srcs})
 target_compile_definitions (${this} PRIVATE SPMD STAND_ALONE MODCM_ALLOC NO_TYPE_INIT)
-
+target_include_directories(${this} PRIVATE ${MPI_Fortran_INCLUDE_PATH})
 target_link_libraries (${this} PUBLIC ${MPI_Fortran_LIBRARIES})
 
 

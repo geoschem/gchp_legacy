@@ -49,7 +49,7 @@ macro (add_f2py_module _name)
   # Parse arguments.
   set (options)
   set (oneValueArgs DESTINATION)
-  set (multiValueArgs SOURCES ONLY LIBRARIES)
+  set (multiValueArgs SOURCES ONLY LIBRARIES CUSTOM_LIB)
   cmake_parse_arguments(add_f2py_module "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN} )
 
   if (add_f2py_module_ONLY STREQUAL "")
@@ -112,7 +112,7 @@ macro (add_f2py_module _name)
 
   string(REPLACE ";" ":" _inc_paths "${_inc_dirs}")
   set(_inc_opts)
-  set(_lib_opts)
+  set(_lib_opts ${add_f2py_module_CUSTOM_LIB})
   foreach(_dir ${_inc_dirs})
     list(APPEND _inc_opts "-I${_dir}")
     list(APPEND _lib_opts "-L${_dir}")

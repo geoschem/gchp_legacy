@@ -4,6 +4,7 @@ add_definitions(-DMAPL)
 add_definitions(-DDO_COMMAS)
 add_definitions(-DTWO_SIDED_COMM)
 add_definitions(-DUSE_CUBEDSPHERE)
+add_definitions(-DH5_HAVE_PARALLEL)
 
 if(CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
   if(CMAKE_Fortran_COMPILER_VERSION VERSION_LESS 20)
@@ -77,12 +78,12 @@ foreach(dir ${OSX_EXTRA_LIBRARY_PATH})
 endforeach()
 
 
-add_executable (cub2latlon.x cub2latlon_regridder.F90)
-add_executable (Regrid_Util.x Regrid_Util.F90)
-target_link_libraries (cub2latlon.x ${this} GMAO_pFIO ${ESMF_LIBRARIES} ${MPI_Fortran_LIBRARIES} ${OpenMP_Fortran_LIBRARIES})
-set_target_properties (cub2latlon.x PROPERTIES Fortran_MODULE_DIRECTORY ${esma_include}/${this} LINK_FLAGS "${OpenMP_Fortran_FLAGS}")
-target_link_libraries (Regrid_Util.x ${this} GMAO_pFIO ${ESMF_LIBRARIES} ${MPI_Fortran_LIBRARIES} ${OpenMP_Fortran_LIBRARIES})
-set_target_properties (Regrid_Util.x PROPERTIES Fortran_MODULE_DIRECTORY ${esma_include}/${this} LINK_FLAGS "${OpenMP_Fortran_FLAGS}")
+#add_executable (cub2latlon.x cub2latlon_regridder.F90)
+#add_executable (Regrid_Util.x Regrid_Util.F90)
+#target_link_libraries (cub2latlon.x ${this} GMAO_pFIO ${ESMF_LIBRARIES} ${MPI_Fortran_LIBRARIES} ${OpenMP_Fortran_LIBRARIES})
+#set_target_properties (cub2latlon.x PROPERTIES Fortran_MODULE_DIRECTORY ${esma_include}/${this} LINK_FLAGS "${OpenMP_Fortran_FLAGS}")
+#target_link_libraries (Regrid_Util.x ${this} GMAO_pFIO ${ESMF_LIBRARIES} ${MPI_Fortran_LIBRARIES} ${OpenMP_Fortran_LIBRARIES})
+#set_target_properties (Regrid_Util.x PROPERTIES Fortran_MODULE_DIRECTORY ${esma_include}/${this} LINK_FLAGS "${OpenMP_Fortran_FLAGS}")
 
 if (EXTENDED_SOURCE)
 #    target_compile_options (${this} PRIVATE $<$<COMPILE_LANGUAGE:Fortran>:${EXTENDED_SOURCE}>)
@@ -117,3 +118,30 @@ if (PFUNIT)
   add_subdirectory(tests)
 endif ()
 
+# Build registry
+add_custom_command(OUTPUT 
+		${CMAKE_CURRENT_BINARY_DIR}/HEMCO_DeclarePointer___.h  
+		${CMAKE_CURRENT_BINARY_DIR}/HEMCO_GetPointer___.h  
+		${CMAKE_CURRENT_BINARY_DIR}/HEMCO_ImportSpec___.h
+		hemco_registry.stamp
+	COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/mapl_acg.pl -v ${CMAKE_CURRENT_SOURCE_DIR}/../../Registry/HEMCO_Registry.rc
+	COMMAND cmake -E touch hemco_registry.stamp
+	COMMENT "Building HEMCO registry..."
+	MAIN_DEPENDENCY ${CMAKE_CURRENT_SOURCE_DIR}/../../Registry/HEMCO_Registry.rc
+	WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}	
+)
+add_custom_command(OUTPUT 
+		${CMAKE_CURRENT_BINARY_DIR}/GIGCchem_ExportSpec___.h  
+		${CMAKE_CURRENT_BINARY_DIR}/GIGCchem_History___.rc    
+		${CMAKE_CURRENT_BINARY_DIR}/GIGCchem_InternalSpec___.h
+	    ${CMAKE_CURRENT_BINARY_DIR}/GIGCchem_DeclarePointer___.h  
+		${CMAKE_CURRENT_BINARY_DIR}/GIGCchem_GetPointer___.h  
+		${CMAKE_CURRENT_BINARY_DIR}/GIGCchem_ImportSpec___.h
+		chem_registry.stamp
+    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/mapl_acg.pl -v ${CMAKE_CURRENT_SOURCE_DIR}/../../Registry/Chem_Registry.rc
+	COMMAND cmake -E touch chem_registry.stamp
+	COMMENT "Building Chem registry..."
+	MAIN_DEPENDENCY ${CMAKE_CURRENT_SOURCE_DIR}/../../Registry/Chem_Registry.rc
+	WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}	
+)
+add_custom_target(registry DEPENDS hemco_registry.stamp chem_registry.stamp)
