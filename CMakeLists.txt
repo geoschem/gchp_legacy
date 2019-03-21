@@ -27,7 +27,7 @@ add_executable(geos
 )
 
 target_link_libraries(geos
-	PUBLIC GIGC ${GC_EXTRA_TARGETS}
+	PUBLIC GIGC ${GC_EXTRA_TARGETS} MAPL_Base
 )
 
 set_target_properties(geos
