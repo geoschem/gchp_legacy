@@ -104,7 +104,7 @@ contains
    type(ESMF_Config)            :: cf_ext
    type(ESMF_Clock)             :: clock
    type(ESMF_Clock)             :: clock_HIST
-   type(ESMF_Time)              :: CurrTime
+   type(ESMF_Time)              :: CurrTime, StopTime
    type(ESMF_Alarm)             :: PERPETUAL
    type(ESMF_TimeInterval)      :: Frequency
 
@@ -169,6 +169,7 @@ contains
    type (ESMF_VM)                        :: gcmVM
    character(len=ESMF_MAXSTR )           :: timerModeStr
    integer                               :: timerMode
+   integer                               :: reverse_time
 
 
 ! Begin
@@ -461,7 +462,12 @@ contains
       call MAPL_GetResource(MAPLOBJ, Debug_Level, "DEBUG_LEVEL:", default=0,                RC=STATUS )
       VERIFY_(STATUS)
 
-   ! !RESOURCE_ITEM: integer :: MAPL debug level
+    ! !RESOURCE_ITEM: integer :: Reverse time
+    call MAPL_GetResource(MAPLOBJ, reverse_time, label='REVERSE_TIME:', &
+                          default=0, rc = status)
+    VERIFY_(STATUS)
+
+   ! !RESOURCE_ITEM: integer :: Tile file path
       call MAPL_GetResource(MAPLOBJ, TileFileDir, "TILEPATH:", default='.',                RC=STATUS )
       VERIFY_(STATUS)
 
@@ -755,6 +761,25 @@ contains
       ExtData_internal_state%expState = EXPORTS(EXTDATA) 
    end if
     
+    ! Time Loop starts by checking for Segment Ending Time
+    !-----------------------------------------------------
+    if ( reverse_time == 1 ) then
+       ! Reverse the direction of clock. Now the calls to ESMF_ClockAdvance
+       ! would tick the clock backwards
+       call ESMF_ClockSet ( clock, direction=ESMF_DIRECTION_REVERSE, &
+                            rc=status )
+       VERIFY_(STATUS)
+       
+       ! Also, for this example, we need to move current time to the end
+       ! In the adjoint code this step might not be needed,
+       ! since most likely you already would be at the stop time
+       call ESMF_ClockGet ( clock, stopTime=stopTime, rc=status )
+       VERIFY_(STATUS)
+       currTime = stopTime ! we want to start from the "stop time"
+       call ESMF_ClockSet ( clock, currTime=currTime, rc=status )
+       VERIFY_(STATUS)
+    endif
+
    ! Time Loop starts by checking for Segment Ending Time
    !-----------------------------------------------------
       TIME_LOOP: do n=1,nsteps
@@ -763,7 +788,11 @@ contains
          VERIFY_(STATUS)
 
          if( .not.LPERP ) then
-              DONE = ESMF_ClockIsStopTime( CLOCK_HIST, RC=STATUS )
+             if ( reverse_time == 0 ) then
+                done = ESMF_ClockIsStopTime(clock_hist, rc = status)
+             else
+                done = ESMF_ClockIsDone(clock_hist, rc = status)
+             endif
               VERIFY_(STATUS)
               if ( DONE ) exit
          endif
