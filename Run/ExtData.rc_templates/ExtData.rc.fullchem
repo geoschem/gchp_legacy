@@ -1372,6 +1372,12 @@ ALD2_SFLUX_OFFLINE kg/m2/s   xy C N Y F%y4-%m2-%d2T%h2:00:00 none none SFLUX_ALD
 #==============================================================================
 NO_LTNG_OFFLINE kg/m2/s xyz C N Y F%y4-%m2-%d2T%h2:00:00 none none LNOX_NO ./MainDataDir/OFFLINE_LNOX/v2018-06/LNOx_2x25_%y4%m2.nc4
 
+#==============================================================================
+# --- Volcanic emissions (VOLCANO) --- 
+#==============================================================================
+VOLCANO_SO2_ERUPT kg/m2/s xyz C N Y %y4-%m2-%d2T00:00:00 none none SO2_erupt ./MainDataDir/VOLCANO/v2015-02/%y4/volc_so2_gen.1x1.47L.%y4%m2.nc
+VOLCANO_SO2_DEGAS kg/m2/s xyz C N Y %y4-%m2-%d2T00:00:00 none none SO2_degas ./MainDataDir/VOLCANO/v2015-02/%y4/volc_so2_gen.1x1.47L.%y4%m2.nc
+
 ###############################################################################
 ###
 ### HEMCO Extension Data (update if HEMCO_Config.rc changes)
