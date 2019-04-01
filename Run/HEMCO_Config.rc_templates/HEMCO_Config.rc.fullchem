@@ -130,6 +130,7 @@ Warnings:                    1
     --> EMEP_SHIP              :       true
     --> NEI2011_SHIP_HOURLY    :       false
     --> NEI2011_SHIP_MONMEAN   :       false
+    --> VOLCANO                :       true
     --> +UValbedo+             :       true
     --> +TOMS_SBUV_O3+         :       true
     --> +LinStratChem+         :       true
@@ -192,9 +193,9 @@ Warnings:                    1
     --> hydrophilic OC         :       0.5
 115     DustAlk                : off   DSTAL1/DSTAL2/DSTAL3/DSTAL4
 116     MarinePOA              : off   MOPO/MOPI 
-117     AeroCom_Volcano        : on    SO2
+117     AeroCom_Volcano        : off   SO2
     --> Volcano_Source         :       OMI
-    --> AeroCom_Table          :       $ROOT/VOLCANO/v2019-03/$YYYY/MSVOLSO2L4_v3.$YYYY$MM$DD.rc
+    --> AeroCom_Table          :       $ROOT/VOLCANO/v2018-03/$YYYY/so2_volcanic_emissions_Carns.$YYYY$MM$DD.rc
 120     Inorg_Iodine           : on    HOI/I2
     --> Emit HOI               :       true
     --> Emit I2                :       true
@@ -2220,7 +2221,7 @@ Warnings:                    1
 #==============================================================================
 (((GFAS
 0 GFAS_CO    $ROOT/GFAS/v2018-09/$YYYY/GFAS_$YYYY$MM.nc cofire        2003-2018/1-12/1-31/0 C xyL=1:scal300 kg/m2/s CO   75     5 3
-0 GFAS_SOAP  -                                          -             -                     - -             -       SOAP 75/281 5 3
+0 GFAS_SOAP  $ROOT/GFAS/v2018-09/$YYYY/GFAS_$YYYY$MM.nc cofire        2003-2018/1-12/1-31/0 C xyL=1:scal300 kg/m2/s SOAP 75/281 5 3
 0 GFAS_NO    $ROOT/GFAS/v2018-09/$YYYY/GFAS_$YYYY$MM.nc noxfire       2003-2018/1-12/1-31/0 C xyL=1:scal300 kg/m2/s NO   75     5 3
 0 GFAS_BCPI  $ROOT/GFAS/v2018-09/$YYYY/GFAS_$YYYY$MM.nc bcfire        2003-2018/1-12/1-31/0 C xyL=1:scal300 kg/m2/s BCPI 70/75  5 3
 0 GFAS_BCPO  $ROOT/GFAS/v2018-09/$YYYY/GFAS_$YYYY$MM.nc bcfire        2003-2018/1-12/1-31/0 C xyL=1:scal300 kg/m2/s BCPO 71/75  5 3
@@ -2276,20 +2277,9 @@ Warnings:                    1
 
 #==============================================================================
 # --- Volcanic emissions ---
-#
-# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# %%% NOTE: In v11-02 we will keep these emissions activated.  The AeroCom %%%
-# %%% extension (#117) has a bug in it in that it will die unless it finds %%%
-# %%% file for every day of the year.  Because the latest OMI volcano      %%%
-# %%% dataset ends in September 2012, this will cause runs for any year    %%%
-# %%% after 2012 to die in September thru December.  We will fix this      %%%
-# %%% for v11-03, but in the meantime revert to the prior volcano          %%%
-# %%% emisisons version.                                                   %%%
-# %%%      -- Bob Yantosca (03 May 2018)                                   %%%
-# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #==============================================================================
 (((VOLCANO
-0 VOLCANO_SO2_ERUPT $ROOT/VOLCANO/v2015-02/$YYYY/volc_so2_gen.1x1.47L.$YYYY$MM.nc SO2_erupt 1979-2009/1-12/1-31/0 C xyz kg/m2/s SO2 - 51 1
+0 VOLCANO_SO2_ERUPT $ROOT/VOLCANO/v2015-02/$YYYY/volc_so2_gen.1x1.47L.$YYYY$MM.nc SO2_erupt 1979-2009/1-12/1-31/0 R xyz kg/m2/s SO2 - 51 1
 0 VOLCANO_SO2_DEGAS $ROOT/VOLCANO/v2015-02/$YYYY/volc_so2_gen.1x1.47L.$YYYY$MM.nc SO2_degas 1979-2009/1-12/1-31/0 C xyz kg/m2/s SO2 - 52 1
 )))VOLCANO
 
@@ -2324,10 +2314,10 @@ Warnings:                    1
 #==============================================================================
 104 DEP_RESERVOIR_DEFAULT $ROOT/SOILNOX/v2014-07/DepReservoirDefault.nc                 DEP_RESERVOIR 2013/7/1/0        C xy kg/m3 NO - 1 1
 (((HEMCO_RESTART
-104 PFACTOR               ./HEMCO_restart.$YYYY$MM$DD$HH00.nc                           PFACTOR       $YYYY/$MM/$DD/$HH E xy 1     NO - 1 1
-104 DRYPERIOD             ./HEMCO_restart.$YYYY$MM$DD$HH00.nc                           DRYPERIOD     $YYYY/$MM/$DD/$HH E xy 1     NO - 1 1
-104 GWET_PREV             ./HEMCO_restart.$YYYY$MM$DD$HH00.nc                           GWET_PREV     $YYYY/$MM/$DD/$HH E xy 1     NO - 1 1
-104 DEP_RESERVOIR         ./HEMCO_restart.$YYYY$MM$DD$HH00.nc                           DEP_RESERVOIR $YYYY/$MM/$DD/$HH E xy kg/m3 NO - 1 1
+104 PFACTOR               ./HEMCO_restart.$YYYY$MM$DD$HH00.nc                           PFACTOR       $YYYY/$MM/$DD/$HH EY xy 1     NO - 1 1
+104 DRYPERIOD             ./HEMCO_restart.$YYYY$MM$DD$HH00.nc                           DRYPERIOD     $YYYY/$MM/$DD/$HH EY xy 1     NO - 1 1
+104 GWET_PREV             ./HEMCO_restart.$YYYY$MM$DD$HH00.nc                           GWET_PREV     $YYYY/$MM/$DD/$HH EY xy 1     NO - 1 1
+104 DEP_RESERVOIR         ./HEMCO_restart.$YYYY$MM$DD$HH00.nc                           DEP_RESERVOIR $YYYY/$MM/$DD/$HH EY xy kg/m3 NO - 1 1
 )))HEMCO_RESTART
 104 SOILNOX_FERT          $ROOT/SOILNOX/v2014-07/soilNOx.fert_res.generic.05x05.nc      FERT          2000/1-12/1-31/0  C xy kg/m3 NO - 1 1
 104 SOILNOX_LANDK1        $ROOT/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc LANDFRAC_K01  2000/1/1/0        C xy 1     NO - 1 1
@@ -2397,11 +2387,11 @@ Warnings:                    1
 # compute those values in the MEGAN extension.
 #==============================================================================
 (((HEMCO_RESTART
-108  T_DAVG                       ./HEMCO_restart.$YYYY$MM$DD$HH00.nc                T_DAVG                  $YYYY/$MM/$DD/$HH E xy K        * - 1 1
-108  T_PREVDAY                    ./HEMCO_restart.$YYYY$MM$DD$HH00.nc                T_PREVDAY               $YYYY/$MM/$DD/$HH E xy K        * - 1 1
-108  LAI_PREVDAY                  ./HEMCO_restart.$YYYY$MM$DD$HH00.nc                LAI_PREVDAY             $YYYY/$MM/$DD/$HH E xy 1        * - 1 1
-108  PARDR_DAVG                   ./HEMCO_restart.$YYYY$MM$DD$HH00.nc                PARDR_DAVG              $YYYY/$MM/$DD/$HH E xy W/m2     * - 1 1
-108  PARDF_DAVG                   ./HEMCO_restart.$YYYY$MM$DD$HH00.nc                PARDF_DAVG              $YYYY/$MM/$DD/$HH E xy W/m2     * - 1 1
+108  T_DAVG                       ./HEMCO_restart.$YYYY$MM$DD$HH00.nc                T_DAVG                  $YYYY/$MM/$DD/$HH EY xy K        * - 1 1
+108  T_PREVDAY                    ./HEMCO_restart.$YYYY$MM$DD$HH00.nc                T_PREVDAY               $YYYY/$MM/$DD/$HH EY xy K        * - 1 1
+108  LAI_PREVDAY                  ./HEMCO_restart.$YYYY$MM$DD$HH00.nc                LAI_PREVDAY             $YYYY/$MM/$DD/$HH EY xy 1        * - 1 1
+108  PARDR_DAVG                   ./HEMCO_restart.$YYYY$MM$DD$HH00.nc                PARDR_DAVG              $YYYY/$MM/$DD/$HH EY xy W/m2     * - 1 1
+108  PARDF_DAVG                   ./HEMCO_restart.$YYYY$MM$DD$HH00.nc                PARDF_DAVG              $YYYY/$MM/$DD/$HH EY xy W/m2     * - 1 1
 )))HEMCO_RESTART
 108  MEGAN_AEF_ISOP               $ROOT/MEGAN/v2018-05/MEGAN2.1_EF.geos.025x03125.nc      AEF_ISOPRENE            1985/1/1/0        C xy kgC/m2/s * - 1 1
 109  MEGAN_AEF_MBOX               $ROOT/MEGAN/v2018-05/MEGAN2.1_EF.geos.025x03125.nc      AEF_MBO                 1985/1/1/0        C xy kgC/m2/s * - 1 1
@@ -2504,11 +2494,11 @@ Warnings:                    1
 # --- TOMS/SBUV overhead ozone colums, for photolysis ---
 #==============================================================================
 (((+TOMS_SBUV_O3+
-* TOMS_O3_COL   $ROOT/TOMS_SBUV/v2016-11/TOMS_O3col_$YYYY.a.geos.1x1.nc TOMS   1971-2010/1-12/1/0 C xy dobsons     * - 1 1
-* TOMS1_O3_COL  -                                                       TOMS1  -                  - -  dobsons/day * - 1 1
-* TOMS2_O3_COL  -                                                       TOMS2  -                  - -  dobsons/day * - 1 1
-* DTOMS1_O3_COL -                                                       DTOMS1 -                  - -  dobsons/day * - 1 1 
-* DTOMS2_O3_COL -                                                       DTOMS2 -                  - -  dobsons/day * - 1 1
+* TOMS_O3_COL   $ROOT/TOMS_SBUV/v2016-11/TOMS_O3col_$YYYY.a.geos.1x1.nc TOMS   1971-2010/1-12/1/0 CY xy dobsons     * - 1 1
+* TOMS1_O3_COL  -                                                       TOMS1  -                  -  -  dobsons/day * - 1 1
+* TOMS2_O3_COL  -                                                       TOMS2  -                  -  -  dobsons/day * - 1 1
+* DTOMS1_O3_COL -                                                       DTOMS1 -                  -  -  dobsons/day * - 1 1 
+* DTOMS2_O3_COL -                                                       DTOMS2 -                  -  -  dobsons/day * - 1 1
 )))+TOMS_SBUV_O3+
 
 #==============================================================================
