@@ -288,7 +288,7 @@ help:
 	@echo ' '
 	@echo 'Compile only GEOS-Chem (not ESMF, MAPL, or FVdycore):'
 	@echo '  build_gc         Compile without cleaning; GC debug off'
-	@echo '  build_debug_gc   Compile without cleaning; GC debug on'
+	@echo '  build_gc_debug   Compile without cleaning; GC debug on'
 	@echo ' '
 	@echo 'To remove run directory files:' 
 	@echo '  cleanup_output     Remove output data, log files, and executable'
