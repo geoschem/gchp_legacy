@@ -546,7 +546,7 @@ CONTAINS
     ! this in the run phase and not in initialize because it seems like the
     ! AREA pointer (imported from superdynamics) is only properly filled in run.
     IF ( FIRST ) THEN
-       AREA_M2 = State_Met%AREA_M2
+       AREA_M2(:,:,1) = State_Met%AREA_M2
     ENDIF
 
     !=======================================================================
@@ -701,7 +701,11 @@ CONTAINS
     ! blow up and cause GCHP to crash. (bmy, 10/19/16)
     IF ( FIRST .and. Input_Opt%LSCHEM ) THEN
        CALL INIT_STRAT_CHEM( am_I_Root, Input_Opt, State_Chm, State_Met, RC )
-       Minit_is_set = .true.
+       !----------------------------------------------------------------------
+       ! Prior to 4/5/19:
+       ! NOTE: MINIT is no longer allocated, so comment out for now.
+       !Minit_is_set = .true.
+       !----------------------------------------------------------------------
     ENDIF
 
     ! Cap the polar tropopause pressures at 200 hPa, in order to avoid

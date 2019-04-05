@@ -13,6 +13,7 @@ COLLECTIONS: #'AerosolMass'
              #'DryDep',
              'Emissions',
              #'JValues',
+             #'JValuesLocalNoon',
              #'LevelEdgeDiags',      
              #'ProdLoss',
              'SpeciesConc_avg',

@@ -51,7 +51,7 @@
   !=========================================================================
 
   State_Met%ALBD                = ALBD                       ! 1
-  State_Met%AREA_M2(:,:,1)      = AREA                       ! m2
+  State_Met%AREA_M2             = AREA                       ! m2
   State_Met%CLDFRC              = CLDFRC                     ! 1
   State_Met%EFLUX               = EFLUX                      ! W m-2
   State_Met%HFLUX               = HFLUX                      ! W/m2
