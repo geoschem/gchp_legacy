@@ -6,7 +6,7 @@ CoresPerNode: 6
 # Declare collection names and toggle on/off
 #===================================================================
 COLLECTIONS: 'AerosolMass'
-	     'Aerosols',
+             'Aerosols',
              'Budget',
              'CloudConvFlux',
              'ConcAfterChem',
@@ -994,7 +994,8 @@ COLLECTIONS: 'AerosolMass'
   JValuesLocalNoon.frequency: 010000
   JValuesLocalNoon.duration:  010000
   JValuesLocalNoon.mode:      'time-averaged'
-  JValuesLocalNoon.fields:    'JNoon_O3O3P                   ', 'GIGCchem',
+  JValuesLocalNoon.fields:    'JNoonFrac                     ', 'GIGCchem',
+                              'JNoon_O3O3P                   ', 'GIGCchem',
                               'JNoon_O3O1D                   ', 'GIGCchem',
                               'JNoon_O2                      ', 'GIGCchem',
                               'JNoon_INPN                    ', 'GIGCchem',
