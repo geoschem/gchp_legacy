@@ -243,8 +243,15 @@ COLLECTIONS: #'AerosolMass'
                               'EmisSO2_Anthro       ', 'GIGCchem',
                               'EmisSO2_BioBurn      ', 'GIGCchem',
                               'EmisSO2_Biofuel      ', 'GIGCchem',
-                              'EmisSO2_VolcErupt    ', 'GIGCchem',
-                              'EmisSO2_VolcDegas    ', 'GIGCchem',
+                              #########################################
+                              # USE THESE WITH VOLCANO HEMCO EXTENSION
+                              #'EmisSO2_VolcErupt    ', 'GIGCchem',
+                              #'EmisSO2_VolcDegas    ', 'GIGCchem',
+                              #########################################
+                              # USE THESE WITH VOLCANO BASE EMISSIONS
+                              'VOLCANO_SO2_DEGAS    ', 'GIGCchem',
+                              'VOLCANO_SO2_ERUPT    ', 'GIGCchem',
+                              #########################################
                               'EmisSO2_Ship         ', 'GIGCchem',
                               'EmisSO4_Total        ', 'GIGCchem',
                               'EmisSO4_Aircraft     ', 'GIGCchem',
