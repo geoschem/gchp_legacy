@@ -339,11 +339,15 @@ contains
       ! Get Resolution Information
       !---------------------------
 ! FV grid dimensions setup from MAPL
-      call MAPL_GetResource( MAPL, FV_Atm(1)%flagstruct%npx, 'IM:', default= 32, RC=STATUS )
+      ! Customize for GCHP (ewl, 4/9/2019)
+!      call MAPL_GetResource( MAPL, FV_Atm(1)%flagstruct%npx, 'IM:', default= 32, RC=STATUS )
+      call MAPL_GetResource( MAPL, FV_Atm(1)%flagstruct%npx, 'GCHP.IM:', default= 32, RC=STATUS )
       _VERIFY(STATUS)
-      call MAPL_GetResource( MAPL, FV_Atm(1)%flagstruct%npy, 'JM:', default=192, RC=STATUS )
+!      call MAPL_GetResource( MAPL, FV_Atm(1)%flagstruct%npy, 'JM:', default=192, RC=STATUS )
+      call MAPL_GetResource( MAPL, FV_Atm(1)%flagstruct%npy, 'GCHP.JM:', default=192, RC=STATUS )
       _VERIFY(STATUS)
-      call MAPL_GetResource( MAPL, FV_Atm(1)%flagstruct%npz, 'LM:', default= 72, RC=STATUS )
+!      call MAPL_GetResource( MAPL, FV_Atm(1)%flagstruct%npz, 'LM:', default= 72, RC=STATUS )
+      call MAPL_GetResource( MAPL, FV_Atm(1)%flagstruct%npz, 'GCHP.LM:', default= 72, RC=STATUS )
       _VERIFY(STATUS)
 ! FV likes npx;npy in terms of cell vertices
       if (FV_Atm(1)%flagstruct%npy == 6*FV_Atm(1)%flagstruct%npx) then
