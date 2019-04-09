@@ -187,7 +187,6 @@ cp ./setEnvironment            ${rundir}
 cp ./Makefile                  ${rundir}
 cp ./gitignore                 ${rundir}/.gitignore
 cp ./GCHP.rc_template          ${rundir}/GCHP.rc
-cp ./runConfig.sh_template     ${rundir}/runConfig.sh
 cp ./CAP.rc_template           ${rundir}/CAP.rc
 cp -r ./environmentFileSamples ${rundir} 
 cp -r ./OutputDir              ${rundir} 
@@ -197,6 +196,18 @@ cp ./input.geos_templates/input.geos.${sim_name}            ${rundir}/input.geos
 cp ./ExtData.rc_templates/ExtData.rc.${sim_type}            ${rundir}/ExtData.rc
 cp ./HEMCO_Config.rc_templates/HEMCO_Config.rc.${sim_type}  ${rundir}/HEMCO_Config.rc
 cp ./HEMCO_Diagn.rc_templates/HEMCO_Diagn.rc.${sim_type}    ${rundir}/HEMCO_Diagn.rc
+
+# Special runConfig.sh for benchmark simulation
+if [ "${sim_name}" == "benchmark" ]; then
+    cp ./runConfig.sh_templates/runConfig.sh_benchmark ${rundir}/runConfig.sh
+else
+    cp ./runConfig.sh_templates/runConfig.sh_generic   ${rundir}/runConfig.sh
+fi
+
+# If benchmark simulation, put gchp.run script in directory; else do not.
+if [ "${sim_name}" == "benchmark" ]; then
+    cp ./runScriptSamples/gchp.benchmark.run           ${rundir}/gchp.run
+fi
 
 #--------------------------------------------------------------------
 # Create symbolic links to data directories, restart files, and code
@@ -235,19 +246,35 @@ sed -i -e "s|{PRES_SCALE}|${pressure_scale}|" ${rundir}/ExtData.rc
 
 # Special handling for start/end date based on simulation so that
 # start matches default initial restart files. Run directory is
-# always initially set up for a 1-hour duration run.
+# always initially set up for a 1-hour duration run except for the
+# benchmark simulation which is 1-month.
 if [ "${sim_type}" == "TransportTracers" ]; then
     startdate="20160101"
+    enddate="20160101"
+    starttime="000000"
+    endtime="010000"    
+    dYYYYMMDD="00000000"
+    dHHmmSS="010000"
+
+elif [ "${sim_name}" == "benchmark" ]; then
+    startdate="20160701"
+    enddate="20160801"
+    starttime="000000"
+    endtime="000000"    
+    dYYYYMMDD="00000100"
+    dHHmmSS="000000"
+
 elif [ "${sim_type}" == "fullchem" ]; then
     startdate="20160701"
+    enddate="20160701"
+    starttime="000000"
+    endtime="010000"
+    dYYYYMMDD="00000000"
+    dHHmmSS="010000"
+
 else
     printf "\nError: Start date is not defined for simulation ${sim_type}."
 fi
-enddate=${startdate}
-starttime="000000"
-endtime="010000"    
-dYYYYMMDD="00000000"
-dHHmmSS="010000"
 sed -i -e "s|{DATE1}|${startdate}|"     ${rundir}/runConfig.sh
 sed -i -e "s|{TIME1}|${starttime}|"     ${rundir}/runConfig.sh
 sed -i -e "s|{DATE2}|${enddate}|"       ${rundir}/runConfig.sh
