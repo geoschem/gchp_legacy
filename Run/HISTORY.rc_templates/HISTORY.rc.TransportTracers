@@ -10,8 +10,7 @@ COLLECTIONS: 'Emissions',
              'DryDep',
              'LevelEdgeDiags',      
              'RadioNuclide',
-             'SpeciesConc_avg',
-             'SpeciesConc_inst',
+             'SpeciesConc',
              'StateMet_avg',      
              'StateMet_inst',      
              'WetLossConv',
@@ -129,32 +128,12 @@ COLLECTIONS: 'Emissions',
                               'RadDecay_Be10Strat      ', 'GIGCchem',
 ::
 #==============================================================================
-  SpeciesConc_avg.template:   '%y4%m2%d2_%h2%n2z.nc4',
-  SpeciesConc_avg.format:     'CFIO',
-  SpeciesConc_avg.frequency:  010000
-  SpeciesConc_avg.duration:   010000
-  SpeciesConc_avg.mode:       'time-averaged'
-  SpeciesConc_avg.fields:     'SpeciesConc_Rn222                   ', 'GIGCchem',
-                              'SpeciesConc_Pb210                   ', 'GIGCchem',
-                              'SpeciesConc_Pb210Strat              ', 'GIGCchem',
-                              'SpeciesConc_Be7                     ', 'GIGCchem',
-                              'SpeciesConc_Be7Strat                ', 'GIGCchem',
-                              'SpeciesConc_Be10                    ', 'GIGCchem',
-                              'SpeciesConc_Be10Strat               ', 'GIGCchem',
-                              'SpeciesConc_PassiveTracer           ', 'GIGCchem',
-                              'SpeciesConc_SF6Tracer               ', 'GIGCchem',
-                              'SpeciesConc_CH3ITracer              ', 'GIGCchem',
-                              'SpeciesConc_COAnthroEmis25dayTracer ', 'GIGCchem',
-                              'SpeciesConc_COAnthroEmis50dayTracer ', 'GIGCchem',
-                              'SpeciesConc_COUniformEmis25dayTracer', 'GIGCchem',
-::
-#==============================================================================
-  SpeciesConc_inst.template:  '%y4%m2%d2_%h2%n2z.nc4',
-  SpeciesConc_inst.format:    'CFIO',
-  SpeciesConc_inst.frequency: 010000
-  SpeciesConc_inst.duration:  010000
-  SpeciesConc_inst.mode:      'instantaneous'
-  SpeciesConc_inst.fields:    'SpeciesConc_Rn222                   ', 'GIGCchem',
+  SpeciesConc.template:   '%y4%m2%d2_%h2%n2z.nc4',
+  SpeciesConc.format:     'CFIO',
+  SpeciesConc.frequency:  010000
+  SpeciesConc.duration:   010000
+  SpeciesConc.mode:       'time-averaged'
+  SpeciesConc.fields:     'SpeciesConc_Rn222                   ', 'GIGCchem',
                               'SpeciesConc_Pb210                   ', 'GIGCchem',
                               'SpeciesConc_Pb210Strat              ', 'GIGCchem',
                               'SpeciesConc_Be7                     ', 'GIGCchem',

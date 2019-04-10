@@ -173,12 +173,9 @@ common_dur="7440000"
 common_mode="'time-averaged'"
 
 # Diagnostics enabled in benchmark simulation by default
-SpeciesConc_avg_freq=${common_freq}
-SpeciesConc_avg_dur=${common_dur}
-SpeciesConc_avg_mode=${common_mode}
-SpeciesConc_inst_freq=${common_freq}
-SpeciesConc_inst_dur=${common_dur}
-SpeciesConc_inst_mode="'instantaneous'"
+SpeciesConc_freq=${common_freq}
+SpeciesConc_dur=${common_dur}
+SpeciesConc_mode=${common_mode}
 StateMet_avg_freq=${common_freq}
 StateMet_avg_dur=${common_dur}
 StateMet_avg_mode=${common_mode}
@@ -361,12 +358,9 @@ replace_val RECORD_REF_TIME  "${Start_Time:9:6}"  GCHP.rc
 #### Set output frequency, duration, and mode
 echo " "
 echo "Output:" 
-replace_val SpeciesConc_avg.frequency  ${SpeciesConc_avg_freq}  HISTORY.rc  
-replace_val SpeciesConc_avg.duration   ${SpeciesConc_avg_dur}   HISTORY.rc
-replace_val SpeciesConc_avg.mode       ${SpeciesConc_avg_mode}  HISTORY.rc
-replace_val SpeciesConc_inst.frequency ${SpeciesConc_inst_freq} HISTORY.rc  
-replace_val SpeciesConc_inst.duration  ${SpeciesConc_inst_dur}  HISTORY.rc
-replace_val SpeciesConc_inst.mode      ${SpeciesConc_inst_mode} HISTORY.rc
+replace_val SpeciesConc.frequency      ${SpeciesConc_freq}      HISTORY.rc  
+replace_val SpeciesConc.duration       ${SpeciesConc_dur}       HISTORY.rc
+replace_val SpeciesConc.mode           ${SpeciesConc_mode}      HISTORY.rc
 replace_val StateMet_avg.frequency     ${StateMet_avg_freq}	HISTORY.rc
 replace_val StateMet_avg.duration      ${StateMet_avg_dur}	HISTORY.rc
 replace_val StateMet_avg.mode          ${StateMet_avg_mode}	HISTORY.rc
