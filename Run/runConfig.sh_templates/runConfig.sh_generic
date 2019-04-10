@@ -172,21 +172,16 @@ common_freq="010000"
 common_dur="010000"
 common_mode="'time-averaged'"
 
-# Diagnostics enabled in benchmark simulation by default
+# Diagnostics frequency, duration, and mode
+# NOTES:
+#   (1) Edit/add more as needed to automatically update values from this file
+#   (2) To turn off diagnostics, comment out in HISTORY.rc (not here)
 SpeciesConc_avg_freq=${common_freq}
 SpeciesConc_avg_dur=${common_dur}
 SpeciesConc_avg_mode=${common_mode}
 SpeciesConc_inst_freq=${common_freq}
 SpeciesConc_inst_dur=${common_dur}
 SpeciesConc_inst_mode="'instantaneous'"
-StateMet_avg_freq=${common_freq}
-StateMet_avg_dur=${common_dur}
-StateMet_avg_mode=${common_mode}
-StateMet_inst_freq=${common_freq}
-StateMet_inst_dur=${common_dur}
-StateMet_inst_mode="'instantaneous'"
-
-# Other diagnostics (edit/add more as needed for convenience)
 AerosolMass_freq=${common_freq}
 AerosolMass_dur=${common_dur}
 AerosolMass_mode=${common_mode}
@@ -226,6 +221,15 @@ RadioNuclide_mode=${common_mode}
 StateChm_freq=${common_freq}
 StateChm_dur=${common_dur}
 StateChm_mode=${common_mode}
+StateMet_avg_freq=${common_freq}
+StateMet_avg_dur=${common_dur}
+StateMet_avg_mode=${common_mode}
+StateMet_inst_freq=${common_freq}
+StateMet_inst_dur=${common_dur}
+StateMet_inst_mode="'instantaneous'"
+Transport_freq=${common_freq}
+Transport_dur=${common_dur}
+Transport_mode="'instantaneous'"
 WetLossConv_freq=${common_freq}
 WetLossConv_dur=${common_dur}
 WetLossConv_mode=${common_mode}
@@ -412,6 +416,9 @@ replace_val RadioNuclide.mode          ${RadioNuclide_mode}     HISTORY.rc
 replace_val StateChm.frequency         ${StateChm_freq}	        HISTORY.rc
 replace_val StateChm.duration          ${StateChm_dur}	        HISTORY.rc
 replace_val StateChm.mode              ${StateChm_mode}	        HISTORY.rc
+replace_val Transport.frequency        ${Transport_freq}	HISTORY.rc
+replace_val Transport.duration         ${Transport_dur}	        HISTORY.rc
+replace_val Transport.mode             ${Transport_mode}	HISTORY.rc
 replace_val WetLossConv.frequency      ${WetLossConv_freq}      HISTORY.rc
 replace_val WetLossConv.duration       ${WetLossConv_dur}       HISTORY.rc
 replace_val WetLossConv.mode           ${WetLossConv_mode}      HISTORY.rc

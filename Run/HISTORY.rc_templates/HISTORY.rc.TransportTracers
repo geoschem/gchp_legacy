@@ -377,14 +377,14 @@ COLLECTIONS: 'Emissions',
 #==============================================================================
 # %%%%% THE Transport COLLECTION %%%%%
 #
-# Diagnostics for evaluating transport, including age of air [s]
+# Diagnostics for evaluating age of air [s]
 #
 # Available for all simulations
 #==============================================================================
   Transport.template:         '%y4%m2%d2_%h2%n2z.nc4',
   Transport.format:           'CFIO',
-  Transport.frequency:        'End',
-  Transport.duration:         'End',
+  Transport.frequency:        010000
+  Transport.duration:         010000
   Transport.mode:             'instantaneous'
   Transport.fields:           'Met_AgeOfAir                  ', 'GIGCchem',
 ::
