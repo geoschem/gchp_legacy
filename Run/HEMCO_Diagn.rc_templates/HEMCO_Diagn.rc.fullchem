@@ -351,7 +351,7 @@ EmisNO_Anthro      NO     0      1   -1   3   kg/m2/s  NO_emission_flux_from_bio
 EmisNO_BioBurn     NO     111    -1  -1   2   kg/m2/s  NO_emission_flux_from_biomass_burning
 EmisNO_Biofuel     NO     0      2   -1   2   kg/m2/s  NO_emission_flux_from_biofuel
 #EmisNO_Fert        NO     104    -1  -1   2   kg/m2/s  NO_emission_flux_from_fertilizer
-EmisNO_Lightning   NO     103    -1  -1   2   kg/m2/s  NO_emission_flux_from_lightning
+EmisNO_Lightning   NO     0      4   -1   2   kg/m2/s  NO_emission_flux_from_lightning
 EmisNO_Ship        NO     102    -1  -1   2   kg/m2/s  NO_emission_flux_from_ships
 EmisNO_Soil        NO     104    -1  -1   2   kg/m2/s  NO_emission_flux_from_soil
 
@@ -423,11 +423,11 @@ EmisSESQ_Biogenic  SESQ   109    -1  -1   2   kg/m2/s  SESQ_emission_flux_from_b
 ###############################################################################
 #####  Sea salt emissions                                                 ##### 
 ###############################################################################
-#EmisBr2_Natural    Br2    107    -1  -1   2   kg/m2/s  Br2_emission_flux_from_natural_sources
-#EmisBrSALA_Natural BrSALA 107    -1  -1   2   kg/m2/s  BrSALA_emission_flux_from_natural_sources
-#EmisBrSALC_Natural BrSALC 107    -1  -1   2   kg/m2/s  BrSALC_emission_flux_from_natural_sources
-EmisSALA_Natural   SALA   107    -1  -1   2   kg/m2/s  SALA_emission_flux_from_natural_sources
-EmisSALC_Natural   SALC   107    -1  -1   2   kg/m2/s  SALC_emission_flux_from_natural_sources
+#EmisBr2_Natural    Br2     0    4  -1   2   kg/m2/s  Br2_emission_flux_from_natural_sources
+#EmisBrSALA_Natural BrSALA  0    4  -1   2   kg/m2/s  BrSALA_emission_flux_from_natural_sources
+#EmisBrSALC_Natural BrSALC  0    4  -1   2   kg/m2/s  BrSALC_emission_flux_from_natural_sources
+EmisSALA_Natural   SALA    0    4  -1   2   kg/m2/s  SALA_emission_flux_from_natural_sources
+EmisSALC_Natural   SALC    0    4  -1   2   kg/m2/s  SALC_emission_flux_from_natural_sources
 
 ###############################################################################
 #####  SO2 emissions                                                      ##### 
