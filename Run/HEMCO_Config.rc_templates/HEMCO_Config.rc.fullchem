@@ -2252,15 +2252,17 @@ Warnings:                    1
 #==============================================================================
 
 # --- Sea salt ---
-# Turn off BrSALA and BrSALC by default to match GEOS-Chem classic default
-# setting in the sea salt extension (Model sea salt br-: false). 
-# Uncomment lines below to enable BrSALA/BrSALC emissions as scaled SALA/SALC.
+# Turn off BrSALA, BrSALC, and Br2 by default to match GEOS-Chem classic default
+# settings in the sea salt extension (Model sea salt br-: false for BrSALA/BrSALC
+# and Emit Br2 : false for Br2). 
+# Uncomment lines below to enable BrSALA/BrSALC emissions as scaled SALA/SALC and
+# to enable emitted Br2.
 (((SALT_SSALT_OFFLINE
 0 SALA_SSALT_OFFLINE   $ROOT/OFFLINE_SSALT/v2018-06/SSalt_2x25_$YYYY$MM.nc4 SSALT_SALA 2013-2016/1-12/1-31/0 C xy kg/m2/s SALA   -  4 1
 #0 BrSALA_SSALT_OFFLINE -                                                    -          -                     - -  -       BrSALA 84 4 1
 0 SALC_SSALT_OFFLINE   $ROOT/OFFLINE_SSALT/v2018-06/SSalt_2x25_$YYYY$MM.nc4 SSALT_SALC 2013-2016/1-12/1-31/0 C xy kg/m2/s SALC   -  4 1
 #0 BrSALC_SSALT_OFFLINE -                                                    -          -                     - -  -       BrSALC 84 4 1
-0 Br2_SSALT_OFFLINE    $ROOT/OFFLINE_SSALT/v2018-06/SSalt_2x25_$YYYY$MM.nc4 SSALT_Br2  2013-2016/1-12/1-31/0 C xy kg/m2/s Br2    -  4 1
+#0 Br2_SSALT_OFFLINE    $ROOT/OFFLINE_SSALT/v2018-06/SSalt_2x25_$YYYY$MM.nc4 SSALT_Br2  2013-2016/1-12/1-31/0 C xy kg/m2/s Br2    -  4 1
 )))SALT_SSALT_OFFLINE
 
 # --- Sea flux ---
