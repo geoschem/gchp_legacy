@@ -1257,6 +1257,7 @@ COLLECTIONS: #'AerosolMass'
                               'SpeciesConc_AERI        ', 'GIGCchem', 
                               'SpeciesConc_pFe         ', 'GIGCchem', 
                               'SpeciesConc_OH          ', 'GIGCchem', 
+                              'SpeciesConc_INPN        ', 'GIGCchem',
 ::
 #===================================================================
 # State_Chm array diagnostics (see also Aerosols collection)

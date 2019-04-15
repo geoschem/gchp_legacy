@@ -1371,6 +1371,7 @@ COLLECTIONS: 'AerosolMass'
                           'SpeciesConc_TRO2       ', 'GIGCchem',
                           'SpeciesConc_VRO2       ', 'GIGCchem', 
                           'SpeciesConc_XRO2       ', 'GIGCchem', 
+                          'SpeciesConc_INPN       ', 'GIGCchem',
 ::
 #===================================================================
 # State_Chm array diagnostics (see also Aerosols collection)
