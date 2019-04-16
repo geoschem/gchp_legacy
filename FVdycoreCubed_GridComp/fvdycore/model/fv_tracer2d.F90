@@ -875,7 +875,7 @@ subroutine offline_tracer_advection(q, ple0, ple1, mfx, mfy, cx, cy, &
       real ::  cyL(bd%isd:bd%ied  ,bd%js :bd%je +1,npz)  ! Courant Number Y-Dir
       real :: mfxL(bd%is :bd%ie +1,bd%js :bd%je   ,npz)  ! Mass Flux X-Dir
       real :: mfyL(bd%is :bd%ie   ,bd%js :bd%je +1,npz)  ! Mass Flux Y-Dir
-      real ::  dpL(bd%is :bd%ie   ,bd%js :bd%je   ,npz)  ! Pressure Thickness
+      real ::  dpL(bd%isd:bd%ied  ,bd%jsd:bd%jed  ,npz)  ! Pressure Thickness
       real ::  dpA(bd%is :bd%ie   ,bd%js :bd%je   ,npz)  ! Pressure Thickness
 ! Local Tracer Arrays
       real ::   q1(bd%is:bd%ie  ,bd%js:bd%je, npz   )! 2D Tracers
@@ -940,7 +940,7 @@ subroutine offline_tracer_advection(q, ple0, ple1, mfx, mfy, cx, cy, &
     mfyL(is:ie,js:je+1,:) = yL(is:ie,js:je+1,:)
 
 ! Fill local tracers and pressure thickness
-    dpL(:,:,:) = ple0(:,:,2:npz+1) - ple0(:,:,1:npz)
+    dpL(bd%is:bd%ie,bd%js:bd%je,:) = ple0(:,:,2:npz+1) - ple0(:,:,1:npz)
     q3(is:ie,js:je,:,:) = q(is:ie,js:je,:,:)
 
     if ( z_tracer ) then
