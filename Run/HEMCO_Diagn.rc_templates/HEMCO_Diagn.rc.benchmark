@@ -814,7 +814,7 @@ InvDEAD_DST4         DST4   105  -1  -1  2   kg/m2/s  DST4_emission_flux_from_DE
 #=============================
 InvSeaSalt_Br2       Br2    0    3   -1  2   kg/m2/s  Br2_emission_flux_from_SeaSalt_extension
 InvSeaSalt_BrSALA    BrSALA 0    3   -1  2   kg/m2/s  BrSALA_emission_flux_from_SeaSalt_extension
-InvSeaSalt_BrSALA    BrSALC 0    3   -1  2   kg/m2/s  BrSALA_emission_flux_from_SeaSalt_extension
+InvSeaSalt_BrSALC    BrSALC 0    3   -1  2   kg/m2/s  BrSALC_emission_flux_from_SeaSalt_extension
 InvSeaSalt_SALA      SALA   0    3   -1  2   kg/m2/s  SALA_emission_flux_from_SeaSalt_extension
 InvSeaSalt_SALC      SALC   0    3   -1  2   kg/m2/s  SALC_emission_flux_from_SeaSalt_extension
 
