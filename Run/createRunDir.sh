@@ -195,7 +195,7 @@ cp ./HISTORY.rc_templates/HISTORY.rc.${sim_name}            ${rundir}/HISTORY.rc
 cp ./input.geos_templates/input.geos.${sim_name}            ${rundir}/input.geos
 cp ./ExtData.rc_templates/ExtData.rc.${sim_type}            ${rundir}/ExtData.rc
 cp ./HEMCO_Config.rc_templates/HEMCO_Config.rc.${sim_type}  ${rundir}/HEMCO_Config.rc
-cp ./HEMCO_Diagn.rc_templates/HEMCO_Diagn.rc.${sim_type}    ${rundir}/HEMCO_Diagn.rc
+cp ./HEMCO_Diagn.rc_templates/HEMCO_Diagn.rc.${sim_name}    ${rundir}/HEMCO_Diagn.rc
 
 # Special runConfig.sh for benchmark simulation
 if [ "${sim_name}" == "benchmark" ]; then

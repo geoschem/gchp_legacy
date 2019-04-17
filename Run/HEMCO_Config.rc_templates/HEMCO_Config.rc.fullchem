@@ -2057,8 +2057,8 @@ Warnings:                    1
 # --- Emissions from decaying plants ---
 #==============================================================================
 (((DECAYING_PLANTS
-0 ALD2_SEN $ROOT/ALD2/v2017-03/resp.geos.2x25.nc HET_RESP 1985/1-12/1/0 C xy kgC/m2/s ALD2 85 4 1
-0 EOH_SEN  -                                     -        -             - -  -        EOH  86 4 1
+0 ALD2_PLANTDECAY $ROOT/ALD2/v2017-03/resp.geos.2x25.nc HET_RESP 1985/1-12/1/0 C xy kgC/m2/s ALD2 85 4 1
+0 EOH_PLANTDECAY  -                                     -        -             - -  -        EOH  86 4 1
 )))DECAYING_PLANTS
 
 #==============================================================================
@@ -2258,23 +2258,23 @@ Warnings:                    1
 # Uncomment lines below to enable BrSALA/BrSALC emissions as scaled SALA/SALC and
 # to enable emitted Br2.
 (((SALT_SSALT_OFFLINE
-0 SALA_SSALT_OFFLINE   $ROOT/OFFLINE_SSALT/v2018-06/SSalt_2x25_$YYYY$MM.nc4 SSALT_SALA 2013-2016/1-12/1-31/0 C xy kg/m2/s SALA   -  4 1
-#0 BrSALA_SSALT_OFFLINE -                                                    -          -                     - -  -       BrSALA 84 4 1
-0 SALC_SSALT_OFFLINE   $ROOT/OFFLINE_SSALT/v2018-06/SSalt_2x25_$YYYY$MM.nc4 SSALT_SALC 2013-2016/1-12/1-31/0 C xy kg/m2/s SALC   -  4 1
-#0 BrSALC_SSALT_OFFLINE -                                                    -          -                     - -  -       BrSALC 84 4 1
-#0 Br2_SSALT_OFFLINE    $ROOT/OFFLINE_SSALT/v2018-06/SSalt_2x25_$YYYY$MM.nc4 SSALT_Br2  2013-2016/1-12/1-31/0 C xy kg/m2/s Br2    -  4 1
+0 SALA_SSALT_OFFLINE   $ROOT/OFFLINE_SSALT/v2018-06/SSalt_2x25_$YYYY$MM.nc4 SSALT_SALA 2013-2016/1-12/1-31/0 C xy kg/m2/s SALA   -  3 1
+#0 BrSALA_SSALT_OFFLINE -                                                    -          -                     - -  -       BrSALA 84 3 1
+0 SALC_SSALT_OFFLINE   $ROOT/OFFLINE_SSALT/v2018-06/SSalt_2x25_$YYYY$MM.nc4 SSALT_SALC 2013-2016/1-12/1-31/0 C xy kg/m2/s SALC   -  3 1
+#0 BrSALC_SSALT_OFFLINE -                                                    -          -                     - -  -       BrSALC 84 3 1
+#0 Br2_SSALT_OFFLINE    $ROOT/OFFLINE_SSALT/v2018-06/SSalt_2x25_$YYYY$MM.nc4 SSALT_Br2  2013-2016/1-12/1-31/0 C xy kg/m2/s Br2    -  3 1
 )))SALT_SSALT_OFFLINE
 
 # --- Sea flux ---
 (((SEA_SFLUX_OFFLINE
-0 ACET_SFLUX_OFFLINE $ROOT/OFFLINE_SFLUX/v2018-06/SFlux_2x25_$YYYY$MM.nc4 SFLUX_ACET 2013-2016/1-12/1-31/0 C xy kg/m2/s ACET - 4 1
-0 DMS_SFLUX_OFFLINE  $ROOT/OFFLINE_SFLUX/v2018-06/SFlux_2x25_$YYYY$MM.nc4 SFLUX_DMS  2013-2016/1-12/1-31/0 C xy kg/m2/s DMS  - 4 1
-0 ALD2_SFLUX_OFFLINE $ROOT/OFFLINE_SFLUX/v2018-06/SFlux_2x25_$YYYY$MM.nc4 SFLUX_ALD2 2013-2016/1-12/1-31/0 C xy kg/m2/s ALD2 - 4 1
+0 ACET_SFLUX_OFFLINE $ROOT/OFFLINE_SFLUX/v2018-06/SFlux_2x25_$YYYY$MM.nc4 SFLUX_ACET 2013-2016/1-12/1-31/0 C xy kg/m2/s ACET - 3 1
+0 DMS_SFLUX_OFFLINE  $ROOT/OFFLINE_SFLUX/v2018-06/SFlux_2x25_$YYYY$MM.nc4 SFLUX_DMS  2013-2016/1-12/1-31/0 C xy kg/m2/s DMS  - 3 1
+0 ALD2_SFLUX_OFFLINE $ROOT/OFFLINE_SFLUX/v2018-06/SFlux_2x25_$YYYY$MM.nc4 SFLUX_ALD2 2013-2016/1-12/1-31/0 C xy kg/m2/s ALD2 - 3 1
 )))SEA_SFLUX_OFFLINE
 
 # --- Lightning NOx ---
 (((NOX_LTNG_OFFLINE
-0 NO_LTNG_OFFLINE $ROOT/OFFLINE_LNOX/v2018-06/LNOx_2x25_$YYYY$MM.nc4 LNOX_NO 2013-2016/1-12/1-31/0 C xyz kg/m2/s NO - 4 1
+0 NO_LTNG_OFFLINE $ROOT/OFFLINE_LNOX/v2018-06/LNOx_2x25_$YYYY$MM.nc4 LNOX_NO 2013-2016/1-12/1-31/0 C xyz kg/m2/s NO - 3 1
 )))NOX_LTNG_OFFLINE
 
 #==============================================================================

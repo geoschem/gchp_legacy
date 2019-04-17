@@ -245,7 +245,8 @@ CONTAINS
 
        ! Skip emissions diagnostics since handled by HEMCO
        ! Will need to revisit this since name may change
-       IF ( INDEX( current%name,  'EMIS' ) == 1 ) THEN
+       IF ( INDEX( current%name,  'EMIS' ) == 1 .or. &
+            INDEX( current%name,  'INV'  ) == 1 ) THEN
           current => current%next
           CYCLE
        ENDIF
