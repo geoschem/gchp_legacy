@@ -484,7 +484,7 @@ COLLECTIONS: 'AerosolMass'
                               'InvDEAD_DST4         ', 'GIGCchem',
                               'InvSeaSalt_Br2       ', 'GIGCchem',
                               'InvSeaSalt_BrSALA    ', 'GIGCchem',
-                              'InvSeaSalt_BrSALA    ', 'GIGCchem',
+                              'InvSeaSalt_BrSALC    ', 'GIGCchem',
                               'InvSeaSalt_SALA      ', 'GIGCchem',
                               'InvSeaSalt_SALC      ', 'GIGCchem',
                               'InvMEGAN_ACET        ', 'GIGCchem',
