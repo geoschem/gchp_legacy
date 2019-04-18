@@ -343,7 +343,8 @@ EmisNO_BioBurn     NO     111    -1  -1   2   kg/m2/s  NO_emission_flux_from_bio
 EmisNO_Biofuel     NO     0      2   -1   2   kg/m2/s  NO_emission_flux_from_biofuel
 EmisNO_Lightning   NO     0      3   -1   3   kg/m2/s  NO_emission_flux_from_lightning
 EmisNO_Ship        NO     102    -1  -1   2   kg/m2/s  NO_emission_flux_from_ships
-EmisNO_Soil        NO     104    -1  -1   2   kg/m2/s  NO_emission_flux_from_soil
+EmisNO_Soil        NO     104    -1  -1   2   kg/m2/s  NO_emission_flux_from_soil_and_fertilizer
+EmisNO_Fert        NO     104    -1  -1   2   kg/m2/s  NO_emission_flux_from_fertilizer_only
 
 ###############################################################################
 #####  NO2 emissions                                                      ##### 
@@ -799,7 +800,7 @@ InvLIGHTNOX_NO       NO     0    3   -1  3   kg/m2/s  NO_emission_flux_from_ligh
 #=============================
 # SOILNOX extension
 #=============================
-InvSOILNOX_NO        NO     104  -1  -1  2   kg/m2/s  NO_emission_flux_from_SOILNOX_extension
+InvSOILNOX_NO        NO     104  -1  -1  2   kg/m2/s  NO_emission_flux_from_SOILNOX_extension_including_soil_and_fertilizer_emissions
 
 #=============================
 # DEAD (dust) Extension
