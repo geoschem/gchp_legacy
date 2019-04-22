@@ -1,5 +1,5 @@
 # Miscellaneous configuration
-set(FV_PRECISION R4)
+set(FV_PRECISION R8)
 
 esma_set_this ()
 
@@ -24,7 +24,6 @@ if (FV_PRECISION MATCHES R4)
   list(APPEND dependencies GFDL_fms_r4)
 else ()
   list(APPEND dependencies GFDL_fms_r8)
-  string(REPLACE " " ";" tmp ${FREAL8})
 endif ()
 
 set(dependencies MAPL_Base GMAO_hermes GEOS_Shared)
@@ -42,9 +41,12 @@ endif()
 
 add_definitions (-DSPMD -DMAPL_MODE)
 
-foreach(flag ${tmp})
-   target_compile_options (${this} PRIVATE $<$<COMPILE_LANGUAGE:Fortran>:${flag}>)
-endforeach()
+#if (FV_PRECISION MATCHES R8)
+  #target_compile_options(${this}
+		#PRIVATE
+		#$<$<AND:$<COMPILE_LANGUAGE:Fortran>,$<STREQUAL:"${CMAKE_Fortran_COMPILER_ID}","Intel">>:-r8>
+  #)
+#endif()
 
 # add_executable (StandAlone_FV3_Dycore.x StandAlone_FV3_Dycore.F90)
 # set_target_properties (StandAlone_FV3_Dycore.x PROPERTIES LINK_FLAGS "${OpenMP_Fortran_FLAGS}")

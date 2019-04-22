@@ -68,10 +68,10 @@ if (FV_PRECISION MATCHES R4)
   target_link_libraries(${this} PUBLIC GFDL_fms_r4)
 else ()
   target_link_libraries(${this} PUBLIC GFDL_fms_r8)
-  string(REPLACE " " ";" tmp ${FREAL8})
-  foreach(flag ${tmp})
-    target_compile_options (${this} PRIVATE $<$<COMPILE_LANGUAGE:Fortran>:${flag}>)
-  endforeach()
+  target_compile_options(${this}
+		PRIVATE
+		$<$<AND:$<COMPILE_LANGUAGE:Fortran>,$<STREQUAL:"${CMAKE_Fortran_COMPILER_ID}","Intel">>:-r8>
+  )
 endif ()
 
 
