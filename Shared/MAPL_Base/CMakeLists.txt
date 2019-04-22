@@ -18,11 +18,11 @@ endif()
 set (srcs
   ESMFL_Mod.F90            MAPL_HeapMod.F90       MAPL_VarSpecMod.F90
   MAPL_Base.F90            MAPL_InterpMod.F90     hinterp.F
-  #MAPL_ErrorHandling.F90
+  MAPL_ErrorHandling.F90
   MAPL_Throw.F90
   MAPL_Range.F90
   MAPL_Config.F90
-  MAPL_CFIO.F90            MAPL_IO.F90            #MAPL_newCFIO.F90
+  MAPL_CFIO.F90            MAPL_IO.F90            MAPL_newCFIO.F90
   MAPL_Comms.F90           MAPL_LocStreamMod.F90  MAPL_Mod.F90
   MAPL_Constants.F90       MAPL_Profiler.F90      sort.c
   MAPL_GenericCplComp.F90  MAPL_Sort.F90
@@ -31,8 +31,13 @@ set (srcs
   MAPL_HistoryGridComp.F90 MAPL_Cap.F90          hash.c
   MAPL_CapGridComp.F90
   MAPL_GridType.F90 
-  MAPL_GridSpec.F90        #MAPL_VerticalMethods.F90 MAPL_newCFIOitem.F90
-  MAPL_VerticalInterpMod.F90 #MAPL_ESMFTimeVectorMod.F90  MAPL_TimeMethods.F90 MAPL_ServerManager.F90
+  MAPL_GridSpec.F90        
+  MAPL_newCFIOitem.F90
+  MAPL_VerticalMethods.F90 
+  MAPL_VerticalInterpMod.F90 
+  MAPL_ESMFTimeVectorMod.F90  
+  MAPL_TimeMethods.F90
+  MAPL_ServerManager.F90
 
   MAPL_DirPath.F90
   MAPL_AbstractRegridder.F90 MAPL_IdentityRegridder.F90
@@ -56,13 +61,13 @@ set (srcs
   MAPL_RegridderVector.F90 
   MAPL_RegridderTypeSpecRegridderMap.F90
   MAPL_LatLonGridFactory.F90  MAPL_LatLonToLatLonRegridder.F90 MAPL_TripolarGridFactory.F90 
-  #AbstractCommSplitter.F90 SimpleCommSplitter.F90 SplitCommunicator.F90 CommGroupDescription.F90
+  AbstractCommSplitter.F90 SimpleCommSplitter.F90 SplitCommunicator.F90 CommGroupDescription.F90
   c_mapl_locstream_F.c
   memuse.c                 MAPL_MemUtils.F90      MAPL_Hash.F90 
   MAPL_MaxMinMod.F90     MAPL_SimpleBundleMod.F90 
   MAPL_OrbGridCompMod.F90  MAPL_NominalOrbitsMod.F90 MAPL_ExtDataGridCompMod.F90 
-  #MAPL_ExtData_IOBundleMod.F90
-  #MAPL_ExtData_IOBundleVectorMod.F90
+  MAPL_ExtData_IOBundleMod.F90
+  MAPL_ExtData_IOBundleVectorMod.F90
   MAPL_NewArthParser.F90   MAPL_ShmemMod.F90      MAPL_LoadBalance.F90 MAPL_CFIOServer.F90
   CFIOCollection.F90 ESMF_CFIOPtrVectorMod.F90
   MAPL_TransposeRegridder.F90 MAPL_GetLatLonCoord.F90 MAPL_EsmfRegridder.F90
