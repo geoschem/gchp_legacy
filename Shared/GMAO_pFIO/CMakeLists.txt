@@ -18,7 +18,7 @@ set (srcs
   KeywordEnforcer.F90
   Throw.F90
   pFIO_ErrorHandling.F90
-  #pFIO_ShaveMantissa.c
+  pFIO_ShaveMantissa.c
   DownBit.F90
   pFIO_Constants.F90
   UnlimitedEntity.F90
