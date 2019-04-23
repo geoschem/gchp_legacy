@@ -53,17 +53,17 @@ include (UseF2Py)
 #add_f2py_module(GFIO_ GFIO_py.F90
 #	DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
-if (precision STREQUAL "r4")
-  add_f2py_module(GFIO_ SOURCES GFIO_py.F90
-    DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
-    ONLY gfioopen gfiocreate gfiodiminquire gfioinquire
-    gfiogetvar gfiogetvart gfioputvar gfiogetbegdatetime
-    gfiointerpxy gfiointerpnn gfiocoordnn gfioclose
-    LIBRARIES GMAO_gfio_r4 
-	CUSTOM_LIB ${NETCDF_LIBRARIES}
-    )
-add_dependencies(GFIO_ ${this})
-endif ()
+# if (precision STREQUAL "r4")
+#   add_f2py_module(GFIO_ SOURCES GFIO_py.F90
+#     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
+#     ONLY gfioopen gfiocreate gfiodiminquire gfioinquire
+#     gfiogetvar gfiogetvart gfioputvar gfiogetbegdatetime
+#     gfiointerpxy gfiointerpnn gfiocoordnn gfioclose
+#     LIBRARIES GMAO_gfio_r4 
+# 	CUSTOM_LIB ${NETCDF_LIBRARIES}
+#     )
+# add_dependencies(GFIO_ ${this})
+# endif ()
 
 
 
