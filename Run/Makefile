@@ -53,14 +53,11 @@ EXE :=geos
 
 # PHONY targets don't actually compile anything. They either are
 # synonyms for other targets, they remove files, or they print output.
-.PHONY: cleanup_data     clean_esmf     build_esmf  build_esmf_debug
-.PHONY: cleanup_logs     clean_mapl     build_mapl  build_mapl_debug
-.PHONY: cleanup_output   clean_core     build_core  build_core_debug
-.PHONY: cleanup_exe      superclean     help        printbuildinfo
-
-#Legacy (will be removed in a future version)
-.PHONY: compile_clean     compile_standard compile_debug   compile_mapl
-.PHONY: make_clean_nuclear
+.PHONY: cleanup_data     clean_all      build_all   build_all_debug
+.PHONY: cleanup_logs     clean_core     build_core  build_core_debug
+.PHONY: cleanup_output   clean_mapl     build_mapl  build_mapl_debug
+.PHONY: cleanup_exe      clean_esmf     build_esmf  build_esmf_debug
+.PHONY: superclean       help           printbuildinfo
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #  Default make is to build all without cleaning   %
@@ -73,16 +70,32 @@ default:
 #%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 # Clean all source code
-clean_esmf:
+clean_all:
 	./build.sh clean_all
 
-# Clean only MAPL, FVdycore, and GEOS-Chem
+# Clean ESMF, MAPL, FVdycore, and GEOS-Chem core (same as clean_all)
+clean_esmf:
+	@$(MAKE) clean_all
+
+# Clean only MAPL, FVdycore, and GEOS-Chem core
 clean_mapl:
 	./build.sh clean_mapl
 
 # Clean only GEOS-Chem, including top-level GCHP directory files
-clean_gc:
-	./build.sh clean_gc
+clean_core:
+	./build.sh clean_core
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#  Compile All Source Code  %
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+# Build without cleaning
+build_all:
+	@$(MAKE) build_esmf
+
+# Build with GEOS-Chem core debug flags and without cleaning
+build_all_debug:
+	@$(MAKE) build_esmf_debug
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #  Compile ESMF, MAPL, FVdycore, and GEOS-Chem  %
@@ -98,7 +111,7 @@ build_esmf:
 	@$(MAKE) printbuildinfo 2>&1 | tee -a $(BUILD_LOG)
 	@$(MAKE) printbuildinfo > $(LAST_BUILD)
 
-# Build with debug flags and without cleaning
+# Build with GEOS-Chem core debug flags and without cleaning
 build_esmf_debug:
 	date > ${BUILD_LOG}
 	rm -f $(CODEDIR_GCHP)/ESMF/esmf.install
@@ -121,7 +134,7 @@ build_mapl:
 	@$(MAKE) printbuildinfo 2>&1 | tee -a $(BUILD_LOG)
 	@$(MAKE) printbuildinfo > $(LAST_BUILD)
 
-# Build with debug flags and without cleaning
+# Build with GEOS-Chem core debug flags and without cleaning
 build_mapl_debug:
 	date > ${BUILD_LOG}
 	rm -f $(CODEDIR_GCHP)/Shared/mapl.install
@@ -141,7 +154,7 @@ build_core:
 	@$(MAKE) printbuildinfo 2>&1 | tee -a $(BUILD_LOG)
 	@$(MAKE) printbuildinfo > $(LAST_BUILD)
 
-# Build with debug flags and without cleaning
+# Build with GEOS-Chem core debug flags and without cleaning
 build_core_debug:
 	date > ${BUILD_LOG}
 	./build.sh build --debug 2>&1 | tee -a $(BUILD_LOG)
@@ -166,7 +179,6 @@ cleanup_logs:
 	rm -f gchp.log
 	rm -f HEMCO.log
 	rm -f PET*.log
-	rm -f runConfig*log
 	rm -f multirun.log
 	rm -f logfile.000000.out
 	rm -f slurm-*
@@ -182,45 +194,9 @@ cleanup_exe:
 
 # Clean all source code and the run directory
 superclean:
-	@$(MAKE) clean
+	@$(MAKE) clean_all
 	@$(MAKE) cleanup_exe
 	@$(MAKE) cleanup_output
-
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# Legacy options
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-# Legacy, will be deleted in a future version
-clean_nuclear:
-	@$(MAKE) clean
-	@echo "WARNING: 'make clean_nuclear' will be deprecated in a future version."
-	@echo "Use 'make clean' instead."
-	@echo "Type 'make help' for complete list of expanded options."
-
-compile_clean:
-	@$(MAKE) clean
-	@$(MAKE) build
-	@echo "WARNING: 'make compile_clean' will be deprecated in a future version."
-	@echo "Use 'make clean; make build_esmf' instead."
-	@echo "Type 'make help' for complete list of expanded options."
-
-compile_standard:
-	@$(MAKE) build_gc
-	@echo "WARNING: 'make compile_standard' will be deprecated in a future version."
-	@echo "Use 'make build_core' instead."
-	@echo "Type 'make help' for complete list of expanded options."
-
-compile_debug:
-	@$(MAKE) build_gc_debug
-	@echo "WARNING: 'make compile_debug' will be deprecated in a future version."
-	@echo "Use 'make build_core_debug' instead."
-	@echo "Type 'make help' for complete list of expanded options."
-
-compile_mapl:
-	@$(MAKE) build_mapl
-	@echo "WARNING: 'make compile_mapl' will be deprecated in a future version."
-	@echo "Use 'make build_mapl' instead."
-	@echo "Type 'make help' for complete list of expanded options."
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #  Print information                      %
@@ -272,13 +248,15 @@ help:
 	@echo '  help               Shows the display you are looking at now'
 	@echo ' '
 	@echo 'Clean source code:'
-	@echo '  clean_esmf         Clean ESMF, MAPL, FVdycore, and GEOS-Chem (all)'
+	@echo '  clean_all          Clean ESMF, MAPL, FVdycore, and GEOS-Chem (all)'
+	@echo '  clean_esmf         Same as clean_esmf'
 	@echo '  clean_mapl         Clean MAPL, FVdycore, and GEOS-Chem (not ESMF)'
 	@echo '  clean_core         Clean GEOS-Chem only'
 	@echo '  superclean         Clean all source code and the run directory'
 	@echo ' '
 	@echo 'Compile all (ESMF, MAPL, FVdycore, and GEOS-Chem):'
-	@echo '  build_esmf         Compile without cleaning; GC core debug off'
+	@echo '  build_all          Compile without cleaning; GC core debug off'
+	@echo '  build_esmf         Same as build_all'
 	@echo '  build_esmf_debug   Compile without cleaning; GC core debug on'
 	@echo ' '
 	@echo 'Compile MAPL, FVdycore, and GEOS-Chem (not ESMF):'
@@ -303,20 +281,20 @@ help:
 	@echo 'Tips for when to use build targets:'
 	@echo '----------------------------------------------------------'
 	@echo ' '      
-	@echo ' 1. First compile:'
-	@echo '      make build_esmf             : compiles all source code'
+	@echo ' 1. For a fresh install:'
+	@echo '      make clean_all; make build_all : cleans and compiles all source code'
 	@echo ' 2. Subsequent compile depends on what you changed:'      
 	@echo '  a. If you change GEOS-Chem files or files in GCHP source code directory (common):'      
-	@echo '      make build_core             : skips recompiling MAPL, ESMF, and FV3 advection'      
-	@echo '      make build_core_debug       : same as above but with debug compile flags on'      
+	@echo '      make build_core                : skips recompiling MAPL, ESMF, and FV3 advection'      
+	@echo '      make build_core_debug          : same as above but with debug compile flags on'      
 	@echo '  b. If you change files in the Shared, FV3, or Registry directories (advanced):'      
-	@echo '      make build_mapl             : skips recompiling ESMF'      
-	@echo '      make build_mapl_debug       : same as above but with debug compile flags on'      
+	@echo '      make build_mapl                : skips recompiling ESMF'      
+	@echo '      make build_mapl_debug          : same as above but with debug compile flags on'      
 	@echo '  c. If you change files in the ESMF directory (should not happen; make github issue):'      
-	@echo '      make build_esmf             : recompiles all source code'      
-	@echo '      make build_esmf_debug       : same as above but with debug compile flags on'      
+	@echo '      make build_esmf                : recompiles all source code'      
+	@echo '      make build_esmf_debug          : same as above but with debug compile flags on'      
 	@echo '  d. If you change libraries, e.g. switch compiler:'      
-	@echo '      make clean_esmf; build_esmf : cleans and recompiles all source code'      
+	@echo '      make clean_all; make build_all : cleans and recompiles all source code'      
 	@echo ' '      
 #EOC
 
