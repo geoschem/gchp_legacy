@@ -206,8 +206,8 @@ fi
 
 # If benchmark simulation, put gchp.run script in directory; else do not.
 if [ "${sim_name}" == "benchmark" ]; then
-    cp ./runScriptSamples/gchp.benchmark.run           ${rundir}/gchp.run
-    chmod 744 ${rundir}/gchp.run
+    cp ./runScriptSamples/gchp.benchmark.run           ${rundir}/gchp.benchmark.run
+    chmod 744 ${rundir}/gchp.benchmark.run
 fi
 
 #--------------------------------------------------------------------
