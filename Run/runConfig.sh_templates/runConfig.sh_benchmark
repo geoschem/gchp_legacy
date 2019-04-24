@@ -257,20 +257,20 @@ MAPL_DEBUG_LEVEL=0
 
 #### Give error if that chem timestep is < dynamic timestep
 if [[ ${ChemEmiss_Timestep_sec} -lt ${TransConv_Timestep_sec} ]]; then
-    echo "ERROR: chemistry timestep must be >= dynamic timestep"
+    echo "ERROR: chemistry timestep must be >= dynamic timestep. Update values in runConfig.sh."
     exit 1
 fi
 
 #### Check that NX*NY is less than or equal to number of cores
 num_cores=$((  ))
 if (( $NX*$NY > $NUM_NODES*$NUM_CORES_PER_NODE )); then
-    echo "ERROR: NX*NY must not exceed number of nodes times cores per node"
+    echo "ERROR: NX*NY must not exceed number of nodes times cores per node. Update values in runConfig.sh."
     exit 1    
 fi
 
 #### Check that NY is divisible by 6
 if (( $NY%6 != 0 )); then
-    echo "ERROR: NY must be an integer divisible by 6"
+    echo "ERROR: NY must be an integer divisible by 6. Update value in runConfig.sh."
     exit 1    
 fi
 
@@ -283,7 +283,7 @@ fi
 
 ## Check if restart file exists
 if [[ ! -e ${INITIAL_RESTART} ]]; then
-    printf 'ERROR: Restart file not found: %s\n' ${INITIAL_RESTART}
+    printf 'ERROR: Restart file specified in runConfig.sh not found: %s\n' ${INITIAL_RESTART}
     exit 1
 fi
 
