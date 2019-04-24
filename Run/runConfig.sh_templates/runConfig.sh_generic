@@ -282,7 +282,7 @@ fi
 domain_ratio1=$(( $NX*6/$NY )) 
 domain_ratio2=$(( $NY/$NX/6 ))
 if [[ $(( $domain_ratio1*2 )) -ge 5 || $(( $domain_ratio2*2 )) -ge 5 ]] ; then
-    echo "WARNING: NX and NY are set such that NX x NY/6 is not square (side ratio >= 3). Consider adjusting to be square to avoid negative effects due to excessive communication between cores."
+    echo "WARNING: NX and NY are set such that NX x NY/6 is not square (side ratio >= 2.5). Consider adjusting to be square to avoid negative effects due to excessive communication between cores."
 fi
 
 ## Check if restart file exists
