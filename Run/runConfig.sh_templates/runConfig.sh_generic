@@ -281,9 +281,8 @@ fi
 #### Check if domains are square enough (NOTE: approx using integer division)
 domain_ratio1=$(( $NX*6/$NY )) 
 domain_ratio2=$(( $NY/$NX/6 ))
-if [[ ${domain_ratio1} -ge 3 || ${domain_ratio2} -ge 3 ]] ; then
-    echo "ERROR: Change NX and NY such that NX x NY/6 is more square (side ratio < 3)"
-    exit 1
+if [[ $(( $domain_ratio1*2 )) -ge 5 || $(( $domain_ratio2*2 )) -ge 5 ]] ; then
+    echo "WARNING: NX and NY are set such that NX x NY/6 is not square (side ratio >= 3). Consider adjusting to be square to avoid negative effects due to excessive communication between cores."
 fi
 
 ## Check if restart file exists
