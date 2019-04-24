@@ -22,7 +22,7 @@ if [[ -e cap_restart ]]; then
 fi
 
 # Sync all config files with settings in runConfig.sh                           
-./runConfig.sh > runConfig.log
+./runConfig.sh > ${log}
 if [[ $? == 0 ]]; then
 
     # Source your environment file. This requires first setting the gchp.env
@@ -40,8 +40,11 @@ if [[ $? == 0 ]]; then
        echo "Exiting."
        exit 1
     fi
-    echo "WARNING: You are using environment settings in ${gchp_env}"
-    source ${gchp_env}
+    echo " " >> ${log}
+    echo "WARNING: You are using environment settings in ${gchp_env}" >> ${log}
+    source ${gchp_env} >> ${log}
+
+    echo '===> Run started at' `date` >> $log
 
     # Run the code
     mpirun ./geos >> $log
@@ -49,7 +52,7 @@ if [[ $? == 0 ]]; then
     echo '===> Run ended at' `date` >> $log
 
 else
-    cat runConfig.log
+    cat $log
 fi
 
 trap times EXIT

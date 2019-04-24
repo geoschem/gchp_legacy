@@ -20,7 +20,7 @@ if [[ -e cap_restart ]]; then
 fi
 
 # Sync all config files with settings in runConfig.sh                           
-./runConfig.sh > runConfig.log
+./runConfig.sh > ${log}
 if [[ $? == 0 ]]; then
 
     # Source your environment file. This requires first setting the gchp.env
@@ -38,8 +38,9 @@ if [[ $? == 0 ]]; then
        echo "Exiting."
        exit 1
     fi
-    echo "WARNING: You are using environment settings in ${gchp_env}"
-    source ${gchp_env}
+    echo " " >> ${log}
+    echo "WARNING: You are using environment settings in ${gchp_env}" >> ${log}
+    source ${gchp_env} >> ${log}
 
     # Use SLURM to distribute tasks across nodes
     NX=$( grep NX GCHP.rc | awk '{print $2}' )
@@ -51,16 +52,17 @@ if [[ $? == 0 ]]; then
     fi
 
     # Echo info from computational cores to log file for displaying results
-    echo "# of CPUs : $coreCount\n"
-    echo "# of nodes: $SLURM_NNODES\n"
-    echo "-m plane  : ${planeCount}"
+    echo "# of CPUs : ${coreCount}" >> ${log}
+    echo "# of nodes: ${SLURM_NNODES}" >> ${log}
+    echo "-m plane  : ${planeCount}" >> ${log}
 
     # Optionally compile 
     # Uncomment the line below to compile from scratch
     # See other compile options with 'make help'
-    # make compile_clean
+    # make build_all
 
     # Echo start date
+    echo ' ' >> ${log}
     echo '===> Run started at' `date` >> ${log}
 
     # If the shared memory option is on (USE_SHMEM: 1 in CAP.rc) then
@@ -90,7 +92,7 @@ if [[ $? == 0 ]]; then
     echo '===> Run ended at' `date` >> ${log}
 
 else
-    cat runConfig.log
+    cat ${log}
 fi
 
 # Clear variable

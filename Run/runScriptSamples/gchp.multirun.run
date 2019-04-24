@@ -35,7 +35,6 @@
 # slurm.jobid.out and slurm.jobid.err, as configured with the sbatch commands at
 # the top of this script.
 multirunlog="multirun.log"
-runconfiglog="runConfig.log"
 
 # Define function to cancel all jobs. This is done if cap_restart does
 # not exist after a run, or if its date string was not updated
