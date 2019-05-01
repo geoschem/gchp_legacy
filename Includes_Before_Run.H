@@ -163,3 +163,8 @@
   ! Create total optical depth field                         ! 1
   State_Met%OPTD                = State_Met%TAUCLI + State_Met%TAUCLW
 
+  !=========================================================================
+  ! Offline lightning fields
+  !=========================================================================
+  State_Met%FLASH_DENS         = FLASH_DENS                  ! #/km2/s
+  State_Met%CONV_DEPTH         = CONV_DEPTH                  ! m
