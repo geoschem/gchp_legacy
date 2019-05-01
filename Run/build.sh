@@ -35,7 +35,7 @@ if [ $# == 0 ] || [ $1 == "help" ]; then
   echo "Clean options:"
   echo "      clean_all        - clean GEOS-Chem, ESMF, MAPL, and FVdycore"
   echo "      clean_mapl       - clean GC, MAPL, and FVdycore (skip ESMF)"
-  echo "      clean_gc         - clean GC only (skip ESMF, MAPL, and FVdycore)"
+  echo "      clean_core       - clean GC only (skip ESMF, MAPL, and FVdycore)"
   echo "Compile options:"
   echo "      build            - general build command"
   echo "Example usage:"
@@ -117,9 +117,9 @@ elif [[ $1 == "clean_mapl"      ]]; then
    done=1
 
 #-----------------------------------------------------------------------
-#   clean_gc
+#   clean_core
 #-----------------------------------------------------------------------
-elif [[ $1 == "clean_gc" ]]; then
+elif [[ $1 == "clean_core" ]]; then
    cd ${gcdir} 
    make HPC=yes realclean
    cd ${rundir}
