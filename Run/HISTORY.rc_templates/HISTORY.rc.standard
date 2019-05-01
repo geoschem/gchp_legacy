@@ -193,7 +193,6 @@ COLLECTIONS: #'AerosolMass'
                               'EmisNO_Lightning     ', 'GIGCchem',
                               'EmisNO_Ship          ', 'GIGCchem',
                               'EmisNO_Soil          ', 'GIGCchem',
-                              'EmisNO_Fert          ', 'GIGCchem',
                               'EmisNO2_Anthro       ', 'GIGCchem',
                               'EmisNO2_Ship         ', 'GIGCchem',
                               'EmisO3_Ship          ', 'GIGCchem',
