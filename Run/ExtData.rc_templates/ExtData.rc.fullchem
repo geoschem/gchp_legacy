@@ -111,6 +111,13 @@ FRLANDIC '1'       xy  C N Y -         none none FRLANDIC   ./MetDir/{MET_CN_YR}
 FROCEAN  '1'       xy  C N Y -         none none FROCEAN    ./MetDir/{MET_CN_YR}/01/{MET_SOURCE}.{MET_CN_YR}0101.CN.{MET_RES}.{MET_EXT}
 PHIS     'm2 s-2'  xy  C N Y -         none none PHIS       ./MetDir/{MET_CN_YR}/01/{MET_SOURCE}.{MET_CN_YR}0101.CN.{MET_RES}.{MET_EXT}
 
+#==============================================================================
+# --- Fields for lightning emissions (Extension 103) ---
+# These fields are stored in State_Met, along with the other met fields
+#==============================================================================
+FLASH_DENS '1'     xy  C N Y F0;013000 none none LDENS      ./MainDataDir/OFFLINE_LIGHTNING/v2019-01/{MET_SOURCE}/%y4/FLASH_CTH_$MET_{NATIVE_RES}_$y4%m2.nc4
+CONV_DEPTH '1'     xy  C N Y F0;013000 none none CTH        ./MainDataDir/OFFLINE_LIGHTNING/v2019-01/{MET_SOURCE}/%y4/FLASH_CTH_$MET_{NATIVE_RES}_$y4%m2.nc4
+
 ###############################################################################
 ###
 ### Land data (not handled by HEMCO)
@@ -1354,29 +1361,50 @@ RCP85_HCOOH   kg/m2/s xy C N Y %y4-01-01T00:00:00 none none ACCMIP ./MainDataDir
 #==============================================================================
 
 #==============================================================================
-# --- Offline seasalt emissions (SALT_SSALT_OFFLINE) ---
+# --- Offline dust emissions ---
 #==============================================================================
-SALA_SSALT_OFFLINE kg/m2/s  xy C N Y F%y4-%m2-%d2T%h2:00:00 none none SSALT_SALA ./MainDataDir/OFFLINE_SSALT/v2018-06/SSalt_2x25_%y4%m2.nc4
-SALC_SSALT_OFFLINE kg/m2/s  xy C N Y F%y4-%m2-%d2T%h2:00:00 none none SSALT_SALC ./MainDataDir/OFFLINE_SSALT/v2018-06/SSalt_2x25_%y4%m2.nc4
-Br2_SSALT_OFFLINE  kg/m2/s  xy C N Y F%y4-%m2-%d2T%h2:00:00 none none SSALT_Br2  ./MainDataDir/OFFLINE_SSALT/v2018-06/SSalt_2x25_%y4%m2.nc4
+EMIS_DST1 kg/m2/s xy C N Y %y4-$m2-%d2T%h2:00:00 none none EMIS_DST1 ./MainDataDir/OFFLINE_DUST/v2019-01/{NATIVE_RES}/$YYYY/$MM/dust_emissions_{LATRES}.$YYYY$MM$DD.nc
+EMIS_DST2 kg/m2/s xy C N Y %y4-$m2-%d2T%h2:00:00 none none EMIS_DST1 ./MainDataDir/OFFLINE_DUST/v2019-01/{NATIVE_RES}/$YYYY/$MM/dust_emissions_{LATRES}.$YYYY$MM$DD.nc
+EMIS_DST3 kg/m2/s xy C N Y %y4-$m2-%d2T%h2:00:00 none none EMIS_DST1 ./MainDataDir/OFFLINE_DUST/v2019-01/{NATIVE_RES}/$YYYY/$MM/dust_emissions_{LATRES}.$YYYY$MM$DD.nc
+EMIS_DST4 kg/m2/s xy C N Y %y4-$m2-%d2T%h2:00:00 none none EMIS_DST1 ./MainDataDir/OFFLINE_DUST/v2019-01/{NATIVE_RES}/$YYYY/$MM/dust_emissions_{LATRES}.$YYYY$MM$DD.nc
 
 #==============================================================================
-# --- Offline sea flux emissions (SEA_SFLUX_OFFLINE) ---
+# --- Offline biogenic VOC emissions ---
 #==============================================================================
-ACET_SFLUX_OFFLINE kg/m2/s   xy C N Y F%y4-%m2-%d2T%h2:00:00 none none SFLUX_ACET ./MainDataDir/OFFLINE_SFLUX/v2018-06/SFlux_2x25_%y4%m2.nc4
-DMS_SFLUX_OFFLINE  kg/m2/s   xy C N Y F%y4-%m2-%d2T%h2:00:00 none none SFLUX_DMS  ./MainDataDir/OFFLINE_SFLUX/v2018-06/SFlux_2x25_%y4%m2.nc4
-ALD2_SFLUX_OFFLINE kg/m2/s   xy C N Y F%y4-%m2-%d2T%h2:00:00 none none SFLUX_ALD2 ./MainDataDir/OFFLINE_SFLUX/v2018-06/SFlux_2x25_%y4%m2.nc4
+BIOGENIC_ACET kgC/m2/s xy C N Y %y4-$m2-%d2T%h2:00:00 none none ACET_MEGAN    ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc
+BIOGENIC_ALD2 kgC/m2/s xy C N Y %y4-$m2-%d2T%h2:00:00 none none ALD2_MEGAN    ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc
+BIOGENIC_C2H4 kgC/m2/s xy C N Y %y4-$m2-%d2T%h2:00:00 none none C2H4_MEGAN    ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc
+BIOGENIC_EOH  kgC/m2/s xy C N Y %y4-$m2-%d2T%h2:00:00 none none EOH_MEGAN     ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc
+BIOGENIC_ISOP kgC/m2/s xy C N Y %y4-$m2-%d2T%h2:00:00 none none ISOP_MEGAN    ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc
+BIOGENIC_PRPE kgC/m2/s xy C N Y %y4-$m2-%d2T%h2:00:00 none none PRPE_MEGAN    ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc
+BIOGENIC_SOAP kgC/m2/s xy C N Y %y4-$m2-%d2T%h2:00:00 none none SOAP_MEGAN    ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc
+BIOGENIC_SOAS kgC/m2/s xy C N Y %y4-$m2-%d2T%h2:00:00 none none SOAS_MEGAN    ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc
+BIOGENIC_CO   kgC/m2/s xy C N Y %y4-$m2-%d2T%h2:00:00 none none BIOGENIC_CO   ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc
+BIOGENIC_APIN kgC/m2/s xy C N Y %y4-$m2-%d2T%h2:00:00 none none BIOGENIC_APIN ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc
+BIOGENIC_BPIN kgC/m2/s xy C N Y %y4-$m2-%d2T%h2:00:00 none none BIOGENIC_BPIN ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc
+BIOGENIC_SABI kgC/m2/s xy C N Y %y4-$m2-%d2T%h2:00:00 none none BIOGENIC_SABI ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc
+BIOGENIC_CARE kgC/m2/s xy C N Y %y4-$m2-%d2T%h2:00:00 none none BIOGENIC_CARE ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc
+BIOGENIC_MYRC kgC/m2/s xy C N Y %y4-$m2-%d2T%h2:00:00 none none BIOGENIC_MYRC ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc
+BIOGENIC_OCIM kgC/m2/s xy C N Y %y4-$m2-%d2T%h2:00:00 none none BIOGENIC_OCIM ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc
+BIOGENIC_OMON kgC/m2/s xy C N Y %y4-$m2-%d2T%h2:00:00 none none BIOGENIC_OMON ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc
+BIOGENIC_LIMO kgC/m2/s xy C N Y %y4-$m2-%d2T%h2:00:00 none none BIOGENIC_LIMO ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc
+BIOGENIC_FARN kgC/m2/s xy C N Y %y4-$m2-%d2T%h2:00:00 none none BIOGENIC_FARN ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc
+BIOGENIC_BCAR kgC/m2/s xy C N Y %y4-$m2-%d2T%h2:00:00 none none BIOGENIC_BCAR ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc
+BIOGENIC_OSQT kgC/m2/s xy C N Y %y4-$m2-%d2T%h2:00:00 none none BIOGENIC_OSQT ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc
 
 #==============================================================================
-# --- Offline lightning NOx emissions (NOX_LTNG_OFFLINE) ---
+# --- Offline sea salt emissions ---
 #==============================================================================
-NO_LTNG_OFFLINE kg/m2/s xyz C N Y F%y4-%m2-%d2T%h2:00:00 none none LNOX_NO ./MainDataDir/OFFLINE_LNOX/v2018-06/LNOx_2x25_%y4%m2.nc4
+SEASALT_SALA   kg/m2/s xy C N Y %y4-$m2-%d2T%h2:00:00 none none SALA_TOTAL   ./MainDataDir/OFFLINE_SEASALT/v2019-01/{NATIVE_RES}/$YYYY/$MM/seasalt_{LATRES}.$YYYY$MM$DD.nc
+SEASALT_SALC   kg/m2/s xy C N Y %y4-$m2-%d2T%h2:00:00 none none SALC_TOTAL   ./MainDataDir/OFFLINE_SEASALT/v2019-01/{NATIVE_RES}/$YYYY/$MM/seasalt_{LATRES}.$YYYY$MM$DD.nc
+#SEASALT_Br2    kg/m2/s xy C N Y %y4-$m2-%d2T%h2:00:00 none none Br2_TOTAL    ./MainDataDir/OFFLINE_SEASALT/v2019-01/{NATIVE_RES}/$YYYY/$MM/seasalt_{LATRES}.$YYYY$MM$DD.nc
+#SEASALT_BrSALA kg/m2/s xy C N Y %y4-$m2-%d2T%h2:00:00 none none BrSALA_TOTAL ./MainDataDir/OFFLINE_SEASALT/v2019-01/{NATIVE_RES}/$YYYY/$MM/seasalt_{LATRES}.$YYYY$MM$DD.nc
+#SEASALT_BrSALC kg/m2/s xy C N Y %y4-$m2-%d2T%h2:00:00 none none BrSALC_TOTAL ./MainDataDir/OFFLINE_SEASALT/v2019-01/{NATIVE_RES}/$YYYY/$MM/seasalt_{LATRES}.$YYYY$MM$DD.nc
 
 #==============================================================================
-# --- Volcanic emissions (VOLCANO) --- 
+# --- Offline soil NOx emissions ---
 #==============================================================================
-VOLCANO_SO2_ERUPT kg/m2/s xyz C N Y %y4-%m2-%d2T00:00:00 none none SO2_erupt ./MainDataDir/VOLCANO/v2015-02/%y4/volc_so2_gen.1x1.47L.%y4%m2.nc
-VOLCANO_SO2_DEGAS kg/m2/s xyz C N Y %y4-%m2-%d2T00:00:00 none none SO2_degas ./MainDataDir/VOLCANO/v2015-02/%y4/volc_so2_gen.1x1.47L.%y4%m2.nc
+SOILNOX_NO  kg/m2/s xy C N Y %y4-$m2-%d2T%h2:00:00 none none SOIL_NOx ./MainDataDir/OFFLINE_SOILNOX/v2019-01/{NATIVE_RES}/$YYYY/$MM/soilnox_{LATRES}.$YYYY$MM$DD.nc
 
 ###############################################################################
 ###
@@ -1394,58 +1422,14 @@ ACET_SEAWATER  kg/m3 xy C N Y - none none ACET ./MainDataDir/ACET/v2014-07/ACET_
 ALD2_SEAWATER  kg/m3 xy C Y Y F1985-%m2-01T00:00:00 none none ALD2 ./MainDataDir/ALD2/v2017-03/ALD2_seawater.geos.2x25.nc
 
 #==============================================================================
-# --- LIGHTNOX emissions (Extension 103) ---
-#==============================================================================
-LIGHTNOX_OTDLIS kg/m2/s xy C N N %y4-%m2-01T00:00:00 none none OTD ./MainDataDir/LIGHTNOX/v2014-07/OTD-LIS-Local-Redist.CTH.v5.geosfp.2x25.nc
-
-#==============================================================================
 # --- SOILNOX emissions (Extension 104) ---
-# HEMCO restart variables are stored in the Internal State and are input/output via the checkpoint file
+# Off by default. Use offline soil NOx emissions above.
 #==============================================================================
-DEP_RESERVOIR_DEFAULT kg/m3 xy C N Y -                     none none DEP_RESERVOIR ./MainDataDir/SOILNOX/v2014-07/DepReservoirDefault.nc
-SOILNOX_FERT          kg/m3  xy C N Y 2000-%m2-%d2T00:00:00 none none FERT          ./MainDataDir/SOILNOX/v2014-07/soilNOx.fert_res.generic.05x05.time_corrected_for_GCHP.nc
-SOILNOX_LANDK1        1      xy C N Y -                     none none LANDFRAC_K01  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK2        1      xy C N Y -                     none none LANDFRAC_K02  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK3        1      xy C N Y -                     none none LANDFRAC_K03  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK4        1      xy C N Y -                     none none LANDFRAC_K04  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK5        1      xy C N Y -                     none none LANDFRAC_K05  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK6        1      xy C N Y -                     none none LANDFRAC_K06  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK7        1      xy C N Y -                     none none LANDFRAC_K07  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK8        1      xy C N Y -                     none none LANDFRAC_K08  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK9        1      xy C N Y -                     none none LANDFRAC_K09  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK10       1      xy C N Y -                     none none LANDFRAC_K10  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK11       1      xy C N Y -                     none none LANDFRAC_K11  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK12       1      xy C N Y -                     none none LANDFRAC_K12  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK13       1      xy C N Y -                     none none LANDFRAC_K13  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK14       1      xy C N Y -                     none none LANDFRAC_K14  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK15       1      xy C N Y -                     none none LANDFRAC_K15  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK16       1      xy C N Y -                     none none LANDFRAC_K16  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK17       1      xy C N Y -                     none none LANDFRAC_K17  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK18       1      xy C N Y -                     none none LANDFRAC_K18  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK19       1      xy C N Y -                     none none LANDFRAC_K19  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK20       1      xy C N Y -                     none none LANDFRAC_K20  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK21       1      xy C N Y -                     none none LANDFRAC_K21  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK22       1      xy C N Y -                     none none LANDFRAC_K22  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK23       1      xy C N Y -                     none none LANDFRAC_K23  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK24       1      xy C N Y -                     none none LANDFRAC_K24  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_ARID          1      xy C N Y -                     none none ARID          ./MainDataDir/SOILNOX/v2014-07/soilNOx.climate.generic.05x05.nc
-SOILNOX_NONARID       1      xy C N Y -                     none none NON_ARID      ./MainDataDir/SOILNOX/v2014-07/soilNOx.climate.generic.05x05.nc
 
 #==============================================================================
 # --- Dust emissions using DEAD model (Extension 105) ---
-# DEAD_SFC_TYP uses the ExtData voting option
+# Off by default. Use offline dust emissions above.
 #==============================================================================
-DEAD_EF_GEO     factor   xy C N Y -                    none none EF_GEO   ./MainDataDir/DUST_DEAD/v2014-07/dst_tibds.geos.4x5.nc
-DEAD_LF_DRY     factor   xy C N Y -                    none none LF_DRY   ./MainDataDir/DUST_DEAD/v2014-07/dst_tibds.geos.4x5.nc
-DEAD_MF_CACO3   fraction xy C N Y -                    none none MF_CaCO3 ./MainDataDir/DUST_DEAD/v2014-07/dst_tibds.geos.4x5.nc
-DEAD_MF_CLY     fraction xy C N Y -                    none none MF_CLY   ./MainDataDir/DUST_DEAD/v2014-07/dst_tibds.geos.4x5.nc
-DEAD_MF_SND     fraction xy C N Y -                    none none MF_SND   ./MainDataDir/DUST_DEAD/v2014-07/dst_tibds.geos.4x5.nc
-DEAD_SFC_TYP    count    xy C N V -                    none none SFC_TYP  ./MainDataDir/DUST_DEAD/v2014-07/dst_tibds.geos.4x5.nc
-DEAD_GOC_SRC    1        xy C N Y -                    none none GOC_SRC  ./MainDataDir/DUST_DEAD/v2014-07/GOCART_src_fn.geos.4x5.nc
-DEAD_VAI        1        xy C Y Y 1985-%m2-01T00:00:00 none none VAI      ./MainDataDir/DUST_DEAD/v2014-07/dst_tvbds.geos.4x5.nc
-DEAD_PM25FINE_1 kg/m2/s  xy C Y Y 2015-%m2-01T00:00:00 none none PM25FINE ./MainDataDir/DUST_DEAD/v2018-04/PM25FINE_ECLIPSE_2015.geos.2x25.nc
-DEAD_PM25FINE_2 kg/m2/s  xy C Y Y 2012-%m2-01T00:00:00 none none PM25FINE ./MainDataDir/DUST_DEAD/v2018-04/PM25FINE_MEIC_2012.generic.025x025.nc
-DEAD_PM25FINE_3 kg/m2/s  xy C Y Y 2013-%m2-01T00:00:00 none none PM25FINE ./MainDataDir/DUST_DEAD/v2018-04/PM25FINE_IITB_2013.generic.025x025.nc
 
 #==============================================================================
 # --- Dust emissions using Paul Ginoux's mechanism (Extension 106) ---
@@ -1453,43 +1437,15 @@ DEAD_PM25FINE_3 kg/m2/s  xy C Y Y 2013-%m2-01T00:00:00 none none PM25FINE ./Main
 #==============================================================================
 
 #==============================================================================
-# --- Sea salt emissions (Extension 107) 
+# --- Sea salt emissions (Extension 107)
+# Off by default. Use offline sea salt emissions above.
 #==============================================================================
 # --- No external data ---
 
 #==============================================================================
 # --- MEGAN biogenic emissions (Extension 108 and 109)
-# HEMCO restart variables are stored in the Internal State and are input/output via the checkpoint file
+# Off by default. Use offline biogenic emissions above.
 #==============================================================================
-# --- Extension 108 ---
-MEGAN_AEF_ISOP               kgC/m2/s xy C N Y - none none AEF_ISOPRENE            ./MainDataDir/MEGAN/v2018-05/MEGAN2.1_EF.geos.025x03125.nc
-CLM4_PFT_BARE                1        xy C N Y - none none PFT_BARE                ./MainDataDir/MEGAN/v2018-05/CLM4_PFT.geos.025x03125.v201805.nc       
-CLM4_PFT_NDLF_EVGN_TMPT_TREE 1        xy C N Y - none none PFT_NDLF_EVGN_TMPT_TREE ./MainDataDir/MEGAN/v2018-05/CLM4_PFT.geos.025x03125.v201805.nc       
-CLM4_PFT_NDLF_EVGN_BORL_TREE 1        xy C N Y - none none PFT_NDLF_EVGN_BORL_TREE ./MainDataDir/MEGAN/v2018-05/CLM4_PFT.geos.025x03125.v201805.nc       
-CLM4_PFT_NDLF_DECD_BORL_TREE 1        xy C N Y - none none PFT_NDLF_DECD_BORL_TREE ./MainDataDir/MEGAN/v2018-05/CLM4_PFT.geos.025x03125.v201805.nc       
-CLM4_PFT_BDLF_EVGN_TROP_TREE 1        xy C N Y - none none PFT_BDLF_EVGN_TROP_TREE ./MainDataDir/MEGAN/v2018-05/CLM4_PFT.geos.025x03125.v201805.nc       
-CLM4_PFT_BDLF_EVGN_TMPT_TREE 1        xy C N Y - none none PFT_BDLF_EVGN_TMPT_TREE ./MainDataDir/MEGAN/v2018-05/CLM4_PFT.geos.025x03125.v201805.nc       
-CLM4_PFT_BDLF_DECD_TROP_TREE 1        xy C N Y - none none PFT_BDLF_DECD_TROP_TREE ./MainDataDir/MEGAN/v2018-05/CLM4_PFT.geos.025x03125.v201805.nc       
-CLM4_PFT_BDLF_DECD_TMPT_TREE 1        xy C N Y - none none PFT_BDLF_DECD_TMPT_TREE ./MainDataDir/MEGAN/v2018-05/CLM4_PFT.geos.025x03125.v201805.nc       
-CLM4_PFT_BDLF_DECD_BORL_TREE 1        xy C N Y - none none PFT_BDLF_DECD_BORL_TREE ./MainDataDir/MEGAN/v2018-05/CLM4_PFT.geos.025x03125.v201805.nc       
-CLM4_PFT_BDLF_EVGN_SHRB      1        xy C N Y - none none PFT_BDLF_EVGN_SHRB      ./MainDataDir/MEGAN/v2018-05/CLM4_PFT.geos.025x03125.v201805.nc       
-CLM4_PFT_BDLF_DECD_TMPT_SHRB 1        xy C N Y - none none PFT_BDLF_DECD_TMPT_SHRB ./MainDataDir/MEGAN/v2018-05/CLM4_PFT.geos.025x03125.v201805.nc       
-CLM4_PFT_BDLF_DECD_BORL_SHRB 1        xy C N Y - none none PFT_BDLF_DECD_BORL_SHRB ./MainDataDir/MEGAN/v2018-05/CLM4_PFT.geos.025x03125.v201805.nc       
-CLM4_PFT_C3_ARCT_GRSS        1        xy C N Y - none none PFT_C3_ARCT_GRSS        ./MainDataDir/MEGAN/v2018-05/CLM4_PFT.geos.025x03125.v201805.nc       
-CLM4_PFT_C3_NARC_GRSS        1        xy C N Y - none none PFT_C3_NARC_GRSS        ./MainDataDir/MEGAN/v2018-05/CLM4_PFT.geos.025x03125.v201805.nc       
-CLM4_PFT_C4_GRSS             1        xy C N Y - none none PFT_C4_GRSS             ./MainDataDir/MEGAN/v2018-05/CLM4_PFT.geos.025x03125.v201805.nc       
-CLM4_PFT_CROP                1        xy C N Y - none none PFT_CROP                ./MainDataDir/MEGAN/v2018-05/CLM4_PFT.geos.025x03125.v201805.nc       
-
-# --- Extension 109 ---
-MEGAN_AEF_MBOX               kgC/m2/s xy C N Y -                     none none AEF_MBO           ./MainDataDir/MEGAN/v2018-05/MEGAN2.1_EF.geos.025x03125.nc
-MEGAN_AEF_APIN               kgC/m2/s xy C N Y -                     none none AEF_ALPHA_PINENE  ./MainDataDir/MEGAN/v2018-05/MEGAN2.1_EF.geos.025x03125.nc
-MEGAN_AEF_BPIN               kgC/m2/s xy C N Y -                     none none AEF_BETA_PINENE   ./MainDataDir/MEGAN/v2018-05/MEGAN2.1_EF.geos.025x03125.nc
-MEGAN_AEF_CARE               kgC/m2/s xy C N Y -                     none none AEF_CARENE        ./MainDataDir/MEGAN/v2018-05/MEGAN2.1_EF.geos.025x03125.nc
-MEGAN_AEF_LIMO               kgC/m2/s xy C N Y -                     none none AEF_LIMONENE      ./MainDataDir/MEGAN/v2018-05/MEGAN2.1_EF.geos.025x03125.nc
-MEGAN_AEF_MYRC               kgC/m2/s xy C N Y -                     none none AEF_MYRCENE       ./MainDataDir/MEGAN/v2018-05/MEGAN2.1_EF.geos.025x03125.nc
-MEGAN_AEF_OCIM               kgC/m2/s xy C N Y -                     none none AEF_OCIMENE       ./MainDataDir/MEGAN/v2018-05/MEGAN2.1_EF.geos.025x03125.nc
-MEGAN_AEF_SABI               kgC/m2/s xy C N Y -                     none none AEF_SABINENE      ./MainDataDir/MEGAN/v2018-05/MEGAN2.1_EF.geos.025x03125.nc
-MEGAN_ORVC                   1        xy C Y Y F1990-%m2-01T00:00:00 none none OCPI              ./MainDataDir/SOA/v2014-07/NVOC.geos.1x1.nc
 
 #==============================================================================
 # --- GFED biomass burning emissions (Extension 111)
@@ -1526,8 +1482,8 @@ GFED_FRAC_3HOUR 1 xy C N Y %y4-%m2-01T%h2:00:00 none none GFED_FRAC3HR  ./MainDa
 
 #==============================================================================
 # --- AeroCom Volcano (Extension 116) 
-# AeroCom_Volcano is off by default in HEMCO_Config.rc
 #==============================================================================
+# --- No external data --- 
 
 #==============================================================================
 # --- Inorganic Iodine (Extension 120) 

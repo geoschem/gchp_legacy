@@ -121,16 +121,16 @@ Warnings:                    1
     --> RCP_85                 :       false
     --> QFED2                  :       false
     --> GFAS                   :       false
-    --> SALT_SSALT_OFFLINE     :       true
-    --> SEA_SFLUX_OFFLINE      :       false
-    --> NOX_LTNG_OFFLINE       :       true
     --> DECAYING_PLANTS        :       true
     --> SHIP                   :       true
     --> CEDS_SHIP              :       true
     --> EMEP_SHIP              :       true
     --> NEI2011_SHIP_HOURLY    :       false
     --> NEI2011_SHIP_MONMEAN   :       false
-    --> VOLCANO                :       true
+    --> OFFLINE_DUST           :       true
+    --> OFFLINE_BIOGENICVOC    :       true
+    --> OFFLINE_SEASALT        :       true
+    --> OFFLINE_SOILNOX        :       true
     --> +UValbedo+             :       true
     --> +TOMS_SBUV_O3+         :       true
     --> +LinStratChem+         :       true
@@ -140,14 +140,11 @@ Warnings:                    1
 102     ParaNOx                : on    NO/NO2/O3/HNO3
     --> LUT data format        :       txt
     --> LUT source dir         :       $ROOT/PARANOX/v2015-02
-103     LightNOx               : off   NO
-    --> OTD-LIS scaling        :       0.319577705439131
-    --> OTD-LIS factors        :       false
+103     LightNOx               : on    NO
     --> CDF table              :       $ROOT/LIGHTNOX/v2014-07/light_dist.ott2010.dat
-104     SoilNOx                : on    NO 
+104     SoilNOx                : off   NO 
     --> Use fertilizer NOx     :       true
-105     DustDead               : on    DST1/DST2/DST3/DST4 
-    --> Mass tuning factor     :       0.000768752630594
+105     DustDead               : off   DST1/DST2/DST3/DST4 
 106     DustGinoux             : off   DST1/DST2/DST3/DST4
 107     SeaSalt                : off   SALA/SALC/Br2/BrSALA/BrSALC
     --> SALA lower radius      :       0.01 
@@ -158,14 +155,14 @@ Warnings:                    1
     --> Br2 scaling            :       1.0
     --> Model sea salt Br-     :       false
     --> Br- mass ratio         :       2.11e-3
-108     MEGAN                  : on    ISOP/ACET/PRPE/C2H4/ALD2/EOH/SOAP/SOAS
+108     MEGAN                  : off   ISOP/ACET/PRPE/C2H4/ALD2/EOH/SOAP/SOAS
     --> Isoprene scaling       :       1.0 
     --> CO2 inhibition         :       true
     --> CO2 conc (ppmv)        :       390.0
     --> Isoprene to SOAP       :       0.015
     --> Isoprene to SOAS       :       0.015
 #3% mass yield from isoprene to SOA
-109     MEGAN_Mono             : on    CO/MTPA/MTPO/LIMO/SESQ
+109     MEGAN_Mono             : off   CO/MTPA/MTPO/LIMO/SESQ
     --> Monoterp to SOAP       :       0.050
     --> Monoterp to SOAS       :       0.050
 #10% mass yield from monoterpenes to SOA
@@ -193,9 +190,9 @@ Warnings:                    1
     --> hydrophilic OC         :       0.5
 115     DustAlk                : off   DSTAL1/DSTAL2/DSTAL3/DSTAL4
 116     MarinePOA              : off   MOPO/MOPI 
-117     AeroCom_Volcano        : off   SO2
-    --> Volcano_Source         :       OMI
-    --> AeroCom_Table          :       $ROOT/VOLCANO/v2018-03/$YYYY/so2_volcanic_emissions_Carns.$YYYY$MM$DD.rc
+117     Volcano                : on    SO2
+    --> Volcano_Source         :       AeroCom
+    --> Volcano_Table          :       $ROOT/VOLCANO/v2019-04/$YYYY/$MM/so2_volcanic_emissions_Carns.$YYYY$MM$DD.rc
 120     Inorg_Iodine           : on    HOI/I2
     --> Emit HOI               :       true
     --> Emit I2                :       true
@@ -2057,8 +2054,8 @@ Warnings:                    1
 # --- Emissions from decaying plants ---
 #==============================================================================
 (((DECAYING_PLANTS
-0 ALD2_PLANTDECAY $ROOT/ALD2/v2017-03/resp.geos.2x25.nc HET_RESP 1985/1-12/1/0 C xy kgC/m2/s ALD2 85 4 1
-0 EOH_PLANTDECAY  -                                     -        -             - -  -        EOH  86 4 1
+0 ALD2_PLANTDECAY $ROOT/ALD2/v2017-03/resp.geos.2x25.nc HET_RESP 1985/1-12/1/0 C xy kgC/m2/s ALD2 85 3 1
+0 EOH_PLANTDECAY  -                                     -        -             - -  -        EOH  86 3 1
 )))DECAYING_PLANTS
 
 #==============================================================================
@@ -2248,42 +2245,66 @@ Warnings:                    1
 )))GFAS
 
 #==============================================================================
-# --- Archived emissions ---
+# --- Offline dust emissions ---
 #==============================================================================
-
-# --- Sea salt ---
-# Turn off BrSALA, BrSALC, and Br2 by default to match GEOS-Chem classic default
-# settings in the sea salt extension (Model sea salt br-: false for BrSALA/BrSALC
-# and Emit Br2 : false for Br2). 
-# Uncomment lines below to enable BrSALA/BrSALC emissions as scaled SALA/SALC and
-# to enable emitted Br2.
-(((SALT_SSALT_OFFLINE
-0 SALA_SSALT_OFFLINE   $ROOT/OFFLINE_SSALT/v2018-06/SSalt_2x25_$YYYY$MM.nc4 SSALT_SALA 2013-2016/1-12/1-31/0 C xy kg/m2/s SALA   -  3 1
-#0 BrSALA_SSALT_OFFLINE -                                                    -          -                     - -  -       BrSALA 84 3 1
-0 SALC_SSALT_OFFLINE   $ROOT/OFFLINE_SSALT/v2018-06/SSalt_2x25_$YYYY$MM.nc4 SSALT_SALC 2013-2016/1-12/1-31/0 C xy kg/m2/s SALC   -  3 1
-#0 BrSALC_SSALT_OFFLINE -                                                    -          -                     - -  -       BrSALC 84 3 1
-#0 Br2_SSALT_OFFLINE    $ROOT/OFFLINE_SSALT/v2018-06/SSalt_2x25_$YYYY$MM.nc4 SSALT_Br2  2013-2016/1-12/1-31/0 C xy kg/m2/s Br2    -  3 1
-)))SALT_SSALT_OFFLINE
-
-# --- Sea flux ---
-(((SEA_SFLUX_OFFLINE
-0 ACET_SFLUX_OFFLINE $ROOT/OFFLINE_SFLUX/v2018-06/SFlux_2x25_$YYYY$MM.nc4 SFLUX_ACET 2013-2016/1-12/1-31/0 C xy kg/m2/s ACET - 3 1
-0 DMS_SFLUX_OFFLINE  $ROOT/OFFLINE_SFLUX/v2018-06/SFlux_2x25_$YYYY$MM.nc4 SFLUX_DMS  2013-2016/1-12/1-31/0 C xy kg/m2/s DMS  - 3 1
-0 ALD2_SFLUX_OFFLINE $ROOT/OFFLINE_SFLUX/v2018-06/SFlux_2x25_$YYYY$MM.nc4 SFLUX_ALD2 2013-2016/1-12/1-31/0 C xy kg/m2/s ALD2 - 3 1
-)))SEA_SFLUX_OFFLINE
-
-# --- Lightning NOx ---
-(((NOX_LTNG_OFFLINE
-0 NO_LTNG_OFFLINE $ROOT/OFFLINE_LNOX/v2018-06/LNOx_2x25_$YYYY$MM.nc4 LNOX_NO 2013-2016/1-12/1-31/0 C xyz kg/m2/s NO - 3 1
-)))NOX_LTNG_OFFLINE
+(((OFFLINE_DUST
+(((.not.DustDead.or.DustGinoux
+0 EMIS_DST1 $ROOT/OFFLINE_DUST/v2019-01/{NATIVE_RES}/$YYYY/$MM/dust_emissions_{LATRES}.$YYYY$MM$DD.nc EMIS_DST1 1980-2017/1-12/1-31/0-23 C xy kg/m2/s DST1 606 3 2
+0 EMIS_DST2 $ROOT/OFFLINE_DUST/v2019-01/{NATIVE_RES}/$YYYY/$MM/dust_emissions_{LATRES}.$YYYY$MM$DD.nc EMIS_DST2 1980-2017/1-12/1-31/0-23 C xy kg/m2/s DST2 607 3 2
+0 EMIS_DST3 $ROOT/OFFLINE_DUST/v2019-01/{NATIVE_RES}/$YYYY/$MM/dust_emissions_{LATRES}.$YYYY$MM$DD.nc EMIS_DST3 1980-2017/1-12/1-31/0-23 C xy kg/m2/s DST3 607 3 2
+0 EMIS_DST4 $ROOT/OFFLINE_DUST/v2019-01/{NATIVE_RES}/$YYYY/$MM/dust_emissions_{LATRES}.$YYYY$MM$DD.nc EMIS_DST4 1980-2017/1-12/1-31/0-23 C xy kg/m2/s DST4 607 3 2
+))).not.DustDead.or.DustGinoux
+)))OFFLINE_DUST
 
 #==============================================================================
-# --- Volcanic emissions ---
+# --- Offline biogenic VOC emissions ---
 #==============================================================================
-(((VOLCANO
-0 VOLCANO_SO2_ERUPT $ROOT/VOLCANO/v2015-02/$YYYY/volc_so2_gen.1x1.47L.$YYYY$MM.nc SO2_erupt 1979-2009/1-12/1-31/0 R xyz kg/m2/s SO2 - 51 1
-0 VOLCANO_SO2_DEGAS $ROOT/VOLCANO/v2015-02/$YYYY/volc_so2_gen.1x1.47L.$YYYY$MM.nc SO2_degas 1979-2009/1-12/1-31/0 C xyz kg/m2/s SO2 - 52 1
-)))VOLCANO
+(((OFFLINE_BIOGENICVOC
+(((.not.MEGAN.or.MEGAN_Mono
+0 BIOGENIC_ACET $ROOT/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc ACET_MEGAN    1980-2017/1-12/1-31/0-23 C xy kgC/m2/s ACET - 4 2
+0 BIOGENIC_ALD2 $ROOT/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc ALD2_MEGAN    1980-2017/1-12/1-31/0-23 C xy kgC/m2/s ALD2 - 4 2
+0 BIOGENIC_C2H4 $ROOT/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc C2H4_MEGAN    1980-2017/1-12/1-31/0-23 C xy kgC/m2/s C2H4 - 4 2
+0 BIOGENIC_EOH  $ROOT/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc EOH_MEGAN     1980-2017/1-12/1-31/0-23 C xy kgC/m2/s EOH  - 4 2
+0 BIOGENIC_ISOP $ROOT/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc ISOP_MEGAN    1980-2017/1-12/1-31/0-23 C xy kgC/m2/s ISOP - 4 2
+0 BIOGENIC_PRPE $ROOT/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc PRPE_MEGAN    1980-2017/1-12/1-31/0-23 C xy kgC/m2/s PRPE - 4 2
+0 BIOGENIC_SOAP $ROOT/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc SOAP_MEGAN    1980-2017/1-12/1-31/0-23 C xy kgC/m2/s SOAP - 4 2
+0 BIOGENIC_SOAS $ROOT/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc SOAS_MEGAN    1980-2017/1-12/1-31/0-23 C xy kgC/m2/s SOAS - 4 2
+0 BIOGENIC_CO   $ROOT/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc BIOGENIC_CO   1980-2017/1-12/1-31/0-23 C xy kgC/m2/s CO   - 4 2
+0 BIOGENIC_APIN $ROOT/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc BIOGENIC_APIN 1980-2017/1-12/1-31/0-23 C xy kgC/m2/s APIN - 4 2
+0 BIOGENIC_BPIN $ROOT/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc BIOGENIC_BPIN 1980-2017/1-12/1-31/0-23 C xy kgC/m2/s BPIN - 4 2
+0 BIOGENIC_SABI $ROOT/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc BIOGENIC_SABI 1980-2017/1-12/1-31/0-23 C xy kgC/m2/s SABI - 4 2
+0 BIOGENIC_CARE $ROOT/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc BIOGENIC_CARE 1980-2017/1-12/1-31/0-23 C xy kgC/m2/s CARE - 4 2
+0 BIOGENIC_MYRC $ROOT/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc BIOGENIC_MYRC 1980-2017/1-12/1-31/0-23 C xy kgC/m2/s MYRC - 4 2
+0 BIOGENIC_OCIM $ROOT/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc BIOGENIC_OCIM 1980-2017/1-12/1-31/0-23 C xy kgC/m2/s OCIM - 4 2
+0 BIOGENIC_OMON $ROOT/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc BIOGENIC_OMON 1980-2017/1-12/1-31/0-23 C xy kgC/m2/s OMON - 4 2
+0 BIOGENIC_LIMO $ROOT/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc BIOGENIC_LIMO 1980-2017/1-12/1-31/0-23 C xy kgC/m2/s LIMO - 4 2
+0 BIOGENIC_FARN $ROOT/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc BIOGENIC_FARN 1980-2017/1-12/1-31/0-23 C xy kgC/m2/s FARN - 4 2
+0 BIOGENIC_BCAR $ROOT/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc BIOGENIC_BCAR 1980-2017/1-12/1-31/0-23 C xy kgC/m2/s BCAR - 4 2
+0 BIOGENIC_OSQT $ROOT/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}.$YYYY$MM$DD.nc BIOGENIC_OSQT 1980-2017/1-12/1-31/0-23 C xy kgC/m2/s OSQT - 4 2
+))).not.MEGAN.or.MEGAN_Mono
+)))OFFLINE_BIOGENICVOC
+
+#==============================================================================
+# --- Offline sea salt emissions ---
+#==============================================================================
+(((OFFLINE_SEASALT
+(((.not.SeaSalt
+0 SEASALT_SALA   $ROOT/OFFLINE_SEASALT/v2019-01/{NATIVE_RES}/$YYYY/$MM/seasalt_{LATRES}.$YYYY$MM$DD.nc SALA_TOTAL   1980-2017/1-12/1-31/0-23 C xy kg/m2/s SALA   - 3 2
+0 SEASALT_SALC   $ROOT/OFFLINE_SEASALT/v2019-01/{NATIVE_RES}/$YYYY/$MM/seasalt_{LATRES}.$YYYY$MM$DD.nc SALC_TOTAL   1980-2017/1-12/1-31/0-23 C xy kg/m2/s SALC   - 3 2
+#0 SEASALT_Br2    $ROOT/OFFLINE_SEASALT/v2019-01/{NATIVE_RES}/$YYYY/$MM/seasalt_{LATRES}.$YYYY$MM$DD.nc Br2_TOTAL    1980-2017/1-12/1-31/0-23 C xy kg/m2/s Br2    - 3 2
+#0 SEASALT_BrSALA $ROOT/OFFLINE_SEASALT/v2019-01/{NATIVE_RES}/$YYYY/$MM/seasalt_{LATRES}.$YYYY$MM$DD.nc BrSALA_TOTAL 1980-2017/1-12/1-31/0-23 C xy kg/m2/s BrSALA - 3 2
+#0 SEASALT_BrSALC $ROOT/OFFLINE_SEASALT/v2019-01/{NATIVE_RES}/$YYYY/$MM/seasalt_{LATRES}.$YYYY$MM$DD.nc BrSALC_TOTAL 1980-2017/1-12/1-31/0-23 C xy kg/m2/s BrSALC - 3 2
+))).not.SeaSalt
+)))OFFLINE_SEASALT
+
+#==============================================================================
+# --- Offline soil NOx emissions ---
+#==============================================================================
+(((OFFLINE_SOILNOX
+(((.not.SoilNOx
+0 SOILNOX_NO  $ROOT/OFFLINE_SOILNOX/v2019-01/{NATIVE_RES}/$YYYY/$MM/soilnox_{LATRES}.$YYYY$MM$DD.nc SOIL_NOx 1980-2017/1-12/1-31/0-23 C xy kg/m2/s NO - 3 2
+))).not.SoilNOx
+)))OFFLINE_SOILNOX
 
 ###############################################################################
 ### EXTENSION DATA (subsection of BASE EMISSIONS SECTION)
@@ -2302,14 +2323,6 @@ Warnings:                    1
 101 DMS_SEAWATER    $ROOT/DMS/v2015-07/DMS_lana.geos.1x1.nc          DMS_OCEAN  1985/1-12/1/0 C xy kg/m3 DMS  - 1 1
 101 ACET_SEAWATER   $ROOT/ACET/v2014-07/ACET_seawater.generic.1x1.nc ACET       2005/1/1/0    C xy kg/m3 ACET - 1 1 
 101 ALD2_SEAWATER   $ROOT/ALD2/v2017-03/ALD2_seawater.geos.2x25.nc   ALD2       1985/1-12/1/0 C xy kg/m3 ALD2 - 1 1
-
-#==============================================================================
-# --- LIGHTNOX emissions (Extension 103) ---
-#
-# Local redistribution factors: These are model-specific and hence need to be 
-# redefined for different model/resolution simulations!!!
-#==============================================================================
-103 LIGHTNOX_OTDLIS $ROOT/LIGHTNOX/v2017-09/OTD-LIS-Local-Redist.CTH.v5.$met.$RES.v20170928.nc OTD $YYYY/1-12/1/0 C xy unitless NO - 1 1
 
 #==============================================================================
 # --- SOILNOX emissions (Extension 104) ---
@@ -3143,6 +3156,12 @@ Warnings:                    1
 #==============================================================================
 311 QFED_PBL_FRAC 0.65 - - - xy 1 1
 312 QFED_FT_FRAC  0.35 - - - xy 1 1
+
+#==============================================================================
+# --- Offline dust emissions ---
+#==============================================================================
+606 DST1_SF           7.546e-5 - - - xy 1 1
+607 DST2_DST3_DST4_SF 6.422e-5 - - - xy 1 1
 
 ### END SECTION SCALE FACTORS ###
 
