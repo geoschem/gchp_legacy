@@ -115,8 +115,8 @@ PHIS     'm2 s-2'  xy  C N Y -         none none PHIS       ./MetDir/{MET_CN_YR}
 # --- Fields for lightning emissions (Extension 103) ---
 # These fields are stored in State_Met, along with the other met fields
 #==============================================================================
-FLASH_DENS '1'     xy  C N Y F0;013000 none none LDENS      ./MainDataDir/OFFLINE_LIGHTNING/v2019-01/{MET_SOURCE}/%y4/FLASH_CTH_$MET_{NATIVE_RES}_$y4%m2.nc4
-CONV_DEPTH '1'     xy  C N Y F0;013000 none none CTH        ./MainDataDir/OFFLINE_LIGHTNING/v2019-01/{MET_SOURCE}/%y4/FLASH_CTH_$MET_{NATIVE_RES}_$y4%m2.nc4
+FLASH_DENS '1'     xy  C N Y F0;013000 none none LDENS      ./MainDataDir/OFFLINE_LIGHTNING/v2019-01/{MET_SOURCE}/%y4/FLASH_CTH_{MET_SOURCE}_{NATIVE_RES}_%y4_%m2.nc4
+CONV_DEPTH '1'     xy  C N Y F0;013000 none none CTH        ./MainDataDir/OFFLINE_LIGHTNING/v2019-01/{MET_SOURCE}/%y4/FLASH_CTH_{MET_SOURCE}_{NATIVE_RES}_%y4_%m2.nc4
 
 ###############################################################################
 ###
