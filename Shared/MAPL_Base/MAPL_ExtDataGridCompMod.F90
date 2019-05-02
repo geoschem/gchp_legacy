@@ -2498,6 +2498,7 @@ CONTAINS
         ! Generate CFIO
         call MakeCFIO(file_processed,item%collection_id,xCFIO,rc=status)
         ! Retrieve the time series
+        if (allocated(xTSeries)) deallocate(xTSeries)
         allocate(xTSeries(xCFIO%tSteps))
         call GetTimesOnFile(xCFIO,xTSeries,rc=rc)
 
