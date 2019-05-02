@@ -2252,11 +2252,13 @@ CONTAINS
      logical                                    :: found, newFile
      logical                                    :: LExtrap, RExtrap, LExact, RExact
      logical                                    :: LSide, RSide, intOK, bracketScan
+     type(ESMF_TimeInterval)                    :: yrTimeStep
 
      type (ESMF_CFIO), pointer                  :: xCFIO
      type(ESMF_Time), allocatable               :: xTSeries(:)
    
      call ESMF_TimeIntervalSet(zero,__RC__)
+     call ESMF_TimeIntervalSet(yrTimeStep, yy=1, rc=rc)
 
      ! Default
      fTime = cTime
@@ -2385,6 +2387,9 @@ CONTAINS
               if (.not.found) then
                  n = n + 1
                  ftime = ftime + item%frequency
+                 ! Use year increment to avoid performance hit of +=day (EWL)
+                 !ftime = ftime + item%frequency
+                 ftime = fTime+yrTimeStep
               end if
            End Do
            If (.not.found) Then
