@@ -491,6 +491,12 @@ contains
      end if
 
      call factory%initialize(file_metadata, rc=status)
+
+     ! ewl debugging
+     if ( status == 1 ) then
+        print *, "make_factory_from_file: factory init fail for filename: ", trim(file_name)
+     endif
+
      _VERIFY(status)
      call file_formatter%close()
 
