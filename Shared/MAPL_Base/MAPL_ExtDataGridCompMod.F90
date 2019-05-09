@@ -2386,7 +2386,6 @@ CONTAINS
               intOK = (abs(yrOffset)<maxOffset)
               if (.not.found) then
                  n = n + 1
-                 ftime = ftime + item%frequency
                  ! Use year increment to avoid performance hit of +=day (EWL)
                  !ftime = ftime + item%frequency
                  ftime = fTime+yrTimeStep
