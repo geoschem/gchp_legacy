@@ -1,5 +1,5 @@
 find_path(GCHP_THIRDPARTY_TARGETS
-    GCHPThirdParty-${CMAKE_Fortran_COMPILER_ID}.${CMAKE_Fortran_COMPILER_VERSION}.cmake
+    FindGCHPThirdParty-${CMAKE_Fortran_COMPILER_ID}.${CMAKE_Fortran_COMPILER_VERSION}.cmake
     PATHS 
         "${GCHP_THIRDPARTY_INSTALL}"                        # for absolute path
         "${CMAKE_BINARY_DIR}/${GCHP_THIRDPARTY_INSTALL}"    # for relativel path
