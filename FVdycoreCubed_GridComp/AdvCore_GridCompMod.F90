@@ -730,8 +730,7 @@ contains
 
          ! Deallocate the list of tracers
          !-------------------------------------------------------------------------
-            ! Must comment out deallocation of tracers in GCHP (unresolved bug)
-            !DEALLOCATE( TRACERS,stat=STATUS )
+            DEALLOCATE( TRACERS,stat=STATUS )
             _VERIFY(STATUS)
 
       end if ! NQ > 0
