@@ -41,13 +41,14 @@ include(GC-ConfigureGCHPBuild)
 
 #[[ 	Warning suppressions on third-party components.						 ]]
 message(STATUS "Suppressed compiler warnings for third-party components:")
-set_dynamic_option(SUPPRESSED DEFAULT
+set_dynamic_option(SUPPRESSED 
+	DEFAULT STANDARD
     LOG SUPPRESSED_LOG
     SELECT_EXACTLY 1
-    OPTIONS "DEFAULT" "NONE"
+    OPTIONS "STANDARD" "NONE"
 )
 dump_log(SUPPRESSED_LOG)
-if("${SUPPRESSED}" STREQUAL "DEFAULT")
+if("${SUPPRESSED}" STREQUAL "STANDARD")
 	# Add suppression flags on MAPL and FVdycore
 	get_warning_suppression_flags(SUPPRESSED_FLAGS
 		LANGUAGE Fortran

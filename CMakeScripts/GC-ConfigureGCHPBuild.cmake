@@ -17,8 +17,9 @@ three things:
 #[[--------------------------------------------------------------------------]]
 find_package(OpenMP REQUIRED)
 find_package(MPI REQUIRED)
-find_package(ESMF REQUIRED)
 find_package(NetCDF REQUIRED COMPONENTS F90)
+find_package(GCHPThirdParty REQUIRED)
+message(STATUS "Importing \"${EXPORTED_GCHP_THIRDPARTY}\"")
 
 # Setup BaseTarget
 string(STRIP "${MPI_Fortran_LINK_FLAGS}" MPI_Fortran_LINK_FLAGS)
@@ -31,6 +32,7 @@ target_include_directories(BaseTarget
         ${NETCDF_F90_INCLUDE_DIR} 
         ${MPI_Fortran_INCLUDE_PATH}
 )
+get_target_property(ESMF_LIB ESMF INTERFACE_LINK_LIBRARIES)
 target_link_libraries(BaseTarget 
 	INTERFACE 
 		MAPL_Base MAPL_cfio_r4 GMAO_mpeu GMAO_pilgrim
@@ -39,7 +41,8 @@ target_link_libraries(BaseTarget
         ${MPI_Fortran_LINK_FLAGS} 
         ${MPI_Fortran_LIBRARIES} 
         ${OpenMP_Fortran_FLAGS} 
-        /usr/lib/x86_64-linux-gnu/libstdc++.so.6
+        ${ESMF_LIB} rt
+        #/usr/lib/x86_64-linux-gnu/libstdc++.so.6  TODO: not sure why this was needed before
 )
 
 # Print repository's last commit
@@ -68,7 +71,8 @@ endif()
 #[[     Settings TUI with defaults from the run directory inspection.        ]]
 
 # Chemistry mechanism
-set_dynamic_option(MECH "${RUNDIR_MECH}"
+set_dynamic_option(MECH 
+    DEFAULT "${RUNDIR_MECH}"
     LOG GENERAL_OPTIONS_LOG
     SELECT_EXACTLY 1
     OPTIONS "Standard" "RnPbBe" "benchmark"
@@ -76,14 +80,15 @@ set_dynamic_option(MECH "${RUNDIR_MECH}"
 set(MECH ${MECH} PARENT_SCOPE) # Make visible for use by ../KPP 
 
 # Build RRTMG?
-set_dynamic_option(RRTMG "FALSE"
+set_dynamic_option(RRTMG 
+    DEFAULT "FALSE"
     LOG GENERAL_OPTIONS_LOG
     SELECT_EXACTLY 1
     OPTIONS "TRUE" "FALSE"
 )
 set(RRTMG ${RRTMG} PARENT_SCOPE)
 if(${RRTMG})
-    set_dynamic_default(GC_DEFINES "RRTMG")
+    set_dynamic_default(GC_DEFINES DEFAULT "RRTMG")
 endif()
 
 message(STATUS "General settings:")
@@ -92,18 +97,18 @@ dump_log(GENERAL_OPTIONS_LOG)
 # Get diagnostics
 set_dynamic_default(DIAG 
 #    "BPCH_DIAG" "BPCH_TIMESER" "BPCH_TPBC"
-    "NC_DIAG" "NC_HAS_COMPRESSION"
+    DEFAULT "NC_DIAG" "NC_HAS_COMPRESSION"
     LOG EXTRA_DEFS_LOG
 )
-set_dynamic_default(GC_DEFINES ${DIAG})
+set_dynamic_default(GC_DEFINES DEFAULT ${DIAG})
 
 # Get extra defines
 set_dynamic_default(EXTRA 
-    "ESMF_" "EXTERNAL_GRID" "GEOS_FP" "USE_REAL8" 
+    DEFAULT "ESMF_" "EXTERNAL_GRID" "GEOS_FP" "USE_REAL8" 
     
     LOG EXTRA_DEFS_LOG
 )
-set_dynamic_default(GC_DEFINES ${EXTRA})
+set_dynamic_default(GC_DEFINES DEFAULT ${EXTRA})
 
 message(STATUS "Additional definitions:")
 dump_log(EXTRA_DEFS_LOG)
@@ -127,18 +132,39 @@ unset(GC_DEFINES)
 # Get compiler options
 if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
     set_dynamic_default(FC_OPTIONS
-        -fPIC -cpp -w -auto -noalign "-convert big_endian" -vec-report0 
-        "-fp-model source" -openmp -mcmodel=medium -shared-intel -traceback
-        -DLINUX_IFORT
+        DEFAULT 
+            -fPIC 
+            -cpp 
+            -w 
+            -auto 
+            -noalign 
+            "-convert big_endian" 
+            -vec-report0 
+            "-fp-model source" 
+            -openmp 
+            -mcmodel=medium 
+            -shared-intel 
+            -traceback
+            -DLINUX_IFORT
 
         LOG RESULTING_DEFINES_LOG
     )
 elseif("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "GNU")
     set_dynamic_default(FC_OPTIONS
-        -cpp -w -std=legacy -fautomatic -fno-align-commons -fconvert=native -fno-range-check -O3 
-        -funroll-loops -fopenmp -mcmodel=medium -fbacktrace -g 
-        
-        -DLINUX_GFORTRAN
+        DEFAULT 
+            -cpp 
+            -w 
+            -std=legacy 
+            -fautomatic 
+            -fno-align-commons 
+            -fconvert=native 
+            -fno-range-check 
+            -O3 
+            -funroll-loops 
+            -fopenmp 
+            -mcmodel=medium 
+            -fbacktrace -g 
+            -DLINUX_GFORTRAN
 
         LOG RESULTING_DEFINES_LOG
     )
