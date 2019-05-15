@@ -63,6 +63,8 @@ module MAPL_LatLonGridFactoryMod
       type (ESMF_DELayout) :: layout
       integer :: px, py
       logical :: is_halo_initialized = .false.
+      logical :: periodic = .true.
+      logical :: allow_empty_de = .true.
    contains
       procedure :: make_new_grid
       procedure :: create_basic_grid
@@ -92,6 +94,8 @@ module MAPL_LatLonGridFactoryMod
       procedure :: append_metadata
       procedure :: get_grid_vars
       procedure :: append_variable_metadata
+      procedure :: check_decomposition
+      procedure :: generate_newnxy
    end type LatLonGridFactory
 
    character(len=*), parameter :: MOD_NAME = 'MAPL_LatLonGridFactory::'
@@ -271,18 +275,33 @@ contains
 
       _UNUSED_DUMMY(unusable)
 
-      grid = ESMF_GridCreate1PeriDim( &
-           & name = this%grid_name, &
-           & countsPerDEDim1=this%ims, &
-           & countsPerDEDim2=this%jms, &
-           & indexFlag=ESMF_INDEX_DELOCAL, &
-           & gridEdgeLWidth=[0,0], &
-           & gridEdgeUWidth=[0,1], &
-           & coordDep1=[1,2], &
-           & coordDep2=[1,2], &
-           & coordSys=ESMF_COORDSYS_SPH_RAD, &
-           & rc=status)
-      _VERIFY(status)
+      if (this%periodic) then
+         grid = ESMF_GridCreate1PeriDim( &
+              & name = this%grid_name, &
+              & countsPerDEDim1=this%ims, &
+              & countsPerDEDim2=this%jms, &
+              & indexFlag=ESMF_INDEX_DELOCAL, &
+              & gridEdgeLWidth=[0,0], &
+              & gridEdgeUWidth=[0,1], &
+              & coordDep1=[1,2], &
+              & coordDep2=[1,2], &
+              & coordSys=ESMF_COORDSYS_SPH_RAD, &
+              & rc=status)
+         _VERIFY(status)
+      else
+         grid = ESMF_GridCreateNoPeriDim( &
+              & name = this%grid_name, &
+              & countsPerDEDim1=this%ims, &
+              & countsPerDEDim2=this%jms, &
+              & indexFlag=ESMF_INDEX_DELOCAL, &
+              & gridEdgeLWidth=[0,0], &
+              & gridEdgeUWidth=[1,1], &
+              & coordDep1=[1,2], &
+              & coordDep2=[1,2], &
+              & coordSys=ESMF_COORDSYS_SPH_RAD, &
+              & rc=status)
+         _VERIFY(status)
+      end if
 
       ! Allocate coords at default stagger location
       call ESMF_GridAddCoord(grid, rc=status)
@@ -298,6 +317,10 @@ contains
 
       call ESMF_AttributeSet(grid, 'GridType', 'LatLon', rc=status)
       _VERIFY(status)
+      if (.not.this%periodic) then
+         call ESMF_AttributeSet(grid, 'Global', .false., rc=status)
+         _VERIFY(status)
+      end if
 
       _RETURN(_SUCCESS)
    end function create_basic_grid
@@ -558,54 +581,68 @@ contains
       real(kind=ESMF_KIND_R8), pointer :: corners(:,:)
       integer :: status
       character(len=*), parameter :: Iam = MOD_NAME // 'add_horz_coordinates'
-      integer :: i, j
+      integer :: i, j, ij(4)
 
       _UNUSED_DUMMY(unusable)
 
       call MAPL_grid_interior(grid, i_1, i_n, j_1, j_n)
-      ic_1=i_1
-      ic_n=i_n
+      ij(1)=i_1
+      ij(2)=i_n
+      ij(3)=j_1
+      ij(4)=j_n
+      if (.not. any(ij == -1)) then
+         if (this%periodic) then
+            ic_1=i_1
+            ic_n=i_n
+         else
+            ic_1=i_1
+            if (i_n == this%im_world) then
+               ic_n=i_n+1
+            else
+               ic_n=i_n
+            end if
+         end if
 
-      jc_1=j_1
-      if (j_n == this%jm_world) then
-         jc_n=j_n+1
-      else
-         jc_n=j_n
+         jc_1=j_1
+         if (j_n == this%jm_world) then
+            jc_n=j_n+1
+         else
+            jc_n=j_n
+         end if
+
+         ! First we handle longitudes:
+         call ESMF_GridGetCoord(grid, coordDim=1, localDE=0, &
+              staggerloc=ESMF_STAGGERLOC_CENTER, &
+              farrayPtr=centers, rc=status)
+         _VERIFY(status)
+         call ESMF_GridGetCoord(grid, coordDim=1, localDE=0, &
+              staggerloc=ESMF_STAGGERLOC_CORNER, &
+              farrayPtr=corners, rc=status)
+         _VERIFY(status)
+         do j = 1, size(centers,2)
+            centers(:,j) = this%lon_centers(i_1:i_n)
+         end do
+         do j = 1, size(corners,2)
+            corners(:,j) = this%lon_corners(ic_1:ic_n)
+         end do
+
+         ! Now latitudes
+         call ESMF_GridGetCoord(grid, coordDim=2, localDE=0, &
+              staggerloc=ESMF_STAGGERLOC_CENTER, &
+              farrayPtr=centers, rc=status)
+         _VERIFY(status)
+         call ESMF_GridGetCoord(grid, coordDim=2, localDE=0, &
+              staggerloc=ESMF_STAGGERLOC_CORNER, &
+              farrayPtr=corners, rc=status)
+         _VERIFY(status)
+
+         do i = 1, size(centers,1)
+            centers(i,:) = this%lat_centers(j_1:j_n)
+         end do
+         do i = 1, size(corners,1)
+            corners(i,:) = this%lat_corners(jc_1:jc_n)
+         end do
       end if
-
-      ! First we handle longitudes:
-      call ESMF_GridGetCoord(grid, coordDim=1, localDE=0, &
-           staggerloc=ESMF_STAGGERLOC_CENTER, &
-           farrayPtr=centers, rc=status)
-      _VERIFY(status)
-      call ESMF_GridGetCoord(grid, coordDim=1, localDE=0, &
-           staggerloc=ESMF_STAGGERLOC_CORNER, &
-           farrayPtr=corners, rc=status)
-      _VERIFY(status)
-
-      do j = 1, size(centers,2)
-         centers(:,j) = this%lon_centers(i_1:i_n)
-      end do
-      do j = 1, size(corners,2)
-         corners(:,j) = this%lon_corners(ic_1:ic_n)
-      end do
-
-      ! Now latitudes
-      call ESMF_GridGetCoord(grid, coordDim=2, localDE=0, &
-           staggerloc=ESMF_STAGGERLOC_CENTER, &
-           farrayPtr=centers, rc=status)
-      _VERIFY(status)
-      call ESMF_GridGetCoord(grid, coordDim=2, localDE=0, &
-           staggerloc=ESMF_STAGGERLOC_CORNER, &
-           farrayPtr=corners, rc=status)
-      _VERIFY(status)
-
-      do i = 1, size(centers,1)
-         centers(i,:) = this%lat_centers(j_1:j_n)
-      end do
-      do i = 1, size(corners,1)
-         corners(i,:) = this%lat_corners(jc_1:jc_n)
-      end do
 
       _RETURN(_SUCCESS)
 
@@ -690,6 +727,11 @@ contains
            _ASSERT(.false.)
         end select
 
+        if (any((this%lon_centers(2:im)-this%lon_centers(1:im-1))<0)) then
+           where(this%lon_centers > 180) this%lon_centers=this%lon_centers-360
+        end if
+
+
         v => file_metadata%get_coordinate_variable(lat_name, rc=status)
         _VERIFY(status)
         ptr => v%get_coordinate_data()
@@ -721,6 +763,7 @@ contains
          else if (abs(this%lon_corners(1)) < 1000*epsilon(1.0)) then
             this%dateline = 'GE'
          else ! assume 'XY'
+            this%dateline = 'XY'
             this%lon_range = RealMinMax(this%lon_centers(1), this%lon_centers(jm))
          end if
 
@@ -792,19 +835,22 @@ contains
       call ESMF_ConfigGetAttribute(config, this%im_world, label=prefix//'IM_WORLD:', default=UNDEFINED_INTEGER)
       call ESMF_ConfigGetAttribute(config, this%jm_world, label=prefix//'JM_WORLD:', default=UNDEFINED_INTEGER)
 
-      ! only optimze IMS.
       call ESMF_ConfigGetAttribute(config, tmp, label=prefix//'IMS_FILE:', rc=status)
       if ( status == _SUCCESS ) then
-         call get_ims_from_file(this%ims, trim(tmp),this%nx, rc=status) 
+         call get_ims_from_file(this%ims, trim(tmp),this%nx, rc=status)
          _VERIFY(status)
       else
          call get_multi_integer(this%ims, 'IMS:', rc=status)
          _VERIFY(status)
       endif
-
-      ! JMS may be optimized the same way as IMS. not implemented
-      call get_multi_integer(this%jms, 'JMS:', rc=status)
-      _VERIFY(status)
+      call ESMF_ConfigGetAttribute(config, tmp, label=prefix//'JMS_FILE:', rc=status)
+      if ( status == _SUCCESS ) then
+         call get_ims_from_file(this%jms, trim(tmp),this%ny, rc=status)
+         _VERIFY(status)
+      else
+         call get_multi_integer(this%jms, 'JMS:', rc=status)
+         _VERIFY(status)
+      endif
 
       call ESMF_ConfigGetAttribute(config, this%lm, label=prefix//'LM:', default=UNDEFINED_INTEGER)
 
@@ -816,6 +862,7 @@ contains
       if (status == _SUCCESS) then
          this%dateline = trim(tmp)
       end if
+      call ESMF_ConfigGetAttribute(config, this%allow_empty_de, label=prefix//'Allow_Empty_DE:', default=.true.)
 
       call get_range(this%lon_range, 'LON_RANGE:', rc=status); _VERIFY(status)
       call get_range(this%lat_range, 'LAT_RANGE:', rc=status); _VERIFY(status)
@@ -966,6 +1013,7 @@ contains
 
       integer :: status
       character(len=*), parameter :: Iam = MOD_NAME // 'check_and_fill_consistency'
+      logical :: verify_decomp
 
       _UNUSED_DUMMY(unusable)
 
@@ -981,6 +1029,7 @@ contains
 
       ! Check regional vs global
       if (this%pole == 'XY') then ! regional
+         this%periodic = .false.
          _ASSERT(this%lat_range%min /= UNDEFINED_REAL)
          _ASSERT(this%lat_range%max /= UNDEFINED_REAL)
       else ! global
@@ -989,12 +1038,19 @@ contains
          _ASSERT(this%lat_range%max == UNDEFINED_REAL)
       end if
       if (this%dateline == 'XY') then
+         this%periodic = .false.
          _ASSERT(this%lon_range%min /= UNDEFINED_REAL)
          _ASSERT(this%lon_range%max /= UNDEFINED_REAL)
       else
          _ASSERT(any(this%dateline == ['DC', 'DE', 'GC', 'GE']))
          _ASSERT(this%lon_range%min == UNDEFINED_REAL)
          _ASSERT(this%lon_range%max == UNDEFINED_REAL)
+      end if
+      verify_decomp = this%check_decomposition(rc=status)
+      _VERIFY(status)
+      if ( (.not.verify_decomp) .and. (.not.this%allow_empty_de) ) then
+         call this%generate_newnxy(rc=status)
+         _VERIFY(status)
       end if
 
       _RETURN(_SUCCESS)
@@ -1030,7 +1086,8 @@ contains
             _ASSERT(m_world /= UNDEFINED_INTEGER)
             allocate(ms(n), stat=status)
             _VERIFY(status)
-            call MAPL_DecomposeDim(m_world, ms, n, min_DE_extent=2)
+            !call MAPL_DecomposeDim(m_world, ms, n, min_DE_extent=2)
+            call MAPL_DecomposeDim(m_world, ms, n)
 
          end if
 
@@ -1280,7 +1337,65 @@ contains
 
    end function generate_grid_name
 
+   function check_decomposition(this,unusable,rc) result(can_decomp)
+      class (LatLonGridFactory), target, intent(inout) :: this
+      class (KeywordEnforcer), optional, intent(in) :: unusable
+      integer, optional, intent(out) :: rc
+      logical :: can_decomp
+      integer :: n
+      can_decomp = .true.
+      if (this%im_world==1 .and. this%jm_world==1) then
+         _RETURN(_SUCCESS)
+      end if
+      n = this%im_world/this%nx
+      if (n < 2) can_decomp = .false.
+      n = this%jm_world/this%ny
+      if (n < 2) can_decomp = .false.
+      _RETURN(_SUCCESS)
+   end function check_decomposition
 
+   subroutine generate_newnxy(this,unusable,rc)
+      use MAPL_BaseMod, only: MAPL_DecomposeDim
+      class (LatLonGridFactory), target, intent(inout) :: this
+      class (KeywordEnforcer), optional, intent(in) :: unusable
+      integer, optional, intent(out) :: rc
+      integer :: n
+
+      n = this%im_world/this%nx
+      if (n < 2) then
+         this%nx = generate_new_decomp(this%im_world,this%nx)
+         deallocate(this%ims)
+         allocate(this%ims(0:this%nx-1))
+         call MAPL_DecomposeDim(this%im_world, this%ims, this%nx)
+      end if
+      n = this%jm_world/this%ny
+      if (n < 2) then
+         this%ny = generate_new_decomp(this%jm_world,this%ny)
+         deallocate(this%jms)
+         allocate(this%jms(0:this%ny-1))
+         call MAPL_DecomposeDim(this%jm_world, this%jms, this%ny)
+      end if
+
+      _RETURN(_SUCCESS)
+
+   end subroutine generate_newnxy
+
+   function generate_new_decomp(im,nd) result(n)
+      integer, intent(in) :: im, nd
+      integer :: n
+      logical :: canNotDecomp
+      
+      canNotDecomp = .true.
+      n = nd
+      do while(canNotDecomp)
+         if ( (im/n) < 2) then
+            n = n/2
+         else
+            canNotDecomp = .false.
+         end if
+      enddo
+   end function generate_new_decomp
+            
    subroutine init_halo(this, unusable, rc)
       class (LatLonGridFactory), target, intent(inout) :: this
       class (KeywordEnforcer), optional, intent(in) :: unusable

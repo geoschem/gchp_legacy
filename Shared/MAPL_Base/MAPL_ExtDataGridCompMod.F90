@@ -2308,7 +2308,8 @@ CONTAINS
            ! if climatology compute year offset
            call ESMF_TimeGet(cTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
            yrOffset = item%climYear - iyr
-           call ESMF_TimeSet(fTime,yy=item%climYear,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
+           call OffsetTimeYear(cTime,yrOffset,fTime,rc)
+           !call ESMF_TimeSet(fTime,yy=item%climYear,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
         else
            yrOffset = 0
            if (item%reff_time > cTime) then

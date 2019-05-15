@@ -22,6 +22,7 @@ module MAPL_RegridderSpecMod
    public :: REGRID_METHOD_CONSERVE
    public :: REGRID_METHOD_VOTE
    public :: REGRID_METHOD_FRACTION
+   public :: REGRID_METHOD_NEAREST_STOD
 
    public :: TILING_METHODS
 
@@ -31,6 +32,7 @@ module MAPL_RegridderSpecMod
       enumerator :: REGRID_METHOD_CONSERVE
       enumerator :: REGRID_METHOD_VOTE
       enumerator :: REGRID_METHOD_FRACTION
+      enumerator :: REGRID_METHOD_NEAREST_STOD
       enumerator :: UNSPECIFIED_REGRID_METHOD = -1
    end enum
    integer, parameter :: TILING_METHODS(3) = [REGRID_METHOD_CONSERVE,REGRID_METHOD_VOTE,REGRID_METHOD_FRACTION]

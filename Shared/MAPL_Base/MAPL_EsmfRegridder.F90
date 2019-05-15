@@ -767,6 +767,7 @@ contains
       integer, optional, intent(out) :: rc
 
       type (ESMF_RouteHandle) :: route_handle
+      type (RegridderSpec) :: spec
       character(*), parameter :: Iam = 'MAPL_EsmfRegridder::do_regrid()'
       integer :: status
 
@@ -778,15 +779,26 @@ contains
             route_handle = this%transpose_route_handle
          end if
       end if
-         
-      call ESMF_FieldRegrid(src_field, dst_field, &
-           & routeHandle=route_handle, &
-           & dynamicMask=this%dynamic_mask, &
-           & termorderflag=ESMF_TERMORDER_SRCSEQ, &
-           & zeroregion=ESMF_REGION_SELECT, &
-           & rc=status)
-      _VERIFY(status)
 
+      spec = this%get_spec()
+      
+      if (spec%regrid_method /= REGRID_METHOD_NEAREST_STOD) then
+         call ESMF_FieldRegrid(src_field, dst_field, &
+              & routeHandle=route_handle, &
+              & dynamicMask=this%dynamic_mask, &
+              & termorderflag=ESMF_TERMORDER_SRCSEQ, &
+              & zeroregion=ESMF_REGION_SELECT, &
+              & rc=status)
+         _VERIFY(status)
+      else
+         call ESMF_FieldRegrid(src_field, dst_field, &
+              & routeHandle=route_handle, &
+              & termorderflag=ESMF_TERMORDER_SRCSEQ, &
+              & zeroregion=ESMF_REGION_SELECT, &
+              & rc=status)
+         _VERIFY(status)
+      end if
+         
    end subroutine do_regrid
 
    subroutine initialize_subclass(this, unusable, rc)
@@ -810,11 +822,14 @@ contains
     integer, pointer :: factorIndexList(:,:)
     real(ESMF_KIND_R8), pointer :: factorList(:)
     type(ESMF_RouteHandle) :: dummy_rh
+    type(ESMF_UnmappedAction_Flag) :: unmappedaction
+    logical :: global
 
     call ESMF_VMGetCurrent(vm, rc=status)
     _VERIFY(status)
     call ESMF_VMGet(vm, localPet=pet, rc=status)
     _VERIFY(status)
+    unmappedaction = ESMF_UNMAPPEDACTION_ERROR
 
       _UNUSED_DUMMY(unusable)
 
@@ -841,6 +856,10 @@ contains
          this%id = counter
 
          srcTermProcessing=0
+         call ESMF_AttributeGet(spec%grid_in, name='Global',value=global,rc=status)
+         if (status==ESMF_SUCCESS) then
+            if (.not.global) unmappedaction=ESMF_UNMAPPEDACTION_IGNORE
+         end if
          select case (spec%regrid_method)
          case (REGRID_METHOD_BILINEAR)
 
@@ -849,14 +868,20 @@ contains
                  & linetype=ESMF_LINETYPE_GREAT_CIRCLE, & ! closer to SJ Lin interpolation weights?
                  & srcTermProcessing = srcTermProcessing, &
                  & factorList=factorList, factorIndexList=factorIndexList, &
-                 & routehandle=this%route_handle, rc=status)
+                 & routehandle=this%route_handle, unmappedaction=unmappedaction, rc=status)
             _VERIFY(status)
          case (REGRID_METHOD_CONSERVE, REGRID_METHOD_VOTE, REGRID_METHOD_FRACTION)
             call ESMF_FieldRegridStore(src_field, dst_field, &
                  & regridmethod=ESMF_REGRIDMETHOD_CONSERVE, &
                  & srcTermProcessing = srcTermProcessing, &
                  & factorList=factorList, factorIndexList=factorIndexList, &
-                 & routehandle=this%route_handle, rc=status)
+                 & routehandle=this%route_handle, unmappedaction=unmappedaction, rc=status)
+            _VERIFY(status)
+         case (REGRID_METHOD_NEAREST_STOD)
+            call ESMF_FieldRegridStore(src_field, dst_field, &
+                 & regridmethod=ESMF_REGRIDMETHOD_NEAREST_STOD, &
+                 & factorList=factorList, factorIndexList=factorIndexList, &
+                 & routehandle=this%route_handle, unmappedaction=unmappedaction, rc=status)
             _VERIFY(status)
          case default
             _ASSERT(.false.)
@@ -902,8 +927,6 @@ contains
               & handleAllElements=.true., &
               & rc=rc)
          _VERIFY(status)
-      case default
-         _ASSERT(.false.)
       end select
 
       _RETURN(_SUCCESS)
