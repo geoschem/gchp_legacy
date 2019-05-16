@@ -2032,7 +2032,7 @@ ASIA_MASK    1 N Y - none none MASK     ./MainDataDir/MASKS/v2018-09/MIX_Asia_ma
 NEI11_MASK   1 N Y - none none LANDMASK ./MainDataDir/MASKS/v2018-09/USA_LANDMASK_NEI2011_0.1x0.1.20160921.nc
 AFRICA_MASK  1 N Y - none none LANDMASK ./MainDataDir/MASKS/v2018-09/AF_LANDMASK.geos.05x0666.global.nc
 CHINA_MASK   1 N Y - none none MASK     ./MainDataDir/MASKS/v2018-09/China_mask.generic.1x1.nc
-INDIA_MASK   1 N Y - none none MASK     ./MainDataDir/MASKS/v2018-09/India_mask.generic.1x1.nc
+INDIA_MASK   1 N Y - none none MASK     ./MainDataDir/MASKS/v2019-05/India_mask.generic.1x1.nc
 
 %%
 
