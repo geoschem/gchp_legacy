@@ -1364,9 +1364,9 @@ RCP85_HCOOH   kg/m2/s xy C N Y %y4-01-01T00:00:00 none none ACCMIP ./MainDataDir
 # --- Offline dust emissions ---
 #==============================================================================
 EMIS_DST1 kg/m2/s xy C N Y %y4-%m2-%d2T%h2:00:00 none none EMIS_DST1 ./MainDataDir/OFFLINE_DUST/v2019-01/{NATIVE_RES}/%y4/%m2/dust_emissions_{LATRES}.%y4%m2%d2.nc
-EMIS_DST2 kg/m2/s xy C N Y %y4-%m2-%d2T%h2:00:00 none none EMIS_DST1 ./MainDataDir/OFFLINE_DUST/v2019-01/{NATIVE_RES}/%y4/%m2/dust_emissions_{LATRES}.%y4%m2%d2.nc
-EMIS_DST3 kg/m2/s xy C N Y %y4-%m2-%d2T%h2:00:00 none none EMIS_DST1 ./MainDataDir/OFFLINE_DUST/v2019-01/{NATIVE_RES}/%y4/%m2/dust_emissions_{LATRES}.%y4%m2%d2.nc
-EMIS_DST4 kg/m2/s xy C N Y %y4-%m2-%d2T%h2:00:00 none none EMIS_DST1 ./MainDataDir/OFFLINE_DUST/v2019-01/{NATIVE_RES}/%y4/%m2/dust_emissions_{LATRES}.%y4%m2%d2.nc
+EMIS_DST2 kg/m2/s xy C N Y %y4-%m2-%d2T%h2:00:00 none none EMIS_DST2 ./MainDataDir/OFFLINE_DUST/v2019-01/{NATIVE_RES}/%y4/%m2/dust_emissions_{LATRES}.%y4%m2%d2.nc
+EMIS_DST3 kg/m2/s xy C N Y %y4-%m2-%d2T%h2:00:00 none none EMIS_DST3 ./MainDataDir/OFFLINE_DUST/v2019-01/{NATIVE_RES}/%y4/%m2/dust_emissions_{LATRES}.%y4%m2%d2.nc
+EMIS_DST4 kg/m2/s xy C N Y %y4-%m2-%d2T%h2:00:00 none none EMIS_DST4 ./MainDataDir/OFFLINE_DUST/v2019-01/{NATIVE_RES}/%y4/%m2/dust_emissions_{LATRES}.%y4%m2%d2.nc
 
 #==============================================================================
 # --- Offline biogenic VOC emissions ---
