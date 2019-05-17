@@ -6,7 +6,8 @@ find_package(NetCDF REQUIRED COMPONENTS F90)
 find_package(MPI REQUIRED)
 find_package(OpenMP REQUIRED)
 find_package(Threads REQUIRED)
-find_package(GCHPThirdParty REQUIRED)
+find_package(ESMF REQUIRED)
+find_package(GFTL REQUIRED)
 
 # Import ESMA macros
 include(esma_check_if_debug)
@@ -21,8 +22,8 @@ include(${CMAKE_Fortran_COMPILER_ID})
 # Miscellaneous configuration
 set(F2PY_SUFFIX .so)
 set(INC_NETCDF ${NETCDF_F90_INCLUDE_DIR})
-get_target_property(INC_ESMF ESMF INTERFACE_INCLUDE_DIRECTORIES)
-get_target_property(INC_gFTL gFTL INTERFACE_INCLUDE_DIRECTORIES)
+set(INC_ESMF ${ESMF_INCLUDES_DIR} ${ESMF_HEADERS_DIR} ${ESMF_MOD_DIR}) 
+set(INC_gFTL ${GFTL_INCLUDE_DIR})
 
 # Build subcomponents 
 esma_check_if_debug()

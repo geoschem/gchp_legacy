@@ -18,8 +18,8 @@ three things:
 find_package(OpenMP REQUIRED)
 find_package(MPI REQUIRED)
 find_package(NetCDF REQUIRED COMPONENTS F90)
-find_package(GCHPThirdParty REQUIRED)
-message(STATUS "Importing \"${EXPORTED_GCHP_THIRDPARTY}\"")
+find_package(ESMF REQUIRED)
+find_package(GFTL REQUIRED)
 
 # Setup BaseTarget
 string(STRIP "${MPI_Fortran_LINK_FLAGS}" MPI_Fortran_LINK_FLAGS)
@@ -32,7 +32,6 @@ target_include_directories(BaseTarget
         ${NETCDF_F90_INCLUDE_DIR} 
         ${MPI_Fortran_INCLUDE_PATH}
 )
-get_target_property(ESMF_LIB ESMF INTERFACE_LINK_LIBRARIES)
 target_link_libraries(BaseTarget 
 	INTERFACE 
 		MAPL_Base MAPL_cfio_r4 GMAO_mpeu GMAO_pilgrim
@@ -41,7 +40,7 @@ target_link_libraries(BaseTarget
         ${MPI_Fortran_LINK_FLAGS} 
         ${MPI_Fortran_LIBRARIES} 
         ${OpenMP_Fortran_FLAGS} 
-        ${ESMF_LIB} rt
+        ${ESMF_LIBRARIES} rt
         #/usr/lib/x86_64-linux-gnu/libstdc++.so.6  TODO: not sure why this was needed before
 )
 
