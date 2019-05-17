@@ -1,6 +1,9 @@
 # Add GCHP's CMake module directory
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/CMakeScripts)
 
+#[[ 	Configure GCHP build 												 ]]
+include(GC-ConfigureGCHPBuild)
+
 # Add MAPL and FVdycore
 add_subdirectory(Shared)
 add_subdirectory(FVdycoreCubed_GridComp)
@@ -35,9 +38,6 @@ set_target_properties(geos
 install(TARGETS geos
     RUNTIME DESTINATION ${RUNDIR}
 )
-
-#[[ 	Configure GCHP build 												 ]]
-include(GC-ConfigureGCHPBuild)
 
 #[[ 	Warning suppressions on third-party components.						 ]]
 message(STATUS "Suppressed compiler warnings for third-party components:")
