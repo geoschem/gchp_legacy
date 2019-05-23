@@ -208,10 +208,6 @@ CONTAINS
     CALL Set_Input_Opt( am_I_Root, Input_Opt, RC )
     ASSERT_(RC==GC_SUCCESS)
 
-    ! Initialize fields of the Grid State object
-    CALL Init_State_Grid( am_I_Root, State_Grid, RC )
-    ASSERT_(RC==GC_SUCCESS)
-
     ! Read input.geos at very beginning of simulation on every thread
     CALL Read_Input_File( am_I_Root, Input_Opt, State_Grid, RC )
     ASSERT_(RC==GC_SUCCESS)

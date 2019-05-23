@@ -1893,7 +1893,11 @@ CONTAINS
     ! Initialize GEOS-Chem (will also initialize HEMCO)
     !=======================================================================
 
-    ! Pass grid settings obtained from Extract_ to State_Grid
+    ! Initialize fields of the Grid State object
+    CALL Init_State_Grid( am_I_Root, State_Grid, RC )
+    ASSERT_(RC==GC_SUCCESS)
+  
+    ! Pass grid information obtained from Extract_ to State_Grid
     State_Grid%NX          = IM            ! # lons   on this PET
     State_Grid%NY          = JM            ! # lats   on this PET
     State_Grid%NZ          = LM            ! # levels on this PET
