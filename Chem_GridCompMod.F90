@@ -63,6 +63,7 @@ MODULE Chem_GridCompMod
   USE ErrCode_Mod                                    ! Error numbers
   USE State_Chm_Mod                                  ! Chemistry State obj
   USE State_Diag_Mod                                 ! Diagnostics State obj
+  USE State_Grid_Mod                                 ! Grid State obj
   USE State_Met_Mod                                  ! Meteorology State obj
   USE Species_Mod,   ONLY : Species
   USE Time_Mod,      ONLY : ITS_A_NEW_DAY, ITS_A_NEW_MONTH
@@ -130,9 +131,10 @@ MODULE Chem_GridCompMod
 
   ! Objects for GEOS-Chem
   TYPE(OptInput)                   :: Input_Opt      ! Input Options
-  TYPE(MetState)                   :: State_Met      ! Meteorology state
   TYPE(ChmState)                   :: State_Chm      ! Chemistry state
   TYPE(DgnState)                   :: State_Diag     ! Diagnostics state 
+  TYPE(GrdState)                   :: State_Grid     ! Grid state 
+  TYPE(MetState)                   :: State_Met      ! Meteorology state
   TYPE(Species),          POINTER  :: ThisSpc => NULL()
   TYPE(HistoryConfigObj), POINTER  :: HistoryConfig
   TYPE(ConfigObj),        POINTER  :: HcoConfig
@@ -378,6 +380,8 @@ MODULE Chem_GridCompMod
 !  06 Nov 2017 - E. Lundgren - Abstract provider services to new module
 !                              gigc_providerservices_mod.F90
 #endif
+!  22 May 2019 - M. Sulprizio- Added State_Grid object; Remove unused variables
+!                              I_LO, J_LO, I_HI, and J_HI  
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -1626,10 +1630,6 @@ CONTAINS
     INTEGER                     :: nhmsB       ! GMT time @ start of simulation
     INTEGER                     :: nhmsE       ! GMT time @ end of simulation
     INTEGER                     :: nhms        ! GMT time @ current time
-    INTEGER                     :: I_LO        ! Min lon index on this PET
-    INTEGER                     :: J_LO        ! Min lat index on this PET
-    INTEGER                     :: I_HI        ! Max lon index on this PET
-    INTEGER                     :: J_HI        ! Max lat index on this PET
     INTEGER                     :: IM          ! # of longitudes on this PET
     INTEGER                     :: JM          ! # of latitudes  on this PET
     INTEGER                     :: LM          ! # of levels     on this PET
@@ -1728,10 +1728,6 @@ CONTAINS
                    Grid        = Grid,        &  ! ESMF Grid object
                    MaplCF      = MaplCF,      &  ! AGCM.rc/GCHP.rc config object
                    GeosCF      = GeosCF,      &  ! GEOSCHEM*.rc Config object
-                   I_LO        = I_LO,        &  ! Min lon index on this PET
-                   J_LO        = J_LO,        &  ! Min lat  index on this PET
-                   I_HI        = I_HI,        &  ! Max lon index on this PET
-                   J_HI        = J_HI,        &  ! Max lat  index on this PET
                    IM          = IM,          &  ! # of longitudes on this PET
                    JM          = JM,          &  ! # of latitudes  on this PET
                    LM          = LM,          &  ! # of levels     on this PET
@@ -1897,18 +1893,29 @@ CONTAINS
     ! Initialize GEOS-Chem (will also initialize HEMCO)
     !=======================================================================
 
+    ! Pass grid settings obtained from Extract_ to State_Grid
+    State_Grid%NX          = IM            ! # lons   on this PET
+    State_Grid%NY          = JM            ! # lats   on this PET
+    State_Grid%NZ          = LM            ! # levels on this PET
+    State_Grid%GlobalNX    = IM_WORLD      ! # lons   in global grid
+    State_Grid%GlobalNY    = JM_WORLD      ! # lats   in global grid
+    State_Grid%NativeNZ    = LM_WORLD      ! # levels in global grid
+    State_Grid%XMinOffset  = 1             ! X offset from global grid
+    State_Grid%XMaxOffset  = State_Grid%NX ! X offset from global grid
+    State_Grid%YMinOffset  = 1             ! Y offset from global grid
+    State_Grid%YMaxOffset  = State_Grid%NY ! Y offset from global grid
+    State_Grid%MaxTropLev  = 40            ! # trop. levels
+#if defined( MODEL_GEOS )
+    State_Grid%MaxStratLev = value_LLSTRAT ! # strat. levels
+#else
+    State_Grid%MaxStratLev = 59            ! # strat. levels
+#endif
+
+    ! Get pointer to AREA and pass to State_Grid%Area_M2
+    call MAPL_GetPointer ( IMPORT, State_Grid%Area_M2, 'AREA', __RC__ )
+
     ! Call the GIGC initialize routine
     CALL GIGC_Chunk_Init( am_I_Root = am_I_Root,  & ! Are we on the root PET?
-                          value_I_LO= I_LO,       & ! Min lon index on this PET
-                          value_J_LO= J_LO,       & ! Min lat index on this PET
-                          value_I_HI= I_HI,       & ! Max lon index on this PET
-                          value_J_HI= J_HI,       & ! Max lat index on this PET
-                          value_IM  = IM,         & ! # lons   on this PET
-                          value_JM  = JM,         & ! # lats   on this PET
-                          value_LM  = LM,         & ! # levels on this PET
-                          value_IM_WORLD=IM_WORLD,& ! # lons   in global grid
-                          value_JM_WORLD=JM_WORLD,& ! # lats   in global grid
-                          value_LM_WORLD=LM_WORLD,& ! # levels in global grid
                           nymdB     = nymdB,      & ! YYYYMMDD @ start of run
                           nhmsB     = nhmsB,      & ! hhmmss   @ start of run
                           nymdE     = nymdE,      & ! YYYYMMDD @ end of run
@@ -1925,13 +1932,18 @@ CONTAINS
                           Input_Opt = Input_Opt,  & ! Input Options obj
                           State_Chm = State_Chm,  & ! Chemistry State obj
                           State_Diag= State_Diag, & ! Diagnostics State obj
+                          State_Grid= State_Grid, & ! Grid State obj
                           State_Met = State_Met,  & ! Meteorology State obj
-#if defined( MODEL_GEOS )
-                          value_LLSTRAT = value_LLSTRAT,    & ! # strat. levels 
-#endif
                           HcoConfig = HcoConfig,  & ! HEMCO config obj 
                           HistoryConfig = HistoryConfig, & ! History Config Obj
                           __RC__                 )
+
+    ! Set maximum number of levels in the chemistry grid
+    IF ( Input_Opt%LUCX ) THEN
+       State_Grid%MaxChemLev  = State_Grid%MaxStratLev
+    ELSE
+       State_Grid%MaxChemLev  = State_Grid%MaxTropLev
+    ENDIF
 
     ! Also save the MPI & PET specs to Input_Opt
     Input_Opt%myCpu   = myPet
@@ -2227,8 +2239,8 @@ CONTAINS
     ENDIF
 #else
     IF ( isProvider ) THEN
-       CALL Provider_Initialize( am_I_Root, IM,       JM,     LM,  &
-                                 State_Chm, INTSTATE, EXPORT, __RC__ )
+       CALL Provider_Initialize( am_I_Root, State_Chm, State_Grid, &
+                                 INTSTATE,  EXPORT,    __RC__ )
     ENDIF
 #endif
 
@@ -2752,8 +2764,6 @@ CONTAINS
     USE Precision_Mod
 
 #if defined( MODEL_GEOS )
-    USE CMN_SIZE_MOD,            ONLY : LLCHEM
-
     ! To store archived variables in internal state (ckeller, 9/16/15)
     USE CARBON_MOD,              ONLY : ORVC_SESQ
 
@@ -2836,9 +2846,6 @@ CONTAINS
     LOGICAL                      :: IsRunTime     ! Time to call GEOS-Chem
     LOGICAL                      :: IsTendTime    ! Time to calculate tendencies
     INTEGER                      :: IND           ! Species or tracer index
-    INTEGER                      :: IM            ! # of lons   on this PET
-    INTEGER                      :: JM            ! # of lats   on this PET
-    INTEGER                      :: LM            ! # of levels on this PET
     INTEGER                      :: error         ! G-C error return code
     INTEGER(ESMF_KIND_I8)        :: advCount      ! # of clock advances
     INTEGER                      :: nymd          ! YYYY/MM/DD date
@@ -3173,9 +3180,6 @@ CONTAINS
                       minute    = minute,   &  ! Current minute
                       helapsed  = hElapsed, &  ! Elapsed hours
                       advCount  = advCount, &  ! # of times clock has advanced
-                      IM        = IM,       &  ! # of longitudes on this PET
-                      JM        = JM,       &  ! # of latitudes  on this PET
-                      LM        = LM,       &  ! # of levels     on this pET
                       utc       = utc,      &  ! Universal time [hours]
                       localpet  = myPet,    &  ! # of the PET we are on now
                       petCount  = nPets,    &  ! Total # of PETs
@@ -3183,13 +3187,13 @@ CONTAINS
 
        ! Allocate GMAO_ZTH (declared at top of module)
        IF ( .not. ALLOCATED( zenith ) ) THEN
-          ALLOCATE( zenith( IM, JM ), STAT=STATUS)
+          ALLOCATE( zenith(State_Grid%NX,State_Grid%NY), STAT=STATUS)
           VERIFY_(STATUS)
        ENDIF
        
        ! Allocate GMAO_SLR (declared @ top of module)
        IF ( .not. ALLOCATED( solar ) ) THEN
-          ALLOCATE( solar( IM, JM ), STAT=STATUS)
+          ALLOCATE( solar(State_Grid%NX,State_Grid%NY), STAT=STATUS)
           VERIFY_(STATUS)
        ENDIF
        
@@ -3253,7 +3257,8 @@ CONTAINS
           IF ( NDIAG > 0 ) THEN
              ALLOCATE(Input_Opt%RxnRates_IDs(NDIAG))
              Input_Opt%RxnRates_IDs(1:NDIAG) = RRids(1:NDIAG)
-             ALLOCATE(State_Diag%RxnRates(IM,JM,LM,NDIAG))
+             ALLOCATE(State_Diag%RxnRates(State_Grid%NX,State_Grid%NY,&
+                                          State_Grid%NZ,NDIAG))
              State_Diag%RxnRates = 0.0
           ENDIF
        ENDIF
@@ -3285,7 +3290,8 @@ CONTAINS
           IF ( NDIAG > 0 ) THEN
              ALLOCATE(Input_Opt%RxnRconst_IDs(NDIAG))
              Input_Opt%RxnRconst_IDs(1:NDIAG) = RRids(1:NDIAG)
-             ALLOCATE(State_Diag%RxnRconst(IM,JM,LM,NDIAG))
+             ALLOCATE(State_Diag%RxnRconst(State_Grid%NX,State_Grid%NY, &
+                                           State_Grid%NZ,NDIAG))
              State_Diag%RxnRconst = 0.0
           ENDIF
        ENDIF
@@ -3319,7 +3325,8 @@ CONTAINS
           IF ( NDIAG > 0 ) THEN
              ALLOCATE(Input_Opt%JVal_IDs(NDIAG))
              Input_Opt%JVal_IDs(1:NDIAG) = JVids(1:NDIAG)
-             ALLOCATE(State_Diag%JValIndiv(IM,JM,LM,NDIAG))
+             ALLOCATE(State_Diag%JValIndiv(State_Grid%NX,State_Grid%NY, &
+                                           State_Grid%NZ,NDIAG))
              State_Diag%JValIndiv = 0.0
           ENDIF
        ENDIF
@@ -3366,7 +3373,7 @@ CONTAINS
       ENDDO
       
       ! Flip in the vertical
-      State_Chm%Species   = State_Chm%Species( :, :, LM:1:-1, : )
+      State_Chm%Species   = State_Chm%Species( :, :, State_Grid%NZ:1:-1, : )
 
        !=======================================================================
        ! On first call, also need to initialize the species from restart file.
@@ -3404,7 +3411,7 @@ CONTAINS
                 State_Chm%Species(:,:,:,IND) = 1d-26
                 CYCLE
              ENDIF
-             State_Chm%Species(:,:,:,IND) = Ptr3D_R8(:,:,LM:1:-1)
+             State_Chm%Species(:,:,:,IND) = Ptr3D_R8(:,:,State_Grid%NZ:1:-1)
              if ( MAPL_am_I_Root()) WRITE(*,*)                                &
              'Initialized species from INTERNAL state: ', TRIM(ThisSpc%Name)
 
@@ -3417,9 +3424,9 @@ CONTAINS
              ! Set spc conc to background value if rst skipped or var not there
              IF ( RC /= ESMF_SUCCESS .OR. RST == MAPL_RestartBootstrap .OR.   &
                       RST == MAPL_RestartSkipInitial ) THEN
-                DO L = 1, LLPAR 
-                DO J = 1, JJPAR
-                DO I = 1, IIPAR
+                DO L = 1, State_Grid%NZ
+                DO J = 1, State_Grid%NY
+                DO I = 1, State_Grid%NX
                    ! Special handling for MOH (mimicking GEOS-Chem Classic)
                    IF ( TRIM( ThisSpc%Name ) == 'MOH' ) THEN
                       ! Test for altitude (L < 9 is always in the trop)
@@ -3442,9 +3449,9 @@ CONTAINS
                             State_Chm%Species(I,J,L,IND) = 1.0E-30_FP 
                          ENDIF
                       ENDIF
-                   ELSEIF ( L > LLCHEM .AND. &
+                   ELSEIF ( L > State_Grid%MaxChemLev .AND. &
                             ( .NOT. ThisSpc%Is_Advected ) ) THEN
-                      ! For non-advected spc at L > LLCHEM, use small number
+                      ! For non-advected spc at L > MaxChemLev, use small number
                       State_Chm%Species(I,J,L,IND) = 1.0E-30_FP           
                    ELSE
                       ! For all other cases, use the background value in spc db
@@ -3453,7 +3460,7 @@ CONTAINS
                 ENDDO
                 ENDDO
                 ENDDO
-                Ptr3D_R8(:,:,:) = State_Chm%Species(:,:,LM:1:-1,IND)
+                Ptr3D_R8(:,:,:) = State_Chm%Species(:,:,State_Grid%NZ:1:-1,IND)
                 IF ( MAPL_am_I_Root()) THEN
                    WRITE(*,*)  &
                    '   WARNING: using background values from species database'
@@ -3472,7 +3479,7 @@ CONTAINS
                                 notFoundOK=.TRUE., __RC__ )
           IF ( ASSOCIATED(Ptr3d) .AND. &
                ASSOCIATED(State_Chm%H2O2AfterChem) ) THEN
-             State_Chm%H2O2AfterChem = Ptr3d(:,:,LM:1:-1)
+             State_Chm%H2O2AfterChem = Ptr3d(:,:,State_Grid%NZ:1:-1)
           ENDIF
           Ptr3d => NULL()
           
@@ -3480,7 +3487,7 @@ CONTAINS
                                 notFoundOK=.TRUE., __RC__ )
           IF ( ASSOCIATED(Ptr3d) .AND. &
                ASSOCIATED(State_Chm%SO2AfterChem) ) THEN
-             State_Chm%SO2AfterChem = Ptr3d(:,:,LM:1:-1)
+             State_Chm%SO2AfterChem = Ptr3d(:,:,State_Grid%NZ:1:-1)
           ENDIF
           Ptr3d => NULL()
           
@@ -3504,8 +3511,9 @@ CONTAINS
                                 notFoundOK=.TRUE., __RC__ )
           IF ( ASSOCIATED(Ptr3d) .AND. &
                ASSOCIATED(State_Chm%KPPHvalue) ) THEN
-             State_Chm%KPPHvalue(:,:,1:LLCHEM) =  &
-                 REAL(Ptr3d(:,:,LM:LM-LLCHEM+1:-1),KIND=ESMF_KIND_R8)
+             State_Chm%KPPHvalue(:,:,1:State_Grid%MaxChemLev) =  REAL( &
+             Ptr3d(:,:,State_Grid%NZ:State_Grid%NZ-State_Grid%MaxChemLev+1:-1),&
+             KIND=ESMF_KIND_R8)
           ENDIF
           Ptr3d => NULL()
        ENDIF
@@ -3661,7 +3669,8 @@ CONTAINS
           ENDIF
 
           ! Compute State_Met variables IREG, ILAND, IUSE, and FRCLND
-          CALL Compute_Olson_Landmap( am_I_Root, Input_Opt, State_Met, RC )
+          CALL Compute_Olson_Landmap( am_I_Root, Input_Opt, State_Grid, &
+                                      State_Met, RC )
           ASSERT_(RC==GC_SUCCESS)
        ENDIF
 
@@ -3821,9 +3830,6 @@ CONTAINS
              ! Run the GEOS-Chem column chemistry code for the given phase
              CALL GIGC_Chunk_Run( am_I_Root  = am_I_Root,  & ! Is this root PET?
                                   GC         = GC,         & ! Grid comp ref. 
-                                  IM         = IM,         & ! # lons on PET
-                                  JM         = JM,         & ! # lats on PET
-                                  LM         = LM,         & ! # levs on PET
                                   nymd       = nymd,       & ! Current YYYYMMDD
                                   nhms       = nhms,       & ! Current hhmmss
                                   year       = year,       & ! Current year
@@ -3837,8 +3843,9 @@ CONTAINS
                                   hElapsed   = hElapsed,   & ! Elapsed hours
                                   Input_Opt  = Input_Opt,  & ! Input Options
                                   State_Chm  = State_Chm,  & ! Chemistry State
-                                  State_Met  = State_Met,  & ! Meteorology State
                                   State_Diag = State_Diag, & ! Diagnostics State
+                                  State_Grid = State_Grid, & ! Grid State
+                                  State_Met  = State_Met,  & ! Meteorology State
                                   Phase      = Phase,      & ! Run phase
                                   IsChemTime = IsChemTime, & ! Time for chem?
 #if defined( MODEL_GEOS )
@@ -3875,7 +3882,7 @@ CONTAINS
 #endif
 
 #if !defined( MODEL_GEOS )
-       State_Chm%Species = State_Chm%Species( :, :, LM:1:-1, : )
+       State_Chm%Species = State_Chm%Species(:,:,State_Grid%NZ:1:-1,:)
        
        DO I = 1, SIZE(Int2Spc,1)
           IF ( Int2Spc(I)%TrcID <= 0 ) CYCLE
@@ -3921,9 +3928,9 @@ CONTAINS
           CALL MAPL_GetPointer( INTSTATE, Ptr3DB, 'TRC_CO', NotFoundOk=.TRUE.,&
                                  __RC__ )
           IF ( ASSOCIATED(Ptr3DA) .OR. ASSOCIATED(Ptr3DB) ) THEN
-             DO L=1,LM
-             DO J=1,JM
-             DO I=1,IM
+             DO L=1,State_Grid%NZ
+             DO J=1,State_Grid%NY
+             DO I=1,State_Grid%NX
                 IF ( FIXPERT >= 0.0 ) Rnd(1) = FIXPERT
        
                 ! O3
@@ -3972,7 +3979,7 @@ CONTAINS
 !      IF ( IsRunTime ) THEN
 !         CALL CalcTendencies_( am_I_Root, Input_Opt, State_Met, State_Chm,   &
 !                               IsChemTime, Phase, EXPORT, OX_TEND, H2O_TEND, &
-!                               LM, __RC__ )
+!                               State_Grid%NZ, __RC__ )
 !      ENDIF
 
        ! Archive last active time steps
@@ -4025,7 +4032,7 @@ CONTAINS
     CALL MAPL_GetPointer( EXPORT, Ptr3D, 'O3_MASS', NotFoundOk=.TRUE., __RC__ )
     IF ( ASSOCIATED(Ptr3D) ) THEN
        LB = LBOUND(PLE,3)
-       DO L=1,LM
+       DO L=1,State_Grid%NZ
           Ptr3D(:,:,L) = PTR_O3(:,:,L) * ( g0_100 * ( PLE(:,:,L+LB) -  &
                                                       PLE(:,:,L+LB-1) ) )
        ENDDO
@@ -4142,9 +4149,9 @@ CONTAINS
        CALL MAPL_GetPointer( EXPORT, Ptr2D, 'CHEMTOP',               &
                              NotFoundOk=.TRUE., __RC__ )
        IF ( ASSOCIATED(Ptr2D) ) THEN
-          DO J = 1, JM
-          DO I = 1, IM 
-             Ptr2D(I,J) = LM - State_Met%ChemGridLev(I,J) + 1
+          DO J = 1, State_Grid%NY
+          DO I = 1, State_Grid%NX
+             Ptr2D(I,J) = State_Grid%NZ - State_Met%ChemGridLev(I,J) + 1
           ENDDO
           ENDDO
        ENDIF
@@ -4164,11 +4171,11 @@ CONTAINS
        CALL MAPL_GetPointer( EXPORT, Ptr2D, 'CONV_CLDTOP',           &
                              NotFoundOk=.TRUE., __RC__ )
        IF ( ASSOCIATED(Ptr2D) ) THEN
-          DO J = 1, JM
-          DO I = 1, IM
-             DO L = LM,1,-1
+          DO J = 1, State_Grid%NY
+          DO I = 1, State_Grid%NX
+             DO L = State_Grid%NZ,1,-1
                 IF ( State_Met%CMFMC(I,J,L) > 0.0d0 ) THEN
-                   Ptr2D(I,J) = LM - L + 1
+                   Ptr2D(I,J) = State_Grid%NZ - L + 1
                    EXIT
                 ENDIF
              ENDDO
@@ -4206,8 +4213,8 @@ CONTAINS
           CALL MAPL_GetPointer( EXPORT, PtrEmis, 'EMIS_NO_LGHT',  &
                                 NotFoundOk=.TRUE., __RC__ )
           Ptr2D = 0.0
-          DO J = 1, JM
-          DO I = 1, IM
+          DO J = 1, State_Grid%NY
+          DO I = 1, State_Grid%NX
              lp1 = 0.0
              lp2 = 0.0
 
@@ -4401,9 +4408,6 @@ CONTAINS
     INTEGER                    :: error       ! GEOS-Chem error code
     INTEGER                    :: myPet       ! # of PET we are on now
     INTEGER                    :: I,  J,  L   ! Loop indices
-    INTEGER                    :: IM          ! # of longitudes on this PET
-    INTEGER                    :: JM          ! # of latitudes on this PET
-    INTEGER                    :: LM          ! # of levels on this PET
     REAL                       :: UTC         ! UTC time [hours]
     
     ! Pointers
@@ -4456,9 +4460,6 @@ CONTAINS
                    Grid     = Grid,    &    ! ESMF Grid object
                    MaplCF   = MaplCF,  &    ! ESMF Config obj (MAPL.rc)
                    GeosCF   = GeosCF,  &    ! ESMF Config obj (GEOSCHEM*.rc)
-                   IM       = IM,      &    ! # of longitudes on this PET
-                   JM       = JM,      &    ! # of latitudes  on this PET
-                   LM       = LM,      &    ! # of levels     on this PET
                    utc      = utc,     &    ! Universal time [hours]
                    localPET = myPet,   &    ! PET # we are on now 
                    __RC__ )
@@ -4491,7 +4492,7 @@ CONTAINS
        CALL MAPL_GetPointer( INTSTATE, Ptr3D_R8, TRIM(ThisSpc%Name), &
                              notFoundOK=.TRUE., __RC__ )
        IF ( .NOT. ASSOCIATED(Ptr3D_R8) ) CYCLE
-       Ptr3D_R8 = State_Chm%Species(:,:,LM:1:-1,IND)
+       Ptr3D_R8 = State_Chm%Species(:,:,State_Grid%NZ:1:-1,IND)
        Ptr3D_R8 => NULL()
 
        ! Verbose 
@@ -4504,7 +4505,8 @@ CONTAINS
                           notFoundOK=.TRUE., __RC__ ) 
     IF ( ASSOCIATED(Ptr3d) .AND. &
          ASSOCIATED(State_Chm%H2O2AfterChem) ) THEN
-       Ptr3d(:,:,LM:1:-1) = State_Chm%H2O2AfterChem(:,:,LM:1:-1)
+       Ptr3d(:,:,State_Grid%NZ:1:-1) = &
+          State_Chm%H2O2AfterChem(:,:,State_Grid%NZ:1:-1)
     ENDIF
     Ptr3d => NULL()
     
@@ -4512,7 +4514,7 @@ CONTAINS
                           notFoundOK=.TRUE., __RC__ ) 
     IF ( ASSOCIATED(Ptr3d) .AND. &
          ASSOCIATED(State_Chm%SO2AfterChem) ) THEN
-       Ptr3d(:,:,LM:1:-1) = State_Chm%SO2AfterChem
+       Ptr3d(:,:,State_Grid%NZ:1:-1) = State_Chm%SO2AfterChem
     ENDIF
     Ptr3d => NULL()
     
@@ -4536,9 +4538,10 @@ CONTAINS
                           notFoundOK=.TRUE., __RC__ ) 
     IF ( ASSOCIATED(Ptr3d) .AND. &
          ASSOCIATED(State_Chm%KPPHvalue) ) THEN
-       Ptr3d(:,:,1:LM-LLCHEM) = 0.0
-       Ptr3d(:,:,LM:LM-LLCHEM+1:-1) = &
-          REAL(State_Chm%KPPHvalue(:,:,1:LLCHEM),KIND=ESMF_KIND_R4)
+       Ptr3d(:,:,1:State_Grid%NZ-State_Grid%MaxChemLev) = 0.0
+       Ptr3d(:,:,State_Grid%NZ:State_Grid%NZ-State_Grid%MaxChemLev+1:-1) = &
+          REAL(State_Chm%KPPHvalue(:,:,1:State_Grid%MaxChemLev), &
+          KIND=ESMF_KIND_R4)
     ENDIF
 
 #endif
@@ -4550,7 +4553,7 @@ CONTAINS
 
     ! Print mean OH value to GEOS-Chem log-file
     IF ( Input_Opt%ITS_A_FULLCHEM_SIM ) THEN
-       CALL Print_Mean_OH( GC, IM, JM, LM, logLun, __RC__ )
+       CALL Print_Mean_OH( GC, State_Grid, logLun, __RC__ )
     ENDIF
 #endif
 
@@ -4570,11 +4573,12 @@ CONTAINS
 #endif
 
     ! Call the FINALIZE method of the GEOS-Chem column chemistry code
-    CALL GIGC_Chunk_Final( am_I_Root = am_I_Root,   &   ! Is this the root PET?
-                           Input_Opt = Input_Opt,   &   ! Input Options
-                           State_Chm = State_Chm,   &   ! Chemistry State
-                           State_Met = State_Met,   &   ! Meteorology State
-                           State_Diag = State_Diag, &   ! Diagnostics State
+    CALL GIGC_Chunk_Final( am_I_Root  = am_I_Root,   &   ! Is this the root PET?
+                           Input_Opt  = Input_Opt,   &   ! Input Options
+                           State_Chm  = State_Chm,   &   ! Chemistry State
+                           State_Diag = State_Diag,  &   ! Diagnostics State
+                           State_Grid = State_Grid,  &   ! Grid State
+                           State_Met  = State_Met,   &   ! Meteorology State
                            __RC__                 )
 
     ! Free Int2Spc pointer
@@ -4662,9 +4666,10 @@ CONTAINS
 ! !INTERFACE:
 !
   SUBROUTINE Extract_( GC,         Clock,    Grid,    MaplCF, GeosCF,    &
-                       localPet,   petCount, I_LO,    J_LO,   I_HI,      &
-                       J_HI,       IM,       JM,      LM,     IM_WORLD,  &
-                       JM_WORLD,   LM_WORLD, lonCtr,  latCtr, advCount,  &
+                       localPet,   petCount,                             &
+                       IM,         JM,       LM,                         &     
+                       IM_WORLD,   JM_WORLD, LM_WORLD,                   &
+                       lonCtr,     latCtr,   advCount,                   &
                        nymdB,      nymdE,    nymd,    nhmsB,  nhmsE,     &
                        nhms,       year,     month,   day,    dayOfYr,   &
                        hour,       minute,   second,  utc,    hElapsed,  &
@@ -4695,10 +4700,6 @@ CONTAINS
     ! Local grid coordinates 
     ! (defined on the current CPU)
     !----------------------------------
-    INTEGER,             INTENT(OUT), OPTIONAL :: I_LO        ! Min lon index
-    INTEGER,             INTENT(OUT), OPTIONAL :: J_LO        ! Min lat index
-    INTEGER,             INTENT(OUT), OPTIONAL :: I_HI        ! Max lon index
-    INTEGER,             INTENT(OUT), OPTIONAL :: J_HI        ! Max lat index
     INTEGER,             INTENT(OUT), OPTIONAL :: IM          ! Total # lons
     INTEGER,             INTENT(OUT), OPTIONAL :: JM          ! Total # lats
     INTEGER,             INTENT(OUT), OPTIONAL :: LM          ! Total # levs
@@ -5056,10 +5057,6 @@ CONTAINS
     ENDIF
 
     ! Save fields for return
-    IF ( PRESENT( I_LO     ) ) I_LO     = IL
-    IF ( PRESENT( J_LO     ) ) J_LO     = JL
-    IF ( PRESENT( I_HI     ) ) I_HI     = IU
-    IF ( PRESENT( J_HI     ) ) J_HI     = JU
     IF ( PRESENT( IM       ) ) IM       = locDims(1)
     IF ( PRESENT( JM       ) ) JM       = locDims(2)
     IF ( PRESENT( LM       ) ) LM       = locDims(3)
@@ -6873,16 +6870,17 @@ CONTAINS
 !\\
 ! !INTERFACE:
 !
-  SUBROUTINE Print_Mean_OH( GC, IM, JM, LM, logLun, RC )
+  SUBROUTINE Print_Mean_OH( GC, State_grid, logLun, RC )
 !
 ! !USES:
 !
-    USE DIAG_OH_MOD, ONLY : OH_MASS, AIR_MASS
+    USE DIAG_OH_MOD,    ONLY : OH_MASS, AIR_MASS
+    USE State_Grid_Mod, ONLY : GrdState
 !
 ! !INPUT PARAMETERS:
 !
     TYPE(ESMF_GridComp), INTENT(INOUT) :: GC             ! Ref to this GridComp
-    INTEGER,             INTENT(IN)    :: IM, JM, LM     ! Grid dimensions
+    TYPE(GrdState),      INTENT(IN)    :: State_Grid     ! Grid State obj
     INTEGER,             INTENT(IN)    :: logLun         ! LUN for stdout print
 !
 ! !INPUT PARAMETERS:
@@ -6942,9 +6940,12 @@ CONTAINS
 
        ! Pointers to accumulated statistics. Seems like I have to cast from
        ! R8 to R here...
-       ALLOCATE(airMass(IM,JM,LM),ohMass(IM,JM,LM)) 
-       ALLOCATE(airMass_nh(IM,JM,LM),ohMass_nh(IM,JM,LM)) 
-       ALLOCATE(airMass_sh(IM,JM,LM),ohMass_sh(IM,JM,LM)) 
+       ALLOCATE(airMass   (State_Grid%NX,State_Grid%NY,State_Grid%NZ))
+       ALLOCATE(ohMass    (State_Grid%NX,State_Grid%NY,State_Grid%NZ)) 
+       ALLOCATE(airMass_nh(State_Grid%NX,State_Grid%NY,State_Grid%NZ))
+       ALLOCATE(ohMass_nh (State_Grid%NX,State_Grid%NY,State_Grid%NZ))
+       ALLOCATE(airMass_sh(State_Grid%NX,State_Grid%NY,State_Grid%NZ))
+       ALLOCATE(ohMass_sh (State_Grid%NX,State_Grid%NY,State_Grid%NZ))
        airMass    = 0.0
        ohMass     = 0.0
        airMass_nh = 0.0
@@ -6973,8 +6974,8 @@ CONTAINS
                       __RC__                         )
 
        ! SH/NH
-       DO J=1,JM
-       DO I=1,IM 
+       DO J=1,State_Grid%NY
+       DO I=1,State_Grid%NX
           IF ( latCtr(I,J)/PI_180 >= 0.0 ) THEN
              airMass_nh(I,J,1:LMAX) = AIR_MASS(I,J,1:LMAX) / MAPL_AVOGAD
              ohMass_nh(I,J,1:LMAX)  = OH_MASS(I,J,1:LMAX) / MAPL_AVOGAD

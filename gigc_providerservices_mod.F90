@@ -665,29 +665,28 @@ CONTAINS
 !\\
 ! !INTERFACE:
 !
-  SUBROUTINE Provider_Initialize( am_I_Root, IM,       JM,     LM, &
-                                  State_Chm, IntState, Export, RC )
+  SUBROUTINE Provider_Initialize( am_I_Root, State_Chm, State_Grid, &
+                                  IntState,  Export,    RC )
 !
 ! !USES:
 !
-    USE State_Chm_Mod, ONLY: ChmState, IND_
+    USE State_Chm_Mod,  ONLY: ChmState, IND_
+    USE State_Grid_Mod, ONLY: GrdState
 !
 ! !INPUT PARAMETERS:
 !
-    LOGICAL,          INTENT(IN)    :: am_I_Root ! Root PET?
-    INTEGER,          INTENT(IN)    :: IM          ! # of longitudes on this PET
-    INTEGER,          INTENT(IN)    :: JM          ! # of latitudes  on this PET
-    INTEGER,          INTENT(IN)    :: LM          ! # of levels     on this PET
-    TYPE(ChmState),   INTENT(IN)    :: State_Chm ! Chemistry State
+    LOGICAL,          INTENT(IN)            :: am_I_Root  ! Root PET?
+    TYPE(ChmState),   INTENT(IN)            :: State_Chm  ! Chemistry State
+    TYPE(GrdState),   INTENT(IN)            :: State_Grid ! Grid State
 !
 ! !INPUT/OUTPUT PARAMETERS:
 !
-    TYPE(ESMF_State), INTENT(INOUT), TARGET :: IntState  ! Internal State
-    TYPE(ESMF_State), INTENT(INOUT), TARGET :: Export    ! Export State
+    TYPE(ESMF_State), INTENT(INOUT), TARGET :: IntState   ! Internal State
+    TYPE(ESMF_State), INTENT(INOUT), TARGET :: Export     ! Export State
 !                                                  
 ! !OUTPUT PARAMETERS:                              
 !                                                  
-    INTEGER,          INTENT(OUT)           :: RC        ! Success or failure?
+    INTEGER,          INTENT(OUT)           :: RC         ! Success or failure?
 !
 ! !REMARKS:
 !
@@ -865,7 +864,7 @@ CONTAINS
        CALL MAPL_GetPointer( IntState, PTR_O3, 'O3', __RC__ )
 
        ! O3_HIST is needed to store O3 field from previous chemistry time step
-       ALLOCATE( O3_HIST(IM,JM,LM), STAT=STAT )
+       ALLOCATE( O3_HIST(State_Grid%NX,State_Grid%NY,State_Grid%NZ), STAT=STAT )
        ASSERT_(STAT==0)
     ENDIF
 
@@ -878,7 +877,7 @@ CONTAINS
        CALL MAPL_GetPointer( IntState,    PTR_H2O, 'H2O',    __RC__ )
 
        ! H2O_HIST is needed to store H2O field from previous chemistry time step
-       ALLOCATE( H2O_HIST(IM,JM,LM), STAT=STAT )
+       ALLOCATE( H2O_HIST(State_Grid%NX,State_Grid%NY,State_Grid%NZ), STAT=STAT)
        ASSERT_(STAT==0)
     ENDIF
 
