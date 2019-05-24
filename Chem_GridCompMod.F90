@@ -1915,9 +1915,6 @@ CONTAINS
     State_Grid%MaxStratLev = 59            ! # strat. levels
 #endif
 
-    ! Get pointer to AREA and pass to State_Grid%Area_M2
-    call MAPL_GetPointer ( IMPORT, State_Grid%Area_M2, 'AREA', __RC__ )
-
     ! Call the GIGC initialize routine
     CALL GIGC_Chunk_Init( am_I_Root = am_I_Root,  & ! Are we on the root PET?
                           nymdB     = nymdB,      & ! YYYYMMDD @ start of run
@@ -3218,6 +3215,9 @@ CONTAINS
        ! MSL - shift from 0 - 360 to -180 - 180 degree grid
        where (lonCtr .gt. MAPL_PI ) lonCtr = lonCtr - 2*MAPL_PI
 #endif
+
+       ! Pass grid area [m2] obtained from dynamics component to State_Grid
+       State_Grid%Area_M2 = AREA
 
 #if defined( MODEL_GEOS )
        ! Check if this time is before the datetime of the prev timestep, e.g.
