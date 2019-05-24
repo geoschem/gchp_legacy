@@ -149,6 +149,8 @@ build_mapl_debug:
 
 # Build without cleaning
 build_core:
+	rm -f geos
+	rm -f $(CODEDIR_GC)/bin/geos
 	date > ${BUILD_LOG}
 	./build.sh build 2>&1 | tee -a $(BUILD_LOG)
 	@$(MAKE) printbuildinfo 2>&1 | tee -a $(BUILD_LOG)
