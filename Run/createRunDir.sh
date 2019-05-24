@@ -241,6 +241,7 @@ done
 sed -i -e "s|{SIMULATION}|${sim_name_long}|" ${rundir}/GCHP.rc
 sed -i -e "s|{SIMULATION}|${sim_name_long}|" ${rundir}/runConfig.sh
 sed -i -e "s|{DATA_ROOT}|${GC_DATA_ROOT}|"   ${rundir}/input.geos
+sed -i -e "s|{MET}|${met_name}|"             ${rundir}/input.geos
 sed -i -e "s|{DATA_ROOT}|${GC_DATA_ROOT}|"   ${rundir}/HEMCO_Config.rc
 sed -i -e "s|{NATIVE_RES}|${met_native}|"    ${rundir}/HEMCO_Config.rc
 sed -i -e "s|{LATRES}|${met_latres}|"        ${rundir}/HEMCO_Config.rc
