@@ -2185,31 +2185,31 @@ FFF 1 xy C Y Y F2010-%m2-01T00:00:00 none none FFF ./MainDataDir/EDGARv43/v2016-
 #==============================================================================
 VISTAS_SEASON     1 xy C Y Y F2002-%m2-01T00:00:00 none none NOratio ./MainDataDir/NEI2005/v2014-09/scaling/Vistas_season.geos.1x1.nc
 ARP_SEASON        1 xy C N Y F%y4-%m2-01T00:00:00  none none NOxrat  ./MainDataDir/NEI2005/v2014-09/scaling/ARP_season.geos.1x1.nc
-NEI99_DOW_NOX     1 xy C D N -                     none none NOX     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
-NEI99_DOW_CO      1 xy C D N -                     none none CO      ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
-NEI99_DOW_ALK4    1 xy C D N -                     none none ALK4    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
-NEI99_DOW_ACET    1 xy C D N -                     none none ACET    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
-NEI99_DOW_MEK     1 xy C D N -                     none none MEK     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
-NEI99_DOW_PRPE    1 xy C D N -                     none none PRPE    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
-NEI99_DOW_C3H8    1 xy C D N -                     none none C3H8    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
-NEI99_DOW_C2H6    1 xy C D N -                     none none C2H6    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
-NEI99_DOW_SO2     1 xy C D N -                     none none SO2     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
-NEI99_DOW_SO4     1 xy C D N -                     none none SO4     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
-NEI99_DOW_MSA     1 xy C D N -                     none none MSA     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
-NEI99_DOW_BCPI    1 xy C D N -                     none none BCPI    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
-NEI99_DOW_OCPI    1 xy C D N -                     none none OCPI    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
-NEI99_SEASON_CO   1 xy C N N -                     none none CO      ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
-NEI99_SEASON_ALK4 1 xy C N N -                     none none ALK4    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
-NEI99_SEASON_ACET 1 xy C N N -                     none none ACET    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
-NEI99_SEASON_MEK  1 xy C N N -                     none none MEK     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
-NEI99_SEASON_PRPE 1 xy C N N -                     none none PRPE    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
-NEI99_SEASON_C3H8 1 xy C N N -                     none none C3H8    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
-NEI99_SEASON_C2H6 1 xy C N N -                     none none C2H6    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
-NEI99_SEASON_SO2  1 xy C N N -                     none none SO2     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
-NEI99_SEASON_SO4  1 xy C N N -                     none none SO4     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
-NEI99_SEASON_MSA  1 xy C N N -                     none none MSA     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
-NEI99_SEASON_BCPI 1 xy C N N -                     none none BCPI    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
-NEI99_SEASON_OCPI 1 xy C N N -                     none none OCPI    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
+NEI99_DOW_NOX     1 xy C D N F1999-%m2-01T00:00:00 none none NOX     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
+NEI99_DOW_CO      1 xy C D N F1999-%m2-01T00:00:00 none none CO      ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
+NEI99_DOW_ALK4    1 xy C D N F1999-%m2-01T00:00:00 none none ALK4    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
+NEI99_DOW_ACET    1 xy C D N F1999-%m2-01T00:00:00 none none ACET    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
+NEI99_DOW_MEK     1 xy C D N F1999-%m2-01T00:00:00 none none MEK     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
+NEI99_DOW_PRPE    1 xy C D N F1999-%m2-01T00:00:00 none none PRPE    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
+NEI99_DOW_C3H8    1 xy C D N F1999-%m2-01T00:00:00 none none C3H8    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
+NEI99_DOW_C2H6    1 xy C D N F1999-%m2-01T00:00:00 none none C2H6    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
+NEI99_DOW_SO2     1 xy C D N F1999-%m2-01T00:00:00 none none SO2     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
+NEI99_DOW_SO4     1 xy C D N F1999-%m2-01T00:00:00 none none SO4     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
+NEI99_DOW_MSA     1 xy C D N F1999-%m2-01T00:00:00 none none MSA     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
+NEI99_DOW_BCPI    1 xy C D N F1999-%m2-01T00:00:00 none none BCPI    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
+NEI99_DOW_OCPI    1 xy C D N F1999-%m2-01T00:00:00 none none OCPI    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
+NEI99_SEASON_CO   1 xy C Y N F1999-%m2-01T00:00:00 none none CO      ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
+NEI99_SEASON_ALK4 1 xy C Y N F1999-%m2-01T00:00:00 none none ALK4    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
+NEI99_SEASON_ACET 1 xy C Y N F1999-%m2-01T00:00:00 none none ACET    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
+NEI99_SEASON_MEK  1 xy C Y N F1999-%m2-01T00:00:00 none none MEK     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
+NEI99_SEASON_PRPE 1 xy C Y N F1999-%m2-01T00:00:00 none none PRPE    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
+NEI99_SEASON_C3H8 1 xy C Y N F1999-%m2-01T00:00:00 none none C3H8    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
+NEI99_SEASON_C2H6 1 xy C Y N F1999-%m2-01T00:00:00 none none C2H6    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
+NEI99_SEASON_SO2  1 xy C Y N F1999-%m2-01T00:00:00 none none SO2     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
+NEI99_SEASON_SO4  1 xy C Y N F1999-%m2-01T00:00:00 none none SO4     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
+NEI99_SEASON_MSA  1 xy C Y N F1999-%m2-01T00:00:00 none none MSA     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
+NEI99_SEASON_BCPI 1 xy C Y N F1999-%m2-01T00:00:00 none none BCPI    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
+NEI99_SEASON_OCPI 1 xy C Y N F1999-%m2-01T00:00:00 none none OCPI    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
 
 #==============================================================================
 # --- NEI 20011 scale factors ---
