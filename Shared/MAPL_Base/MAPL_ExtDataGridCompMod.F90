@@ -530,6 +530,11 @@ CONTAINS
    call ESMF_ConfigDestroy(CFtemp,rc=status)
    _VERIFY(STATUS)
 
+   ! debugging
+   IF ( (Ext_Debug > 0) .AND. MAPL_Am_I_Root() ) THEN
+      Write(*,*) 'ExtData Initialize_: Start'
+   ENDIF 
+
    primary%nItems = totalPrimaryEntries
    if (totalPrimaryEntries > 0) then
       allocate (PrimaryVarNames(totalPrimaryEntries), stat=STATUS)
@@ -1001,7 +1006,7 @@ CONTAINS
       ! by that it is an untemplated file with one time that could not possibly be time interpolated
       if (PrimaryExportIsConstant_(item)) then
          if (index(item%file,'%') == 0) then
-            call MakeCFIO(item%file,item%collection_id,cfio,__RC__)
+            call MakeCFIO(item%file,item%collection_id,cfio,msg=trim(IAM),__RC__)
             if (cfio%tsteps == 1) then
                item%cyclic = 'single'
                item%doInterpolate = .false.
@@ -1011,6 +1016,7 @@ CONTAINS
 
       ! get clim year if this is cyclic
       call GetClimYear(item,__RC__)
+
       ! get levels, other information
       call GetLevs(item,time,self%allowExtrap,__RC__)
       ! create interpolating fields, check if the vertical levels match the file
@@ -1191,6 +1197,12 @@ CONTAINS
    call MAPL_TimerOff(MAPLSTATE,"TOTAL")
 !  All done
 !  --------
+
+   ! debugging
+   IF ( (Ext_Debug > 0) .AND. MAPL_Am_I_Root() ) THEN
+      Write(*,*) 'ExtData Initialize_: End'
+   ENDIF 
+
    _RETURN(ESMF_SUCCESS)
 
    END SUBROUTINE Initialize_
@@ -1310,18 +1322,33 @@ CONTAINS
    _VERIFY(STATUS)
 
    call MAPL_TimerOn(MAPLSTATE,"-Read_Loop")
- 
+
+   ! debugging
+   IF ( (Ext_Debug > 0) .AND. MAPL_Am_I_Root() ) THEN
+      Write(*,*) 'ExtData Run_: Start'
+      Write(*,*) 'ExtData Run_: READ_LOOP: Start'
+   ENDIF 
+
    READ_LOOP: do i = 1, self%primary%nItems
 
       item => self%primary%item(self%primaryOrder(i))
 
-      if (item%isConst) cycle
-      ! Debug level 1
-      If (Ext_Debug > 0) Then
-         If (MAPL_AM_I_ROOT()) Then
-            Write(*,'(a,3(x,a))') '>> Reading ', trim(item%var), 'from', trim(item%file)
-         End If
-      End If
+      ! debugging
+      IF ( (Ext_Debug > 0) .AND. MAPL_Am_I_Root() ) THEN
+         Write(*,*) ' '
+         Write(*,'(a,I0.3,a,I0.3,a,a)') 'ExtData Run_: READ_LOOP: variable ', i, ' of ', self%primary%nItems, ': ', trim(item%var)
+         Write(*,*) '   ==> file: ', trim(item%file)
+         Write(*,*) '   ==> cyclic: ', trim(item%cyclic)
+         Write(*,*) '   ==> isConst: ', item%isConst
+      ENDIF 
+
+      if (item%isConst) then
+         ! debugging
+         IF ( (Ext_Debug > 0) .AND. MAPL_Am_I_Root() ) THEN
+            Write(*,*) '   ==> Break loop since isConst is true'
+         ENDIF 
+         cycle
+      endif
 
       NotSingle = .true.
       if (trim(item%cyclic) == 'single') NotSingle = .false.
@@ -1334,15 +1361,36 @@ CONTAINS
 
       DO_UPDATE: if (doUpdate_) then
 
+         ! debugging
+         IF ( (Ext_Debug > 0) .AND. MAPL_Am_I_Root() ) THEN
+            Write(*,*) '   ExtData Run_: DO_UPDATE: Start. doUpdate_ is true.'
+         ENDIF 
+
          HAS_RUN: if ( hasRun .eqv. .false.) then
+
+            ! debugging
+            IF ( (Ext_Debug > 0) .AND. MAPL_Am_I_Root() ) THEN
+               Write(*,*) '      ExtData Run_: HAS_RUN: Start. hasRun is false. Update time.'
+            ENDIF 
 
             call MAPL_TimerOn(MAPLSTATE,"--Bracket")
             if (NotSingle) then
+
+               ! debugging
+               IF ( (Ext_Debug > 0) .AND. MAPL_Am_I_Root() ) THEN
+                  Write(*,*) '      ExtData Run_: HAS_RUN: NotSingle is true. Update left time (bracket L)'
+               ENDIF 
+
                ! update left time
                call UpdateBracketTime(item,time,"L",item%interp_time1, & 
                     item%time1,file_processed1,self%allowExtrap,rc=status)
                _VERIFY(status)
                call IOBundle_Add_Entry(IOBundles,item,self%primaryOrder(i),file_processed1,MAPL_ExtDataLeft,item%tindex1,__RC__)
+
+               ! debugging
+               IF ( (Ext_Debug > 0) .AND. MAPL_Am_I_Root() ) THEN
+                  Write(*,*) '      ExtData Run_: HAS_RUN: NotSingle is true. Update right time (bracket R)'    
+               ENDIF 
 
                ! update right time
                call UpdateBracketTime(item,time,"R",item%interp_time2, &
@@ -1351,6 +1399,12 @@ CONTAINS
                call IOBundle_Add_Entry(IOBundles,item,self%primaryOrder(i),file_processed2,MAPL_ExtDataRight,item%tindex2,__RC__)
 
             else
+
+               ! debugging
+               IF ( (Ext_Debug > 0) .AND. MAPL_Am_I_Root() ) THEN
+                  Write(*,*) '      ExtData Run_: HAS_RUN: NotSingle is false. Just get time on file.'
+               ENDIF 
+
                ! just get time on the file
                item%time1 = MAPL_ExtDataGetFStartTime(item,trim(item%file),__RC__)
                item%interp_time1 = item%time1
@@ -1359,11 +1413,21 @@ CONTAINS
             end if
             call MAPL_TimerOff(MAPLSTATE,"--Bracket")
 
+            ! debugging
+            IF ( (Ext_Debug > 0) .AND. MAPL_Am_I_Root() ) THEN
+               Write(*,*) '      ExtData Run_: HAS_RUN: End'
+            ENDIF
+
          endif HAS_RUN
  
          ! now update bracketing times if neccessary
 
          NOT_SINGLE: if (NotSingle) then
+
+            ! debugging
+            IF ( (Ext_Debug > 0) .AND. MAPL_Am_I_Root() ) THEN
+               Write(*,*) '      ExtData Run_: NOT_SINGLE: Start. Update bracketing times?'
+            ENDIF 
 
             if (time >= item%interp_time2) then
                ! normal flow assume clock is moving forward
@@ -1381,8 +1445,20 @@ CONTAINS
                swap    = .false.
             end if
 
+            ! debugging
+            IF ( (Ext_Debug > 0) .AND. MAPL_Am_I_Root() ) THEN
+               Write(*,*) '         ==> updateR: ', updateR
+               Write(*,*) '         ==> updateL: ', updateL
+               Write(*,*) '         ==> swap: ', swap
+            ENDIF 
+
             call MAPL_TimerOn(MAPLSTATE,'--Swap')
             DO_SWAP: if (swap) then
+
+               ! debugging
+               IF ( (Ext_Debug > 0) .AND. MAPL_Am_I_Root() ) THEN
+                  Write(*,*) '            DO_SWAP: Swapping prev and next'
+               ENDIF 
 
                item%interp_time1 = item%interp_time2
 
@@ -1446,7 +1522,12 @@ CONTAINS
 
             call MAPL_TimerOff(MAPLSTATE,'--Swap')
 
-            if (updateR) then
+            UPDATE_R: if (updateR) then
+
+               ! debugging
+               IF ( (Ext_Debug > 0) .AND. MAPL_Am_I_Root() ) THEN
+                  Write(*,*) '         UPDATE_R: updating right bracket'    
+               ENDIF 
 
                call MAPL_TimerOn(MAPLSTATE,'--Bracket')
 
@@ -1457,9 +1538,15 @@ CONTAINS
 
                call MAPL_TimerOff(MAPLSTATE,'--Bracket')
 
-            end if
+            end if UPDATE_R
 
-            if (updateL) then
+            UPDATE_L: if (updateL) then
+
+               ! debugging
+               IF ( (Ext_Debug > 0) .AND. MAPL_Am_I_Root() ) THEN
+                  Write(*,*) '         UPDATE_L: updating left bracket'    
+               ENDIF 
+
                call MAPL_TimerOn(MAPLSTATE,'--Bracket')
 
                call UpdateBracketTime(item,time,"L",item%interp_time1, &
@@ -1469,11 +1556,21 @@ CONTAINS
 
                call MAPL_TimerOff(MAPLSTATE,'--Bracket')
 
-            end if
+            end if UPDATE_L
+
+            ! debugging
+            IF ( (Ext_Debug > 0) .AND. MAPL_Am_I_Root() ) THEN
+               Write(*,*) '      ExtData Run_: NOT_SINGLE: End'
+            ENDIF 
 
          endif NOT_SINGLE
 
          useTime(i) = time
+
+         ! debugging
+         IF ( (Ext_Debug > 0) .AND. MAPL_Am_I_Root() ) THEN
+            Write(*,*) '   ExtData Run_: DO_UPDATE: End'
+         ENDIF
 
       end if DO_UPDATE
 
@@ -1483,6 +1580,12 @@ CONTAINS
       end if
 
    end do READ_LOOP
+
+   ! debugging
+   IF ( (Ext_Debug > 0) .AND. MAPL_Am_I_Root() ) THEN
+      Write(*,*) 'ExtData Run_: READ_LOOP: Done'
+   ENDIF
+
 
    bundle_iter = IOBundles%begin()
    do while (bundle_iter /= IoBundles%end())
@@ -1565,8 +1668,18 @@ CONTAINS
 
       item => self%primary%item(self%primaryOrder(i))
 
+      ! debugging
+      IF ( (Ext_Debug > 0) .AND. MAPL_Am_I_Root() ) THEN
+         Write(*,*) 'ExtData Run_: INTERP_LOOP: Start'
+      ENDIF 
+
       if (doUpdate(i)) then
         
+         ! debugging
+         IF ( (Ext_Debug > 0) .AND. MAPL_Am_I_Root() ) THEN
+            Write(*,*) 'ExtData Run_: INTERP_LOOP: Interpolating between bracketing times'
+         ENDIF 
+
          ! finally interpolate between bracketing times
 
          if (item%vartype == MAPL_FieldItem) then
@@ -1597,7 +1710,13 @@ CONTAINS
 
       endif
 
-      nullify(item) 
+      nullify(item)
+
+      ! debugging
+      IF ( (Ext_Debug > 0) .AND. MAPL_Am_I_Root() ) THEN
+         Write(*,*) 'ExtData Run_: INTERP_LOOP: End'
+      ENDIF 
+ 
 
    end do INTERP_LOOP
 
@@ -1623,6 +1742,11 @@ CONTAINS
       end if
 
    end do
+
+   ! debugging
+   IF ( (Ext_Debug > 0) .AND. MAPL_Am_I_Root() ) THEN
+      Write(*,*) 'ExtData Run_: End'
+   ENDIF 
 
 !  All done
 !  --------
@@ -2070,7 +2194,7 @@ CONTAINS
            nhms = 0
            call ESMF_CFIOStrTemplate(file,item%file,'GRADS',nymd=nymd,nhms=nhms,__STAT__)
         end if
-        call MakeCFIO(file, item%collection_id, cfio, __RC__)
+        call MakeCFIO(file, item%collection_id, cfio, msg=trim(IAM), __RC__)
         begDate = cfio%date
         call MAPL_UnpackTime(begDate,iyr,imm,idd)
         item%climyear = iyr
@@ -2147,8 +2271,10 @@ CONTAINS
      end if
 
      if (found) then
-        call MakeCFIO(file, item%collection_id, cfio, __RC__)
+        call MakeCFIO(file, item%collection_id, cfio, msg=trim(IAM), __RC__)
      else
+
+
         if (allowExtrap .and. (item%cyclic == 'n') ) then
 
            ftime = item%reff_time
@@ -2168,12 +2294,11 @@ CONTAINS
                  n = n + 1
                  ftime = ftime + item%frequency
               else
-                 call MakeCFIO(file, item%collection_id, cfio, __RC__)
+                 call MakeCFIO(file, item%collection_id, cfio, msg=trim(IAM), __RC__)
               end if
            enddo
-
            if (.not.lfound) then
-              if (mapl_am_i_root()) write(*,*)'From ',trim(item%file),'coud not find file with extrapolation'
+              if (mapl_am_i_root()) write(*,*) 'From ',trim(item%file),'could not find file with extrapolation'
               _ASSERT(.false.,'needs informative message')
            end if
         else
@@ -2182,6 +2307,7 @@ CONTAINS
         end if
 
      end if
+
      call ESMF_CFIOGet       (CFIO,     grid=CFIOGRID,__RC__)
      call ESMF_CFIOGridGet   (CFIOGRID,KM=item%LM,__RC__)
      if (item%LM /= 0) then
@@ -2243,6 +2369,7 @@ CONTAINS
      type(ESMF_Time)                            :: newTime
      integer                                    :: curDate,curTime,n,tindex
      integer(ESMF_KIND_I4)                      :: iyr, imm, idd, ihr, imn, isc, oldYear
+     integer(ESMF_KIND_I4)                      :: cYear, cMonth
      integer(ESMF_KIND_I4)                      :: fyr, fmm, fdd, fhr, fmn, fsc
      type(ESMF_TimeInterval)                    :: zero
      type(ESMF_Time)                            :: fTime
@@ -2272,8 +2399,8 @@ CONTAINS
 
      ! Is there only one file for this dataset?
      if (item%frequency == zero) then
-        if (mapl_am_I_root().and.(Ext_Debug > 19)) Then
-           write(*,'(a,a,a,a)') ' DEBUG: Scanning fixed file ',trim(item%file),' for side ',bSide
+        if (mapl_am_I_root().and.(Ext_Debug > 0)) Then
+           write(*,'(a,a,a,a)') '            UpdateBracketTime: Scanning fixed file ',trim(item%file),' for side ',bSide
         end if
         UniFileClim = .false.
         ! if the file is constant, i.e. no tokens in in the template
@@ -2284,7 +2411,7 @@ CONTAINS
         UniFileDOW = (trim(item%cyclic)=='d')
         file_processed = item%file
         ! Generate CFIO if needed
-        call MakeCFIO(file_processed,item%collection_id,xCFIO,rc=status)
+        call MakeCFIO(file_processed,item%collection_id,xCFIO,msg=trim(IAM), rc=status)
         ! Retrieve the time series
         allocate(xTSeries(xCFIO%tSteps))
         call GetTimesOnFile(xCFIO,xTSeries,rc=status)
@@ -2301,13 +2428,13 @@ CONTAINS
            end if
            _RETURN(ESMF_FAILURE)
         end if
-     else 
-        if (mapl_am_I_root().and.(Ext_Debug > 19)) Then
-           write(*,'(a,a,a,a)') ' DEBUG: Scanning template ',trim(item%file),' for side ',bSide
+     else
+        if (mapl_am_I_root().and.(Ext_Debug > 0)) Then
+           write(*,'(a,a,a,a)') '            UpdateBracketTime: Scanning template ',trim(item%file),' for side ',bSide
            call ESMF_TimeGet(cTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
-           Write(*,'(a,I0.4,5(a,I0.2))') ' >> >> >> Target time   : ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
+           Write(*,'(a,I0.4,5(a,I0.2))') '            UpdateBracketTime: Target time   : ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
            call ESMF_TimeGet(item%reff_time,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
-           Write(*,'(a,I0.4,5(a,I0.2))') ' >> >> >> Reference time: ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
+           Write(*,'(a,I0.4,5(a,I0.2))') '            UpdateBracketTime: Reference time: ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
         end if
         UniFileClim = .false.
         found = .false.
@@ -2323,6 +2450,7 @@ CONTAINS
            Write(*,'(a,a,a)') 'ERROR: Day-of-week scaling factors must be given in a single file, but ',&
               Trim(file_processed),' uses a refresh template'
            _ASSERT(.False.,'needs informative message')
+
         else
            yrOffset = 0
            if (item%reff_time > cTime) then
@@ -2346,15 +2474,15 @@ CONTAINS
                  ftime = fTime+item%frequency
               end if
            end do
-           if (mapl_am_I_root().and.(Ext_Debug > 19)) Then
-              write(*,'(a,a,a,a)') ' DEBUG: Untemplating ',trim(item%file)
+           if (mapl_am_I_root().and.(Ext_Debug > 0)) Then
+              write(*,'(a,a,a,a)') '            UpdateBracketTime: Untemplating ',trim(item%file)
               call ESMF_TimeGet(cTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
-              Write(*,'(a,I0.4,5(a,I0.2))') ' >> >> >> Target time   : ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
+              Write(*,'(a,I0.4,5(a,I0.2))') '            UpdateBracketTime: Target time   : ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
               call ESMF_TimeGet(fTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
-              Write(*,'(a,I0.4,5(a,I0.2))') ' >> >> >> File time     : ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
+              Write(*,'(a,I0.4,5(a,I0.2))') '            UpdateBracketTime: File time     : ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
               call ESMF_TimeIntervalGet(item%frequency,yy=iyr,mm=imm,d=idd,h=ihr,m=imn,s=isc,__RC__)
-              Write(*,'(a,I0.4,5(a,I0.2))') ' >> >> >> item%frequency     : ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
-              Write(*,'(a,I5)')             ' >> >> >> N             : ',n
+              Write(*,'(a,I0.4,5(a,I0.2))') '            UpdateBracketTime: item%frequency     : ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
+              Write(*,'(a,I5)')             '            UpdateBracketTime: N             : ',n
            end if
         end if
         readTime = cTime
@@ -2364,15 +2492,15 @@ CONTAINS
         call gx_(file_processed,item%file,nymd=curDate,nhms=curTime,__STAT__)
         Inquire(FILE=trim(file_processed),EXIST=found)
         If (found) Then
-           if (mapl_am_I_root().and.(Ext_Debug > 19)) Then 
-              write(*,'(a,a,a,a)') ' DEBUG: Target file for ',trim(item%file),' found and is ',trim(file_processed)
+           if (mapl_am_I_root().and.(Ext_Debug > 0)) Then
+              write(*,'(a,a,a)') '            UpdateBracketTime: Target file found: ',trim(file_processed)
            end if
            !yrOffset = 0
         Else if (allowExtrap) then 
-           if (mapl_am_I_root().and.(Ext_Debug > 19)) Then
-              write(*,'(a,a,a)') ' DEBUG: Propagating forwards on ',trim(item%file),' from reference time'
+           if (mapl_am_I_root().and.(Ext_Debug > 0)) Then
+              write(*,'(a,a,a)') '            UpdateBracketTime: Propagating forwards on ',trim(item%file),' from reference time'
               call ESMF_TimeGet(item%reff_time,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
-              Write(*,'(a,I0.4,5(a,I0.2))') ' >> >> >> Reference time: ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
+              Write(*,'(a,I0.4,5(a,I0.2))') '            UpdateBracketTime: Reference time: ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
            end if
            ! Go back to the reference time, and propagate forwards until we find
            ! the first valid file
@@ -2380,7 +2508,7 @@ CONTAINS
            call ESMF_TimeGet(item%reff_time,yy=refYear,__RC__)
            If (refYear.lt.1850) Then
               if (mapl_am_I_root()) Then
-                 write(*,'(a,I0.4,a,a)') 'Reference year too early (', refYear, '). Aborting search for data from ',trim(item%file)
+                 write(*,'(a,I0.4,a,a)') '            UpdateBracketTime: Reference year too early (', refYear, '). Aborting search for data from ',trim(item%file)
               end if
               _RETURN(ESMF_FAILURE)
            End If
@@ -2407,20 +2535,21 @@ CONTAINS
            End Do
            If (.not.found) Then
               if (mapl_am_I_root()) Then
-                 write(*,'(a,a)') 'Could not find data within maximum offset range from ',trim(item%file)
-                 write(*,'(a,2(x,I0.5))') 'Test year and reference year: ', iYr, refYear
+                 write(*,'(a,a)') '            UpdateBracketTime: Could not find data within maximum offset range from ',trim(item%file)
+                 write(*,'(a,2(x,I0.5))') '            UpdateBracketTime: Test year and reference year: ', iYr, refYear
                  call ESMF_TimeGet(item%reff_time,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
-                 Write(*,'(a,I0.4,5(a,I0.2))') ' >> >> >> Reference time: ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
+                 Write(*,'(a,I0.4,5(a,I0.2))') '            UpdateBracketTime: Reference time: ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
                  call ESMF_TimeGet(fTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
-                 Write(*,'(a,I0.4,5(a,I0.2))') ' >> >> >> Last check    : ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
+                 Write(*,'(a,I0.4,5(a,I0.2))') '            UpdateBracketTime: Last check    : ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
               end if
               _RETURN(ESMF_FAILURE)
            End If
           ! Generate CFIO
-           call MakeCFIO(file_processed,item%collection_id,xCFIO,rc=status)
+           call MakeCFIO(file_processed,item%collection_id,xCFIO,msg=trim(IAM),rc=status)
            ! Retrieve the time series
            allocate(xTSeries(xCFIO%tSteps))
            call GetTimesOnFile(xCFIO,xTSeries,rc=rc)
+
            ! Is this before or after our target time?
            LSide   = (bSide == "L")
            RSide   = (.not.LSide)
@@ -2430,8 +2559,8 @@ CONTAINS
            RExtrap = (cTime >  xTSeries(xCFIO%tSteps))
            found = .false.
            If (LExtrap.or.(LExact.and.RSide)) Then
-              if (mapl_am_I_root().and.(Ext_Debug>2)) Then
-                 write(*,'(a,a,a,a)') ' Extrapolating BACKWARD for bracket ', bSide, ' for file ',trim(item%file)
+              if (mapl_am_I_root().and.(Ext_Debug > 0)) Then
+                 write(*,'(a,a,a,a)') '            UpdateBracketTime: Extrapolating BACKWARD for bracket ', bSide, ' for file ',trim(item%file)
               end if
               ! We have data from future years
               ! Advance the target time until we can have what we want
@@ -2464,8 +2593,8 @@ CONTAINS
                  _RETURN(ESMF_FAILURE)
               End If
            ElseIf (RExtrap.or.(RExact.and.RSide)) Then
-              if (mapl_am_I_root().and.(Ext_Debug>2)) Then
-                 write(*,'(a,a,a,a)') ' Extrapolating FORWARD for bracket ', bSide, ' for file ',trim(item%file)
+              if (mapl_am_I_root().and.(Ext_Debug > 0)) Then
+                 write(*,'(a,a,a,a)') '            UpdateBracketTime: Extrapolating FORWARD for bracket ', bSide, ' for file ',trim(item%file)
               end if
               ! We have data from past years
               ! Rewind the target time until we can have what we want
@@ -2496,24 +2625,28 @@ CONTAINS
                     write(*,'(a,a,a,a)') ' ERROR: Could not determine upper bounds on ',trim(item%file),' for side ',bSide
                  end if
                  _RETURN(ESMF_FAILURE)
-              End If
+              endif
            Else
               if (mapl_am_I_root()) Then
                  write(*,'(a,a,a,a)') ' ERROR: Unkown error while scanning ',trim(item%file),' for side ',bSide
               end if
               _RETURN(ESMF_FAILURE)
            End If
-        End If
+        End If ! end allow extrap
 
         ! Should now have the "correct" time
         ! Generate CFIO for the "current" file
-        If (MAPL_Am_I_Root().and.(Ext_Debug > 19)) Write(*,'(a,a)') ' DEBUG: Generating CFIO for ', trim(file_processed)
+        If (MAPL_Am_I_Root().and.(Ext_Debug > 0)) Write(*,'(a,a)') '            UpdateBracketTime: Generating CFIO for ', trim(file_processed)
+
         ! Generate CFIO
-        call MakeCFIO(file_processed,item%collection_id,xCFIO,rc=status)
+        call MakeCFIO(file_processed,item%collection_id,xCFIO,msg=trim(IAM),rc=status)
+        _VERIFY(status)
         ! Retrieve the time series
         if (allocated(xTSeries)) deallocate(xTSeries)
         allocate(xTSeries(xCFIO%tSteps))
+
         call GetTimesOnFile(xCFIO,xTSeries,rc=rc)
+        _VERIFY(rc)
 
         ! We now have a time which, when passed to the FILE TEMPLATE, returns a valid file
         ! However, if the file template does not include a year token, then the file in
@@ -2538,19 +2671,19 @@ CONTAINS
         call GetBracketTimeOnFile(xCFIO,xTSeries,readTime,bSide,UniFileClim,interpTime,fileTime,tindex,yrOffsetInt=yrOffset+yrOffsetStamp,rc=status)
         found = (status==ESMF_SUCCESS)
 
-        If (MAPL_Am_I_Root().and.(Ext_Debug > 19)) Write(*,'(a,a,a,L1)') ' DEBUG: Status of ', trim(file_processed),': ', found
+        If (MAPL_Am_I_Root().and.(Ext_Debug > 0)) Write(*,'(a,a,a,L1)') '            UpdateBracketTime: Found status of ', trim(file_processed),': ', found
 
         ! if we didn't find the bracketing time look forwards or backwards depending on
         ! whether it is the right or left time   
         if (.not.found) then
-           If (MAPL_Am_I_Root().and.(Ext_Debug > 19)) Write(*,'(a,a,a,a,a,L1)') ' DEBUG: Scanning for bracket ', bSide, ' of ', trim(file_processed), '. RSide: ', (bSide=="R")
+           If (MAPL_Am_I_Root().and.(Ext_Debug > 0)) Write(*,'(a,a,a,a,a,L1)') '            UpdateBracketTime: Scanning for bracket ', bSide, ' of ', trim(file_processed), '. RSide: ', (bSide=="R")
            bracketScan = .True.
            newTime = fTime
            if (bSide == "R") then
               found=.false.
               newFile=allowExtrap
               status = ESMF_SUCCESS
-              If (MAPL_Am_I_Root().and.(Ext_Debug > 19)) Write(*,'(a,a,a,I5,x,2L1)') ' DEBUG: Sanity check on file ', trim(file_processed), ' with flags: ', status, status==ESMF_SUCCESS,found
+              If (MAPL_Am_I_Root().and.(Ext_Debug > 0)) Write(*,'(a,a,a,I5,x,2L1)') '            UpdateBracketTime: Sanity check on file ', trim(file_processed), ' with flags: ', status, status==ESMF_SUCCESS,found
               do while ((status==ESMF_SUCCESS).and.(.not.found))
                  ! check next time
                  newTime = fTime + item%frequency
@@ -2560,7 +2693,7 @@ CONTAINS
                     if (oldyear/=iyr) then
                        call ESMF_TimeSet(newTime,yy=oldyear,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
                        yrOffset = yrOffset - 1
-                       If (MAPL_Am_I_Root()) Write(*,'(a,I0.4,5(a,I0.2))') ' DEBUG: IN clim after ',Oldyear,'-',iMm,'-',iDd,' ',iHr,':',iMn,':',iSc
+                       If (MAPL_Am_I_Root()) Write(*,'(a,I0.4,5(a,I0.2))') '            UpdateBracketTime: IN clim after ',Oldyear,'-',iMm,'-',iDd,' ',iHr,':',iMn,':',iSc
                     end if
                  end if
                  ! untemplate file
@@ -2569,7 +2702,7 @@ CONTAINS
                  call MAPL_PackTime(curDate,iyr,imm,idd)
                  call MAPL_PackTime(curTime,ihr,imn,isc)
                  call gx_(file_processed,item%file,nymd=curDate,nhms=curTime,__STAT__)
-                 If (MAPL_Am_I_Root().and.(Ext_Debug > 19)) Write(*,'(a,a,a,I0.4,5(a,I0.2))') ' DEBUG: Testing for file ', trim(file_processed), ' for target time ',iYr,'-',iMm,'-',iDd,' ',iHr,':',iMn,':',iSc
+                 If (MAPL_Am_I_Root().and.(Ext_Debug > 0)) Write(*,'(a,a,a,I0.4,5(a,I0.2))') '            UpdateBracketTime: Testing for file ', trim(file_processed), ' for target time ',iYr,'-',iMm,'-',iDd,' ',iHr,':',iMn,':',iSc
                  Inquire(FILE=trim(file_processed),EXIST=found)
                  If (found) Then
                     fTime = newTime
@@ -2584,7 +2717,7 @@ CONTAINS
                  End If
               End Do
               if (status /= ESMF_SUCCESS) then
-                 if (mapl_am_I_root()) write(*,*)'ExtData could not find appropriate file from file template ',trim(item%file),' for side ',bSide
+                 if (mapl_am_I_root()) write(*,*) 'ExtData could not find appropriate file from file template ',trim(item%file),' for side ',bSide
                  _RETURN(ESMF_FAILURE)
               end if
            else if (bSide == "L") then
@@ -2630,7 +2763,7 @@ CONTAINS
 
            ! fTime is now ALWAYS the time which was applied to the file template to get the current file
            ! Generate CFIO
-           call MakeCFIO(file_processed,item%collection_id,xCFIO,rc=status)
+           call MakeCFIO(file_processed,item%collection_id,xCFIO,msg=trim(IAM),rc=status)
            if (allocated(xTSeries)) deallocate(xTSeries)
            ! Retrieve the time series
            allocate(xTSeries(xCFIO%tSteps))
@@ -2643,10 +2776,10 @@ CONTAINS
            buff = ESMF_UtilStringLowerCase(buff, __RC__)
            If (buff /= "0" .and. index(buff,"p")==0 ) Then
               newTime = timestamp_(fTime,item%refresh_template,__RC__)
-              If (Mapl_Am_I_Root().and.Ext_Debug > 24) Then
+              If (Mapl_Am_I_Root().and.Ext_Debug > 0) Then
                  call ESMF_TimeGet(fTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
                  call ESMF_TimeGet(newTime,yy=fyr,mm=fmm,dd=fdd,h=fhr,m=fmn,s=fsc,__RC__)
-                 Write(*,'(3a,I0.4,5(a,I0.2),a,I0.4,5(a,I0.2),2a)') ' DEBUG: Template ',Trim(item%refresh_template),' applied: ',&
+                 Write(*,'(3a,I0.4,5(a,I0.2),a,I0.4,5(a,I0.2),2a)') '            UpdateBracketTime: Template ',Trim(item%refresh_template),' applied: ',&
                     iyr,'-',imm,'-',idd,' ',ihr,':',imn,':',isc,' -> ',&
                     fyr,'-',fmm,'-',fdd,' ',fhr,':',fmn,':',fsc,&
                     ' on file ',Trim(file_processed)
@@ -2655,8 +2788,8 @@ CONTAINS
                  call ESMF_TimeGet(fTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
                  call ESMF_TimeGet(newTime,yy=fyr,mm=fmm,dd=fdd,h=fhr,m=fmn,s=fsc,__RC__)
                  yrOffsetStamp = fYr - iYr
-                 If (Mapl_Am_I_Root().and.Ext_Debug > 19) Then
-                    Write(*,'(2(a,I4),2a)') ' DEBUG: Year offset modified from ',yrOffset,' to ',yrOffset+yrOffsetStamp,' to satisfy refresh template for ', Trim(file_processed)
+                 If (Mapl_Am_I_Root().and.Ext_Debug > 0) Then
+                    Write(*,'(2(a,I4),2a)') '            UpdateBracketTime: Year offset modified from ',yrOffset,' to ',yrOffset+yrOffsetStamp,' to satisfy refresh template for ', Trim(file_processed)
                  End If
               End If
            End If
@@ -2675,14 +2808,14 @@ CONTAINS
      end if
 
      ! Debug
-     If (Mapl_Am_I_Root().and.Ext_Debug > 10) Then 
-        Write(*,'(a,a,a,a)') '  >> >> Updated bracket ', bSide, ' for ', Trim(file_processed)
+     If (Mapl_Am_I_Root().and.Ext_Debug > 0) Then 
+        Write(*,'(a,a,a,a)') '            UpdateBracketTime: Updated bracket ', bSide, ' for ', Trim(file_processed)
         call ESMF_TimeGet(cTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
-        Write(*,'(a,I0.4,5(a,I0.2))') ' >> >> >> Time requested: ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
+        Write(*,'(a,I0.4,5(a,I0.2))') '            UpdateBracketTime: Time requested: ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
         call ESMF_TimeGet(fileTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
-        Write(*,'(a,I0.4,5(a,I0.2))') ' >> >> >> Record time   : ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
+        Write(*,'(a,I0.4,5(a,I0.2))') '            UpdateBracketTime: Record time   : ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
         call ESMF_TimeGet(interpTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
-        Write(*,'(a,I0.4,5(a,I0.2))') ' >> >> >> Effective time: ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
+        Write(*,'(a,I0.4,5(a,I0.2))')'            UpdateBracketTime: Effective time: ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
      End If
      ! If we made it this far, then I guess we are OK?
      if (bside =='R') then
@@ -2690,15 +2823,18 @@ CONTAINS
      else if (bside =='L') then
         item%tindex1=tindex
      end if
+
      _RETURN(ESMF_SUCCESS)
     
   end subroutine UpdateBracketTime
 
-  subroutine MakeCFIO(file,collection_id,cfio,rc)
+  subroutine MakeCFIO(file,collection_id,cfio,msg,rc)
      character(len=*), intent(in   ) :: file
      integer, intent(in)                       :: collection_id
      type(ESMF_CFIO), pointer, intent(inout)   :: cfio
+     character(len=*), optional, intent(in)    :: msg
      integer, optional,          intent(out  ) :: rc
+
      type(CFIOCollection), pointer :: collection => null()
 
      __Iam__('MakeCFIO')
@@ -2706,8 +2842,12 @@ CONTAINS
      collection => collections%at(collection_id)
      cfio => collection%find(file)
 
-     If (Mapl_Am_I_Root().and.(Ext_Debug > 9)) Then
-        Write(6,'(a,a)') ' DEBUG: Retrieving cfioobject for: ', Trim(file)
+     If (Mapl_Am_I_Root().and.(Ext_Debug > 0)) Then
+        If ( Present(msg) ) Then
+           Write(6,'(a,a,a,a)') '               MakeCFIO: Retrieving cfioobject for: ', Trim(file), ' : called from ', trim(msg)
+        Else
+           Write(6,'(a,a)') '               MakeCFIO: Retrieving cfioobject for: ', Trim(file)
+        End If
      End If
 
      _RETURN(ESMF_SUCCESS)
@@ -2734,9 +2874,9 @@ CONTAINS
      rc=ESMF_SUCCESS
 
      ! Debug level 3
-     If (Mapl_Am_I_Root().and.(Ext_Debug > 2)) Then
-        Write(*,'(a,a)') '  >> >> Reading times from ', Trim(cfio%fName)
-        Write(*,'(a,2(x,I0.10),x,I0.4)') '  >> >> File timing info:', begDate, begTime, cfio%tSteps
+     If (Mapl_Am_I_Root().and.(Ext_Debug > 0)) Then
+        Write(*,'(a,a)') '               GetTimesOnFile: Reading times from ', Trim(cfio%fName)
+        Write(*,'(a,2(x,I0.10),x,I0.4)') '                  ==> File timing info:', begDate, begTime, cfio%tSteps
      End If
 
      do i=1,cfio%tSteps
@@ -2746,8 +2886,8 @@ CONTAINS
         call MAPL_UnpackTime(nhmsB,ihr,imn,isc)
         ! Debug level 4
         If (Mapl_Am_I_Root()) Then
-           If ((Ext_Debug > 4).or.((Ext_Debug > 3).and.((i.eq.1).or.(i.eq.cfio%tSteps)))) Then
-              Write(*,'(a,I0.6,a,I0.4,5(a,I0.2))') ' >> >> STD Sample ',i,':  ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
+           If ((Ext_Debug > 0).and.((i.eq.1).or.(i.eq.cfio%tSteps))) Then
+              Write(*,'(a,I0.6,a,I0.4,5(a,I0.2))') '                  ==> STD Sample ',i,':  ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
            End If
         End If
         call ESMF_TimeSet(tSeries(i), yy=iyr, mm=imm, dd=idd,  h=ihr,  m=imn, s=isc,__RC__)
@@ -2875,6 +3015,10 @@ CONTAINS
         If (Mapl_Am_I_Root().and.(Ext_Debug > 0)) Then
            Write(*,'(a,I4,a,I4,4(a))') '               GetBracketTimeOnSingleFile: Reading data for DOW ',targDOW,' (entry ', iEntry, ') into bracket ', Trim(bSide),' from ', trim(cfio%fName)
            call ESMF_TimeGet(fileTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
+!           Write(*,'(a,I0.4,a,I0.2,a,I0.2,a,I0.2,a,I0.2)') &
+!              '                  ==> Data from: ', iYr, '-', iMm, '-', iDd, &
+!              ' ', iHr, ':', iMn
+           Write(*,'(a,I0.2,a,I0.2,a)') &
               '                  ==> Data from: month ', iMm, ', day-of-week ', iDd, ' (01=Sunday)'
            call ESMF_TimeGet(interpTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
            Write(*,'(a,I0.4,a,I0.2,a,I0.2,a,I0.2,a,I0.2)') &
@@ -2883,22 +3027,22 @@ CONTAINS
         End If
         rc = esmf_success
         return
-     End If ! ewl: end dow handling
+     End If
 
      ! Debug output
-     If (Mapl_Am_I_Root().and.(Ext_Debug > 15)) Then
-        Write(6,'(a,a)') ' DEBUG: GetBracketTimeOnSingleFile called for ', trim(cfio%fName)
+     If (Mapl_Am_I_Root().and.(Ext_Debug > 0)) Then
+        Write(6,'(a,a)') '               GetBracketTimeOnSingleFile called for ', trim(cfio%fName)
      End If
 
      ! Debug level 3
-     If (Mapl_Am_I_Root().and.(Ext_Debug > 2) ) Then
-        Write(*,'(a,L1,a,a)') '  >> >> Reading times from fixed (',UniFileClim,') file ', Trim(cfio%fName)
+     If (Mapl_Am_I_Root().and.(Ext_Debug > 0) ) Then
+        Write(*,'(a,L1,a,a)') '               GetBracketTimeOnSingleFile: Reading times from fixed (',UniFileClim,') file ', Trim(cfio%fName)
         call ESMF_TimeGet(tSeries(1),yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
-        Write(*,'(a,I0.4,5(a,I0.2))') ' >> >> >> File start    : ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
+        Write(*,'(a,I0.4,5(a,I0.2))') '                  ==> File start    : ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
         call ESMF_TimeGet(tSeries(cfio%tSteps),yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
-        Write(*,'(a,I0.4,5(a,I0.2))') ' >> >> >> File end      : ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
+        Write(*,'(a,I0.4,5(a,I0.2))') '                  ==> File end      : ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
         call ESMF_TimeGet(cTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
-        Write(*,'(a,I0.4,5(a,I0.2))') ' >> >> >> Time requested: ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
+        Write(*,'(a,I0.4,5(a,I0.2))') '                  ==> Time requested: ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
      End If
 
      if (uniFileClim) then
@@ -2996,14 +3140,14 @@ CONTAINS
         LExtrap = (cLimTime <  tSeries(1)) 
         RExtrap = (cLimTime >  tSeries(cfio%tSteps))
         found = .false.
-        If (Mapl_Am_I_Root().and.(Ext_Debug > 19)) Then
-           Write(*,'(a,4(L1,x),a,a)') ' DEBUG: Extrapolation flags (0) are ',LExact,RExact,LExtrap,RExtrap,'for file ', trim(cfio%fName)
+        If (Mapl_Am_I_Root().and.(Ext_Debug > 0)) Then
+           Write(*,'(a,4(L1,x),a,a)') '               GetBracketTimeOnSingleFile: Extrapolation flags (0) are ',LExact,RExact,LExtrap,RExtrap,'for file ', trim(cfio%fName)
         End If
 
         if (allowExtrap) then
            If (LExtrap) Then
-              If (Mapl_Am_I_Root().and.(Ext_Debug > 19)) Then
-                 Write(6,'(a,a)') ' DEBUG: Requested time is before first available sample in file ', trim(cfio%fName)
+              If (Mapl_Am_I_Root().and.(Ext_Debug > 0)) Then
+                 Write(6,'(a,a)') '               GetBracketTimeOnSingleFile: Requested time is before first available sample in file ', trim(cfio%fName)
               End If
               ! Increase the target time until it is within range
               Do While (LExtrap)
@@ -3024,8 +3168,8 @@ CONTAINS
                  End If
               End Do
            Else If (RExtrap.or.(RExact.and.RSide)) Then
-              If (Mapl_Am_I_Root().and.(Ext_Debug > 19)) Then
-                 Write(6,'(a,a)') ' DEBUG: Requested time is after or on last available sample in file ', trim(cfio%fName)
+              If (Mapl_Am_I_Root().and.(Ext_Debug > 0)) Then
+                 Write(6,'(a,a)') '               GetBracketTimeOnSingleFile: Requested time is after or on last available sample in file ', trim(cfio%fName)
               End If
               Do While (RExtrap.or.(RExact.and.RSide))
                  yrOffset = yrOffset - 1
@@ -3043,8 +3187,8 @@ CONTAINS
            ! Retest for an exact match - note this is only useful if we want bracket L
            LExact  =  (cLimTime == tSeries(1))
            RExact  =  (cLimTime == tSeries(cfio%tSteps))
-           If (Mapl_Am_I_Root().and.(Ext_Debug > 19)) Then
-              Write(*,'(a,4(L1,x),a,a)') ' DEBUG: Extrapolation flags (2) are ',LExact,RExact,LExtrap,RExtrap,'for file ', trim(cfio%fName)
+           If (Mapl_Am_I_Root().and.(Ext_Debug > 0)) Then
+              Write(*,'(a,4(L1,x),a,a)') '            GetBracketTimeOnSingleFile: Extrapolation flags (2) are ',LExact,RExact,LExtrap,RExtrap,'for file ', trim(cfio%fName)
            End If
 
         End IF
@@ -3089,21 +3233,21 @@ CONTAINS
      end if
 
      if (found) then
-        If (Mapl_Am_I_Root().and.(Ext_Debug > 15)) Then
+        If (Mapl_Am_I_Root().and.(Ext_Debug > 0)) Then
            call ESMF_TimeGet(fileTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
            Write(*,'(a,I0.4,a,I0.2,a,I0.2,a,I0.2,a,I0.2,a,a,a,a)') &
-              ' DEBUG: Data from time ', iYr, '-', iMm, '-', iDd, &
+              '               GetBracketTimeOnSingleFile: Data from time ', iYr, '-', iMm, '-', iDd, &
               ' ', iHr, ':', iMn, ' set for bracket ', bSide,&
               ' of file ', Trim(cfio%fName)
-           Write(*,'(a,I5)') ' DEBUG: ==>> Year offset: ', yrOffset
+           Write(*,'(a,I5)') '                  ==> Year offset: ', yrOffset
            If (yrOffset .ne. 0) Then
               call ESMF_TimeGet(interpTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
               Write(*,'(a,I0.4,a,I0.2,a,I0.2,a,I0.2,a,I0.2)') &
-                 ' DEBUG: ==> Mapped to: ', iYr, '-', iMm, '-', iDd, &
+                 '                  ==> Mapped to: ', iYr, '-', iMm, '-', iDd, &
                  ' ', iHr, ':', iMn
               call ESMF_TimeGet(interpTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
               Write(*,'(a,I0.4,a,I0.2,a,I0.2,a,I0.2,a,I0.2)') &
-                 ' DEBUG: ==> Target to: ', iYr, '-', iMm, '-', iDd, &
+                 '                  ==> Target to: ', iYr, '-', iMm, '-', iDd, &
                  ' ', iHr, ':', iMn
            End If
         End If
@@ -3146,14 +3290,16 @@ CONTAINS
      End If
 
      if (UniFileClim) then
-        If (MAPL_Am_I_Root()) Write(*,'(a)') 'GetBracketTimeOnFile called with UniFileClim'
+        If (MAPL_Am_I_Root()) Write(*,'(a)') '               GetBracketTimeOnFile: called with UniFileClim true'
         RC = ESMF_FAILURE
         Return
+     else
+        If (MAPL_Am_I_Root()) Write(*,'(a)') '               GetBracketTimeOnFile: called with UniFileClim false'
      end if
 
      ! Debug output
-     If (Mapl_Am_I_Root().and.(Ext_Debug > 15)) Then
-        Write(6,'(4a)') ' DEBUG: GetBracketTimeOnFile (',Trim(bSide),') called for ', trim(cfio%fName)
+     If (Mapl_Am_I_Root().and.(Ext_Debug > 0)) Then
+        Write(6,'(4a)') '               GetBracketTimeOnFile: (',Trim(bSide),') called for ', trim(cfio%fName)
      End If
 
      if (yrOffset.ne.0) then
@@ -3165,9 +3311,9 @@ CONTAINS
      climSize = 1
 
      ! Debug output
-     If (Mapl_Am_I_Root().and.(Ext_Debug > 19)) Then
+     If (Mapl_Am_I_Root().and.(Ext_Debug > 0)) Then
         call ESMF_TimeGet(cLimTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
-        Write(6,'(a,I2,3a,I0.4,5(a,I0.2))') ' DEBUG: Year offset of ',yrOffset,&
+        Write(6,'(a,I2,3a,I0.4,5(a,I0.2))') '               GetBracketTimeOnFile: Year offset of ',yrOffset,&
            ' applied while scanning ', trim(cfio%fName),&
            ' to give target time ',iYr,'-',iMm,'-',iDd,' ',iHr,':',iMn,':',iSc
      End If
@@ -3221,10 +3367,10 @@ CONTAINS
      end if
 
      if (found) then
-        If (Mapl_Am_I_Root().and.(Ext_Debug > 15)) Then 
+        If (Mapl_Am_I_Root().and.(Ext_Debug > 0)) Then 
            call ESMF_TimeGet(fileTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
            Write(*,'(a,I0.4,a,I0.2,a,I0.2,a,I0.2,a,I0.2,a,a,a,a)') &
-              ' DEBUG: Data from time ', iYr, '-', iMm, '-', iDd, &
+              '               GetBracketTimeOnFile:: Data from time ', iYr, '-', iMm, '-', iDd, &
               ' ', iHr, ':', iMn, ' set for bracket ', bSide,&
               ' of file ', Trim(cfio%fName)
            If (yrOffset .ne. 0) Then
@@ -3233,7 +3379,7 @@ CONTAINS
                  !' DEBUG: ==> Mapped to: ', iYr, '-', iMm, '-', iDd, &
                  !' ', iHr, ':', iMn
               Write(*,'(a,I0.4,a,I0.2,a,I0.2,a,I0.2,a,I0.2,a,I0.2)') &
-                 ' DEBUG: ==> Mapped to: ', iYr, '-', iMm, '-', iDd, &
+                 '               GetBracketTimeOnFile: ==> Mapped to: ', iYr, '-', iMm, '-', iDd, &
                  ' ', iHr, ':', iMn, ' Offset:', yrOffset
            End If
         End If
@@ -3301,7 +3447,7 @@ CONTAINS
      end if
      call ESMF_FieldGet(FIELD, dimCount=fieldRank,name=name,__RC__)
      If (Mapl_Am_I_Root()) Then
-        If (Ext_Debug > 9) Then
+        If (Ext_Debug > 0) Then
            call ESMF_TimeGet(item%interp_time1,yy=yr,mm=mm,dd=dd,h=hr,m=mn,s=sc,__RC__)
            call MAPL_PackTime(nhms1,hr,mn,sc)
            call MAPL_PackTime(nymd1,yr,mm,dd)
@@ -3320,21 +3466,13 @@ CONTAINS
            End If
 
            If (.not.(item%doInterpolate)) Then
-              Write(*,'(a,a,a,a,I0.8,x,I0.6)') ' >> >> >> ', &
-                'Uninterpolated field ', Trim(item%name), &
-                ' set to sample L: ', nymd1, nhms1
+              Write(*,'(a,a,a,I0.8,x,I0.6)') 'MAPL_ExtDataInterpField: Uninterpolated field ', Trim(item%name), ' set to sample L: ', nymd1, nhms1
            Else If (time == item%interp_time1) Then
-              Write(*,'(a,a,a,a,I0.8,x,I0.6)') ' >> >> >> ', &
-                '  Interpolated field ', Trim(item%name), &
-                ' set to sample L: ', nymd1, nhms1
+              Write(*,'(a,a,a,I0.8,x,I0.6)') 'MAPL_ExtDataInterpField: Interpolated field ', Trim(item%name), ' set to sample L: ', nymd1, nhms1
            Else If (time == item%interp_time2) Then
-              Write(*,'(a,a,a,a,I0.8,x,I0.6)') ' >> >> >> ', &
-                '  Interpolated field ', Trim(item%name), &
-                ' set to sample R: ', nymd2, nhms2
+              Write(*,'(a,a,a,I0.8,x,I0.6)') 'MAPL_ExtDataInterpField: Interpolated field ', Trim(item%name), ' set to sample R: ', nymd2, nhms2
            Else
-              Write(*,'(a,a,a,a,2(I0.8,x,I0.6,a),F10.6,a)') ' >> >> >> ', &
-                '  Interpolated field ', Trim(item%name), &
-                ' between ', nymd1,nhms1,' and ',nymd2,nhms2,' (', &
+              Write(*,'(a,a,a,2(I0.8,x,I0.6,a),F10.6,a)') 'MAPL_ExtDataInterpField: Interpolated field ', Trim(item%name), ' between ', nymd1,nhms1,' and ',nymd2,nhms2,' (', &
                 alpha,' fraction)'
            End If
         End If
@@ -4117,8 +4255,10 @@ CONTAINS
 
      integer :: iyr,imm,idd,ihr,imn,isc,begDate,begTime
      type(ESMF_CFIO), pointer :: cfio
+     character(len=63) :: msg
 
-     call MakeCFIO(fname,item%collection_id,cfio,__RC__)
+     call MakeCFIO(fname,item%collection_id,cfio,msg=trim(IAM),__RC__)
+
      begDate = cfio%date
      begTime = cfio%begTime
      call MAPL_UnpackTime(begDate,iyr,imm,idd)
