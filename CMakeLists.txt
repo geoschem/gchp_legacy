@@ -1,0 +1,93 @@
+cmake_minimum_required (VERSION 3.5)
+project(GCHP VERSION 12.4.0 LANGUAGES Fortran CXX C)
+cmake_policy (SET CMP0053 NEW)
+cmake_policy (SET CMP0054 NEW)
+
+# Add module paths
+list (APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../CMakeScripts")
+list (APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+list (APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/check_compiler_support")
+
+# Find dependencies
+find_package(OpenMP REQUIRED)
+find_package(MPI REQUIRED)
+find_package(NetCDF REQUIRED)
+find_package(ESMF REQUIRED)
+find_package(GFTL REQUIRED)
+
+# Cleanup MPI link commands
+string(STRIP ${MPI_Fortran_LINK_FLAGS} MPI_Fortran_LINK_FLAGS)
+
+add_subdirectory(Shared EXCLUDE_FROM_ALL)
+add_subdirectory(FVdycoreCubed_GridComp EXCLUDE_FROM_ALL)
+
+# Configure GEOS-Chem
+set(GC_EXTERNAL_CONFIG      TRUE        PARENT_SCOPE)
+set(RRTMG                   FALSE       PARENT_SCOPE)
+set(GTMM                    FALSE       PARENT_SCOPE)
+set(TOMAS                   FALSE       PARENT_SCOPE)
+set(MECH                    "Standard"  PARENT_SCOPE)
+set(GCHP                    TRUE       PARENT_SCOPE)
+target_compile_options(BaseTarget
+    INTERFACE 
+    -fPIC 
+    -cpp 
+    -w 
+    -auto 
+    -noalign 
+    "-convert big_endian" 
+    -vec-report0 
+    "-fp-model source" 
+    -openmp 
+    -mcmodel=medium 
+    -shared-intel 
+    -traceback
+)
+target_compile_definitions(BaseTarget
+    INTERFACE LINUX_IFORT NC_HAS_COMPRESSION ESMF_ EXTERNAL_GRID USE_REAL8
+)
+target_include_directories(BaseTarget INTERFACE ${NETCDF_INCLUDE_DIRS})
+target_link_libraries(BaseTarget INTERFACE 
+    MAPL_Base MAPL_cfio_r4 GMAO_mpeu GMAO_pilgrim
+    FVdycoreCubed_GridComp fvdycore GFDL_fms_r4 GEOS_Shared GMAO_hermes 
+    ${NETCDF_LIBRARIES} 
+    ${MPI_Fortran_LINK_FLAGS} 
+    ${MPI_Fortran_LIBRARIES} 
+    ${OpenMP_Fortran_FLAGS} 
+    ${ESMF_LIBRARIES} 
+    rt
+)
+
+# Add the registry
+set(MAPL_ACG ${CMAKE_CURRENT_SOURCE_DIR}/Shared/MAPL_Base/mapl_acg.pl)
+add_subdirectory(Registry)
+
+# Add GCHP targets
+add_library(GIGC STATIC
+	Chem_GridCompMod.F90
+	GEOS_ctmEnvGridComp.F90
+	gigc_chunk_mod.F90
+	GIGC_GridCompMod.F90
+	gigc_historyexports_mod.F90
+	gigc_providerservices_mod.F90
+)    
+target_link_libraries(GIGC
+	PUBLIC GeosCore
+)
+add_dependencies(GIGC registry)
+
+add_executable(geos
+    GEOSChem.F90
+)
+target_link_libraries(geos
+	PUBLIC GIGC ${GC_EXTRA_TARGETS} MAPL_Base
+)
+
+set_target_properties(geos
+    PROPERTIES 
+	INSTALL_RPATH "${THIRD_PARTY}/lib"
+)
+
+install(TARGETS geos
+    RUNTIME DESTINATION ${CMAKE_BINARY_DIR}
+)
