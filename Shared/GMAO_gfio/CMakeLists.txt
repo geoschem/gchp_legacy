@@ -48,6 +48,8 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories (${BASEDIR}/lib)
 include_directories (${include_${this}})
 include_directories (${INC_NETCDF})
+
+#[[ lrb: removed F2PY
 include (UseF2Py)
 
 #add_f2py_module(GFIO_ GFIO_py.F90
@@ -63,7 +65,7 @@ if (precision STREQUAL "r4")
     )
 add_dependencies(GFIO_ ${this})
 endif ()
-
+]]
 
 
   
