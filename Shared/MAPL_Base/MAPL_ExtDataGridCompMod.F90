@@ -3299,8 +3299,6 @@ CONTAINS
         If (MAPL_Am_I_Root()) Write(*,'(a)') '               GetBracketTimeOnFile: called with UniFileClim true'
         RC = ESMF_FAILURE
         Return
-     else
-        If (MAPL_Am_I_Root()) Write(*,'(a)') '               GetBracketTimeOnFile: called with UniFileClim false'
      end if
 
      ! Debug output
