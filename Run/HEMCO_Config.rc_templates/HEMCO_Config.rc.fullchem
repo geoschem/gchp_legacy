@@ -149,7 +149,7 @@ Warnings:                    1
     --> CDF table              :       $ROOT/LIGHTNOX/v2014-07/light_dist.ott2010.dat
 104     SoilNOx                : on    NO 
     --> Use fertilizer NOx     :       true
-105     DustDead               : on    DST1/DST2/DST3/DST4 
+105     DustDead               : off   DST1/DST2/DST3/DST4 
     --> Mass tuning factor     :       0.000768752630594
 106     DustGinoux             : off   DST1/DST2/DST3/DST4
 107     SeaSalt                : off   SALA/SALC/Br2/BrSALA/BrSALC
