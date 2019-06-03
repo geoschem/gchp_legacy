@@ -1,3 +1,5 @@
+include(GC-LoadESMAScope)
+
 esma_set_this ()
 
 set (srcs

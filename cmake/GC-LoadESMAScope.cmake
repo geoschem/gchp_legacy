@@ -1,0 +1,39 @@
+include ("${CMAKE_Fortran_COMPILER_ID}")
+include (check_fortran_support)
+include (esma_check_if_debug)
+include (esma_set_this)
+include (esma_add_subdirectories)
+include (esma_add_library)
+include (esma_generate_automatic_code)
+include (esma_create_stub_component)
+include (esma_fortran_generator_list)
+
+# Dependencies: OpenMP, MPI, NetCDF, ESMF, and GFTL
+
+# MPI
+add_definitions(${MPI_Fortran_COMPILE_FLAGS})
+include_directories(${MPI_Fortran_INCLUDE_PATH})
+
+# NetCDF
+set(INC_NETCDF ${NETCDF_INCLUDE_DIRS})
+set(NETCDF_LIBRARIES ${NETCDF_LIBRARIES})
+add_definitions(-DHAS_NETCDF4)
+add_definitions(-DHAS_NETCDF3)
+add_definitions(-DH5_HAVE_PARALLEL)
+add_definitions(-DNETCDF_NEED_NF_MPIIO)
+add_definitions(-DHAS_NETCDF3)
+
+# ESMF
+set(INC_ESMF ${ESMF_INCLUDES_DIR} ${ESMF_HEADERS_DIR} ${ESMF_MOD_DIR})
+set(ESMF_LIBRARY ${ESMF_LIBRARIES})
+execute_process (COMMAND ${CMAKE_CXX_COMPILER} --print-file-name=libstdc++.so OUTPUT_VARIABLE stdcxx OUTPUT_STRIP_TRAILING_WHITESPACE)
+set(ESMF_LIBRARIES ${ESMF_LIBRARY} ${NETCDF_LIBRARIES} ${MPI_Fortran_LIBRARIES} ${MPI_CXX_LIBRARIES} ${stdcxx} rt)
+
+# GFTL
+set(INC_gFTL ${GFTL_INCLUDE_DIR})
+
+# Misc 
+set (FV_PRECISION R4)
+add_definitions(-Dsys${CMAKE_SYSTEM_NAME} -DESMA64)
+set(ENV{USE_LATEX} NO)
+set(PFUNIT FALSE)
