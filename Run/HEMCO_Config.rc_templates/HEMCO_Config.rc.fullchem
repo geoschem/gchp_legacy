@@ -145,6 +145,7 @@ Warnings:                    1
 104     SoilNOx                : off   NO 
     --> Use fertilizer NOx     :       true
 105     DustDead               : off   DST1/DST2/DST3/DST4 
+    --> Mass tuning factor     :       0.000768752630594
 106     DustGinoux             : off   DST1/DST2/DST3/DST4
 107     SeaSalt                : off   SALA/SALC/Br2/BrSALA/BrSALC
     --> SALA lower radius      :       0.01 
