@@ -42,12 +42,12 @@ COLLECTIONS: 'Emissions',
              'DryDep',
              'LevelEdgeDiags',      
              'RadioNuclide',
-             'SpeciesConc_avg',
-             'SpeciesConc_inst',
+             'SpeciesConc',
              'StateMet_avg',      
              'StateMet_inst',      
              'WetLossConv',
              'WetLossLS',
+             'Transport',
 ::
 #==============================================================================
 # Define collections
@@ -73,19 +73,16 @@ COLLECTIONS: 'Emissions',
   Emissions.frequency:        010000
   Emissions.duration:         010000
   Emissions.mode:             'time-averaged'
-  Emissions.fields:           'EmisRn_Soil             ', 'GIGCchem',
-                              'EmisBe7_Cosmic          ', 'GIGCchem',
-                              'EmisBe7Strat_Cosmic     ', 'GIGCchem',
-                              'EmisBe10_Cosmic         ', 'GIGCchem',
-                              'EmisBe10Strat_Cosmic    ', 'GIGCchem',
-                              'EmisSF6tracer           ', 'GIGCchem',
-                              'EmisCH3Itracer          ', 'GIGCchem',
-                              'EmisCOtracer25days      ', 'GIGCchem',
-                              'EmisCOtracer50days      ', 'GIGCchem',
-                              'Emis90dayTracer         ', 'GIGCchem',
-                              'Emis90dayTracerNH       ', 'GIGCchem',
-                              'Emis90dayTracerSH       ', 'GIGCchem',
-                              'EmisUniformTracer       ', 'GIGCchem',
+  Emissions.fields:           'EmisRn_Soil                 ', 'GIGCchem',
+                              'EmisBe7_Cosmic              ', 'GIGCchem',
+                              'EmisBe7Strat_Cosmic         ', 'GIGCchem',
+                              'EmisBe10_Cosmic             ', 'GIGCchem',
+                              'EmisBe10Strat_Cosmic        ', 'GIGCchem',
+                              'EmisSF6Tracer               ', 'GIGCchem',
+                              'EmisCH3ITracer              ', 'GIGCchem',
+                              'EmisCOAnthroEmis25dayTracer ', 'GIGCchem',
+                              'EmisCOAnthroEmis50dayTracer ', 'GIGCchem',
+                              'EmisCOUniformEmis25dayTracer', 'GIGCchem',
 ::
 #==============================================================================
 # Budget defined as species kg/s in the column (full, troposphere, or PBL) 
@@ -118,22 +115,19 @@ COLLECTIONS: 'Emissions',
   CloudConvFlux.frequency:    010000
   CloudConvFlux.duration:     010000
   CloudConvFlux.mode:         'time-averaged'
-  CloudConvFlux.fields:       'CloudConvFlux_Rn222              ', 'GIGCchem',
-                              'CloudConvFlux_Pb210              ', 'GIGCchem',
-                              'CloudConvFlux_Pb210Strat         ', 'GIGCchem',
-                              'CloudConvFlux_Be7                ', 'GIGCchem',
-                              'CloudConvFlux_Be7Strat           ', 'GIGCchem',
-                              'CloudConvFlux_Be10               ', 'GIGCchem',
-                              'CloudConvFlux_Be10Strat          ', 'GIGCchem',
-                              'CloudConvFlux_PassiveTracer      ', 'GIGCchem',
-                              'CloudConvFlux_SF6tracer          ', 'GIGCchem',
-                              'CloudConvFlux_CH3Itracer         ', 'GIGCchem',
-                              'CloudConvFlux_COtracer25days     ', 'GIGCchem',
-                              'CloudConvFlux_COtracer50days     ', 'GIGCchem',
-                              'CloudConvFlux_Emis90dayTracer    ', 'GIGCchem',
-                              'CloudConvFlux_Emis90dayTracerNH  ', 'GIGCchem',
-                              'CloudConvFlux_Emis90dayTracerSH  ', 'GIGCchem',
-                              'CloudConvFlux_UniformTracer      ', 'GIGCchem',
+  CloudConvFlux.fields:       'CloudConvFlux_Rn222                   ', 'GIGCchem',
+                              'CloudConvFlux_Pb210                   ', 'GIGCchem',
+                              'CloudConvFlux_Pb210Strat              ', 'GIGCchem',
+                              'CloudConvFlux_Be7                     ', 'GIGCchem',
+                              'CloudConvFlux_Be7Strat                ', 'GIGCchem',
+                              'CloudConvFlux_Be10                    ', 'GIGCchem',
+                              'CloudConvFlux_Be10Strat               ', 'GIGCchem',
+                              'CloudConvFlux_PassiveTracer           ', 'GIGCchem',
+                              'CloudConvFlux_SF6Tracer               ', 'GIGCchem',
+                              'CloudConvFlux_CH3ITracer              ', 'GIGCchem',
+                              'CloudConvFlux_COAnthroEmis25dayTracer ', 'GIGCchem',
+                              'CloudConvFlux_COAnthroEmis50dayTracer ', 'GIGCchem',
+                              'CloudConvFlux_COUniformEmis25dayTracer', 'GIGCchem',
 ::
 #==============================================================================
   DryDep.template:            '%y4%m2%d2_%h2%n2z.nc4',
@@ -184,50 +178,24 @@ COLLECTIONS: 'Emissions',
                               'RadDecay_Be10Strat      ', 'GIGCchem',
 ::
 #==============================================================================
-  SpeciesConc_avg.template:   '%y4%m2%d2_%h2%n2z.nc4',
-  SpeciesConc_avg.format:     'CFIO',
-  SpeciesConc_avg.frequency:  010000
-  SpeciesConc_avg.duration:   010000
-  SpeciesConc_avg.mode:       'time-averaged'
-  SpeciesConc_avg.fields:     'SpeciesConc_Rn222              ', 'GIGCchem',
-                              'SpeciesConc_Pb210              ', 'GIGCchem',
-                              'SpeciesConc_Pb210Strat         ', 'GIGCchem',
-                              'SpeciesConc_Be7                ', 'GIGCchem',
-                              'SpeciesConc_Be7Strat           ', 'GIGCchem',
-                              'SpeciesConc_Be10               ', 'GIGCchem',
-                              'SpeciesConc_Be10Strat          ', 'GIGCchem',
-                              'SpeciesConc_PassiveTracer      ', 'GIGCchem',
-                              'SpeciesConc_SF6tracer          ', 'GIGCchem',
-                              'SpeciesConc_CH3Itracer         ', 'GIGCchem',
-                              'SpeciesConc_COtracer25days     ', 'GIGCchem',
-                              'SpeciesConc_COtracer50days     ', 'GIGCchem',
-                              'SpeciesConc_Emis90dayTracer    ', 'GIGCchem',
-                              'SpeciesConc_Emis90dayTracerNH  ', 'GIGCchem',
-                              'SpeciesConc_Emis90dayTracerSH  ', 'GIGCchem',
-                              'SpeciesConc_UniformTracer      ', 'GIGCchem',
-::
-#==============================================================================
-  SpeciesConc_inst.template:  '%y4%m2%d2_%h2%n2z.nc4',
-  SpeciesConc_inst.format:    'CFIO',
-  SpeciesConc_inst.frequency: 010000
-  SpeciesConc_inst.duration:  010000
-  SpeciesConc_inst.mode:      'instantaneous'
-  SpeciesConc_inst.fields:    'SpeciesConc_Rn222              ', 'GIGCchem',
-                              'SpeciesConc_Pb210              ', 'GIGCchem',
-                              'SpeciesConc_Pb210Strat         ', 'GIGCchem',
-                              'SpeciesConc_Be7                ', 'GIGCchem',
-                              'SpeciesConc_Be7Strat           ', 'GIGCchem',
-                              'SpeciesConc_Be10               ', 'GIGCchem',
-                              'SpeciesConc_Be10Strat          ', 'GIGCchem',
-                              'SpeciesConc_PassiveTracer      ', 'GIGCchem',
-                              'SpeciesConc_SF6tracer          ', 'GIGCchem',
-                              'SpeciesConc_CH3Itracer         ', 'GIGCchem',
-                              'SpeciesConc_COtracer25days     ', 'GIGCchem',
-                              'SpeciesConc_COtracer50days     ', 'GIGCchem',
-                              'SpeciesConc_Emis90dayTracer    ', 'GIGCchem',
-                              'SpeciesConc_Emis90dayTracerNH  ', 'GIGCchem',
-                              'SpeciesConc_Emis90dayTracerSH  ', 'GIGCchem',
-                              'SpeciesConc_UniformTracer      ', 'GIGCchem',
+  SpeciesConc.template:   '%y4%m2%d2_%h2%n2z.nc4',
+  SpeciesConc.format:     'CFIO',
+  SpeciesConc.frequency:  010000
+  SpeciesConc.duration:   010000
+  SpeciesConc.mode:       'time-averaged'
+  SpeciesConc.fields:     'SpeciesConc_Rn222                   ', 'GIGCchem',
+                              'SpeciesConc_Pb210                   ', 'GIGCchem',
+                              'SpeciesConc_Pb210Strat              ', 'GIGCchem',
+                              'SpeciesConc_Be7                     ', 'GIGCchem',
+                              'SpeciesConc_Be7Strat                ', 'GIGCchem',
+                              'SpeciesConc_Be10                    ', 'GIGCchem',
+                              'SpeciesConc_Be10Strat               ', 'GIGCchem',
+                              'SpeciesConc_PassiveTracer           ', 'GIGCchem',
+                              'SpeciesConc_SF6Tracer               ', 'GIGCchem',
+                              'SpeciesConc_CH3ITracer              ', 'GIGCchem',
+                              'SpeciesConc_COAnthroEmis25dayTracer ', 'GIGCchem',
+                              'SpeciesConc_COAnthroEmis50dayTracer ', 'GIGCchem',
+                              'SpeciesConc_COUniformEmis25dayTracer', 'GIGCchem',
 ::
 #==============================================================================
   StateMet_avg.template:      '%y4%m2%d2_%h2%n2z.nc4',
@@ -434,4 +402,18 @@ COLLECTIONS: 'Emissions',
                               'WetLossLS_Be7Strat       ', 'GIGCchem',
                               'WetLossLS_Be10           ', 'GIGCchem',
                               'WetLossLS_Be10Strat      ', 'GIGCchem',
+::
+#==============================================================================
+# %%%%% THE Transport COLLECTION %%%%%
+#
+# Diagnostics for evaluating age of air [s]
+#
+# Available for all simulations
+#==============================================================================
+  Transport.template:         '%y4%m2%d2_%h2%n2z.nc4',
+  Transport.format:           'CFIO',
+  Transport.frequency:        010000
+  Transport.duration:         010000
+  Transport.mode:             'instantaneous'
+  Transport.fields:           'Met_AgeOfAir                  ', 'GIGCchem',
 ::

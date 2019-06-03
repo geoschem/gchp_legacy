@@ -1,0 +1,455 @@
+#!/bin/bash
+
+# runSettings.sh: Update select settings in *.rc and input.geos config files
+#
+# Usage: source ./runConfig.sh
+#
+# Initial version: E. Lundgren, 8/17/2017
+
+#------------------------------------------------
+#   Compute Resources
+#------------------------------------------------
+# Cores are distributed across each of the six cubed sphere faces using
+# NX and NY set below. Each face is divided into NX by NY/6 regions 
+# and each of those regions is processed by a single core independent of
+# which node it belongs to.
+#
+# Rules for setting NX and NY:
+#   1. NY must be an integer and a multiple of 6	  
+#   2. NX*NY must equal total number of cores		  
+#   3. Choose NX and NY to optimize NX x NY/6 squareness 
+#      within contraint of total # of CPUs		  
+#      e.g., (NX=2,NY=12) if 24 cores, (NX=4,NY=12) if 48
+#
+# Make sure your settings here match the resources you request on your
+# cluster in your run script!!!
+NUM_NODES=3
+NUM_CORES_PER_NODE=16
+NY=12  
+NX=4           
+
+# MAPL shared memory option (0: off, 1: on). Keep off unless you know what
+# you are doing. Contact GCST for more information if you have memory
+# problems you are unable to fix.
+USE_SHMEM=0
+
+#------------------------------------------------
+#   Internal Cubed Sphere Resolution
+#------------------------------------------------
+CS_RES=48    # 24 ~ 4x5, 48 ~ 2x2.5, 90 ~ 1x1.25, 180 ~ 1/2 deg, 360 ~ 1/4 deg
+
+#------------------------------------------------
+#    Initial Restart File
+#------------------------------------------------
+# By default the linked restart files in the run directories will be 
+# used. Please note that HEMCO restart variables are stored in the same
+# restart file as species concentrations. Initial restart files available 
+# on gcgrid do not contain HEMCO variables which will have the same effect
+# as turning the HEMCO restart file option off in GC classic. However, all 
+# output restart files will contain HEMCO restart variables for your next run.
+INITIAL_RESTART=initial_GEOSChem_rst.c${CS_RES}_{SIMULATION}.nc
+
+# You can specify a custom initial restart file here to overwrite:
+# INITIAL_RESTART=your_restart_filename_here
+
+#------------------------------------------------
+#    Output Restart Files
+#------------------------------------------------
+# You can output restart files at regular intervals throughout your 
+# simulation. Unlike the end restart file, which is always produced, the
+# regularly output restart files (also called checkpoint files) will contain
+# the date and time in their filename. To configure output restart file
+# frequency, set the variable below to a string of format HHmmSS. More than 
+# 2 digits for the hours string is permitted (e.g. 1680000 for 7 days).
+# Setting the frequency to 0 will effectively turn off this feature by setting
+# the frequency to a very large number.
+Checkpoint_Freq="0"
+
+#------------------------------------------------
+#    Turn Components On/Off
+#------------------------------------------------
+# Automatically turns on/off GEOS-Chem components in input.geos
+Turn_on_Chemistry=T
+Turn_on_emissions=T
+Turn_on_Dry_Deposition=T
+Turn_on_Wet_Deposition=T
+Turn_on_Transport=T
+Turn_on_Cloud_Conv=T
+Turn_on_PBL_Mixing=T
+Turn_on_Non_Local_Mixing=T
+
+#------------------------------------------------
+#    Timesteps
+#------------------------------------------------
+# ***IMPORTANT NOTE***
+# If changing timesteps, set read frequency of SPHU2, TMPU2, and PS2 in 
+# ExtData.rc to match the dynamic timestep (TransConv) set below based 
+# on the cubed sphere grid resolution (e.g. 30 minutes for c24, 10 minutes 
+# for c90, 5 minutes for c180+ )
+#
+# Timestep recommendation based on grid resolution (uncomment if using, and
+# comment out the defaults set further down):
+#    if [[ $CS_RES -lt 90 ]]; then
+#        TransConv_Timestep_sec=1800
+#        ChemEmiss_Timestep_sec=3600
+#    elif [[ $CS_RES -lt 180 ]]; then
+#        TransConv_Timestep_sec=600
+#        ChemEmiss_Timestep_sec=1200
+#    else
+#        TransConv_Timestep_sec=300
+#        ChemEmiss_Timestep_sec=600
+#    fi
+#
+# Default is same as GEOS-Chem Classic (comment out if using above instead):
+TransConv_Timestep_sec=600
+ChemEmiss_Timestep_sec=1200
+
+#------------------------------------------------
+#    Simulation Start/End/Duration
+#------------------------------------------------
+# Setting duration such that two or more durations can occur between start
+# and end will enable multi-segmented runs where subsequent job submissions
+# will automatically use the last generated restart file as the starting
+# point. The new start time is stored in output file cap_restart. Use this
+# feature in conjunction with the multi-segmented runs / monthly diagnostics
+# section below.
+Start_Time="{DATE1} {TIME1}"
+End_Time="{DATE2} {TIME2}"
+Duration="{dYYYYMMDD} {dHHmmss}"
+
+#------------------------------------------------
+#    Number of Runs / Monthly Diagnostics
+#------------------------------------------------
+# The simplest run is a single segment. Use this option as follows:
+#   1. Copy gchp.run from runScriptSamples/ to this directory
+#   1. Use or adapt gchp.run as your run script
+#   2. Set duration above to the difference between start and end
+#   3. Set Num_Runs below to 1
+#   4. Set Monthly_Diag below to 0 (off)
+#
+# For long runs it is advantageous to split up your simulation into 
+# multiple jobs. Doing this also enables outputting monthly diagnostics.
+# Use this option as follows:
+#   1. Copy gchp.multirun.sh and gchp.multirun.run from runScriptSamples/
+#      to this directory
+#   2. Use or adapt gchp.multirun.sh to submit your jobs in one step
+#   3. Use or adapt gchp.multirun.run as your reusable run script
+#   4. Set duration above to the duration of each individual run
+#   5. Set end date sufficiently after start date to span all runs
+#   6. Set Num_Runs below to number runs total
+#   7. For monthly diagnostics, set Monthly_Diag to 1 (on); else set to 0 (off)
+#
+# If using monthly diagnostics, please note the following: 
+#   - Run segment duration must be 1-month (00000100 000000)
+#   - Start date must be within the first 28 days of the month
+#   - There is no need to set diag frequency and duration below
+#
+Num_Runs=1
+Monthly_Diag=0
+
+#------------------------------------------------
+#    Diagnostics
+#------------------------------------------------
+# You may set frequency, duration, and mode used for all default
+# GCHP diagnostics collections defined in HISTORY.rc below. These
+# metrics are defined as follows:
+#
+#   Frequency = frequency of diagnostic calculation (HHmmSS)
+#   Duration  = frequency of diagnostic file  write (HHmmSS)
+#   Mode      = computation of diagnostics (time-averaged or instantaneous)
+#
+# Edit the common frequency, duration, and mode below, and browse
+# what collections will be updated to what in HISTORY.rc. Add more collections
+# or customize different collections' frequency, duration, and/or mode
+# as needed
+# 
+# NOTES: 
+#  1. Freq/duration # of hours may exceed 2 digits, e.g. 7440000 for 31 days
+#  2. Frequency and duration are ignored if Monthly_Diag is set to 1
+#  3. Collections in HISTORY.rc not listed below are ignored
+#
+common_freq="7440000"
+common_dur="7440000"
+common_mode="'time-averaged'"
+
+# Diagnostics enabled in benchmark simulation by default
+SpeciesConc_freq=${common_freq}
+SpeciesConc_dur=${common_dur}
+SpeciesConc_mode=${common_mode}
+StateMet_avg_freq=${common_freq}
+StateMet_avg_dur=${common_dur}
+StateMet_avg_mode=${common_mode}
+StateMet_inst_freq=${common_freq}
+StateMet_inst_dur=${common_dur}
+StateMet_inst_mode="'instantaneous'"
+
+# Other diagnostics (edit/add more as needed for convenience)
+AerosolMass_freq=${common_freq}
+AerosolMass_dur=${common_dur}
+AerosolMass_mode=${common_mode}
+Aerosols_freq=${common_freq}
+Aerosols_dur=${common_dur}
+Aerosols_mode=${common_mode}
+Budget_freq=${common_freq}
+Budget_dur=${common_dur}
+Budget_mode=${common_mode}
+CloudConvFlux_freq=${common_freq}
+CloudConvFlux_dur=${common_dur}
+CloudConvFlux_mode=${common_mode}
+ConcAfterChem_freq=${common_freq}
+ConcAfterChem_dur=${common_dur}
+ConcAfterChem_mode=${common_mode}
+DryDep_freq=${common_freq}
+DryDep_dur=${common_dur}
+DryDep_mode=${common_mode}
+Emissions_freq=${common_freq}
+Emissions_dur=${common_dur}
+Emissions_mode=${common_mode}
+JValues_freq=${common_freq}
+JValues_dur=${common_dur}
+JValues_mode=${common_mode}
+JValuesLocalNoon_freq=${common_freq}
+JValuesLocalNoon_dur=${common_dur}
+JValuesLocalNoon_mode=${common_mode}
+LevelEdgeDiags_freq=${common_freq}
+LevelEdgeDiags_dur=${common_dur}
+LevelEdgeDiags_mode=${common_mode}
+ProdLoss_freq=${common_freq}
+ProdLoss_dur=${common_dur}
+ProdLoss_mode=${common_mode}
+RadioNuclide_freq=${common_freq}
+RadioNuclide_dur=${common_dur}
+RadioNuclide_mode=${common_mode}
+StateChm_freq=${common_freq}
+StateChm_dur=${common_dur}
+StateChm_mode=${common_mode}
+WetLossConv_freq=${common_freq}
+WetLossConv_dur=${common_dur}
+WetLossConv_mode=${common_mode}
+WetLossLS_freq=${common_freq}
+WetLossLS_dur=${common_dur}
+WetLossLS_mode=${common_mode}
+
+#------------------------------------------------
+#    Debug Options
+#------------------------------------------------
+# Set MAPL debug flag to 0 for no MAPL debug log output. Increase
+# amount of output to log by increasing value up to 20. Using this
+# flag is most helpful for debugging issues with file read (MAPL ExtData).
+#
+# Auto update of ND70 (GC log debug output) is not available. Turn on 
+# ND70 in input.geos manually.       
+#
+# Beware that turning on debug prints significantly slows down the model!
+MAPL_DEBUG_LEVEL=0   
+
+##########################################################
+##########################################################
+####        END OF CONFIGURABLES SECTION
+##########################################################
+##########################################################
+
+###   Stop if settings not compatible   ###
+# Give relevant warnings about timesteps in input.geos.
+# Give warnings about CS resolution and timestep compatibility
+# Issue any other warnings/errors regarding input.geos and/or run settings
+# check that the transport settins are consistent
+
+#### Give error if that chem timestep is < dynamic timestep
+if [[ ${ChemEmiss_Timestep_sec} -lt ${TransConv_Timestep_sec} ]]; then
+    echo "ERROR: chemistry timestep must be >= dynamic timestep. Update values in runConfig.sh."
+    exit 1
+fi
+
+#### Check that NX*NY is less than or equal to number of cores
+num_cores=$((  ))
+if (( $NX*$NY > $NUM_NODES*$NUM_CORES_PER_NODE )); then
+    echo "ERROR: NX*NY must not exceed number of nodes times cores per node. Update values in runConfig.sh."
+    exit 1    
+fi
+
+#### Check that NY is divisible by 6
+if (( $NY%6 != 0 )); then
+    echo "ERROR: NY must be an integer divisible by 6. Update value in runConfig.sh."
+    exit 1    
+fi
+
+#### Check if domains are square enough (NOTE: approx using integer division)
+domain_ratio1=$(( $NX*6/$NY )) 
+domain_ratio2=$(( $NY/$NX/6 ))
+if [[ $(( $domain_ratio1*2 )) -ge 5 || $(( $domain_ratio2*2 )) -ge 5 ]] ; then
+    echo "WARNING: NX and NY are set such that NX x NY/6 is not square (side ratio >= 2.5). Consider adjusting to be square to avoid negative effects due to excessive communication between cores."
+fi
+
+## Check if restart file exists
+if [[ ! -e ${INITIAL_RESTART} ]]; then
+    printf 'ERROR: Restart file specified in runConfig.sh not found: %s\n' ${INITIAL_RESTART}
+    exit 1
+fi
+
+###############################
+####   UPDATE FILES
+###############################
+
+#### Define function to replace values in .rc files
+replace_val() {
+    KEY=$1
+    VALUE=$2
+    FILE=$3
+    printf '%-30s : %-20s %-20s\n' "${KEY//\\}" "${VALUE}" "${FILE}"
+
+    # replace value in line starting with 'whitespace + key + whitespace + : +
+    # whitespace + value' where whitespace is variable length including none
+    sed "s|^\([\t ]*${KEY}[\t ]*:[\t ]*\).*|\1${VALUE}|" ${FILE} > tmp
+    mv tmp ${FILE}
+}
+
+#### Define transport string for GCHP.rc
+if [[ ${Turn_on_Transport} == 'T' ]]; then
+    ADVCORE_ADVECTION=1
+elif [[ ${Turn_on_Transport} == 'F' ]]; then
+    ADVCORE_ADVECTION=0
+else
+    echo "ERROR: Incorrect transport setting"
+    exit 1
+fi
+
+#### Set # nodes, # cores, and shared memory option
+echo "Compute resources:"
+replace_val NX            ${NX}                 GCHP.rc
+replace_val NY            ${NY}                 GCHP.rc
+replace_val CoresPerNode  ${NUM_CORES_PER_NODE} HISTORY.rc
+replace_val USE_SHMEM     ${USE_SHMEM}          CAP.rc
+
+####  set cubed-sphere resolution and related grid variables
+echo " "
+echo "Cubed-sphere resolution:"
+CS_RES_x_6=$((CS_RES*6))
+replace_val GCHP.IM_WORLD  ${CS_RES}                     GCHP.rc
+replace_val GCHP.IM        ${CS_RES}                     GCHP.rc
+replace_val GCHP.JM        ${CS_RES_x_6}                 GCHP.rc
+replace_val npx            ${CS_RES}                     fvcore_layout.rc
+replace_val npy            ${CS_RES}                     fvcore_layout.rc
+replace_val GCHP.GRIDNAME  PE${CS_RES}x${CS_RES_x_6}-CF  GCHP.rc
+
+####  set input restart filename
+echo " "
+echo "Initial reestart file:"
+replace_val GIGCchem_INTERNAL_RESTART_FILE "+${INITIAL_RESTART}" GCHP.rc
+
+#### Set simulation start and end datetimes based on input.geos
+echo " "
+echo "Simulation start, end, duration:"
+replace_val BEG_DATE  "${Start_Time}" CAP.rc
+replace_val END_DATE  "${End_Time}"   CAP.rc
+replace_val JOB_SGMT  "${Duration}"   CAP.rc
+
+#### Set frequency of writing restart files
+# Set to a very large number if turned off
+if [[ ${Checkpoint_Freq} == '0' ]]; then
+   Checkpoint_Freq=100000000
+fi 
+echo " "
+echo "Checkpoint (restart) frequency:"
+replace_val RECORD_FREQUENCY "${Checkpoint_Freq}" GCHP.rc
+replace_val RECORD_REF_DATE  "${Start_Time:0:8}"  GCHP.rc
+replace_val RECORD_REF_TIME  "${Start_Time:9:6}"  GCHP.rc
+
+#### Set output frequency, duration, and mode
+echo " "
+echo "Output:" 
+replace_val SpeciesConc.frequency      ${SpeciesConc_freq}      HISTORY.rc  
+replace_val SpeciesConc.duration       ${SpeciesConc_dur}       HISTORY.rc
+replace_val SpeciesConc.mode           ${SpeciesConc_mode}      HISTORY.rc
+replace_val StateMet_avg.frequency     ${StateMet_avg_freq}	HISTORY.rc
+replace_val StateMet_avg.duration      ${StateMet_avg_dur}	HISTORY.rc
+replace_val StateMet_avg.mode          ${StateMet_avg_mode}	HISTORY.rc
+replace_val StateMet_inst.frequency    ${StateMet_inst_freq}	HISTORY.rc
+replace_val StateMet_inst.duration     ${StateMet_inst_dur}	HISTORY.rc
+replace_val StateMet_inst.mode         ${StateMet_inst_mode}	HISTORY.rc
+replace_val AerosolMass.frequency      ${AerosolMass_freq}      HISTORY.rc
+replace_val AerosolMass.duration       ${AerosolMass_dur}       HISTORY.rc
+replace_val AerosolMass.mode           ${AerosolMass_mode}      HISTORY.rc
+replace_val Aerosols.frequency         ${Aerosols_freq}	        HISTORY.rc
+replace_val Aerosols.duration          ${Aerosols_dur}	        HISTORY.rc
+replace_val Aerosols.mode              ${Aerosols_mode}	        HISTORY.rc
+replace_val Budget.frequency           ${Budget_freq}	        HISTORY.rc
+replace_val Budget.duration            ${Budget_dur}	        HISTORY.rc
+replace_val Budget.mode                ${Budget_mode}	        HISTORY.rc
+replace_val CloudConvFlux.frequency    ${CloudConvFlux_freq}    HISTORY.rc
+replace_val CloudConvFlux.duration     ${CloudConvFlux_dur}     HISTORY.rc
+replace_val CloudConvFlux.mode         ${CloudConvFlux_mode}    HISTORY.rc
+replace_val ConcAfterChem.frequency    ${ConcAfterChem_freq}    HISTORY.rc
+replace_val ConcAfterChem.duration     ${ConcAfterChem_dur}     HISTORY.rc
+replace_val ConcAfterChem.mode         ${ConcAfterChem_mode}    HISTORY.rc
+replace_val DryDep.frequency           ${DryDep_freq}	        HISTORY.rc
+replace_val DryDep.duration            ${DryDep_dur}	        HISTORY.rc
+replace_val DryDep.mode                ${DryDep_mode}	        HISTORY.rc
+replace_val Emissions.frequency        ${Emissions_freq}        HISTORY.rc
+replace_val Emissions.duration         ${Emissions_dur}	        HISTORY.rc
+replace_val Emissions.mode             ${Emissions_mode}	HISTORY.rc
+replace_val JValues.frequency          ${JValues_freq}	        HISTORY.rc
+replace_val JValues.duration           ${JValues_dur}	        HISTORY.rc
+replace_val JValues.mode               ${JValues_mode}	        HISTORY.rc
+replace_val JValuesLocalNoon.frequency ${JValuesLocalNoon_freq} HISTORY.rc
+replace_val JValuesLocalNoon.duration  ${JValuesLocalNoon_dur}  HISTORY.rc
+replace_val JValuesLocalNoon.mode      ${JValuesLocalNoon_mode} HISTORY.rc
+replace_val LevelEdgeDiags.frequency   ${LevelEdgeDiags_freq}   HISTORY.rc
+replace_val LevelEdgeDiags.duration    ${LevelEdgeDiags_dur}    HISTORY.rc
+replace_val LevelEdgeDiags.mode        ${LevelEdgeDiags_mode}   HISTORY.rc
+replace_val ProdLoss.frequency         ${ProdLoss_freq}         HISTORY.rc
+replace_val ProdLoss.duration          ${ProdLoss_dur}          HISTORY.rc
+replace_val ProdLoss.mode              ${ProdLoss_mode}         HISTORY.rc
+replace_val RadioNuclide.frequency     ${RadioNuclide_freq}     HISTORY.rc
+replace_val RadioNuclide.duration      ${RadioNuclide_dur}      HISTORY.rc
+replace_val RadioNuclide.mode          ${RadioNuclide_mode}     HISTORY.rc
+replace_val StateChm.frequency         ${StateChm_freq}	        HISTORY.rc
+replace_val StateChm.duration          ${StateChm_dur}	        HISTORY.rc
+replace_val StateChm.mode              ${StateChm_mode}	        HISTORY.rc
+replace_val WetLossConv.frequency      ${WetLossConv_freq}      HISTORY.rc
+replace_val WetLossConv.duration       ${WetLossConv_dur}       HISTORY.rc
+replace_val WetLossConv.mode           ${WetLossConv_mode}      HISTORY.rc
+replace_val WetLossLS.frequency        ${WetLossLS_freq}        HISTORY.rc
+replace_val WetLossLS.duration         ${WetLossLS_dur}         HISTORY.rc  
+replace_val WetLossLS.mode             ${WetLossLS_mode}        HISTORY.rc  
+
+#### Set timesteps based on input.geos
+echo " "
+echo "Timesteps:"
+replace_val HEARTBEAT_DT  ${TransConv_Timestep_sec}  GCHP.rc
+replace_val SOLAR_DT      ${TransConv_Timestep_sec}  GCHP.rc
+replace_val IRRAD_DT      ${TransConv_Timestep_sec}  GCHP.rc
+replace_val RUN_DT        ${TransConv_Timestep_sec}  GCHP.rc
+replace_val GIGCchem_DT   ${ChemEmiss_Timestep_sec}  GCHP.rc
+replace_val DYNAMICS_DT   ${TransConv_Timestep_sec}  GCHP.rc
+replace_val HEARTBEAT_DT  ${TransConv_Timestep_sec}  CAP.rc
+replace_val dt            ${TransConv_Timestep_sec}  fvcore_layout.rc
+
+#### Set debug level
+echo " "
+echo "MAPL Debug Level:"
+replace_val DEBUG_LEVEL ${MAPL_DEBUG_LEVEL} ExtData.rc
+
+#### Set advection on/off based on input.geos
+echo " "
+echo "Advection on/off:"
+replace_val AdvCore_Advection ${ADVCORE_ADVECTION} GCHP.rc
+
+##### Set commonly changed settings in input.geos
+echo "Components on/off:"
+replace_val "Turn on Chemistry?"        ${Turn_on_Chemistry}        input.geos
+replace_val "Turn on emissions?"	${Turn_on_emissions}        input.geos
+replace_val "Turn on Transport"	        ${Turn_on_Transport}        input.geos
+replace_val "Turn on Cloud Conv?"	${Turn_on_Cloud_Conv}       input.geos
+replace_val "Turn on PBL Mixing?"	${Turn_on_PBL_Mixing}       input.geos
+replace_val " => Use non-local PBL?"	${Turn_on_Non_Local_Mixing} input.geos
+replace_val "Turn on Dry Deposition?"   ${Turn_on_Dry_Deposition}   input.geos
+replace_val "Turn on Wet Deposition?"   ${Turn_on_Wet_Deposition}   input.geos
+echo " "
+echo "Timesteps:"
+replace_val "Tran\/conv timestep \[sec\]"  ${TransConv_Timestep_sec}   input.geos
+replace_val "Chem\/emis timestep \[sec\]"  ${ChemEmiss_Timestep_sec}   input.geos
+	    
+
+
+

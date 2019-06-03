@@ -159,6 +159,7 @@ CONTAINS
        ASSERT_(.FALSE.)
        RETURN
     ENDIF
+    ! Optional debugging
     !CALL Print_DiagList( am_I_Root, HistoryConfig%DiagList, RC )
 
     CALL Init_HistoryExportsList( am_I_Root, HistoryConfig, RC )
@@ -166,6 +167,7 @@ CONTAINS
        ASSERT_(.FALSE.)
        RETURN
     ENDIF
+    ! Optional debugging
     !CALL Print_HistoryExportsList( am_I_Root, HistoryConfig, RC )
 
   END SUBROUTINE Init_HistoryConfig
@@ -243,7 +245,8 @@ CONTAINS
 
        ! Skip emissions diagnostics since handled by HEMCO
        ! Will need to revisit this since name may change
-       IF ( INDEX( current%name,  'EMIS' ) == 1 ) THEN
+       IF ( INDEX( current%name,  'EMIS' ) == 1 .or. &
+            INDEX( current%name,  'INV'  ) == 1 ) THEN
           current => current%next
           CYCLE
        ENDIF
@@ -625,10 +628,10 @@ CONTAINS
     ENDIF
     current => HistoryConfig%HistoryExportsList%head
     DO WHILE ( ASSOCIATED( current ) )
+       IF ( am_I_Root ) PRINT *, "adding export: ", TRIM(current%name)       
        ! Create an export for this item
        IF ( current%rank == 3 ) THEN
           IF ( current%vloc == VLocationCenter ) THEN
-             IF ( am_I_Root ) PRINT *, "adding export: ", TRIM(current%name)
              CALL MAPL_AddExportSpec(GC,                                     &
                                      SHORT_NAME = TRIM(current%name),        &
                                      LONG_NAME  = TRIM(current%long_name),   &

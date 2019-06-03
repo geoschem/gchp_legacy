@@ -28,89 +28,96 @@ PrimaryExports%%
 ###############################################################################
 
 # --- 2D variables, 1-hr averaged ---
-ALBD     '1'       N Y F0;003000 none none ALBEDO     ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-CLDFRC   '1'       N Y F0;003000 none none CLDTOT     ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-EFLUX    '1'       N Y F0;003000 none none EFLUX      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-EVAP     '1'       N Y F0;003000 none none EVAP       ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-FRSEAICE '1'       N Y F0;003000 none none FRSEAICE   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-FRSNO    '1'       N Y F0;003000 none none FRSNO      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-GRN      '1'       N Y F0;003000 none none GRN        ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-GWETROOT '1'       N Y F0;003000 none none GWETROOT   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-GWETTOP  '1'       N Y F0;003000 none none GWETTOP    ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-HFLUX    '1'       N Y F0;003000 none none HFLUX      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-LAI      '1'       N Y F0;003000 none none LAI        ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-LWI      '1'       N Y F0;003000 none none LWI        ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-RADLWG   '1'       N Y F0;003000 none none LWGNT      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-PARDF    '1'       N Y F0;003000 none none PARDF      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-PARDR    '1'       N Y F0;003000 none none PARDR      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-PBLH     '1'       N Y F0;003000 none none PBLH       ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-PRECANV  '1'       N Y F0;003000 none none PRECANV    ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-PRECCON  '1'       N Y F0;003000 none none PRECCON    ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-PRECLSC  '1'       N Y F0;003000 none none PRECLSC    ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-PRECSNO  '1'       N Y F0;003000 none none PRECSNO    ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-PRECTOT  '1'       N Y F0;003000 none none PRECTOT    ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-SEAICE00 '1'       N Y F0;003000 none none SEAICE00   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-SEAICE10 '1'       N Y F0;003000 none none SEAICE10   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-SEAICE20 '1'       N Y F0;003000 none none SEAICE20   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-SEAICE30 '1'       N Y F0;003000 none none SEAICE30   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-SEAICE40 '1'       N Y F0;003000 none none SEAICE40   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-SEAICE50 '1'       N Y F0;003000 none none SEAICE50   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-SEAICE60 '1'       N Y F0;003000 none none SEAICE60   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-SEAICE70 '1'       N Y F0;003000 none none SEAICE70   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-SEAICE80 '1'       N Y F0;003000 none none SEAICE80   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-SEAICE90 '1'       N Y F0;003000 none none SEAICE90   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-SLP      'hPa'     N Y F0;003000 none none SLP        ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-SNODP    '1'       N Y F0;003000 none none SNODP      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-SNOMAS   '1'       N Y F0;003000 none none SNOMAS     ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-RADSWG   '1'       N Y F0;003000 none none SWGDN      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-TO3      'dobson'  N Y F0;003000 none none TO3        ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-TROPP    '1'       N Y F0;003000 none none TROPPT     ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-TSKIN    '1'       N Y F0;003000 none none TS         ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-TS       '1'       N Y F0;003000 none none T2M        ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-USTAR    '1'       N Y F0;003000 none none USTAR      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-U10M     'm s-1'   N N F0;003000 none none U10M       ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-V10M     'm s-1'   N N F0;003000 none none V10M       ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
-Z0       '1'       N Y F0;003000 none none Z0M        ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+ALBD     '1'         N Y F0;003000 none none         ALBEDO     ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+CLDFRC   '1'         N Y F0;003000 none none         CLDTOT     ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+EFLUX    '1'         N Y F0;003000 none none         EFLUX      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+EVAP     '1'         N Y F0;003000 none none         EVAP       ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+FRSEAICE '1'         N Y F0;003000 none none         FRSEAICE   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+FRSNO    '1'         N Y F0;003000 none none         FRSNO      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+GRN      '1'         N Y F0;003000 none none         GRN        ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+GWETROOT '1'         N Y F0;003000 none none         GWETROOT   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+GWETTOP  '1'         N Y F0;003000 none none         GWETTOP    ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+HFLUX    '1'         N Y F0;003000 none none         HFLUX      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+LAI      '1'         N Y F0;003000 none none         LAI        ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+LWI      '1'         N Y F0;003000 none none         LWI        ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+RADLWG   '1'         N Y F0;003000 none none         LWGNT      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+PARDF    '1'         N Y F0;003000 none none         PARDF      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+PARDR    '1'         N Y F0;003000 none none         PARDR      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+PBLH     '1'         N Y F0;003000 none none         PBLH       ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+PRECANV  '1'         N Y F0;003000 none none         PRECANV    ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+PRECCON  '1'         N Y F0;003000 none none         PRECCON    ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+PRECLSC  '1'         N Y F0;003000 none none         PRECLSC    ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+PRECSNO  '1'         N Y F0;003000 none none         PRECSNO    ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+PRECTOT  '1'         N Y F0;003000 none none         PRECTOT    ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+SEAICE00 '1'         N Y F0;003000 none none         SEAICE00   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+SEAICE10 '1'         N Y F0;003000 none none         SEAICE10   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+SEAICE20 '1'         N Y F0;003000 none none         SEAICE20   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+SEAICE30 '1'         N Y F0;003000 none none         SEAICE30   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+SEAICE40 '1'         N Y F0;003000 none none         SEAICE40   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+SEAICE50 '1'         N Y F0;003000 none none         SEAICE50   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+SEAICE60 '1'         N Y F0;003000 none none         SEAICE60   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+SEAICE70 '1'         N Y F0;003000 none none         SEAICE70   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+SEAICE80 '1'         N Y F0;003000 none none         SEAICE80   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+SEAICE90 '1'         N Y F0;003000 none none         SEAICE90   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+SLP      {PRES_UNIT} N Y F0;003000 none {PRES_SCALE} SLP        ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+SNODP    '1'         N Y F0;003000 none none         SNODP      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+SNOMAS   '1'         N Y F0;003000 none none         SNOMAS     ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+RADSWG   '1'         N Y F0;003000 none none         SWGDN      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+TO3      'dobson'    N Y F0;003000 none none         TO3        ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+TROPP    {PRES_UNIT} N Y F0;003000 none {PRES_SCALE} TROPPT     ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+TSKIN    '1'         N Y F0;003000 none none         TS         ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+TS       '1'         N Y F0;003000 none none         T2M        ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+USTAR    '1'         N Y F0;003000 none none         USTAR      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+U10M     'm s-1'     N N F0;003000 none none         U10M       ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+V10M     'm s-1'     N N F0;003000 none none         V10M       ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
+Z0       '1'         N Y F0;003000 none none         Z0M        ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A1.{MET_RES}.{MET_EXT}
 
 # --- Surface pressure, 3-hr instantaneous ---
-PS1      'hPa'     N Y 0         none none PS         ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.I3.{MET_RES}.{MET_EXT}
-PS2      'hPa'     N Y 0;001000  none none PS         ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.I3.{MET_RES}.{MET_EXT}
+PS1      {PRES_UNIT} N Y 0         none {PRES_SCALE} PS         ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.I3.{MET_RES}.{MET_EXT}
+PS2      {PRES_UNIT} N Y 0;001000  none {PRES_SCALE} PS         ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.I3.{MET_RES}.{MET_EXT}
 
 # --- 3D variables, 3-hr instantaneous ---
-SPHU1    'kg kg-1' N Y 0         none none QV         ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.I3.{MET_RES}.{MET_EXT}
-SPHU2    'kg kg-1' N Y 0;001000  none none QV         ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.I3.{MET_RES}.{MET_EXT}
-TMPU1    'K'       N Y 0         none none T          ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.I3.{MET_RES}.{MET_EXT}
-TMPU2    'K'       N Y 0;001000  none none T          ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.I3.{MET_RES}.{MET_EXT}
+SPHU1    'kg kg-1'   N Y 0         none none         QV         ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.I3.{MET_RES}.{MET_EXT}
+SPHU2    'kg kg-1'   N Y 0;001000  none none         QV         ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.I3.{MET_RES}.{MET_EXT}
+TMPU1    'K'         N Y 0         none none         T          ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.I3.{MET_RES}.{MET_EXT}
+TMPU2    'K'         N Y 0;001000  none none         T          ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.I3.{MET_RES}.{MET_EXT}
 
 # --- 3D variables, 3-hr averaged ---
-QI       '1'       N Y F0;013000 none none QI         ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3cld.{MET_RES}.{MET_EXT}
-QL       '1'       N Y F0;013000 none none QL         ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3cld.{MET_RES}.{MET_EXT}
-TAUCLI   '1'       N Y F0;013000 none none TAUCLI     ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3cld.{MET_RES}.{MET_EXT}
-TAUCLW   '1'       N Y F0;013000 none none TAUCLW     ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3cld.{MET_RES}.{MET_EXT}
-OPTDEP   '1'       N Y F0;013000 none none OPTDEPTH   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3cld.{MET_RES}.{MET_EXT}
-CLDF     '1'       N Y F0;013000 none none CLOUD      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3cld.{MET_RES}.{MET_EXT}
-DTRAIN   '1'       N Y F0;013000 none none DTRAIN     ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3dyn.{MET_RES}.{MET_EXT}
-OMEGA    'Pa s-1'  N Y F0;013000 none none OMEGA      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3dyn.{MET_RES}.{MET_EXT}
-RH       '-'       N Y F0;013000 none none RH         ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3dyn.{MET_RES}.{MET_EXT}
-UC;VC    'm s-1'   N N F0;013000 none none U;V        ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3dyn.{MET_RES}.{MET_EXT}
-ULL      'm s-1'   N N F0;013000 none none U          ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3dyn.{MET_RES}.{MET_EXT}
-VLL      'm s-1'   N N F0;013000 none none V          ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3dyn.{MET_RES}.{MET_EXT}
-DQRCU    '1'       N Y F0;013000 none none DQRCU      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3mstC.{MET_RES}.{MET_EXT}
-DQRLSAN  '1'       N Y F0;013000 none none DQRLSAN    ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3mstC.{MET_RES}.{MET_EXT}
-REEVAPCN '1'       N Y F0;013000 none none REEVAPCN   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3mstC.{MET_RES}.{MET_EXT}
-REEVAPLS '1'       N Y F0;013000 none none REEVAPLS   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3mstC.{MET_RES}.{MET_EXT}
-CMFMC    '1'       N Y F0;013000 none none CMFMC      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3mstE.{MET_RES}.{MET_EXT}
-PFICU    '1'       N Y F0;013000 none none PFICU      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3mstE.{MET_RES}.{MET_EXT}
-PFILSAN  '1'       N Y F0;013000 none none PFILSAN    ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3mstE.{MET_RES}.{MET_EXT}
-PFLCU    '1'       N Y F0;013000 none none PFLCU      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3mstE.{MET_RES}.{MET_EXT}
-PFLLSAN  '1'       N Y F0;013000 none none PFLLSAN    ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3mstE.{MET_RES}.{MET_EXT}
+QI       '1'         N Y F0;013000 none none         QI         ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3cld.{MET_RES}.{MET_EXT}
+QL       '1'         N Y F0;013000 none none         QL         ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3cld.{MET_RES}.{MET_EXT}
+TAUCLI   '1'         N Y F0;013000 none none         TAUCLI     ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3cld.{MET_RES}.{MET_EXT}
+TAUCLW   '1'         N Y F0;013000 none none         TAUCLW     ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3cld.{MET_RES}.{MET_EXT}
+OPTDEP   '1'         N Y F0;013000 none none         OPTDEPTH   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3cld.{MET_RES}.{MET_EXT}
+CLDF     '1'         N Y F0;013000 none none         CLOUD      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3cld.{MET_RES}.{MET_EXT}
+DTRAIN   '1'         N Y F0;013000 none none         DTRAIN     ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3dyn.{MET_RES}.{MET_EXT}
+OMEGA    'Pa s-1'    N Y F0;013000 none none         OMEGA      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3dyn.{MET_RES}.{MET_EXT}
+RH       '-'         N Y F0;013000 none none         RH         ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3dyn.{MET_RES}.{MET_EXT}
+UC;VC    'm s-1'     N N F0;013000 none none         U;V        ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3dyn.{MET_RES}.{MET_EXT}
+ULL      'm s-1'     N N F0;013000 none none         U          ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3dyn.{MET_RES}.{MET_EXT}
+VLL      'm s-1'     N N F0;013000 none none         V          ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3dyn.{MET_RES}.{MET_EXT}
+DQRCU    '1'         N Y F0;013000 none none         DQRCU      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3mstC.{MET_RES}.{MET_EXT}
+DQRLSAN  '1'         N Y F0;013000 none none         DQRLSAN    ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3mstC.{MET_RES}.{MET_EXT}
+REEVAPCN '1'         N Y F0;013000 none none         REEVAPCN   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3mstC.{MET_RES}.{MET_EXT}
+REEVAPLS '1'         N Y F0;013000 none none         REEVAPLS   ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3mstC.{MET_RES}.{MET_EXT}
+CMFMC    '1'         N Y F0;013000 none none         CMFMC      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3mstE.{MET_RES}.{MET_EXT}
+PFICU    '1'         N Y F0;013000 none none         PFICU      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3mstE.{MET_RES}.{MET_EXT}
+PFILSAN  '1'         N Y F0;013000 none none         PFILSAN    ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3mstE.{MET_RES}.{MET_EXT}
+PFLCU    '1'         N Y F0;013000 none none         PFLCU      ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3mstE.{MET_RES}.{MET_EXT}
+PFLLSAN  '1'         N Y F0;013000 none none         PFLLSAN    ./MetDir/%y4/%m2/{MET_SOURCE}.%y4%m2%d2.A3mstE.{MET_RES}.{MET_EXT}
 
 # --- Fixed variables, from constants file ---
-FRLAKE   '1'       N Y -         none none FRLAKE     ./MetDir/{MET_CN_YR}/01/{MET_SOURCE}.{MET_CN_YR}0101.CN.{MET_RES}.{MET_EXT}
-FRLAND   '1'       N Y -         none none FRLAND     ./MetDir/{MET_CN_YR}/01/{MET_SOURCE}.{MET_CN_YR}0101.CN.{MET_RES}.{MET_EXT}
-FRLANDIC '1'       N Y -         none none FRLANDIC   ./MetDir/{MET_CN_YR}/01/{MET_SOURCE}.{MET_CN_YR}0101.CN.{MET_RES}.{MET_EXT}
-FROCEAN  '1'       N Y -         none none FROCEAN    ./MetDir/{MET_CN_YR}/01/{MET_SOURCE}.{MET_CN_YR}0101.CN.{MET_RES}.{MET_EXT}
-PHIS     'm2 s-2'  N Y -         none none PHIS       ./MetDir/{MET_CN_YR}/01/{MET_SOURCE}.{MET_CN_YR}0101.CN.{MET_RES}.{MET_EXT}
+FRLAKE   '1'         N Y -         none none         FRLAKE     ./MetDir/{MET_CN_YR}/01/{MET_SOURCE}.{MET_CN_YR}0101.CN.{MET_RES}.{MET_EXT}
+FRLAND   '1'         N Y -         none none         FRLAND     ./MetDir/{MET_CN_YR}/01/{MET_SOURCE}.{MET_CN_YR}0101.CN.{MET_RES}.{MET_EXT}
+FRLANDIC '1'         N Y -         none none         FRLANDIC   ./MetDir/{MET_CN_YR}/01/{MET_SOURCE}.{MET_CN_YR}0101.CN.{MET_RES}.{MET_EXT}
+FROCEAN  '1'         N Y -         none none         FROCEAN    ./MetDir/{MET_CN_YR}/01/{MET_SOURCE}.{MET_CN_YR}0101.CN.{MET_RES}.{MET_EXT}
+PHIS     'm2 s-2'    N Y -         none none         PHIS       ./MetDir/{MET_CN_YR}/01/{MET_SOURCE}.{MET_CN_YR}0101.CN.{MET_RES}.{MET_EXT}
+
+#==============================================================================
+# --- Fields for lightning emissions (Extension 103) ---
+# These fields are stored in State_Met, along with the other met fields
+#==============================================================================
+FLASH_DENS '1'       N Y F0;013000 none none         LDENS      ./MainDataDir/OFFLINE_LIGHTNING/v2019-01/{MET_SOURCE}/%y4/FLASH_CTH_{MET_SOURCE}_{NATIVE_RES}_%y4_%m2.nc4
+CONV_DEPTH '1'       N Y F0;013000 none none         CTH        ./MainDataDir/OFFLINE_LIGHTNING/v2019-01/{MET_SOURCE}/%y4/FLASH_CTH_{MET_SOURCE}_{NATIVE_RES}_%y4_%m2.nc4
 
 ###############################################################################
 ###
@@ -119,92 +126,334 @@ PHIS     'm2 s-2'  N Y -         none none PHIS       ./MetDir/{MET_CN_YR}/01/{M
 ###############################################################################
 
 #==============================================================================
-# Olson land types - conservative frac regridding of OLSON as float
+# Olson land types
 #==============================================================================
-OLSON00 1 N F;0  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON01 1 N F;1  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON02 1 N F;2  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON03 1 N F;3  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON04 1 N F;4  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON05 1 N F;5  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON06 1 N F;6  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON07 1 N F;7  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON08 1 N F;8  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON09 1 N F;9  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON10 1 N F;10 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON11 1 N F;11 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON12 1 N F;12 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON13 1 N F;13 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON14 1 N F;14 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON15 1 N F;15 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON16 1 N F;16 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON17 1 N F;17 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON18 1 N F;18 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON19 1 N F;19 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON20 1 N F;20 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON21 1 N F;21 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON22 1 N F;22 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON23 1 N F;23 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON24 1 N F;24 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON25 1 N F;25 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON26 1 N F;26 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON27 1 N F;27 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON28 1 N F;28 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON29 1 N F;29 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON30 1 N F;30 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON31 1 N F;31 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON32 1 N F;32 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON33 1 N F;33 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON34 1 N F;34 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON35 1 N F;35 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON36 1 N F;36 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON37 1 N F;37 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON38 1 N F;38 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON39 1 N F;39 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON40 1 N F;40 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON41 1 N F;41 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON42 1 N F;42 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON43 1 N F;43 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON44 1 N F;44 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON45 1 N F;45 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON46 1 N F;46 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON47 1 N F;47 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON48 1 N F;48 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON49 1 N F;49 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON50 1 N F;50 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON51 1 N F;51 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON52 1 N F;52 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON53 1 N F;53 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON54 1 N F;54 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON55 1 N F;55 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON56 1 N F;56 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON57 1 N F;57 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON58 1 N F;58 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON59 1 N F;59 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON60 1 N F;60 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON61 1 N F;61 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON62 1 N F;62 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON63 1 N F;63 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON64 1 N F;64 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON65 1 N F;65 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON66 1 N F;66 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON67 1 N F;67 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON68 1 N F;68 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON69 1 N F;69 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON70 1 N F;70 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON71 1 N F;71 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
-OLSON72 1 N F;72 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.GCHP.nc
+# Use conservative fraction regridding to extract land type fraction
+OLSON00 1 N F;0  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON01 1 N F;1  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON02 1 N F;2  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON03 1 N F;3  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON04 1 N F;4  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON05 1 N F;5  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON06 1 N F;6  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON07 1 N F;7  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON08 1 N F;8  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON09 1 N F;9  - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON10 1 N F;10 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON11 1 N F;11 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON12 1 N F;12 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON13 1 N F;13 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON14 1 N F;14 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON15 1 N F;15 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON16 1 N F;16 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON17 1 N F;17 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON18 1 N F;18 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON19 1 N F;19 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON20 1 N F;20 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON21 1 N F;21 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON22 1 N F;22 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON23 1 N F;23 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON24 1 N F;24 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON25 1 N F;25 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON26 1 N F;26 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON27 1 N F;27 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON28 1 N F;28 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON29 1 N F;29 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON30 1 N F;30 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON31 1 N F;31 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON32 1 N F;32 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON33 1 N F;33 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON34 1 N F;34 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON35 1 N F;35 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON36 1 N F;36 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON37 1 N F;37 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON38 1 N F;38 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON39 1 N F;39 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON40 1 N F;40 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON41 1 N F;41 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON42 1 N F;42 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON43 1 N F;43 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON44 1 N F;44 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON45 1 N F;45 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON46 1 N F;46 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON47 1 N F;47 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON48 1 N F;48 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON49 1 N F;49 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON50 1 N F;50 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON51 1 N F;51 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON52 1 N F;52 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON53 1 N F;53 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON54 1 N F;54 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON55 1 N F;55 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON56 1 N F;56 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON57 1 N F;57 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON58 1 N F;58 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON59 1 N F;59 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON60 1 N F;60 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON61 1 N F;61 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON62 1 N F;62 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON63 1 N F;63 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON64 1 N F;64 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON65 1 N F;65 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON66 1 N F;66 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON67 1 N F;67 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON68 1 N F;68 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON69 1 N F;69 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON70 1 N F;70 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON71 1 N F;71 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+OLSON72 1 N F;72 - none none OLSON ./ChemDataDir/Olson_Land_Map_201203/Olson_2001_Land_Map.025x025.generic.nc
+
+# Alternatively read files containing land type masks. This implementation needs further testing to assess relative performance.
+#OLSON00 1 N Y - none none LANDTYPE00 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON01 1 N Y - none none LANDTYPE01 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON02 1 N Y - none none LANDTYPE02 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON03 1 N Y - none none LANDTYPE03 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON04 1 N Y - none none LANDTYPE04 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON05 1 N Y - none none LANDTYPE05 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON06 1 N Y - none none LANDTYPE06 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON07 1 N Y - none none LANDTYPE07 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON08 1 N Y - none none LANDTYPE08 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON09 1 N Y - none none LANDTYPE09 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON10 1 N Y - none none LANDTYPE10 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON11 1 N Y - none none LANDTYPE11 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON12 1 N Y - none none LANDTYPE12 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON13 1 N Y - none none LANDTYPE13 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON14 1 N Y - none none LANDTYPE14 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON15 1 N Y - none none LANDTYPE15 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON16 1 N Y - none none LANDTYPE16 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON17 1 N Y - none none LANDTYPE17 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON18 1 N Y - none none LANDTYPE18 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON19 1 N Y - none none LANDTYPE19 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON20 1 N Y - none none LANDTYPE20 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON21 1 N Y - none none LANDTYPE21 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON22 1 N Y - none none LANDTYPE22 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON23 1 N Y - none none LANDTYPE23 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON24 1 N Y - none none LANDTYPE24 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON25 1 N Y - none none LANDTYPE25 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON26 1 N Y - none none LANDTYPE26 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON27 1 N Y - none none LANDTYPE27 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON28 1 N Y - none none LANDTYPE28 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON29 1 N Y - none none LANDTYPE29 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON30 1 N Y - none none LANDTYPE30 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON31 1 N Y - none none LANDTYPE31 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON32 1 N Y - none none LANDTYPE32 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON33 1 N Y - none none LANDTYPE33 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON34 1 N Y - none none LANDTYPE34 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON35 1 N Y - none none LANDTYPE35 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON36 1 N Y - none none LANDTYPE36 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON37 1 N Y - none none LANDTYPE37 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON38 1 N Y - none none LANDTYPE38 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON39 1 N Y - none none LANDTYPE39 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON40 1 N Y - none none LANDTYPE40 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON41 1 N Y - none none LANDTYPE41 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON42 1 N Y - none none LANDTYPE42 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON43 1 N Y - none none LANDTYPE43 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON44 1 N Y - none none LANDTYPE44 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON45 1 N Y - none none LANDTYPE45 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON46 1 N Y - none none LANDTYPE46 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON47 1 N Y - none none LANDTYPE47 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON48 1 N Y - none none LANDTYPE48 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON49 1 N Y - none none LANDTYPE49 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON50 1 N Y - none none LANDTYPE50 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON51 1 N Y - none none LANDTYPE51 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON52 1 N Y - none none LANDTYPE52 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON53 1 N Y - none none LANDTYPE53 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON54 1 N Y - none none LANDTYPE54 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON55 1 N Y - none none LANDTYPE55 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON56 1 N Y - none none LANDTYPE56 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON57 1 N Y - none none LANDTYPE57 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON58 1 N Y - none none LANDTYPE58 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON59 1 N Y - none none LANDTYPE59 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON60 1 N Y - none none LANDTYPE60 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON61 1 N Y - none none LANDTYPE61 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON62 1 N Y - none none LANDTYPE62 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON63 1 N Y - none none LANDTYPE63 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON64 1 N Y - none none LANDTYPE64 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON65 1 N Y - none none LANDTYPE65 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON66 1 N Y - none none LANDTYPE66 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON67 1 N Y - none none LANDTYPE67 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON68 1 N Y - none none LANDTYPE68 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON69 1 N Y - none none LANDTYPE69 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON70 1 N Y - none none LANDTYPE70 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON71 1 N Y - none none LANDTYPE71 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
+#OLSON72 1 N Y - none none LANDTYPE72 ./MainDataDir/OLSON_MAP/v2019-02/Olson_2001_Land_Type_Masks.025x025.generic.nc
 
 #==============================================================================
-# MODIS Leaf Area Index (land type is 3rd dimension) 
+# MODIS Leaf Area Index
+#
+# NOTE: There are two options for offline MODIS LAI: legacy and Yuan et al.
+#       Both may be used in GCHP but legacy should be used when comparing with
+#       GEOS-Chem Classic until it because default. Legacy is default in GCHP.
 #==============================================================================
-XLAIMULTI cm2/cm2 N Y %y4-%m2-%d2T00:00:00 none none XLAIMULTI ./ChemDataDir/MODIS_LAI_201204/For_Olson_2001/XLAI_for_GCHP/2008/Condensed_MODIS_XLAI.025x025.%y4%m2.nc
+
+#---------------------------
+# Option 1: legacy MODIS LAI
+#---------------------------
+# Use file with land type stored as 3rd dimension to speed up file read
+XLAIMULTI cm2_cm-2 N Y %y4-%m2-%d2T00:00:00 none none XLAIMULTI ./ChemDataDir/MODIS_LAI_201707/For_Olson_2001/XLAI_for_GCHP/%y4/Condensed_MODIS_XLAI.025x025.%y4%m2.nc
+
+# Alternatively read in values for each land type separately. Use XLAIMUTLI by default until performance equivalence verified.
+#XLAI00 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI00 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI01 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI01 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI02 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI02 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI03 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI03 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI04 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI04 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI05 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI05 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI06 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI06 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI07 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI07 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI08 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI08 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI09 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI09 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI10 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI10 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI11 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI11 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI12 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI12 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI13 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI13 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI14 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI14 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI15 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI15 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI16 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI16 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI17 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI17 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI18 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI18 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI19 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI19 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI20 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI20 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI21 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI21 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI22 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI22 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI23 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI23 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI24 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI24 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI25 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI25 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI26 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI26 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI27 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI27 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI28 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI28 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI29 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI29 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI30 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI30 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI31 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI31 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI32 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI32 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI33 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI33 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI34 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI34 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI35 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI35 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI36 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI36 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI37 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI37 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI38 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI38 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI39 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI39 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI40 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI40 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI41 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI41 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI42 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI42 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI43 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI43 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI44 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI44 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI45 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI45 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI46 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI46 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI47 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI47 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI48 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI48 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI49 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI49 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI50 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI50 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI51 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI51 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI52 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI52 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI53 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI53 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI54 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI54 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI55 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI55 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI56 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI56 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI57 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI57 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI58 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI58 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI59 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI59 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI60 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI60 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI61 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI61 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI62 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI62 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI63 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI63 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI64 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI64 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI65 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI65 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI66 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI66 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI67 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI67 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI68 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI68 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI69 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI69 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI70 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI70 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI71 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI71 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+#XLAI72 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI72 ./MainDataDir/MODIS_XLAI/v2017-07/%y4/MODIS_XLAI.025x025.%y4%m2.nc
+
+#---------------------------
+# Option 2: Yuan processed
+#---------------------------
+# Use file with land type stored as 3rd dimension to speed up file read
+#XLAIMULTI cm2_cm-2 N Y %y4-%m2-%d2T00:00:00 none none XLAIMULTI ./MainDataDir/Yuan_XLAI/v2019-03/Condensed_Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+
+# Alternatively read in each variable separately. Use XLAIMUTLI by default until performance equivalence verified
+#XLAI00 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI00 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI01 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI01 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI02 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI02 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI03 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI03 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI04 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI04 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI05 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI05 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI06 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI06 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI07 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI07 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI08 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI08 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI09 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI09 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI10 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI10 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI11 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI11 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI12 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI12 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI13 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI13 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI14 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI14 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI15 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI15 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI16 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI16 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI17 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI17 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI18 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI18 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI19 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI19 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI20 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI20 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI21 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI21 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI22 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI22 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI23 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI23 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI24 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI24 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI25 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI25 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI26 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI26 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI27 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI27 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI28 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI28 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI29 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI29 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI30 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI30 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI31 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI31 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI32 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI32 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI33 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI33 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI34 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI34 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI35 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI35 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI36 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI36 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI37 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI37 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI38 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI38 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI39 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI39 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI40 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI40 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI41 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI41 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI42 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI42 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI43 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI43 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI44 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI44 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI45 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI45 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI46 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI46 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI47 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI47 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI48 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI48 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI49 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI49 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI50 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI50 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI51 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI51 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI52 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI52 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI53 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI53 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI54 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI54 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI55 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI55 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI56 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI56 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI57 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI57 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI58 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI58 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI59 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI59 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI60 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI60 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI61 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI61 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI62 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI62 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI63 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI63 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI64 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI64 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI65 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI65 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI66 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI66 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI67 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI67 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI68 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI68 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI69 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI69 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI70 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI70 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI71 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI71 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
+#XLAI72 cm2/cm2 N Y F%y4-%m2-%d2T00:00:00 none none XLAI72 ./MainDataDir/Yuan_XLAI/v2019-03/Yuan_proc_MODIS_XLAI.025x025.%y4.nc
 
 #==============================================================================
-# MODIS Chlorophyll-a (land type is 3rd dimension)
+# MODIS Chlorophyll-a
 # (uncomment if using the marine POA simulation) 
 #==============================================================================
-#XCHLRMULTI mg/m3 N Y %y4-%m2-%d2T00:00:00 none none XCHLRMULTI ./ChemDataDir/MODIS_LAI_201204/For_Olson_2001/XCHLR_for_GCHP/%y4/Condensed_MODIS_CHLR.025x025.%y4%m2.nc
+# Use file with land type stored as 3rd dimension to speed up file read
+#XCHLRMULTI mg_m-3 N Y %y4-%m2-%d2T00:00:00 none none XCHLRMULTI ./ChemDataDir/MODIS_LAI_201204/For_Olson_2001/XCHLR_for_GCHP/%y4/Condensed_MODIS_CHLR.025x025.%y4%m2.nc
 
 ###############################################################################
 ###
@@ -1221,8 +1470,8 @@ AEIC_ACET kg/m2/s Y Y F2005-%m2-01T00:00:00 none none HC       ./MainDataDir/AEI
 #==============================================================================
 # --- Emissions from decaying plants (DECAYING_PLANTS) ---
 #==============================================================================
-ALD2_SEN kgC/m2/s Y Y F1985-%m2-01T00:00:00 none none HET_RESP ./MainDataDir/ALD2/v2017-03/resp.geos.2x25.nc
-EOH_SEN  kgC/m2/s Y Y F1985-%m2-01T00:00:00 none none HET_RESP ./MainDataDir/ALD2/v2017-03/resp.geos.2x25.nc
+ALD2_PLANTDECAY kgC/m2/s Y Y F1985-%m2-01T00:00:00 none none HET_RESP ./MainDataDir/ALD2/v2017-03/resp.geos.2x25.nc
+EOH_PLANTDECAY  kgC/m2/s Y Y F1985-%m2-01T00:00:00 none none HET_RESP ./MainDataDir/ALD2/v2017-03/resp.geos.2x25.nc
 
 #==============================================================================
 # --- RCP 3PD future emissions scenarios (RCP_3PD) ---
@@ -1343,29 +1592,50 @@ RCP85_HCOOH   kg/m2/s N Y %y4-01-01T00:00:00 none none ACCMIP ./MainDataDir/RCP/
 #==============================================================================
 
 #==============================================================================
-# --- Offline seasalt emissions (SALT_SSALT_OFFLINE) ---
+# --- Offline dust emissions ---
 #==============================================================================
-SALA_SSALT_OFFLINE kg/m2/s N Y F%y4-%m2-%d2T%h2:00:00 none none SSALT_SALA ./MainDataDir/OFFLINE_SSALT/v2018-06/SSalt_2x25_%y4%m2.nc4
-SALC_SSALT_OFFLINE kg/m2/s N Y F%y4-%m2-%d2T%h2:00:00 none none SSALT_SALC ./MainDataDir/OFFLINE_SSALT/v2018-06/SSalt_2x25_%y4%m2.nc4
-Br2_SSALT_OFFLINE  kg/m2/s N Y F%y4-%m2-%d2T%h2:00:00 none none SSALT_Br2  ./MainDataDir/OFFLINE_SSALT/v2018-06/SSalt_2x25_%y4%m2.nc4
+EMIS_DST1 kg/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none EMIS_DST1 ./MainDataDir/OFFLINE_DUST/v2019-01/{NATIVE_RES}/%y4/%m2/dust_emissions_{LATRES}.%y4%m2%d2.nc
+EMIS_DST2 kg/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none EMIS_DST2 ./MainDataDir/OFFLINE_DUST/v2019-01/{NATIVE_RES}/%y4/%m2/dust_emissions_{LATRES}.%y4%m2%d2.nc
+EMIS_DST3 kg/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none EMIS_DST3 ./MainDataDir/OFFLINE_DUST/v2019-01/{NATIVE_RES}/%y4/%m2/dust_emissions_{LATRES}.%y4%m2%d2.nc
+EMIS_DST4 kg/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none EMIS_DST4 ./MainDataDir/OFFLINE_DUST/v2019-01/{NATIVE_RES}/%y4/%m2/dust_emissions_{LATRES}.%y4%m2%d2.nc
 
 #==============================================================================
-# --- Offline sea flux emissions (SEA_SFLUX_OFFLINE) ---
+# --- Offline biogenic VOC emissions ---
 #==============================================================================
-ACET_SFLUX_OFFLINE kg/m2/s N Y F%y4-%m2-%d2T%h2:00:00 none none SFLUX_ACET ./MainDataDir/OFFLINE_SFLUX/v2018-06/SFlux_2x25_%y4%m2.nc4
-DMS_SFLUX_OFFLINE  kg/m2/s N Y F%y4-%m2-%d2T%h2:00:00 none none SFLUX_DMS  ./MainDataDir/OFFLINE_SFLUX/v2018-06/SFlux_2x25_%y4%m2.nc4
-ALD2_SFLUX_OFFLINE kg/m2/s N Y F%y4-%m2-%d2T%h2:00:00 none none SFLUX_ALD2 ./MainDataDir/OFFLINE_SFLUX/v2018-06/SFlux_2x25_%y4%m2.nc4
+BIOGENIC_ACET kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none ACET_MEGAN    ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
+BIOGENIC_ALD2 kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none ALD2_MEGAN    ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
+BIOGENIC_C2H4 kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none C2H4_MEGAN    ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
+BIOGENIC_EOH  kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none EOH_MEGAN     ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
+BIOGENIC_ISOP kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none ISOP_MEGAN    ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
+BIOGENIC_PRPE kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none PRPE_MEGAN    ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
+BIOGENIC_SOAP kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none SOAP_MEGAN    ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
+BIOGENIC_SOAS kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none SOAS_MEGAN    ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
+BIOGENIC_CO   kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none BIOGENIC_CO   ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
+BIOGENIC_APIN kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none BIOGENIC_APIN ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
+BIOGENIC_BPIN kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none BIOGENIC_BPIN ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
+BIOGENIC_SABI kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none BIOGENIC_SABI ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
+BIOGENIC_CARE kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none BIOGENIC_CARE ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
+BIOGENIC_MYRC kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none BIOGENIC_MYRC ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
+BIOGENIC_OCIM kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none BIOGENIC_OCIM ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
+BIOGENIC_OMON kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none BIOGENIC_OMON ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
+BIOGENIC_LIMO kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none BIOGENIC_LIMO ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
+BIOGENIC_FARN kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none BIOGENIC_FARN ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
+BIOGENIC_BCAR kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none BIOGENIC_BCAR ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
+BIOGENIC_OSQT kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none BIOGENIC_OSQT ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
 
 #==============================================================================
-# --- Offline lightning NOx emissions (NOX_LTNG_OFFLINE) ---
+# --- Offline sea salt emissions ---
 #==============================================================================
-NO_LTNG_OFFLINE kg/m2/s N Y F%y4-%m2-%d2T%h2:00:00 none none LNOX_NO ./MainDataDir/OFFLINE_LNOX/v2018-06/LNOx_2x25_%y4%m2.nc4
+SEASALT_SALA    kg/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none SALA_TOTAL   ./MainDataDir/OFFLINE_SEASALT/v2019-01/{NATIVE_RES}/%y4/%m2/seasalt_{LATRES}.%y4%m2%d2.nc
+SEASALT_SALC    kg/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none SALC_TOTAL   ./MainDataDir/OFFLINE_SEASALT/v2019-01/{NATIVE_RES}/%y4/%m2/seasalt_{LATRES}.%y4%m2%d2.nc
+#SEASALT_Br2    kg/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none Br2_TOTAL    ./MainDataDir/OFFLINE_SEASALT/v2019-01/{NATIVE_RES}/%y4/%m2/seasalt_{LATRES}.%y4%m2%d2.nc
+#SEASALT_BrSALA kg/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none BrSALA_TOTAL ./MainDataDir/OFFLINE_SEASALT/v2019-01/{NATIVE_RES}/%y4/%m2/seasalt_{LATRES}.%y4%m2%d2.nc
+#SEASALT_BrSALC kg/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none BrSALC_TOTAL ./MainDataDir/OFFLINE_SEASALT/v2019-01/{NATIVE_RES}/%y4/%m2/seasalt_{LATRES}.%y4%m2%d2.nc
 
 #==============================================================================
-# --- Volcanic emissions (VOLCANO) --- 
+# --- Offline soil NOx emissions ---
 #==============================================================================
-VOLCANO_SO2_ERUPT kg/m2/s N Y %y4-%m2-%d2T00:00:00 none none SO2_erupt ./MainDataDir/VOLCANO/v2015-02/%y4/volc_so2_gen.1x1.47L.%y4%m2.nc
-VOLCANO_SO2_DEGAS kg/m2/s N Y %y4-%m2-%d2T00:00:00 none none SO2_degas ./MainDataDir/VOLCANO/v2015-02/%y4/volc_so2_gen.1x1.47L.%y4%m2.nc
+SOILNOX_NO  kg/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none SOIL_NOx ./MainDataDir/OFFLINE_SOILNOX/v2019-01/{NATIVE_RES}/%y4/%m2/soilnox_{LATRES}.%y4%m2%d2.nc
 
 ###############################################################################
 ###
@@ -1383,58 +1653,14 @@ ACET_SEAWATER  kg/m3 N Y - none none ACET ./MainDataDir/ACET/v2014-07/ACET_seawa
 ALD2_SEAWATER  kg/m3 Y Y F1985-%m2-01T00:00:00 none none ALD2 ./MainDataDir/ALD2/v2017-03/ALD2_seawater.geos.2x25.nc
 
 #==============================================================================
-# --- LIGHTNOX emissions (Extension 103) ---
-#==============================================================================
-LIGHTNOX_OTDLIS kg/m2/s N N %y4-%m2-01T00:00:00 none none OTD ./MainDataDir/LIGHTNOX/v2014-07/OTD-LIS-Local-Redist.CTH.v5.geosfp.2x25.nc
-
-#==============================================================================
 # --- SOILNOX emissions (Extension 104) ---
-# HEMCO restart variables are stored in the Internal State and are input/output via the checkpoint file
+# Off by default. Use offline soil NOx emissions above.
 #==============================================================================
-DEP_RESERVOIR_DEFAULT kg/m3 N Y -                     none none DEP_RESERVOIR ./MainDataDir/SOILNOX/v2014-07/DepReservoirDefault.nc
-SOILNOX_FERT          kg/m3 N Y 2000-%m2-%d2T00:00:00 none none FERT          ./MainDataDir/SOILNOX/v2014-07/soilNOx.fert_res.generic.05x05.time_corrected_for_GCHP.nc
-SOILNOX_LANDK1        1     N Y -                     none none LANDFRAC_K01  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK2        1     N Y -                     none none LANDFRAC_K02  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK3        1     N Y -                     none none LANDFRAC_K03  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK4        1     N Y -                     none none LANDFRAC_K04  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK5        1     N Y -                     none none LANDFRAC_K05  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK6        1     N Y -                     none none LANDFRAC_K06  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK7        1     N Y -                     none none LANDFRAC_K07  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK8        1     N Y -                     none none LANDFRAC_K08  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK9        1     N Y -                     none none LANDFRAC_K09  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK10       1     N Y -                     none none LANDFRAC_K10  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK11       1     N Y -                     none none LANDFRAC_K11  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK12       1     N Y -                     none none LANDFRAC_K12  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK13       1     N Y -                     none none LANDFRAC_K13  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK14       1     N Y -                     none none LANDFRAC_K14  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK15       1     N Y -                     none none LANDFRAC_K15  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK16       1     N Y -                     none none LANDFRAC_K16  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK17       1     N Y -                     none none LANDFRAC_K17  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK18       1     N Y -                     none none LANDFRAC_K18  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK19       1     N Y -                     none none LANDFRAC_K19  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK20       1     N Y -                     none none LANDFRAC_K20  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK21       1     N Y -                     none none LANDFRAC_K21  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK22       1     N Y -                     none none LANDFRAC_K22  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK23       1     N Y -                     none none LANDFRAC_K23  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_LANDK24       1     N Y -                     none none LANDFRAC_K24  ./MainDataDir/SOILNOX/v2014-07/soilNOx.landtype.generic.025x025.1L.nc
-SOILNOX_ARID          1     N Y -                     none none ARID          ./MainDataDir/SOILNOX/v2014-07/soilNOx.climate.generic.05x05.nc
-SOILNOX_NONARID       1     N Y -                     none none NON_ARID      ./MainDataDir/SOILNOX/v2014-07/soilNOx.climate.generic.05x05.nc
 
 #==============================================================================
 # --- Dust emissions using DEAD model (Extension 105) ---
-# DEAD_SFC_TYP uses the ExtData voting option
+# Off by default. Use offline dust emissions above.
 #==============================================================================
-DEAD_EF_GEO     factor   N Y -                    none none EF_GEO   ./MainDataDir/DUST_DEAD/v2014-07/dst_tibds.geos.4x5.nc
-DEAD_LF_DRY     factor   N Y -                    none none LF_DRY   ./MainDataDir/DUST_DEAD/v2014-07/dst_tibds.geos.4x5.nc
-DEAD_MF_CACO3   fraction N Y -                    none none MF_CaCO3 ./MainDataDir/DUST_DEAD/v2014-07/dst_tibds.geos.4x5.nc
-DEAD_MF_CLY     fraction N Y -                    none none MF_CLY   ./MainDataDir/DUST_DEAD/v2014-07/dst_tibds.geos.4x5.nc
-DEAD_MF_SND     fraction N Y -                    none none MF_SND   ./MainDataDir/DUST_DEAD/v2014-07/dst_tibds.geos.4x5.nc
-DEAD_SFC_TYP    count    N V -                    none none SFC_TYP  ./MainDataDir/DUST_DEAD/v2014-07/dst_tibds.geos.4x5.nc
-DEAD_GOC_SRC    1        N Y -                    none none GOC_SRC  ./MainDataDir/DUST_DEAD/v2014-07/GOCART_src_fn.geos.4x5.nc
-DEAD_VAI        1        Y Y 1985-%m2-01T00:00:00 none none VAI      ./MainDataDir/DUST_DEAD/v2014-07/dst_tvbds.geos.4x5.nc
-DEAD_PM25FINE_1 kg/m2/s  Y Y 2015-%m2-01T00:00:00 none none PM25FINE ./MainDataDir/DUST_DEAD/v2018-04/PM25FINE_ECLIPSE_2015.geos.2x25.nc
-DEAD_PM25FINE_2 kg/m2/s  Y Y 2012-%m2-01T00:00:00 none none PM25FINE ./MainDataDir/DUST_DEAD/v2018-04/PM25FINE_MEIC_2012.generic.025x025.nc
-DEAD_PM25FINE_3 kg/m2/s  Y Y 2013-%m2-01T00:00:00 none none PM25FINE ./MainDataDir/DUST_DEAD/v2018-04/PM25FINE_IITB_2013.generic.025x025.nc
 
 #==============================================================================
 # --- Dust emissions using Paul Ginoux's mechanism (Extension 106) ---
@@ -1442,43 +1668,15 @@ DEAD_PM25FINE_3 kg/m2/s  Y Y 2013-%m2-01T00:00:00 none none PM25FINE ./MainDataD
 #==============================================================================
 
 #==============================================================================
-# --- Sea salt emissions (Extension 107) 
+# --- Sea salt emissions (Extension 107)
+# Off by default. Use offline sea salt emissions above.
 #==============================================================================
 # --- No external data ---
 
 #==============================================================================
 # --- MEGAN biogenic emissions (Extension 108 and 109)
-# HEMCO restart variables are stored in the Internal State and are input/output via the checkpoint file
+# Off by default. Use offline biogenic emissions above.
 #==============================================================================
-# --- Extension 108 ---
-MEGAN_AEF_ISOP               kgC/m2/s N Y - none none AEF_ISOPRENE            ./MainDataDir/MEGAN/v2018-05/MEGAN2.1_EF.geos.025x03125.nc
-CLM4_PFT_BARE                1        N Y - none none PFT_BARE                ./MainDataDir/MEGAN/v2017-07/CLM4_PFT.geos.025x03125.nc
-CLM4_PFT_NDLF_EVGN_TMPT_TREE 1        N Y - none none PFT_NDLF_EVGN_TMPT_TREE ./MainDataDir/MEGAN/v2017-07/CLM4_PFT.geos.025x03125.nc
-CLM4_PFT_NDLF_EVGN_BORL_TREE 1        N Y - none none PFT_NDLF_EVGN_BORL_TREE ./MainDataDir/MEGAN/v2017-07/CLM4_PFT.geos.025x03125.nc
-CLM4_PFT_NDLF_DECD_BORL_TREE 1        N Y - none none PFT_NDLF_DECD_BORL_TREE ./MainDataDir/MEGAN/v2017-07/CLM4_PFT.geos.025x03125.nc
-CLM4_PFT_BDLF_EVGN_TROP_TREE 1        N Y - none none PFT_BDLF_EVGN_TROP_TREE ./MainDataDir/MEGAN/v2017-07/CLM4_PFT.geos.025x03125.nc
-CLM4_PFT_BDLF_EVGN_TMPT_TREE 1        N Y - none none PFT_BDLF_EVGN_TMPT_TREE ./MainDataDir/MEGAN/v2017-07/CLM4_PFT.geos.025x03125.nc
-CLM4_PFT_BDLF_DECD_TROP_TREE 1        N Y - none none PFT_BDLF_DECD_TROP_TREE ./MainDataDir/MEGAN/v2017-07/CLM4_PFT.geos.025x03125.nc
-CLM4_PFT_BDLF_DECD_TMPT_TREE 1        N Y - none none PFT_BDLF_DECD_TMPT_TREE ./MainDataDir/MEGAN/v2017-07/CLM4_PFT.geos.025x03125.nc
-CLM4_PFT_BDLF_DECD_BORL_TREE 1        N Y - none none PFT_BDLF_DECD_BORL_TREE ./MainDataDir/MEGAN/v2017-07/CLM4_PFT.geos.025x03125.nc
-CLM4_PFT_BDLF_EVGN_SHRB      1        N Y - none none PFT_BDLF_EVGN_SHRB      ./MainDataDir/MEGAN/v2017-07/CLM4_PFT.geos.025x03125.nc
-CLM4_PFT_BDLF_DECD_TMPT_SHRB 1        N Y - none none PFT_BDLF_DECD_TMPT_SHRB ./MainDataDir/MEGAN/v2017-07/CLM4_PFT.geos.025x03125.nc
-CLM4_PFT_BDLF_DECD_BORL_SHRB 1        N Y - none none PFT_BDLF_DECD_BORL_SHRB ./MainDataDir/MEGAN/v2017-07/CLM4_PFT.geos.025x03125.nc
-CLM4_PFT_C3_ARCT_GRSS        1        N Y - none none PFT_C3_ARCT_GRSS        ./MainDataDir/MEGAN/v2017-07/CLM4_PFT.geos.025x03125.nc
-CLM4_PFT_C3_NARC_GRSS        1        N Y - none none PFT_C3_NARC_GRSS        ./MainDataDir/MEGAN/v2017-07/CLM4_PFT.geos.025x03125.nc
-CLM4_PFT_C4_GRSS             1        N Y - none none PFT_C4_GRSS             ./MainDataDir/MEGAN/v2017-07/CLM4_PFT.geos.025x03125.nc
-CLM4_PFT_CROP                1        N Y - none none PFT_CROP                ./MainDataDir/MEGAN/v2017-07/CLM4_PFT.geos.025x03125.nc
-
-# --- Extension 109 ---
-MEGAN_AEF_MBOX               kgC/m2/s N Y -                     none none AEF_MBO           ./MainDataDir/MEGAN/v2017-07/MEGAN2.1_EF.geos.025x03125.nc
-MEGAN_AEF_APIN               kgC/m2/s N Y -                     none none AEF_ALPHA_PINENE  ./MainDataDir/MEGAN/v2017-07/MEGAN2.1_EF.geos.025x03125.nc
-MEGAN_AEF_BPIN               kgC/m2/s N Y -                     none none AEF_BETA_PINENE   ./MainDataDir/MEGAN/v2017-07/MEGAN2.1_EF.geos.025x03125.nc
-MEGAN_AEF_CARE               kgC/m2/s N Y -                     none none AEF_CARENE        ./MainDataDir/MEGAN/v2017-07/MEGAN2.1_EF.geos.025x03125.nc
-MEGAN_AEF_LIMO               kgC/m2/s N Y -                     none none AEF_LIMONENE      ./MainDataDir/MEGAN/v2017-07/MEGAN2.1_EF.geos.025x03125.nc
-MEGAN_AEF_MYRC               kgC/m2/s N Y -                     none none AEF_MYRCENE       ./MainDataDir/MEGAN/v2017-07/MEGAN2.1_EF.geos.025x03125.nc
-MEGAN_AEF_OCIM               kgC/m2/s N Y -                     none none AEF_OCIMENE       ./MainDataDir/MEGAN/v2017-07/MEGAN2.1_EF.geos.025x03125.nc
-MEGAN_AEF_SABI               kgC/m2/s N Y -                     none none AEF_SABINENE      ./MainDataDir/MEGAN/v2017-07/MEGAN2.1_EF.geos.025x03125.nc
-MEGAN_ORVC                   1        Y Y F1990-%m2-01T00:00:00 none none OCPI              ./MainDataDir/SOA/v2014-07/NVOC.geos.1x1.nc
 
 #==============================================================================
 # --- GFED biomass burning emissions (Extension 111)
@@ -1515,8 +1713,8 @@ GFED_FRAC_3HOUR 1 N Y %y4-%m2-01T%h2:00:00 none none GFED_FRAC3HR  ./MainDataDir
 
 #==============================================================================
 # --- AeroCom Volcano (Extension 116) 
-# AeroCom_Volcano is off by default in HEMCO_Config.rc
 #==============================================================================
+# --- No external data --- 
 
 #==============================================================================
 # --- Inorganic Iodine (Extension 120) 
@@ -1975,31 +2173,31 @@ FFF 1 Y Y F2010-%m2-01T00:00:00 none none FFF ./MainDataDir/EDGARv43/v2016-11/ED
 #==============================================================================
 VISTAS_SEASON     1 Y Y F2002-%m2-01T00:00:00 none none NOratio ./MainDataDir/NEI2005/v2014-09/scaling/Vistas_season.geos.1x1.nc
 ARP_SEASON        1 N Y F%y4-%m2-01T00:00:00  none none NOxrat  ./MainDataDir/NEI2005/v2014-09/scaling/ARP_season.geos.1x1.nc
-NEI99_DOW_NOX     1 D N -                     none none NOX     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc
-NEI99_DOW_CO      1 D N -                     none none CO      ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc
-NEI99_DOW_ALK4    1 D N -                     none none ALK4    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc
-NEI99_DOW_ACET    1 D N -                     none none ACET    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc
-NEI99_DOW_MEK     1 D N -                     none none MEK     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc
-NEI99_DOW_PRPE    1 D N -                     none none PRPE    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc
-NEI99_DOW_C3H8    1 D N -                     none none C3H8    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc
-NEI99_DOW_C2H6    1 D N -                     none none C2H6    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc
-NEI99_DOW_SO2     1 D N -                     none none SO2     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc
-NEI99_DOW_SO4     1 D N -                     none none SO4     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc
-NEI99_DOW_MSA     1 D N -                     none none MSA     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc
-NEI99_DOW_BCPI    1 D N -                     none none BCPI    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc
-NEI99_DOW_OCPI    1 D N -                     none none OCPI    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc
-NEI99_SEASON_CO   1 N N -                     none none CO      ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc
-NEI99_SEASON_ALK4 1 N N -                     none none ALK4    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc
-NEI99_SEASON_ACET 1 N N -                     none none ACET    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc
-NEI99_SEASON_MEK  1 N N -                     none none MEK     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc
-NEI99_SEASON_PRPE 1 N N -                     none none PRPE    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc
-NEI99_SEASON_C3H8 1 N N -                     none none C3H8    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc
-NEI99_SEASON_C2H6 1 N N -                     none none C2H6    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc
-NEI99_SEASON_SO2  1 N N -                     none none SO2     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc
-NEI99_SEASON_SO4  1 N N -                     none none SO4     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc
-NEI99_SEASON_MSA  1 N N -                     none none MSA     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc
-NEI99_SEASON_BCPI 1 N N -                     none none BCPI    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc
-NEI99_SEASON_OCPI 1 N N -                     none none OCPI    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc
+NEI99_DOW_NOX     1 D N F1999-%m2-01T00:00:00 none none NOX     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
+NEI99_DOW_CO      1 D N F1999-%m2-01T00:00:00 none none CO      ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
+NEI99_DOW_ALK4    1 D N F1999-%m2-01T00:00:00 none none ALK4    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
+NEI99_DOW_ACET    1 D N F1999-%m2-01T00:00:00 none none ACET    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
+NEI99_DOW_MEK     1 D N F1999-%m2-01T00:00:00 none none MEK     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
+NEI99_DOW_PRPE    1 D N F1999-%m2-01T00:00:00 none none PRPE    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
+NEI99_DOW_C3H8    1 D N F1999-%m2-01T00:00:00 none none C3H8    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
+NEI99_DOW_C2H6    1 D N F1999-%m2-01T00:00:00 none none C2H6    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
+NEI99_DOW_SO2     1 D N F1999-%m2-01T00:00:00 none none SO2     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
+NEI99_DOW_SO4     1 D N F1999-%m2-01T00:00:00 none none SO4     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
+NEI99_DOW_MSA     1 D N F1999-%m2-01T00:00:00 none none MSA     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
+NEI99_DOW_BCPI    1 D N F1999-%m2-01T00:00:00 none none BCPI    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
+NEI99_DOW_OCPI    1 D N F1999-%m2-01T00:00:00 none none OCPI    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.dow.geos.1x1.nc 
+NEI99_SEASON_CO   1 Y N F1999-%m2-01T00:00:00 none none CO      ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
+NEI99_SEASON_ALK4 1 Y N F1999-%m2-01T00:00:00 none none ALK4    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
+NEI99_SEASON_ACET 1 Y N F1999-%m2-01T00:00:00 none none ACET    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
+NEI99_SEASON_MEK  1 Y N F1999-%m2-01T00:00:00 none none MEK     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
+NEI99_SEASON_PRPE 1 Y N F1999-%m2-01T00:00:00 none none PRPE    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
+NEI99_SEASON_C3H8 1 Y N F1999-%m2-01T00:00:00 none none C3H8    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
+NEI99_SEASON_C2H6 1 Y N F1999-%m2-01T00:00:00 none none C2H6    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
+NEI99_SEASON_SO2  1 Y N F1999-%m2-01T00:00:00 none none SO2     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
+NEI99_SEASON_SO4  1 Y N F1999-%m2-01T00:00:00 none none SO4     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
+NEI99_SEASON_MSA  1 Y N F1999-%m2-01T00:00:00 none none MSA     ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
+NEI99_SEASON_BCPI 1 Y N F1999-%m2-01T00:00:00 none none BCPI    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
+NEI99_SEASON_OCPI 1 Y N F1999-%m2-01T00:00:00 none none OCPI    ./MainDataDir/NEI2005/v2014-09/scaling/NEI99.season.geos.1x1.nc 
 
 #==============================================================================
 # --- NEI 20011 scale factors ---
@@ -2029,7 +2227,7 @@ EMEP_MASK    1 N Y - none none MASK     ./MainDataDir/MASKS/v2018-09/EMEP_mask.g
 CANADA_MASK  1 N Y - none none MASK     ./MainDataDir/MASKS/v2018-09/Canada_mask.geos.1x1.nc
 SEASIA_MASK  1 N Y - none none MASK     ./MainDataDir/MASKS/v2018-09/SE_Asia_mask.generic.1x1.nc
 ASIA_MASK    1 N Y - none none MASK     ./MainDataDir/MASKS/v2018-09/MIX_Asia_mask.generic.025x025.nc
-NEI11_MASK   1 N Y - none none LANDMASK ./MainDataDir/MASKS/v2018-09/USA_LANDMASK_NEI2011_0.1x0.1.20160921.nc
+CONUS_MASK   1 N Y - none none MASK     ./MainDataDir/MASKS/v2018-09/CONUS_Mask.01x01.nc
 AFRICA_MASK  1 N Y - none none LANDMASK ./MainDataDir/MASKS/v2018-09/AF_LANDMASK.geos.05x0666.global.nc
 CHINA_MASK   1 N Y - none none MASK     ./MainDataDir/MASKS/v2018-09/China_mask.generic.1x1.nc
 INDIA_MASK   1 N Y - none none MASK     ./MainDataDir/MASKS/v2019-05/India_mask.generic.1x1.nc

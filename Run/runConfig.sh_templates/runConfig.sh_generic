@@ -172,21 +172,13 @@ common_freq="010000"
 common_dur="010000"
 common_mode="'time-averaged'"
 
-# Diagnostics enabled in benchmark simulation by default
-SpeciesConc_avg_freq=${common_freq}
-SpeciesConc_avg_dur=${common_dur}
-SpeciesConc_avg_mode=${common_mode}
-SpeciesConc_inst_freq=${common_freq}
-SpeciesConc_inst_dur=${common_dur}
-SpeciesConc_inst_mode="'instantaneous'"
-StateMet_avg_freq=${common_freq}
-StateMet_avg_dur=${common_dur}
-StateMet_avg_mode=${common_mode}
-StateMet_inst_freq=${common_freq}
-StateMet_inst_dur=${common_dur}
-StateMet_inst_mode="'instantaneous'"
-
-# Other diagnostics (edit/add more as needed for convenience)
+# Diagnostics frequency, duration, and mode
+# NOTES:
+#   (1) Edit/add more as needed to automatically update values from this file
+#   (2) To turn off diagnostics, comment out in HISTORY.rc (not here)
+SpeciesConc_freq=${common_freq}
+SpeciesConc_dur=${common_dur}
+SpeciesConc_mode=${common_mode}
 AerosolMass_freq=${common_freq}
 AerosolMass_dur=${common_dur}
 AerosolMass_mode=${common_mode}
@@ -226,6 +218,15 @@ RadioNuclide_mode=${common_mode}
 StateChm_freq=${common_freq}
 StateChm_dur=${common_dur}
 StateChm_mode=${common_mode}
+StateMet_avg_freq=${common_freq}
+StateMet_avg_dur=${common_dur}
+StateMet_avg_mode=${common_mode}
+StateMet_inst_freq=${common_freq}
+StateMet_inst_dur=${common_dur}
+StateMet_inst_mode="'instantaneous'"
+Transport_freq=${common_freq}
+Transport_dur=${common_dur}
+Transport_mode="'instantaneous'"
 WetLossConv_freq=${common_freq}
 WetLossConv_dur=${common_dur}
 WetLossConv_mode=${common_mode}
@@ -260,34 +261,33 @@ MAPL_DEBUG_LEVEL=0
 
 #### Give error if that chem timestep is < dynamic timestep
 if [[ ${ChemEmiss_Timestep_sec} -lt ${TransConv_Timestep_sec} ]]; then
-    echo "ERROR: chemistry timestep must be >= dynamic timestep"
+    echo "ERROR: chemistry timestep must be >= dynamic timestep. Update values in runConfig.sh."
     exit 1
 fi
 
 #### Check that NX*NY is less than or equal to number of cores
 num_cores=$((  ))
 if (( $NX*$NY > $NUM_NODES*$NUM_CORES_PER_NODE )); then
-    echo "ERROR: NX*NY must not exceed number of nodes times cores per node"
+    echo "ERROR: NX*NY must not exceed number of nodes times cores per node. Update values in runConfig.sh."
     exit 1    
 fi
 
 #### Check that NY is divisible by 6
 if (( $NY%6 != 0 )); then
-    echo "ERROR: NY must be an integer divisible by 6"
+    echo "ERROR: NY must be an integer divisible by 6. Update value in runConfig.sh."
     exit 1    
 fi
 
 #### Check if domains are square enough (NOTE: approx using integer division)
 domain_ratio1=$(( $NX*6/$NY )) 
 domain_ratio2=$(( $NY/$NX/6 ))
-if [[ ${domain_ratio1} -ge 3 || ${domain_ratio2} -ge 3 ]] ; then
-    echo "ERROR: Change NX and NY such that NX x NY/6 is more square (side ratio < 3)"
-    exit 1
+if [[ $(( $domain_ratio1*2 )) -ge 5 || $(( $domain_ratio2*2 )) -ge 5 ]] ; then
+    echo "WARNING: NX and NY are set such that NX x NY/6 is not square (side ratio >= 2.5). Consider adjusting to be square to avoid negative effects due to excessive communication between cores."
 fi
 
 ## Check if restart file exists
 if [[ ! -e ${INITIAL_RESTART} ]]; then
-    printf 'ERROR: Restart file not found: %s\n' ${INITIAL_RESTART}
+    printf 'ERROR: Restart file specified in runConfig.sh not found: %s\n' ${INITIAL_RESTART}
     exit 1
 fi
 
@@ -329,12 +329,11 @@ replace_val USE_SHMEM     ${USE_SHMEM}          CAP.rc
 echo " "
 echo "Cubed-sphere resolution:"
 CS_RES_x_6=$((CS_RES*6))
-replace_val GCHP.IM_WORLD  ${CS_RES}                     GCHP.rc
-replace_val GCHP.IM        ${CS_RES}                     GCHP.rc
-replace_val GCHP.JM        ${CS_RES_x_6}                 GCHP.rc
-replace_val npx            ${CS_RES}                     fvcore_layout.rc
-replace_val npy            ${CS_RES}                     fvcore_layout.rc
-replace_val GCHP.GRIDNAME  PE${CS_RES}x${CS_RES_x_6}-CF  GCHP.rc
+replace_val IM        ${CS_RES}                     GCHP.rc
+replace_val JM        ${CS_RES_x_6}                 GCHP.rc
+replace_val npx       ${CS_RES}                     fvcore_layout.rc
+replace_val npy       ${CS_RES}                     fvcore_layout.rc
+replace_val GRIDNAME  PE${CS_RES}x${CS_RES_x_6}-CF  GCHP.rc
 
 ####  set input restart filename
 echo " "
@@ -362,12 +361,9 @@ replace_val RECORD_REF_TIME  "${Start_Time:9:6}"  GCHP.rc
 #### Set output frequency, duration, and mode
 echo " "
 echo "Output:" 
-replace_val SpeciesConc_avg.frequency  ${SpeciesConc_avg_freq}  HISTORY.rc  
-replace_val SpeciesConc_avg.duration   ${SpeciesConc_avg_dur}   HISTORY.rc
-replace_val SpeciesConc_avg.mode       ${SpeciesConc_avg_mode}  HISTORY.rc
-replace_val SpeciesConc_inst.frequency ${SpeciesConc_inst_freq} HISTORY.rc  
-replace_val SpeciesConc_inst.duration  ${SpeciesConc_inst_dur}  HISTORY.rc
-replace_val SpeciesConc_inst.mode      ${SpeciesConc_inst_mode} HISTORY.rc
+replace_val SpeciesConc.frequency      ${SpeciesConc_freq}      HISTORY.rc  
+replace_val SpeciesConc.duration       ${SpeciesConc_dur}       HISTORY.rc
+replace_val SpeciesConc.mode           ${SpeciesConc_mode}      HISTORY.rc
 replace_val StateMet_avg.frequency     ${StateMet_avg_freq}	HISTORY.rc
 replace_val StateMet_avg.duration      ${StateMet_avg_dur}	HISTORY.rc
 replace_val StateMet_avg.mode          ${StateMet_avg_mode}	HISTORY.rc
@@ -413,6 +409,9 @@ replace_val RadioNuclide.mode          ${RadioNuclide_mode}     HISTORY.rc
 replace_val StateChm.frequency         ${StateChm_freq}	        HISTORY.rc
 replace_val StateChm.duration          ${StateChm_dur}	        HISTORY.rc
 replace_val StateChm.mode              ${StateChm_mode}	        HISTORY.rc
+replace_val Transport.frequency        ${Transport_freq}	HISTORY.rc
+replace_val Transport.duration         ${Transport_dur}	        HISTORY.rc
+replace_val Transport.mode             ${Transport_mode}	HISTORY.rc
 replace_val WetLossConv.frequency      ${WetLossConv_freq}      HISTORY.rc
 replace_val WetLossConv.duration       ${WetLossConv_dur}       HISTORY.rc
 replace_val WetLossConv.mode           ${WetLossConv_mode}      HISTORY.rc
@@ -435,7 +434,7 @@ replace_val dt            ${TransConv_Timestep_sec}  fvcore_layout.rc
 #### Set debug level
 echo " "
 echo "MAPL Debug Level:"
-replace_val DEBUG_LEVEL ${MAPL_DEBUG_LEVEL} ExtData.rc
+replace_val DEBUG_LEVEL ${MAPL_DEBUG_LEVEL} CAP.rc
 
 #### Set advection on/off based on input.geos
 echo " "

@@ -1,10 +1,10 @@
 #!/bin/bash
 
-#SBATCH -n 6
-#SBATCH -N 1
-#SBATCH -t 0-1:00
+#SBATCH -n 96
+#SBATCH -N 3
+#SBATCH -t 0-24:00
 #SBATCH -p huce_intel
-#SBATCH --mem=50000
+#SBATCH --mem=MaxMemPerNode
 #SBATCH --mail-type=ALL
 
 # See SLURM documentation for descriptions of the above settings as well
@@ -52,8 +52,8 @@ if [[ $? == 0 ]]; then
     fi
 
     # Echo info from computational cores to log file for displaying results
-    echo "# of CPUs : $coreCount" >> ${log}
-    echo "# of nodes: $SLURM_NNODES" >> ${log}
+    echo "# of CPUs : ${coreCount}" >> ${log}
+    echo "# of nodes: ${SLURM_NNODES}" >> ${log}
     echo "-m plane  : ${planeCount}" >> ${log}
 
     # Optionally compile 
@@ -82,9 +82,6 @@ if [[ $? == 0 ]]; then
 
     # Start the simulation
     time srun -n ${coreCount} -N ${SLURM_NNODES} -m plane=${planeCount} --mpi=pmix ./geos >> ${log}
-
-    # Rename the restart (checkpoint) file so MAPL does not crash upon rerun
-    mv gcchem_internal_checkpoint.nc gccchem_internal_checkpoint.restart.nc
 
     # Clean up any shared memory segments owned by this user
     if grep -q "USE_SHMEM.*1" CAP.rc; then
