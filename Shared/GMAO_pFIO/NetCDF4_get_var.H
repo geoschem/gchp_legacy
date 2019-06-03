@@ -28,8 +28,13 @@
      !$omp critical
       status = nf90_inq_varid(this%ncid, name=var_name, varid=varid)
      !$omp end critical
-
+      IF (status /= 0) then
+         PRINT *, "ERROR: In NetCDF4_get_var.H, subroutine _SUB (1)"
+         PRINT *, "   ==> nf90_get_var failure for ", trim(var_name)
+         PRINT *, "   ==> _RANK,x this%ncid, varid, status: ", _RANK, this%ncid, varid, status
+      ENDIF
       _VERIFY(status)
+
      !$omp critical
 #if (_RANK == 0)
       status = nf90_get_var(this%ncid, varid, values)
@@ -37,6 +42,15 @@
       status = nf90_get_var(this%ncid, varid, values, start, count)
 #endif
      !$omp end critical
+      IF (status /= 0) then
+         PRINT *, "ERROR: In NetCDF4_get_var.H, subroutine _SUB (2)"
+         PRINT *, "   ==> nf90_get_var failure for ", trim(var_name)
+#if (_RANK == 0)
+         PRINT *, "   ==> _RANK, this%ncid, varid, status: ", _RANK, this%ncid, varid, status
+#else
+         PRINT *, "   ==> _RANK, this%ncid, varid, status, start, count: ", _RANK, this%ncid, varid, status, start, count
+#endif
+      ENDIF
       _VERIFY(status)
 
       _RETURN(_SUCCESS)
