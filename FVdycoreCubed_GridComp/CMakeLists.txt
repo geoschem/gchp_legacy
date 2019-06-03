@@ -41,9 +41,11 @@ endif()
 
 add_definitions (-DSPMD -DMAPL_MODE)
 
+#[[ lrb: Don't add -r8 flag for FV_PRECISION=R8.
 foreach(flag ${tmp})
    target_compile_options (${this} PRIVATE $<$<COMPILE_LANGUAGE:Fortran>:${flag}>)
 endforeach()
+]]
 
 add_executable (StandAlone_FV3_Dycore.x StandAlone_FV3_Dycore.F90)
 set_target_properties (StandAlone_FV3_Dycore.x PROPERTIES LINK_FLAGS "${OpenMP_Fortran_FLAGS}")
