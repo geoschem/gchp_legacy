@@ -1664,20 +1664,23 @@ CONTAINS
 
    call MAPL_TimerOn(MAPLSTATE,"-Interpolate")
  
+   ! debugging
+   IF ( (Ext_Debug > 0) .AND. MAPL_Am_I_Root() ) THEN
+      Write(*,*) 'ExtData Run_: INTERP_LOOP: Start'
+   ENDIF 
+
    INTERP_LOOP: do i = 1, self%primary%nItems
 
       item => self%primary%item(self%primaryOrder(i))
-
-      ! debugging
-      IF ( (Ext_Debug > 0) .AND. MAPL_Am_I_Root() ) THEN
-         Write(*,*) 'ExtData Run_: INTERP_LOOP: Start'
-      ENDIF 
 
       if (doUpdate(i)) then
         
          ! debugging
          IF ( (Ext_Debug > 0) .AND. MAPL_Am_I_Root() ) THEN
-            Write(*,*) 'ExtData Run_: INTERP_LOOP: Interpolating between bracketing times'
+            Write(*,*) ' '
+            Write(*,'(a)') 'ExtData Run_: INTERP_LOOP: interpolating between bracket times'
+            Write(*,*) '   ==> variable: ', trim(item%var)
+            Write(*,*) '   ==> file: ', trim(item%file)
          ENDIF 
 
          ! finally interpolate between bracketing times
@@ -1712,13 +1715,12 @@ CONTAINS
 
       nullify(item)
 
-      ! debugging
-      IF ( (Ext_Debug > 0) .AND. MAPL_Am_I_Root() ) THEN
-         Write(*,*) 'ExtData Run_: INTERP_LOOP: End'
-      ENDIF 
- 
-
    end do INTERP_LOOP
+
+   ! debugging
+   IF ( (Ext_Debug > 0) .AND. MAPL_Am_I_Root() ) THEN
+      Write(*,*) 'ExtData Run_: INTERP_LOOP: Done'
+   ENDIF 
 
    call MAPL_TimerOff(MAPLSTATE,"-Interpolate")
 
@@ -2477,12 +2479,12 @@ CONTAINS
            if (mapl_am_I_root().and.(Ext_Debug > 0)) Then
               write(*,'(a,a,a,a)') '            UpdateBracketTime: Untemplating ',trim(item%file)
               call ESMF_TimeGet(cTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
-              Write(*,'(a,I0.4,5(a,I0.2))') '            UpdateBracketTime: Target time   : ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
+              Write(*,'(a,I0.4,5(a,I0.2))') '            ==> Target time   : ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
               call ESMF_TimeGet(fTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
-              Write(*,'(a,I0.4,5(a,I0.2))') '            UpdateBracketTime: File time     : ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
+              Write(*,'(a,I0.4,5(a,I0.2))') '            ==> File time     : ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
               call ESMF_TimeIntervalGet(item%frequency,yy=iyr,mm=imm,d=idd,h=ihr,m=imn,s=isc,__RC__)
-              Write(*,'(a,I0.4,5(a,I0.2))') '            UpdateBracketTime: item%frequency     : ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
-              Write(*,'(a,I5)')             '            UpdateBracketTime: N             : ',n
+              Write(*,'(a,I0.4,5(a,I0.2))') '            ==> item%frequency     : ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
+              Write(*,'(a,I5)')             '            ==> # iterations until found: ',n
            end if
         end if
         readTime = cTime
@@ -2498,9 +2500,10 @@ CONTAINS
            !yrOffset = 0
         Else if (allowExtrap) then 
            if (mapl_am_I_root().and.(Ext_Debug > 0)) Then
-              write(*,'(a,a,a)') '            UpdateBracketTime: Propagating forwards on ',trim(item%file),' from reference time'
+              write(*,'(a)') '            UpdateBracketTime: Target file not found: ', trim(item%file)
+              write(*,'(a,a,a)') '            ==> Propagating forwards in file from reference time'
               call ESMF_TimeGet(item%reff_time,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
-              Write(*,'(a,I0.4,5(a,I0.2))') '            UpdateBracketTime: Reference time: ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
+              Write(*,'(a,I0.4,5(a,I0.2))') '            ==> Reference time: ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
            end if
            ! Go back to the reference time, and propagate forwards until we find
            ! the first valid file
@@ -2536,11 +2539,11 @@ CONTAINS
            If (.not.found) Then
               if (mapl_am_I_root()) Then
                  write(*,'(a,a)') '            UpdateBracketTime: Could not find data within maximum offset range from ',trim(item%file)
-                 write(*,'(a,2(x,I0.5))') '            UpdateBracketTime: Test year and reference year: ', iYr, refYear
+                 write(*,'(a,2(x,I0.5))') '            ==> Test year and reference year: ', iYr, refYear
                  call ESMF_TimeGet(item%reff_time,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
-                 Write(*,'(a,I0.4,5(a,I0.2))') '            UpdateBracketTime: Reference time: ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
+                 Write(*,'(a,I0.4,5(a,I0.2))') '            ==> Reference time: ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
                  call ESMF_TimeGet(fTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
-                 Write(*,'(a,I0.4,5(a,I0.2))') '            UpdateBracketTime: Last check    : ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
+                 Write(*,'(a,I0.4,5(a,I0.2))') '            ==> Last check    : ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
               end if
               _RETURN(ESMF_FAILURE)
            End If
@@ -2811,11 +2814,11 @@ CONTAINS
      If (Mapl_Am_I_Root().and.Ext_Debug > 0) Then 
         Write(*,'(a,a,a,a)') '            UpdateBracketTime: Updated bracket ', bSide, ' for ', Trim(file_processed)
         call ESMF_TimeGet(cTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
-        Write(*,'(a,I0.4,5(a,I0.2))') '            UpdateBracketTime: Time requested: ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
+        Write(*,'(a,a,a,I0.4,5(a,I0.2))') '            ==> (', bside, ') Time requested: ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
         call ESMF_TimeGet(fileTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
-        Write(*,'(a,I0.4,5(a,I0.2))') '            UpdateBracketTime: Record time   : ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
+        Write(*,'(a,a,a,I0.4,5(a,I0.2))') '            ==> (', bside, ') Record time   : ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
         call ESMF_TimeGet(interpTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
-        Write(*,'(a,I0.4,5(a,I0.2))')'            UpdateBracketTime: Effective time: ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
+        Write(*,'(a,a,a,I0.4,5(a,I0.2))')'            ==> (', bside, ') Effective time: ',iYr,'-',iMM,'-',iDD,' ',iHr,':',iMn,':',iSc
      End If
      ! If we made it this far, then I guess we are OK?
      if (bside =='R') then
@@ -2875,7 +2878,8 @@ CONTAINS
 
      ! Debug level 3
      If (Mapl_Am_I_Root().and.(Ext_Debug > 0)) Then
-        Write(*,'(a,a)') '               GetTimesOnFile: Reading times from ', Trim(cfio%fName)
+        Write(*,'(a)') '               GetTimesOnFile: Reading times'
+        Write(*,'(a,a)') '                  ==> File:', Trim(cfio%fName)
         Write(*,'(a,2(x,I0.10),x,I0.4)') '                  ==> File timing info:', begDate, begTime, cfio%tSteps
      End If
 
@@ -3013,7 +3017,9 @@ CONTAINS
         iEntry = targDOW + 1 + monthOffset
         fileTime = tSeries(iEntry)
         If (Mapl_Am_I_Root().and.(Ext_Debug > 0)) Then
-           Write(*,'(a,I4,a,I4,4(a))') '               GetBracketTimeOnSingleFile: Reading data for DOW ',targDOW,' (entry ', iEntry, ') into bracket ', Trim(bSide),' from ', trim(cfio%fName)
+           Write(*,'(a,I4,a,I4,4(a))') '               GetBracketTimeOnSingleFile: Reading data for DOW ',targDOW,' (entry ', iEntry, ') into bracket ', Trim(bSide)
+           Write(*,'(a,a)') &
+              '                  ==> File: ', trim(cfio%fName)
            call ESMF_TimeGet(fileTime,yy=iyr,mm=imm,dd=idd,h=ihr,m=imn,s=isc,__RC__)
 !           Write(*,'(a,I0.4,a,I0.2,a,I0.2,a,I0.2,a,I0.2)') &
 !              '                  ==> Data from: ', iYr, '-', iMm, '-', iDd, &
@@ -3466,13 +3472,13 @@ CONTAINS
            End If
 
            If (.not.(item%doInterpolate)) Then
-              Write(*,'(a,a,a,I0.8,x,I0.6)') 'MAPL_ExtDataInterpField: Uninterpolated field ', Trim(item%name), ' set to sample L: ', nymd1, nhms1
+              Write(*,'(a,a,a,I0.8,x,I0.6)') '   MAPL_ExtDataInterpField: Uninterpolated field ', Trim(item%name), ' set to sample L: ', nymd1, nhms1
            Else If (time == item%interp_time1) Then
-              Write(*,'(a,a,a,I0.8,x,I0.6)') 'MAPL_ExtDataInterpField: Interpolated field ', Trim(item%name), ' set to sample L: ', nymd1, nhms1
+              Write(*,'(a,a,a,I0.8,x,I0.6)') '   MAPL_ExtDataInterpField: Interpolated field ', Trim(item%name), ' set to sample L: ', nymd1, nhms1
            Else If (time == item%interp_time2) Then
-              Write(*,'(a,a,a,I0.8,x,I0.6)') 'MAPL_ExtDataInterpField: Interpolated field ', Trim(item%name), ' set to sample R: ', nymd2, nhms2
+              Write(*,'(a,a,a,I0.8,x,I0.6)') '   MAPL_ExtDataInterpField: Interpolated field ', Trim(item%name), ' set to sample R: ', nymd2, nhms2
            Else
-              Write(*,'(a,a,a,2(I0.8,x,I0.6,a),F10.6,a)') 'MAPL_ExtDataInterpField: Interpolated field ', Trim(item%name), ' between ', nymd1,nhms1,' and ',nymd2,nhms2,' (', &
+              Write(*,'(a,a,a,2(I0.8,x,I0.6,a),F10.6,a)') '   MAPL_ExtDataInterpField: Interpolated field ', Trim(item%name), ' between ', nymd1,nhms1,' and ',nymd2,nhms2,' (', &
                 alpha,' fraction)'
            End If
         End If
