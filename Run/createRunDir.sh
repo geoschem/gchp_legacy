@@ -97,7 +97,7 @@ fi
 # Ask user to select simulation type
 #-----------------------------------------------------------------
 printf "\nChoose simulation type:\n"
-printf "  1. RnPbBe\n"
+printf "  1. TransportTracers\n"
 printf "  2. Standard\n"
 printf "  3. Benchmark\n"
 valid_sim=0
@@ -105,8 +105,8 @@ while [ "${valid_sim}" -eq 0 ]
 do
     read sim_num
     if [[ ${sim_num} = "1" ]]; then
-	sim_name=RnPbBe
-	sim_name_long=RnPbBePasv
+	sim_name=TransportTracers
+	sim_name_long=${sim_name}
 	sim_type=${sim_name}
 	valid_sim=1
     elif [[ ${sim_num} = "2" ]]; then
@@ -136,15 +136,25 @@ do
     read met_num
     if [[ ${met_num} = "1" ]]; then
 	met_name='GEOSFP'
-        met_resolution='025x03125'
-        met_extension='nc'
-        met_cn_year='2011'
+	met_resolution='025x03125'
+	met_native='0.25x0.3125'
+	met_latres='025'
+	met_lonres='03125'
+	met_extension='nc'
+	met_cn_year='2011'
+	pressure_unit='hPa'
+	pressure_scale='1.0 '
 	valid_met=1
     elif [[ ${met_num} = "2" ]]; then
 	met_name='MERRA2'
-        met_resolution='05x0625'
-        met_extension='nc4'
-        met_cn_year='2015'
+	met_resolution='05x0625'
+	met_native='0.5x0.625'
+	met_latres='05'
+	met_lonres='0625'
+	met_extension='nc4'
+	met_cn_year='2015'
+	pressure_unit='Pa '
+	pressure_scale='0.01'
 	valid_met=1
     else
 	printf "Invalid meteorology option. Try again.\n"
@@ -223,7 +233,6 @@ cp ./setEnvironment            ${rundir}
 cp ./Makefile                  ${rundir}
 cp ./gitignore                 ${rundir}/.gitignore
 cp ./GCHP.rc_template          ${rundir}/GCHP.rc
-cp ./runConfig.sh_template     ${rundir}/runConfig.sh
 cp ./CAP.rc_template           ${rundir}/CAP.rc
 cp -r ./environmentFileSamples ${rundir} 
 cp -r ./OutputDir              ${rundir} 
@@ -232,7 +241,20 @@ cp ./HISTORY.rc_templates/HISTORY.rc.${sim_name}            ${rundir}/HISTORY.rc
 cp ./input.geos_templates/input.geos.${sim_name}            ${rundir}/input.geos
 cp ./ExtData.rc_templates/ExtData.rc.${sim_type}            ${rundir}/ExtData.rc
 cp ./HEMCO_Config.rc_templates/HEMCO_Config.rc.${sim_type}  ${rundir}/HEMCO_Config.rc
-cp ./HEMCO_Diagn.rc_templates/HEMCO_Diagn.rc.${sim_type}    ${rundir}/HEMCO_Diagn.rc
+cp ./HEMCO_Diagn.rc_templates/HEMCO_Diagn.rc.${sim_name}    ${rundir}/HEMCO_Diagn.rc
+
+# Special runConfig.sh for benchmark simulation
+if [ "${sim_name}" == "benchmark" ]; then
+    cp ./runConfig.sh_templates/runConfig.sh_benchmark ${rundir}/runConfig.sh
+else
+    cp ./runConfig.sh_templates/runConfig.sh_generic   ${rundir}/runConfig.sh
+fi
+
+# If benchmark simulation, put gchp.run script in directory; else do not.
+if [ "${sim_name}" == "benchmark" ]; then
+    cp ./runScriptSamples/gchp.benchmark.run           ${rundir}/gchp.benchmark.run
+    chmod 744 ${rundir}/gchp.benchmark.run
+fi
 
 #--------------------------------------------------------------------
 # Create symbolic links to data directories, restart files, and code
@@ -259,28 +281,52 @@ done
 sed -i -e "s|{SIMULATION}|${sim_name_long}|" ${rundir}/GCHP.rc
 sed -i -e "s|{SIMULATION}|${sim_name_long}|" ${rundir}/runConfig.sh
 sed -i -e "s|{DATA_ROOT}|${GC_DATA_ROOT}|"   ${rundir}/input.geos
+sed -i -e "s|{MET}|${met_name}|"             ${rundir}/input.geos
 sed -i -e "s|{DATA_ROOT}|${GC_DATA_ROOT}|"   ${rundir}/HEMCO_Config.rc
-sed -i -e "s|{MET_SOURCE}|${met_name}|"      ${rundir}/ExtData.rc
+sed -i -e "s|{NATIVE_RES}|${met_native}|"    ${rundir}/HEMCO_Config.rc
+sed -i -e "s|{LATRES}|${met_latres}|"        ${rundir}/HEMCO_Config.rc
+sed -i -e "s|{MET_SOURCE}|${met_name}|"      ${rundir}/ExtData.rc # 1st in line
+sed -i -e "s|{MET_SOURCE}|${met_name}|"      ${rundir}/ExtData.rc # 2nd in line
 sed -i -e "s|{MET_RES}|${met_resolution}|"   ${rundir}/ExtData.rc
+sed -i -e "s|{NATIVE_RES}|${met_native}|"    ${rundir}/ExtData.rc
+sed -i -e "s|{LATRES}|${met_latres}|"        ${rundir}/ExtData.rc
 sed -i -e "s|{MET_EXT}|${met_extension}|"    ${rundir}/ExtData.rc
 sed -i -e "s|{MET_CN_YR}|${met_cn_year}|"    ${rundir}/ExtData.rc # 1st in line
 sed -i -e "s|{MET_CN_YR}|${met_cn_year}|"    ${rundir}/ExtData.rc # 2nd in line
+sed -i -e "s|{PRES_UNIT}|${pressure_unit}|"  ${rundir}/ExtData.rc
+sed -i -e "s|{PRES_SCALE}|${pressure_scale}|" ${rundir}/ExtData.rc
 
 # Special handling for start/end date based on simulation so that
 # start matches default initial restart files. Run directory is
-# always initially set up for a 1-hour duration run.
-if [ "${sim_type}" == "RnPbBe" ]; then
+# always initially set up for a 1-hour duration run except for the
+# benchmark simulation which is 1-month.
+if [ "${sim_type}" == "TransportTracers" ]; then
     startdate="20160101"
+    enddate="20160101"
+    starttime="000000"
+    endtime="010000"    
+    dYYYYMMDD="00000000"
+    dHHmmSS="010000"
+
+elif [ "${sim_name}" == "benchmark" ]; then
+    startdate="20160701"
+    enddate="20160801"
+    starttime="000000"
+    endtime="000000"    
+    dYYYYMMDD="00000100"
+    dHHmmSS="000000"
+
 elif [ "${sim_type}" == "fullchem" ]; then
     startdate="20160701"
+    enddate="20160701"
+    starttime="000000"
+    endtime="010000"
+    dYYYYMMDD="00000000"
+    dHHmmSS="010000"
+
 else
     printf "\nError: Start date is not defined for simulation ${sim_type}."
 fi
-enddate=${startdate}
-starttime="000000"
-endtime="010000"    
-dYYYYMMDD="00000000"
-dHHmmSS="010000"
 sed -i -e "s|{DATE1}|${startdate}|"     ${rundir}/runConfig.sh
 sed -i -e "s|{TIME1}|${starttime}|"     ${rundir}/runConfig.sh
 sed -i -e "s|{DATE2}|${enddate}|"       ${rundir}/runConfig.sh

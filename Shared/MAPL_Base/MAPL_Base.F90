@@ -3171,6 +3171,12 @@ and so on.
     type(ESMF_Field)                        :: Fields(1)
     logical                                 :: haveAttr
 
+    ! Option debugging code (ewl, 4/18/19)
+    ! WARNING: this will print name of field added on every thread. This is
+    ! necessity to find which field is problematic since the error could
+    ! occur on a non-root thread first.
+    !call ESMF_AttributeGet(field, NAME=name, RC=STATUS)
+    !print *, "Debug: Adding field in MAPL_StateAddField: ", trim(name)
 
     fields(1) = field
     call ESMF_StateAdd(state, fields, RC=status)

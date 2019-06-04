@@ -35,14 +35,9 @@ if [ $# == 0 ] || [ $1 == "help" ]; then
   echo "Clean options:"
   echo "      clean_all        - clean GEOS-Chem, ESMF, MAPL, and FVdycore"
   echo "      clean_mapl       - clean GC, MAPL, and FVdycore (skip ESMF)"
-  echo "      clean_gc         - clean GC only (skip ESMF, MAPL, and FVdycore)"
+  echo "      clean_core       - clean GC only (skip ESMF, MAPL, and FVdycore)"
   echo "Compile options:"
   echo "      build            - general build command"
-  echo "Legacy options - will be deprecated in a future version:"
-  echo "      compile_debug    - turns on debug flags, no cleaning"
-  echo "      compile_standard - no cleaning"
-  echo "      compile_mapl     - includes fvdycore"
-  echo "      compile_clean    - cleans and compiles everything (be careful!)"
   echo "Example usage:"
 
   echo "   ./build.sh build         # Build without debug flags"
@@ -122,9 +117,9 @@ elif [[ $1 == "clean_mapl"      ]]; then
    done=1
 
 #-----------------------------------------------------------------------
-#   clean_gc
+#   clean_core
 #-----------------------------------------------------------------------
-elif [[ $1 == "clean_gc" ]]; then
+elif [[ $1 == "clean_core" ]]; then
    cd ${gcdir} 
    make HPC=yes realclean
    cd ${rundir}
@@ -147,80 +142,15 @@ fi
 if [[ $1 == "build" ]]; then
    cd ${gcdir}
    if [[ $2 == "--debug" ]]; then
-      make -j${SLURM_NTASKS} NC_DIAG=y   CHEM=standard  EXTERNAL_GRID=y  \
-                             DEBUG=y     TRACEBACK=y    MET=geosfp       \
-                             GRID=4x5    NO_REDUCED=y   BOUNDS=y         \
-                             FPEX=y      hpc
+      make -j${NUM_JOB_SLOTS} NC_DIAG=y   CHEM=standard  EXTERNAL_GRID=y  \
+                              DEBUG=y     TRACEBACK=y    MET=geosfp       \
+                              GRID=4x5    NO_REDUCED=y   BOUNDS=y         \
+                              FPEX=y      hpc
    else 
-      make -j${SLURM_NTASKS} NC_DIAG=y   CHEM=standard EXTERNAL_GRID=y   \
-                             DEBUG=n     TRACEBACK=y   MET=geosfp        \
-                             GRID=4x5    NO_REDUCED=y  hpc
+      make -j${NUM_JOB_SLOTS} NC_DIAG=y   CHEM=standard EXTERNAL_GRID=y   \
+                              DEBUG=n     TRACEBACK=y   MET=geosfp        \
+                              GRID=4x5    NO_REDUCED=y  hpc
    fi
-
-#### LEGACY OPTIONS (pre-12.2)
-
-#-----------------------------------------------------------------------
-#   compile_debug
-#-----------------------------------------------------------------------
-elif [[ $1 == "compile_debug"      ]]; then
-   cd ${gcdir}
-   echo "WARNING: build.sh option compile_debug will be deprecated in a future version, replaced with build_debug."
-   cd ${gchpdir}
-   make clean
-   cd ${gcdir}
-   rm -f ${gcdir}/bin/geos
-   make -j${SLURM_NTASKS} NC_DIAG=y   CHEM=standard  EXTERNAL_GRID=y  \
-                          DEBUG=y     TRACEBACK=y    MET=geosfp       \
-                          GRID=4x5    NO_REDUCED=y   BOUNDS=y         \
-                          FPEX=y      hpc
-
-#-----------------------------------------------------------------------
-#   compile_standard
-#-----------------------------------------------------------------------
-elif [[ $1 == "compile_standard"      ]]; then
-   cd ${gcdir}
-   echo "WARNING: build.sh option compile_standard will be deprecated in a future version, replaced with rebuild_gc."
-   cd ${gchpdir}
-   make clean
-   cd ${gcdir}
-   rm -f ${gcdir}/bin/geos
-   make -j${SLURM_NTASKS} NC_DIAG=y   CHEM=standard EXTERNAL_GRID=y   \
-                          DEBUG=n     TRACEBACK=y   MET=geosfp        \
-                          GRID=4x5    NO_REDUCED=y  hpc
-
-#-----------------------------------------------------------------------
-#   compile_mapl
-#-----------------------------------------------------------------------
-elif [[ $1 == "compile_mapl"      ]]; then
-   cd ${gcdir}
-   echo "WARNING: build.sh option compile_mapl will be deprecated in a future version, replaced with build_mapl."
-   make realclean
-   cd ${gchpdir}
-   make EXTERNAL_GRID=y  DEBUG=y   GRID=4x5      MET=geosfp      \
-        NO_REDUCED=y     wipeout_fvdycore
-   make EXTERNAL_GRID=y  DEBUG=y   GRID=4x5      MET=geosfp      \
-        NO_REDUCED=y     wipeout_mapl
-   cd ${gcdir}
-   rm -f ${gcdir}/bin/geos
-   make -j${SLURM_NTASKS} NC_DIAG=y   CHEM=standard EXTERNAL_GRID=y   \
-                          DEBUG=n     TRACEBACK=y   MET=geosfp        \
-                          GRID=4x5    NO_REDUCED=y  hpc
-
-#-----------------------------------------------------------------------
-#   compile_clean
-#-----------------------------------------------------------------------
-elif [[ $1 == "compile_clean"      ]]; then
-   cd ${gcdir}
-   echo "WARNING: build.sh option compile_clean will be deprecated in a future version, replaced with build_all."
-   make HPC=yes realclean
-   cd ${gchpdir}
-   make EXTERNAL_GRID=y the_nuclear_option
-   cd ${gcdir}
-   rm -f ${gcdir}/bin/geos
-   make -j${SLURM_NTASKS} NC_DIAG=y   CHEM=standard EXTERNAL_GRID=y   \
-                          DEBUG=n     TRACEBACK=y   MET=geosfp        \
-                          GRID=4x5    NO_REDUCED=y  hpc
-
 fi
 
 cd ${rundir}

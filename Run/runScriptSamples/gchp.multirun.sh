@@ -45,19 +45,17 @@
 
 # Set multirun log filename (separate from GEOS-Chem log file gchp.log)
 multirunlog="multirun.log"
-runconfiglog="runConfig.log"
 
+rm -f gchp.log
+rm -f $multirunlog
 
 # Source runConfig.sh to update rc files and get variables used below.
-source runConfig.sh > $runconfiglog
+source runConfig.sh > $multirunlog
 
 # Only continue if runConfig.sh had no errors
 if [[ $? == 0 ]]; then
-   rm -f gchp.log
-   rm -f $multirunlog
 
-
-   echo "Submitting    ${Num_Runs} jobs with duration '${Duration}'" | tee $multirunlog
+   echo "Submitting    ${Num_Runs} jobs with duration '${Duration}'" | tee -a $multirunlog
    if [[ -e cap_restart ]]; then
        echo 'WARNING: cap_restart file exists. Starting simulation at:' | tee -a $multirunlog
        cat cap_restart | tee -a $multirunlog
@@ -82,7 +80,7 @@ if [[ $? == 0 ]]; then
 
 else
    echo "Problem in sourcing runConfig.sh"
-   cat runConfig.log
+   cat $multirunlog
 fi
 
 exit 0
