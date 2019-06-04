@@ -1939,13 +1939,6 @@ CONTAINS
                           HistoryConfig = HistoryConfig, & ! History Config Obj
                           __RC__                 )
 
-    ! Set maximum number of levels in the chemistry grid
-    IF ( Input_Opt%LUCX ) THEN
-       State_Grid%MaxChemLev  = State_Grid%MaxStratLev
-    ELSE
-       State_Grid%MaxChemLev  = State_Grid%MaxTropLev
-    ENDIF
-
     ! Also save the MPI & PET specs to Input_Opt
     Input_Opt%myCpu   = myPet
     Input_Opt%MPICOMM = MPICOMM
@@ -3218,6 +3211,14 @@ CONTAINS
 
        ! Pass grid area [m2] obtained from dynamics component to State_Grid
        State_Grid%Area_M2 = AREA
+       !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+       ! KLUDGE (mps, 5/23/19):
+       ! Copy to State_Met%AREA_M2 to avoid breaking GCHP benchmarks, which
+       ! require the AREA_M2 field saved out to the StateMet diagnostic
+       ! collection for things like computing emission totals.
+       !
+       State_Met%Area_M2 = State_Grid%Area_M2
+       !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 #if defined( MODEL_GEOS )
        ! Check if this time is before the datetime of the prev timestep, e.g.
@@ -6874,7 +6875,7 @@ CONTAINS
 !\\
 ! !INTERFACE:
 !
-  SUBROUTINE Print_Mean_OH( GC, State_grid, logLun, RC )
+  SUBROUTINE Print_Mean_OH( GC, State_Grid, logLun, RC )
 !
 ! !USES:
 !

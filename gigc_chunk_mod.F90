@@ -216,6 +216,13 @@ CONTAINS
     CALL GC_Init_Grid( am_I_Root, Input_Opt, State_Grid, RC )
     ASSERT_(RC==GC_SUCCESS)
 
+    ! Set maximum number of levels in the chemistry grid
+    IF ( Input_Opt%LUCX ) THEN
+       State_Grid%MaxChemLev  = State_Grid%MaxStratLev
+    ELSE
+       State_Grid%MaxChemLev  = State_Grid%MaxTropLev
+    ENDIF
+
     ! In the ESMF/MPI environment, we can get the total overhead ozone
     ! either from the met fields (GIGCsa) or from the Import State (GEOS-5)
     Input_Opt%USE_O3_FROM_MET = .TRUE.
