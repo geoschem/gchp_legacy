@@ -624,7 +624,7 @@ CONTAINS
 !!$                           primary%item(totalPrimaryEntries)%Trans = MAPL_HorzTransOrderFraction
                            primary%item(totalPrimaryEntries)%trans = REGRID_METHOD_FRACTION
                            k = index(buffer,';')
-                           _ASSERT(k > 0,'needs informative message')
+                           _ASSERT(k > 0,'ERROR: MAPL fractional regridding requires semi-colon in ExtData.rc entry: '//trim(primary%item(totalPrimaryEntries)%name))
                            read(buffer(k+1:),*,iostat=ios) primary%item(totalPrimaryEntries)%FracVal
                         else
                            __raise__(MAPL_RC_ERROR, "the regridding keyword for extdata primary export must be N, Y, V, or F")

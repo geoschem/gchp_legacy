@@ -466,7 +466,7 @@ XLAIMULTI cm2_cm-2 N Y %y4-%m2-%d2T00:00:00 none none XLAIMULTI ./ChemDataDir/MO
 #==============================================================================
 # SF6 emissions from EDGAR v4.2
 #==============================================================================
-EDGAR_SF6 1 Y F%y4-01-01T00:00:00 none none emi_sf6 ./MainDataDir/SF6/v2019-01/EDGAR_v42_SF6_IPCC_2.generic.01x01.nc
+EDGAR_SF6 1 N Y F%y4-01-01T00:00:00 none none emi_sf6 ./MainDataDir/SF6/v2019-01/EDGAR_v42_SF6_IPCC_2.generic.01x01.nc
 
 #==============================================================================
 # --- EDGAR v4.3 (EDGARv4.3) ---
