@@ -18,6 +18,7 @@ find_package(GFTL REQUIRED)
 # Cleanup MPI link commands
 string(STRIP ${MPI_Fortran_LINK_FLAGS} MPI_Fortran_LINK_FLAGS)
 
+# Add ESMA but exclude from all to prevent all their targets from being added to our all target
 add_subdirectory(Shared EXCLUDE_FROM_ALL)
 add_subdirectory(FVdycoreCubed_GridComp EXCLUDE_FROM_ALL)
 
@@ -28,29 +29,14 @@ set(GTMM                    FALSE       PARENT_SCOPE)
 set(TOMAS                   FALSE       PARENT_SCOPE)
 set(MECH                    "Standard"  PARENT_SCOPE)
 set(GCHP                    TRUE       PARENT_SCOPE)
-target_compile_options(BaseTarget
-    INTERFACE 
-    -fPIC 
-    -cpp 
-    -w 
-    -auto 
-    -noalign 
-    "-convert big_endian" 
-    -vec-report0 
-    "-fp-model source" 
-    -openmp 
-    -mcmodel=medium 
-    -shared-intel 
-    -traceback
-)
+
 target_compile_definitions(BaseTarget
-    INTERFACE LINUX_IFORT NC_HAS_COMPRESSION ESMF_ EXTERNAL_GRID USE_REAL8
+    INTERFACE ESMF_ EXTERNAL_GRID USE_REAL8
 )
-target_include_directories(BaseTarget INTERFACE ${NETCDF_INCLUDE_DIRS})
 target_link_libraries(BaseTarget INTERFACE 
     MAPL_Base MAPL_cfio_r4 GMAO_mpeu GMAO_pilgrim
     FVdycoreCubed_GridComp fvdycore GFDL_fms_r4 GEOS_Shared GMAO_hermes 
-    ${NETCDF_LIBRARIES} 
+    NetCDF-F 
     ${MPI_Fortran_LINK_FLAGS} 
     ${MPI_Fortran_LIBRARIES} 
     ${OpenMP_Fortran_FLAGS} 
