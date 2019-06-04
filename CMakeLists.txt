@@ -3,6 +3,10 @@ project(GCHP VERSION 12.4.0 LANGUAGES Fortran CXX C)
 cmake_policy (SET CMP0053 NEW)
 cmake_policy (SET CMP0054 NEW)
 
+# Print a description of the source code repo's version
+get_repo_version(GCHP_REPO_VERSION ${CMAKE_SOURCE_DIR})
+message(STATUS "GCHP version: ${GCHP_REPO_VERSION}")
+
 # Add module paths
 list (APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../CMakeScripts")
 list (APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
