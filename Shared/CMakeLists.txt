@@ -7,6 +7,8 @@ esma_add_subdirectories(
   GMAO_pFIO 
   MAPL_Base 
   GMAO_hermes
+  GEOS_Shared
+  GMAO_pilgrim
   )
 
 if (PFUNIT)
