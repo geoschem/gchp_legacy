@@ -71,10 +71,14 @@
 #define SHORT_KIND 2
 #ifndef _32bits
 #define POINTER_KIND 8
+#ifndef GFDL_FMS_SUPPRESS_POINTER_REMARKS
 !DEC$ MESSAGE:'Using 8-byte addressing'
+#endif
 #else
 #define POINTER_KIND 4
+#ifndef GFDL_FMS_SUPPRESS_POINTER_REMARKS
 !DEC$ MESSAGE:'Using 4-byte addressing'
+#endif
 #endif
 #endif
 
@@ -117,20 +121,28 @@
 #define _F2000
 
 #ifdef _F95
+#ifndef GFDL_FMS_SUPPRESS_POINTER_REMARKS
 !DEC$ MESSAGE:'Using PURE'
+#endif
 #define _PURE PURE
 #else
+#ifndef GFDL_FMS_SUPPRESS_POINTER_REMARKS
 !DEC$ MESSAGE:'Not using PURE'
+#endif
 #define _PURE 
 #endif
 
 #ifdef _F2000
+#ifndef GFDL_FMS_SUPPRESS_POINTER_REMARKS
 !DEC$ MESSAGE:'Converting pointers to allocatable components'
+#endif
 #define _ALLOCATABLE ALLOCATABLE
 #define _NULL 
 #define _ALLOCATED ALLOCATED
 #else
+#ifndef GFDL_FMS_SUPPRESS_POINTER_REMARKS
 !DEC$ MESSAGE:'Using pointers'
+#endif
 #define _ALLOCATABLE POINTER
 #define _NULL =>NULL()
 #define _ALLOCATED ASSOCIATED
