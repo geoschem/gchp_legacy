@@ -1,14 +1,16 @@
 cmake_minimum_required (VERSION 3.5)
 project(GCHP VERSION 12.4.0 LANGUAGES Fortran CXX C)
-cmake_policy (SET CMP0053 NEW)
-cmake_policy (SET CMP0054 NEW)
+cmake_policy(SET CMP0054 NEW)
+cmake_policy(SET CMP0057 NEW)
+if(POLICY CMP0074)
+	cmake_policy(SET CMP0074 NEW)
+endif()
 
 # Print a description of the source code repo's version
 get_repo_version(GCHP_REPO_VERSION ${CMAKE_SOURCE_DIR})
 message(STATUS "GCHP version: ${GCHP_REPO_VERSION}")
 
 # Add module paths
-list (APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../CMakeScripts")
 list (APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 list (APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/check_compiler_support")
 
@@ -40,8 +42,8 @@ else()
 endif()
 set(GCHP                    TRUE       PARENT_SCOPE)
 
-target_compile_definitions(BaseTarget
-    INTERFACE ESMF_ EXTERNAL_GRID USE_REAL8
+target_compile_definitions(BaseTarget INTERFACE 
+        ESMF_ EXTERNAL_GRID USE_REAL8
 )
 target_link_libraries(BaseTarget INTERFACE 
     MAPL_Base MAPL_cfio_r4 GMAO_mpeu GMAO_pilgrim
