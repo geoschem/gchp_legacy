@@ -1,5 +1,5 @@
 include ("${CMAKE_Fortran_COMPILER_ID}")
-include (check_fortran_support)
+# include (check_fortran_support)
 include (esma_check_if_debug)
 include (esma_set_this)
 include (esma_add_subdirectories)
