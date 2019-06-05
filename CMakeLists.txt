@@ -5,6 +5,9 @@ cmake_policy(SET CMP0057 NEW)
 if(POLICY CMP0074)
 	cmake_policy(SET CMP0074 NEW)
 endif()
+if(POLICY CMP0079)
+    cmake_policy(SET CMP0079 NEW)
+endif()
 
 # Print a description of the source code repo's version
 get_repo_version(GCHP_REPO_VERSION ${CMAKE_CURRENT_SOURCE_DIR})
