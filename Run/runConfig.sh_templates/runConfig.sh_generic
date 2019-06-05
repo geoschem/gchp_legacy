@@ -434,7 +434,7 @@ replace_val dt            ${TransConv_Timestep_sec}  fvcore_layout.rc
 #### Set debug level
 echo " "
 echo "MAPL Debug Level:"
-replace_val DEBUG_LEVEL ${MAPL_DEBUG_LEVEL} CAP.rc
+replace_val DEBUG_LEVEL ${MAPL_DEBUG_LEVEL} ExtData.rc
 
 #### Set advection on/off based on input.geos
 echo " "
