@@ -43,7 +43,7 @@ file_glob_directories(GLOBBED_MODDIRS
 		${CMAKE_PREFIX_PATH}
 		$ENV{ESMF_ROOT}
 )
-find_library(ESMF_LIBRARIES
+find_library(ESMF_LIBRARY
 	libesmf.a
 	HINTS
 		${GLOBBED_MODDIRS}
@@ -66,9 +66,9 @@ if(NOT ESMF_MOD_DIR)
 	set(ESMF_ERRMSG "${ESMF_ERRMSG}
     ESMF_MOD_DIR:      Directory with ESMF's \".mod\" files (e.g. \"esmf.mod\")")
 endif()
-if(NOT ESMF_LIBRARIES)
+if(NOT ESMF_LIBRARY)
 	set(ESMF_ERRMSG "${ESMF_ERRMSG}
-    ESMF_LIBRARIES:    Path to \"libesmf.a\"")
+    ESMF_LIBRARY:    Path to \"libesmf.a\"")
 endif()
 set(ESMF_ERRMSG "${ESMF_ERRMSG}\nFind the directories/files that are listed above. Specify the directories you want CMake to search with the CMAKE_PREFIX_PATH variable (or the ESMF_ROOT environment variable).\n")
 
@@ -78,6 +78,14 @@ find_package_handle_standard_args(ESMF
 		ESMF_INCLUDES_DIR 
 		ESMF_HEADERS_DIR 
 		ESMF_MOD_DIR 
-		ESMF_LIBRARIES
+		ESMF_LIBRARY
 	FAIL_MESSAGE "${ESMF_ERRMSG}"
 )
+
+# Specify the other libraries that need to be linked for ESMF
+find_package(NetCDF REQUIRED)
+find_package(MPI REQUIRED)
+execute_process (COMMAND ${CMAKE_CXX_COMPILER} --print-file-name=libstdc++.so OUTPUT_VARIABLE stdcxx OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process (COMMAND ${CMAKE_CXX_COMPILER} --print-file-name=libgcc.a OUTPUT_VARIABLE libgcc OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+set(ESMF_LIBRARIES ${ESMF_LIBRARY} ${NETCDF_LIBRARIES} ${MPI_Fortran_LIBRARIES} ${MPI_CXX_LIBRARIES} rt ${stdcxx} ${libgcc})

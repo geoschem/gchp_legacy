@@ -7,7 +7,7 @@ if(POLICY CMP0074)
 endif()
 
 # Print a description of the source code repo's version
-get_repo_version(GCHP_REPO_VERSION ${CMAKE_SOURCE_DIR})
+get_repo_version(GCHP_REPO_VERSION ${CMAKE_CURRENT_SOURCE_DIR})
 message(STATUS "GCHP version: ${GCHP_REPO_VERSION}")
 
 # Add module paths
@@ -47,13 +47,7 @@ target_compile_definitions(BaseTarget INTERFACE
 )
 target_link_libraries(BaseTarget INTERFACE 
     MAPL_Base MAPL_cfio_r4 GMAO_mpeu GMAO_pilgrim
-    FVdycoreCubed_GridComp fvdycore GFDL_fms_r4 GEOS_Shared GMAO_hermes 
-    NetCDF-F 
-    ${MPI_Fortran_LINK_FLAGS} 
-    ${MPI_Fortran_LIBRARIES} 
-    ${OpenMP_Fortran_FLAGS} 
-    ${ESMF_LIBRARIES} 
-    rt
+    FVdycoreCubed_GridComp fvdycore GFDL_fms_r4 GEOS_Shared GMAO_hermes
 )
 
 # Add the registry
@@ -73,19 +67,14 @@ target_link_libraries(GIGC
 	PUBLIC GeosCore
 )
 add_dependencies(GIGC registry)
+target_include_directories(GIGC PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/Registry)
 
 add_executable(geos
     GEOSChem.F90
 )
 target_link_libraries(geos
-	PUBLIC GIGC ${GC_EXTRA_TARGETS} MAPL_Base
+	PUBLIC GIGC
 )
-
-set_target_properties(geos
-    PROPERTIES 
-	INSTALL_RPATH "${THIRD_PARTY}/lib"
-)
-
 install(TARGETS geos
     RUNTIME DESTINATION ${CMAKE_BINARY_DIR}
 )
