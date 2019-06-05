@@ -3016,6 +3016,7 @@ CONTAINS
         end if
         iEntry = targDOW + 1 + monthOffset
         fileTime = tSeries(iEntry)
+        tindex = iEntry
         If (Mapl_Am_I_Root().and.(Ext_Debug > 0)) Then
            Write(*,'(a,I4,a,I4,4(a))') '               GetBracketTimeOnSingleFile: Reading data for DOW ',targDOW,' (entry ', iEntry, ') into bracket ', Trim(bSide)
            Write(*,'(a,a)') &
