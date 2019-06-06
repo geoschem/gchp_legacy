@@ -1735,14 +1735,14 @@ TIMEZONES count N V - none none UTC_OFFSET ./MainDataDir/TIMEZONES/v2015-02/time
 #==============================================================================
 # --- UV albedo (UValbedo) ---
 #==============================================================================
-UV_ALBEDO 1 Y Y 1985-%m2-01T00:00:00 none none UVALBD ./MainDataDir/UVALBEDO/v2015-03/uvalbedo.geos.2x25.nc
+UV_ALBEDO 1 Y Y 1985-%m2-01T00:00:00 none none UVALBD ./MainDataDir/UVALBEDO/v2019-06/uvalbedo.geos.2x25.nc
 
 #==============================================================================
 # --- TOMS/SBUV overhead ozone colums, for photolysis ---
 #==============================================================================
-TOMS_O3_COL   dobsons N N %y4-%m2-01T00:00:00   none none TOMS   ./MainDataDir/TOMS_SBUV/v2016-11/TOMS_O3col_%y4.a.geos.1x1.nc 1980-01-01T00:00:00P0001-00-00T00:00:00
-DTOMS1_O3_COL 1       N N %y4-%m2-01T00:00:00   none none DTOMS1 ./MainDataDir/TOMS_SBUV/v2016-11/TOMS_O3col_%y4.a.geos.1x1.nc 1980-01-01T00:00:00P0001-00-00T00:00:00
-DTOMS2_O3_COL 1       N N %y4-%m2-01T00:00:00   none none DTOMS2 ./MainDataDir/TOMS_SBUV/v2016-11/TOMS_O3col_%y4.a.geos.1x1.nc 1980-01-01T00:00:00P0001-00-00T00:00:00
+TOMS_O3_COL   dobsons N N %y4-%m2-01T00:00:00   none none TOMS   ./MainDataDir/TOMS_SBUV/v2019-06/TOMS_O3col_%y4.a.geos.1x1.nc 1980-01-01T00:00:00P0001-00-00T00:00:00
+DTOMS1_O3_COL 1       N N %y4-%m2-01T00:00:00   none none DTOMS1 ./MainDataDir/TOMS_SBUV/v2019-06/TOMS_O3col_%y4.a.geos.1x1.nc 1980-01-01T00:00:00P0001-00-00T00:00:00
+DTOMS2_O3_COL 1       N N %y4-%m2-01T00:00:00   none none DTOMS2 ./MainDataDir/TOMS_SBUV/v2019-06/TOMS_O3col_%y4.a.geos.1x1.nc 1980-01-01T00:00:00P0001-00-00T00:00:00
 
 #==============================================================================
 # --- PSC state, only needed for UCX ---

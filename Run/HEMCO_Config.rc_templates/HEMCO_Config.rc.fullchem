@@ -2503,14 +2503,14 @@ Warnings:                    1
 # --- UV albedo, for photolysis (cf Hermann & Celarier, 1997) ---
 #==============================================================================
 (((+UValbedo+
-* UV_ALBEDO $ROOT/UVALBEDO/v2015-03/uvalbedo.geos.2x25.nc UVALBD 1985/1-12/1/0 C xy percent * - 1 1
+* UV_ALBEDO $ROOT/UVALBEDO/v2019-06/uvalbedo.geos.2x25.nc UVALBD 1985/1-12/1/0 C xy percent * - 1 1
 )))+UValbedo+
 
 #==============================================================================
 # --- TOMS/SBUV overhead ozone colums, for photolysis ---
 #==============================================================================
 (((+TOMS_SBUV_O3+
-* TOMS_O3_COL   $ROOT/TOMS_SBUV/v2016-11/TOMS_O3col_$YYYY.a.geos.1x1.nc TOMS   1971-2010/1-12/1/0 CY xy dobsons     * - 1 1
+* TOMS_O3_COL   $ROOT/TOMS_SBUV/v2019-06/TOMS_O3col_$YYYY.a.geos.1x1.nc TOMS   1971-2010/1-12/1/0 CY xy dobsons     * - 1 1
 * TOMS1_O3_COL  -                                                       TOMS1  -                  -  -  dobsons/day * - 1 1
 * TOMS2_O3_COL  -                                                       TOMS2  -                  -  -  dobsons/day * - 1 1
 * DTOMS1_O3_COL -                                                       DTOMS1 -                  -  -  dobsons/day * - 1 1 
