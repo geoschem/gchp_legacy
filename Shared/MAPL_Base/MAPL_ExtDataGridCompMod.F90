@@ -927,6 +927,11 @@ CONTAINS
 
       item => self%primary%item(i)
 
+      ! debugging
+      IF ( (Ext_Debug > 0) .AND. MAPL_Am_I_Root() ) THEN
+         Write(*,*) 'ExtData Initialize_: PrimaryLoop: ', trim(item%name)
+      ENDIF 
+
       item%collection_id = MAPL_CFIOAddCollection(item%file)
 
       ! parse refresh template to see if we have a time shift during constant updating
