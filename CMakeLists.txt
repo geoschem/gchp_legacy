@@ -25,7 +25,7 @@ find_package(ESMF REQUIRED)
 find_package(GFTL REQUIRED)
 
 # Cleanup MPI link commands
-string(STRIP ${MPI_Fortran_LINK_FLAGS} MPI_Fortran_LINK_FLAGS)
+string(STRIP "${MPI_Fortran_LINK_FLAGS}" MPI_Fortran_LINK_FLAGS)
 
 # Add ESMA but exclude from all to prevent all their targets from being added to our all target
 add_subdirectory(Shared EXCLUDE_FROM_ALL)
@@ -69,6 +69,9 @@ add_library(GIGC STATIC
 target_link_libraries(GIGC
 	PUBLIC GeosCore
 )
+target_compile_options(GIGC
+	PRIVATE "" $<$<STREQUAL:"${CMAKE_Fortran_COMPILER_ID}","GNU">:-ffree-line-length-none>
+)
 add_dependencies(GIGC registry)
 target_include_directories(GIGC PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/Registry)
 
@@ -79,7 +82,7 @@ target_link_libraries(geos
 	PUBLIC GIGC
 )
 install(TARGETS geos
-    RUNTIME DESTINATION ${CMAKE_BINARY_DIR}
+	RUNTIME DESTINATION ${RUNDIR}
 )
 
 if("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
