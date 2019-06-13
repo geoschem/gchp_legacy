@@ -2531,18 +2531,18 @@ Warnings:                    1
 #------------------------------------------------------------------------------
 # --- Stratospheric Bry data from the CCM model  ---
 #------------------------------------------------------------------------------
-* GEOSCCM_Br_DAY      $ROOT/STRAT/v2015-01/Bry/GEOSCCM_Bry.2007$MM.day.nc   BR     2007/$MM/1/0 C xyz pptv * - 60 1
-* GEOSCCM_Br2_DAY     $ROOT/STRAT/v2015-01/Bry/GEOSCCM_Bry.2007$MM.day.nc   BRCL   2007/$MM/1/0 C xyz pptv * - 60 1
-* GEOSCCM_BrO_DAY     $ROOT/STRAT/v2015-01/Bry/GEOSCCM_Bry.2007$MM.day.nc   BRO    2007/$MM/1/0 C xyz pptv * - 60 1
-* GEOSCCM_BrNO3_DAY   $ROOT/STRAT/v2015-01/Bry/GEOSCCM_Bry.2007$MM.day.nc   BRONO2 2007/$MM/1/0 C xyz pptv * - 60 1
-* GEOSCCM_HBr_DAY     $ROOT/STRAT/v2015-01/Bry/GEOSCCM_Bry.2007$MM.day.nc   HBR    2007/$MM/1/0 C xyz pptv * - 60 1
-* GEOSCCM_HOBr_DAY    $ROOT/STRAT/v2015-01/Bry/GEOSCCM_Bry.2007$MM.day.nc   HOBR   2007/$MM/1/0 C xyz pptv * - 60 1
-* GEOSCCM_Br_NIGHT    $ROOT/STRAT/v2015-01/Bry/GEOSCCM_Bry.2007$MM.night.nc BR     2007/$MM/1/0 C xyz pptv * - 60 1
-* GEOSCCM_Br2_NIGHT   $ROOT/STRAT/v2015-01/Bry/GEOSCCM_Bry.2007$MM.night.nc BRCL   2007/$MM/1/0 C xyz pptv * - 60 1
-* GEOSCCM_BrO_NIGHT   $ROOT/STRAT/v2015-01/Bry/GEOSCCM_Bry.2007$MM.night.nc BRO    2007/$MM/1/0 C xyz pptv * - 60 1
-* GEOSCCM_BrNO3_NIGHT $ROOT/STRAT/v2015-01/Bry/GEOSCCM_Bry.2007$MM.night.nc BRONO2 2007/$MM/1/0 C xyz pptv * - 60 1
-* GEOSCCM_HBr_NIGHT   $ROOT/STRAT/v2015-01/Bry/GEOSCCM_Bry.2007$MM.night.nc HBR    2007/$MM/1/0 C xyz pptv * - 60 1
-* GEOSCCM_HOBr_NIGHT  $ROOT/STRAT/v2015-01/Bry/GEOSCCM_Bry.2007$MM.night.nc HOBR   2007/$MM/1/0 C xyz pptv * - 60 1
+* GEOSCCM_Br_DAY      $ROOT/STRAT/v2015-01/Bry/GEOSCCM_Bry.2007$MM.day.nc   BR     2007/1-12/1/0 C xyz pptv * - 60 1
+* GEOSCCM_Br2_DAY     $ROOT/STRAT/v2015-01/Bry/GEOSCCM_Bry.2007$MM.day.nc   BRCL   2007/1-12/1/0 C xyz pptv * - 60 1
+* GEOSCCM_BrO_DAY     $ROOT/STRAT/v2015-01/Bry/GEOSCCM_Bry.2007$MM.day.nc   BRO    2007/1-12/1/0 C xyz pptv * - 60 1
+* GEOSCCM_BrNO3_DAY   $ROOT/STRAT/v2015-01/Bry/GEOSCCM_Bry.2007$MM.day.nc   BRONO2 2007/1-12/1/0 C xyz pptv * - 60 1
+* GEOSCCM_HBr_DAY     $ROOT/STRAT/v2015-01/Bry/GEOSCCM_Bry.2007$MM.day.nc   HBR    2007/1-12/1/0 C xyz pptv * - 60 1
+* GEOSCCM_HOBr_DAY    $ROOT/STRAT/v2015-01/Bry/GEOSCCM_Bry.2007$MM.day.nc   HOBR   2007/1-12/1/0 C xyz pptv * - 60 1
+* GEOSCCM_Br_NIGHT    $ROOT/STRAT/v2015-01/Bry/GEOSCCM_Bry.2007$MM.night.nc BR     2007/1-12/1/0 C xyz pptv * - 60 1
+* GEOSCCM_Br2_NIGHT   $ROOT/STRAT/v2015-01/Bry/GEOSCCM_Bry.2007$MM.night.nc BRCL   2007/1-12/1/0 C xyz pptv * - 60 1
+* GEOSCCM_BrO_NIGHT   $ROOT/STRAT/v2015-01/Bry/GEOSCCM_Bry.2007$MM.night.nc BRO    2007/1-12/1/0 C xyz pptv * - 60 1
+* GEOSCCM_BrNO3_NIGHT $ROOT/STRAT/v2015-01/Bry/GEOSCCM_Bry.2007$MM.night.nc BRONO2 2007/1-12/1/0 C xyz pptv * - 60 1
+* GEOSCCM_HBr_NIGHT   $ROOT/STRAT/v2015-01/Bry/GEOSCCM_Bry.2007$MM.night.nc HBR    2007/1-12/1/0 C xyz pptv * - 60 1
+* GEOSCCM_HOBr_NIGHT  $ROOT/STRAT/v2015-01/Bry/GEOSCCM_Bry.2007$MM.night.nc HOBR   2007/1-12/1/0 C xyz pptv * - 60 1
 
 #------------------------------------------------------------------------------
 #--- GMI chemistry: prod/loss rates ---
