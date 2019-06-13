@@ -65,12 +65,16 @@ $(TARGETS):
 	  done
 	$(MAKE) local_$@
 
-ifeq ($(F2PY),OFF)
-local_esma_install local_install: $(LIB)
+ifeq ($(F2PY),f2py)
+local_esma_install local_install:
 	@echo No local install in here
+	@echo F2PY is enabled
+	$(LIB) python_install
 else
-local_esma_install local_install: $(LIB) python_install
+local_esma_install local_install:
 	@echo No local install in here
+	@echo F2PY is disabled
+	$(LIB)
 endif
 
 local_esma_clean local_clean:

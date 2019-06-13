@@ -111,7 +111,7 @@ ACG         = $(ESMABIN)/mapl_acg.pl
 ACG_FLAGS   = -v
 F90SPLIT    = $(ESMABIN)/f90split.x  # split f90 file by procedure
 F90AIB      = $(ESMABIN)/f90aib.x    # automatic interface block
-F2PY        = f2py   # python fortran extension builder
+F2PY        =        # python fortran extension builder. Set to f2py to enable.
 DLLEXT      = so     # extension for shared libraries
 F2PYEXT     = so     # extension for python extensions
 
@@ -204,7 +204,9 @@ LIB_SDF = $(LIB_NETCDF)
 DEF_SDF += $(D)HAS_NETCDF4 
 DEF_SDF += $(D)H5_HAVE_PARALLEL
 
-F2PY += $(F2PY_FLAGS)
+ifeq ($(F2PY),f2py)
+ F2PY += $(F2PY_FLAGS)
+endif
 
 LIB_GCTP   = $(BASELIB)/libGctp.a
 LIB_HDFEOS = $(BASELIB)/libhdfeos.a
