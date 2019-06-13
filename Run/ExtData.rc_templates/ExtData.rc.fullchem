@@ -825,8 +825,8 @@ XIAO_C3H8 kgC/m2/s N Y - none none C2H6 ./MainDataDir/XIAO/v2014-09/C3H8_C2H6_ng
 #==============================================================================
 # --- 2010 Global C2H6 fossil fuel and biofuel (C2H6_2010) ---
 #==============================================================================
-C2H6_2010_oilgas  kgC/m2/s Y Y F2010-%m2-01T00:00:00 none none ANTHR_C2H6   ./MainDataDir/C2H6_2010/v2017-05/C2H6_global_anth_biof.2010%m2.nc
-C2H6_2010_biofuel kgC/m2/s Y Y F2010-%m2-01T00:00:00 none none BIOFUEL_C2H6 ./MainDataDir/C2H6_2010/v2017-05/C2H6_global_anth_biof.2010%m2.nc
+C2H6_2010_oilgas  kgC/m2/s Y Y F2010-%m2-01T00:00:00 none none ANTHR_C2H6   ./MainDataDir/C2H6_2010/v2019-06/C2H6_global_anth_biof.2010%m2.nc
+C2H6_2010_biofuel kgC/m2/s Y Y F2010-%m2-01T00:00:00 none none BIOFUEL_C2H6 ./MainDataDir/C2H6_2010/v2019-06/C2H6_global_anth_biof.2010%m2.nc
 
 #==============================================================================
 # --- EMEP Europe (EMEP) ---

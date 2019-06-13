@@ -99,7 +99,7 @@ Warnings:                    1
     --> BOND                   :       true
     --> APEI                   :       true
     --> XIAO                   :       false
-    --> C2H6_2010              :       false
+    --> C2H6_2010              :       true
     --> EDGARv43               :       false
     --> HTAP                   :       false
     --> CEDS                   :       true
@@ -810,8 +810,8 @@ Warnings:                    1
 # --- 2010 Global fossil fuel and biofuel emissions of C2H6 (Tzompa-Sosa et al. (2017) ---
 #==============================================================================
 (((C2H6_2010 
-0 C2H6_2010_oilgas   $ROOT/C2H6_2010/v2017-05/C2H6_global_anth_biof.2010$MM.nc ANTHR_C2H6   2010/1-12/1/0 C xy kgC/m2/s C2H6 - 1 100
-0 C2H6_2010_biofuel  $ROOT/C2H6_2010/v2017-05/C2H6_global_anth_biof.2010$MM.nc BIOFUEL_C2H6 2010/1-12/1/0 C xy kgC/m2/s C2H6 - 2 100
+0 C2H6_2010_oilgas   $ROOT/C2H6_2010/v2019-06/C2H6_global_anth_biof.2010$MM.nc ANTHR_C2H6   2010/1-12/1/0 C xy kgC/m2/s C2H6 - 1 100
+0 C2H6_2010_biofuel  $ROOT/C2H6_2010/v2019-06/C2H6_global_anth_biof.2010$MM.nc BIOFUEL_C2H6 2010/1-12/1/0 C xy kgC/m2/s C2H6 - 2 100
 )))C2H6_2010 
 
 #==============================================================================
