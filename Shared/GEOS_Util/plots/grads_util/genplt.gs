@@ -234,6 +234,8 @@ if( ccols = NULL )
    qminmax = sublin(result,8)
    qmin    = subwrd(qminmax,4)
    qmax    = subwrd(qminmax,5)
+   say 'Min Value: 'qmin
+   say 'Max Value: 'qmax
    'set gxout shaded'
    'd abs('qmin')'
            qmin = subwrd(result,4)
@@ -258,10 +260,15 @@ if( ccols = NULL )
        endif
    endif
    say 'Field Scaling Factor: 'm
-   'define qmod = qmod / 1e'm
-   'define qobs = qobs / 1e'm
+   if( m<0 )
+       j = -1 * m
+      'define qmod = qmod * 1e'j
+      'define qobs = qobs * 1e'j
+   else
+      'define qmod = qmod / 1e'm
+      'define qobs = qobs / 1e'm
+   endif
 endif
-
 
 'set dfile 'expfile
 'set lon 'lonbeg' 'lonend
@@ -357,7 +364,9 @@ endif
       'shades 'cint
       'define qdif = (qmod-qobs)/1e'n
       'd qdif'
-      'cbarn -snum 0.55'
+*     'cbarn -snum 0.55'
+'cbarn -snum 0.55 -xmid 4.25 -ymid 0.4'
+
 
 'stats maskout(qdif,abs(qobs))'
  avgdif = subwrd(result,1)
@@ -366,16 +375,22 @@ endif
 k = m + n
 
 'set vpage off'
+'set string 1 l 4'
+'set strsiz 0.065'
+'draw string 0.05 0.08 ( EXPID:  'expid' )'
+
 'set string 1 c 6'
+'set strsiz .125'
+'draw string 4.25 10.85 'title
+
 'set strsiz .11'
-'draw string 4.25 10.9 EXPID: 'expid'  'expdsc
 if( level = 0 )
     if( m != 0 )
-   'draw string 4.25 10.6 'title'  'season' ('nmod') (x 10**'m')'
+   'draw string 4.25 10.62 'expdsc'  'season' ('nmod') (x 10**'m')'
     else
-   'draw string 4.25 10.6 'title'  'season' ('nmod')'
+   'draw string 4.25 10.62 'expdsc'  'season' ('nmod')'
     endif
-   'draw string 4.25 7.2 'obsname'  'season' ('nobs')  ('climate')'
+   'draw string 4.25 7.22 'obsname'  'season' ('nobs')  ('climate')'
    if( k != 0 )
    'draw string 4.25 3.80 Difference (Top-Middle) (x 10**'k')'
    else
@@ -383,26 +398,17 @@ if( level = 0 )
    endif
 else
     if( m != 0 )
-   'draw string 4.25 10.6 'title'  'level'-mb  'season' ('nmod') (x 10**'m')'
+   'draw string 4.25 10.62 'expdsc'  'level'-mb  'season' ('nmod') (x 10**'m')'
     else
-   'draw string 4.25 10.6 'title'  'level'-mb  'season' ('nmod')'
+   'draw string 4.25 10.62 'expdsc'  'level'-mb  'season' ('nmod')'
     endif
-   'draw string 4.25 7.2 'obsname'  'season' ('nobs')  ('climate')'
+   'draw string 4.25 7.22 'obsname'  'season' ('nobs')  ('climate')'
    if( k != 0 )
    'draw string 4.25 3.80 'level'-mb  Difference (Top-Middle) (x 10**'k')'
    else
    'draw string 4.25 3.80 'level'-mb  Difference (Top-Middle)'
    endif
 endif
-
-'set string 1 c 4'
-'set strsiz .08'
-'draw string 0.52 10  Mean: 'avgmod
-'draw string 0.52 9.8  Std: 'stdmod
-'draw string 0.52 6.6 Mean: 'avgobs
-'draw string 0.52 6.4  Std: 'stdobs
-'draw string 0.52 3.2 Mean: 'avgdif
-'draw string 0.52 3.0  Std: 'stddif
 
                 date = getdate (begdate)
 bmnthm = subwrd(date,1)
@@ -417,12 +423,19 @@ byearo = subwrd(date,2)
 emntho = subwrd(date,1)
 eyearo = subwrd(date,2)
 
-'set string 1 r 4'
+'set string 1 l 4'
 'set strsiz .08'
-   'draw string 1.05 9.5 Beg: 'bmnthm' 'byearm
-   'draw string 1.05 9.3 End: 'emnthm' 'eyearm
-   'draw string 1.05 6.1 Beg: 'bmntho' 'byearo
-   'draw string 1.05 5.9 End: 'emntho' 'eyearo
+'draw string 0.050 10.50 Beg: 'bmnthm' 'byearm
+'draw string 0.050 10.35 End: 'emnthm' 'eyearm
+'draw string 0.050 7.10 Beg: 'bmntho' 'byearo
+'draw string 0.050 6.95 End: 'emntho' 'eyearo
+
+'draw string 0.050 9.85  Mean: 'avgmod
+'draw string 0.050 9.70  Std: 'stdmod
+'draw string 0.050 6.45 Mean: 'avgobs
+'draw string 0.050 6.30  Std: 'stdobs
+'draw string 0.050 3.05 Mean: 'avgdif
+'draw string 0.050 2.90  Std: 'stddif
 
 'myprint -name 'output'/hdiag_'anal'_'EXPORT'.'GC'_'level'.'season
 'set clab on'

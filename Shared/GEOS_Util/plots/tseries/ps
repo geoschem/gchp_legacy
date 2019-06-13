@@ -94,3 +94,18 @@ while ( flag = "" )
         endif
         'c'
 endwhile
+
+* Make Plot to Show Actual PSDRY Trend
+* ------------------------------------
+'set vpage off'
+'set parea off'
+'set grads off'
+'set ylab %.4f'
+'d qdry'
+'draw title Globally Integrated Dry Surface Pressure (mb)'
+'myprint -name 'output'/misc/PSDRY_TIME_SERIES -ext gif'
+say "Type 'next' for  next plot, 'done' for next field"
+pull flag
+'c'
+
+

@@ -39,36 +39,20 @@
 !                              -----------------------
 
 
-      integer            :: nFiles             ! Actual number of input files
       character(len=256) :: inFile             ! Input file names
       character(len=256) :: outFile            ! Output file name
-      integer  :: inc_hhmmss                   ! increment hours specified from command line
-
-      integer  :: im                           ! zonal dimension
-      integer  :: jm                           ! meridional dimension
-      integer  :: km                           ! vertical dimension
 
       integer  :: nbits                        ! Shaving bits
       real, pointer     :: lon(:)              ! longitudes in deg (im)
       real, pointer     :: lat(:)              ! latitudes in deg (jm)
       real, pointer     :: lev(:)              ! levels in hPa (km)
  
-      integer           :: nLevs = 0           ! total number of levels
-      real, pointer     :: Levs(:)             ! vertical levels
-      character(len=25) :: cLevs(mLevs)        ! Character reprsentation of levels
-
-      integer           :: nVars               ! Actual number of variables
       integer           :: nVars0              ! Actual number of variables
-      character(len=64) :: inVars(mVars)       ! Input  variable names (nVars)
       character(len=64) :: outVars(mVars)      ! output variable names (nVars)
-      character(len=64) :: uvar                ! output variable names (nVars)
       character(len=64) :: outUnits(mVars)   ! Units of output variables (nVars)
       integer           :: nskip_Vars          ! Number of Variables to skip
       character(len=256) :: skipVars(mVars)     ! variable names (nVars) to skip
       
-
-      character(len=64) :: uname               ! Uwind name
-
       integer          :: outPrec              ! Output file precision:
                                                ! 0 = 32 bits,  1 = 64bits
 
@@ -76,25 +60,11 @@
 !                                Variable Work Space
 !                              -----------------------
 
-      real, pointer ::  inField(:,:,:)         ! Input variable
-      real, pointer ::  u(:,:,:)         ! Working array 
-      real, pointer ::  v(:,:,:)         ! Working array 
-      real, pointer ::  uofn(:,:,:)         ! Working array 
-      real, pointer ::  vofn(:,:,:)         ! Working array 
-      real, pointer :: outField(:,:,:)         ! Ouput variable
-      real, pointer ::  ofn(:,:,:)              ! Ouput variable
-
 
 !                                  Local Work Space
 !                              -----------------------
 
-      integer count, iff, it, iv, lm, itest, ii, i, j, k
-      integer ig,is
-      real dx,dx1, dx2,dy, dy1, dy2
-      double precision pi
-      logical ps_found,delp_found,ptop_found
-      logical uv_flag,u_flag,v_flag
-
+      integer it, iv
 
 !                              -----------------------
 !                                  Output Meta Data
@@ -104,39 +74,20 @@
       character(len=256) :: source             ! data source
       character(len=256) :: contact            ! contact org.   
       character(len=256) :: levunits           ! Vertical levels
-      real               :: missing_val
 
       integer, pointer :: yyyymmdd(:)          ! Date
       integer, pointer :: hhmmss(:)            !
-      integer          :: ndate                ! Date
-      integer          :: ndate_old            ! Date
-      integer          :: yyyymmddp,hhmmssp    ! previous Date & time
-      integer          :: ntimep               ! counter for total number of times previously accumulated.
-      integer          :: ntime 
-      integer          :: ntime_old 
       integer          :: timinc               ! Time increment
-      integer          :: timinc_save          ! Time increment
 
       integer          :: in_fmode = 1         ! non-zero for READ-ONLY
-      integer          :: out_fmode = 0        ! 0 for READ-WRITE 
       integer          :: fid                  ! input file ID
       integer          :: out_fid              ! output file ID
-      integer          :: fidt                 ! output running total file ID
-      integer          :: fidc                 ! output running counter file ID
-      integer          :: rc, rc1,rc2,jq       ! return error code
-      integer          :: i2,j2,i1,j1
+      integer          :: rc                   ! return error code
 
       character(len=256) :: vtitle(mVars)      ! output title
       character(len=256) :: out_title(mVars)      ! output title
       character(len=256) :: vunits(mVars)      ! output title
       character(len=256) :: vname(mVars)       ! output variable names (nVars)
-      integer            :: outKm(mVars)       ! number of levels for variables;
-      real              :: valid_range_prs(2, mVars)
-      real              :: packing_range_prs(2, mVars)
-      real              :: ptop,pint,ptop32,pint32,ple,pint55,ptop55,pintOut,ksOut
-      real              :: ptopOut
-      real              :: rx,ry
-
 
 !                              -----------------------
 !                                  eta information 
@@ -146,45 +97,22 @@
       integer           :: jm_e                ! input meridional dimension       
       integer           :: km_e                ! input vertical dimension    
       integer           :: lm_e                ! input time dimension    
-      integer           :: in_e                ! output zonal dimension       
-      integer           :: jn_e                ! output meridional dimension       
-      integer           :: kn_e                ! output vertical dimension    
-      integer           :: in                  ! output zonal dimension       
-      integer           :: jn                  ! output meridional dimension       
 
       integer           :: nVars_e             ! input number of variables   
-      integer           :: kn            ! Output number of vertical levels
-      integer           :: ks32,ks_e,ks55                  
-      integer           :: buf(3)
       real              :: undef               ! Missing value
       real, pointer     :: lon_e(:)            ! longitudes in deg (im)
       real, pointer     :: lat_e(:)            ! latitudes in deg (jm)
-      real, pointer     :: lat_e2(:)           ! latitudes in deg (jm)
-      real, pointer     :: ak55(:)             ! vertical grid a coefficien
-      real, pointer     :: bk55(:)             ! vertical grid a coefficien
-      real, pointer     :: ak32(:)             ! vertical grid a coefficien
-      real, pointer     :: bk32(:)             ! vertical grid a coefficien
-      real, pointer     :: akOut(:)            ! Output vertical grid a coefficien
-      real, pointer     :: bkOut(:)            ! Output vertical grid a coefficien
-      real, pointer     :: dpref(:)            ! vertical grid a coefficien
-      real, pointer     :: pe3d_m(:,:,:)       ! Input Pressure edges 
-      real, pointer     :: gaus_ps(:,:)        ! working array          
-      real, pointer     :: gaus_delp(:,:,:)        ! working array          
       real, pointer     :: gaus_inField(:,:,:) ! working array          
       real*8, pointer   :: lev_e(:)            ! levels in eta (km)
       integer, pointer  :: kmVar_e(:)          ! Number of vertical levels for variables
       integer, pointer  :: kmVar_e2(:)         ! Number of vertical levels for variables
 
-      character(len=256) :: vtitle_in(mVars)   ! output title
       real              :: valid_range(2, mVars)
       real              :: packing_range(2, mVars)
-      real              :: p,bkh
-      integer           :: km_e1,kn1,iz,na,n
+      integer           :: na,n
       integer           :: ngatts              ! Number of attributes for GFIO
-      integer           :: imin,jmin,xmin,imax,jmax,xmax,gaussian
-      logical           :: initial,file_exist,hintrp,zintrp
-      logical           :: qaflag,ptflag,udflag,vdflag,ucflag,vcflag
-      logical           :: sphflag,shftlon,lon_shift,noshave,skip
+      logical           :: initial,hintrp
+      logical           :: noshave,skip
 !.................................................................................
 
 
@@ -364,7 +292,7 @@
 
 !  All done
 !  --------
-   call exit(0)
+   stop 0
 
 CONTAINS
 
@@ -398,7 +326,6 @@ CONTAINS
       character(len=*), intent(out) :: inFile           !  Input file names
       character(len=*), intent(out) :: outFile          !  Output file name 
       character(len=*), intent(out) :: skipVars(:)     !  Vars to skip
-      integer  :: inc_hhmmss                        ! increment hours specified from command line
 
 
       integer, intent(out)          :: outPrec    ! Output file precision:
@@ -418,19 +345,17 @@ CONTAINS
 !EOP
 !-------------------------------------------------------------------------
 
-   integer              iarg, argc
-
+   integer             iarg, argc
+#ifndef __GFORTRAN__
+   integer, external :: iargc
+#endif
    character(len=2048)  argv
 
-   character(len=256)   rcfile, label, var, Vars(mVars)
+   character(len=256)   Vars(mVars)
 
    integer, parameter :: mKm = 256  ! max no of levels
 
-   integer i, j, n, nVars0, rc, ios
-   real    xWest, p
-   logical :: debug = .false.
-   character(len=10) nLx, nLy
-   character (len=1) resolution
+   integer i, n
 
 
    argc = command_argument_count()
@@ -452,25 +377,25 @@ CONTAINS
       if ( iarg .gt. argc ) then
         exit
       endif
-      call GetArg ( iArg, argv )
+      call Get_Command_Argument ( iArg, argv )
       if(index(argv,'-o') .gt. 0 ) then
          if ( iarg+1 .gt. argc ) call usage_()
          iarg = iarg + 1
-         call GetArg ( iArg, outFile )
+         call Get_Command_Argument ( iArg, outFile )
       else if(index(argv,'-noshave') .gt. 0 ) then
          noshave = .true.
       else if(index(argv,'-nbits') .gt. 0 ) then
          if ( iarg+1 .gt. argc ) call usage_()
          iarg = iarg + 1
-         call GetArg ( iArg, argv )
+         call Get_Command_Argument ( iArg, argv )
          read(argv,*) nbits
       else if(index(argv,'-skipvars') .gt. 0 ) then
          if ( iarg+1 .gt. argc ) call usage_()
          iarg = iarg + 1
-         call GetArg ( iArg, argv )
+         call Get_Command_Argument ( iArg, argv )
          call split_ ( ',', argv, mVars, Vars, nskip_vars )
       else if(index(argv,'-prec') .gt. 0 ) then
-         call GetArg ( iArg, argv )
+         call Get_Command_Argument ( iArg, argv )
          read(argv,*) outPrec
       else
          inFile = argv
@@ -540,7 +465,7 @@ print *
       print *, '        ',myname
       print *, '   ',string
       print *, ' --------------------------------'
-      call exit(1)
+      stop 1
       return
       end subroutine builtin_die
 ! -------------------------------------------------------------------

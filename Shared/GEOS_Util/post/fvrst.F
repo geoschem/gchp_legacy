@@ -134,8 +134,8 @@
       real*8 latsd(jm)
       real*8 lonsd(im)
 
-      real  ptop,dlon,dlat,pref,undef,pint
-      integer i,j,L,n,timeinc,rc,ks
+      real  ptop,dlon,dlat,undef,pint
+      integer i,j,L,timeinc,rc,ks
       character*512 dynrsti,dynrsto
       integer nvars,fid,precision
 
@@ -153,7 +153,6 @@
       real,          allocatable :: dum1(:)
       real,          allocatable :: dum2(:,:)
       real,          allocatable :: dum3(:,:,:)
-      real   rgas,rvap,eps,kappa,grav,cp
 
       real   dpref
              dpref(L) = ( ak(L+1)-ak(L) ) +  ( bk(L+1)-bk(L) ) * 98400.0

@@ -7,7 +7,7 @@
       integer  im,jm
       real     undef
       real     q(im,jm)
-      integer  i,j,k,L,n,i0,nundef
+      integer  i,j,k,L,i0,nundef
       real     qz(im)
       real     dist,dq
 !---------------------------------------------------------------------------

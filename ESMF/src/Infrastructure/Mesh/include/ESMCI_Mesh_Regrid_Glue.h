@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2018, University Corporation for Atmospheric Research,
+// Copyright 2002-2019, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -28,14 +28,14 @@
 #include "ESMC_Util.h"
 #include "ESMCI_Array.h"
 #include "Mesh/include/ESMCI_Mesh.h"
-#include "Mesh/include/ESMCI_MeshRead.h"
-#include "Mesh/include/ESMCI_MeshRegrid.h"
-#include "Mesh/include/ESMCI_Exception.h"
-#include "Mesh/include/ESMCI_Integrate.h"
-#include "Mesh/include/ESMCI_Interp.h"
-#include "Mesh/include/ESMCI_Extrapolation.h"
+#include "Mesh/include/Legacy/ESMCI_MeshRead.h"
+#include "Mesh/include/Regridding/ESMCI_MeshRegrid.h"
+#include "Mesh/include/Legacy/ESMCI_Exception.h"
+#include "Mesh/include/Regridding/ESMCI_Integrate.h"
+#include "Mesh/include/Regridding/ESMCI_Interp.h"
+#include "Mesh/include/Regridding/ESMCI_Extrapolation.h"
 #include "Mesh/include/ESMCI_MathUtil.h"
-#include "Mesh/include/ESMCI_Regrid_Helper.h"
+#include "Mesh/include/Regridding/ESMCI_Regrid_Helper.h"
 #include "ESMCI_PointList.h"
 
 //-----------------------------------------------------------------------------
@@ -58,6 +58,8 @@ void ESMCI_regrid_create(Mesh **meshsrcpp, ESMCI::Array **arraysrcpp, ESMCI::Poi
                          int *extrapMethod,
                          int *extrapNumSrcPnts,
                          ESMC_R8 *extrapDistExponent,
+                         int *extrapNumLevels,
+                         int *extrapNumInputLevels, 
                          int *unmappedaction, int *_ignoreDegenerate,
                          int *srcTermProcessing, int *pipelineDepth,
                          ESMCI::RouteHandle **rh, int *has_rh, int *has_iw,

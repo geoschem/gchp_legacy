@@ -1,5 +1,3 @@
-! $Id$
-
 !!#include <fms_platform.h>
 
 module drifters_io_mod
@@ -12,10 +10,10 @@ module drifters_io_mod
 
   ! Globals
   integer, parameter, private   :: MAX_STR_LEN = 128
-  character(MAX_STR_LEN), parameter, private :: &
-       & version = '$Id$'
+  ! Include variable "version" to be written to log file.
+#include<file_version.h>
 
-  real :: drfts_eps_t = 10*epsilon(1.)
+  real :: drfts_eps_t = 10.*epsilon(1.)
   
 
   type drifters_io_type

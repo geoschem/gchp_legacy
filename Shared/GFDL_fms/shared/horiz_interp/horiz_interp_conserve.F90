@@ -1,8 +1,9 @@
 module horiz_interp_conserve_mod
 
-  ! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Bruce Wyman </CONTACT>
-  ! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Zhi Liang </CONTACT>
+  ! <CONTACT EMAIL="Bruce.Wyman@noaa.gov"> Bruce Wyman </CONTACT>
+  ! <CONTACT EMAIL="Zhi.Liang@noaa.gov"> Zhi Liang </CONTACT>
 
+  ! <HISTORY SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/"/>
 
   ! <OVERVIEW>
   !   Performs spatial interpolation between grids using conservative interpolation
@@ -27,6 +28,7 @@ module horiz_interp_conserve_mod
   use mpp_mod,               only: mpp_error, FATAL,  mpp_sync_self 
   use mpp_mod,               only: COMM_TAG_1, COMM_TAG_2
   use fms_mod,               only: write_version_number
+  use fms_io_mod,            only: get_great_circle_algorithm
   use constants_mod,         only: PI
   use horiz_interp_type_mod, only: horiz_interp_type
 
@@ -89,25 +91,30 @@ module horiz_interp_conserve_mod
 
   integer :: pe, root_pe
   !-----------------------------------------------------------------------
-  character(len=128) :: version = '$Id$'
-  character(len=128) :: tagname = '$Name$'
+  ! Include variable "version" to be written to log file.
+#include<file_version.h>
   logical            :: module_is_initialized = .FALSE.
+
+  logical         :: great_circle_algorithm = .false.
 
 contains
 
   !#######################################################################
   !  <SUBROUTINE NAME="horiz_interp_conserve_init">
   !  <OVERVIEW>
-  !     writes version number and tag name to logfile.out
+  !     writes version number to logfile.out
   !  </OVERVIEW>
   !  <DESCRIPTION>       
-  !     writes version number and tag name to logfile.out
+  !     writes version number to logfile.out
   !  </DESCRIPTION>
 
   subroutine horiz_interp_conserve_init
 
     if(module_is_initialized) return
-    call write_version_number (version, tagname)
+    call write_version_number("HORIZ_INTERP_CONSERVE_MOD", version)
+
+    great_circle_algorithm = get_great_circle_algorithm()
+
     module_is_initialized = .true.
 
   end subroutine horiz_interp_conserve_init
@@ -121,6 +128,7 @@ contains
     real, intent(in),       dimension(:)   :: lon_in , lat_in
     real, intent(in),       dimension(:)   :: lon_out, lat_out
     integer, intent(in),       optional    :: verbose
+
   !</PUBLICROUTINE>
     !-----------------------------------------------------------------------
     real, dimension(size(lat_out(:))-1,2) :: sph
@@ -136,6 +144,12 @@ contains
          iverbose, m2, n2, iter
     logical :: s2n
     character(len=64) :: mesg
+
+    if(.not. module_is_initialized) call mpp_error(FATAL, &
+         'horiz_interp_conserve_new_1dx1d: horiz_interp_conserve_init is not called')
+
+    if(great_circle_algorithm) call mpp_error(FATAL, &
+         'horiz_interp_conserve_new_1dx1d: great_circle_algorithm is not implemented, contact developer')
     !-----------------------------------------------------------------------
     iverbose = 0;  if (present(verbose)) iverbose = verbose
 
@@ -310,28 +324,34 @@ contains
 
   !#######################################################################
   !<PUBLICROUTINE INTERFACE="horiz_interp_conserve_new">
-  subroutine horiz_interp_conserve_new_1dx2d ( Interp, lon_in, lat_in, lon_out, lat_out, mask_in, mask_out, verbose)
+  subroutine horiz_interp_conserve_new_1dx2d ( Interp, lon_in, lat_in, lon_out, lat_out, &
+                                               mask_in, mask_out, verbose)
     type(horiz_interp_type),        intent(inout) :: Interp
     real, intent(in),              dimension(:)   :: lon_in , lat_in
     real, intent(in),              dimension(:,:) :: lon_out, lat_out
     real, intent(in),    optional, dimension(:,:) :: mask_in
     real, intent(inout), optional, dimension(:,:) :: mask_out
     integer, intent(in), optional                 :: verbose
+
   !</PUBLICROUTINE>
 
     integer :: create_xgrid_1DX2D_order1, get_maxxgrid, maxxgrid
-    integer :: nlon_in, nlat_in, nlon_out, nlat_out, nxgrid, i
+    integer :: create_xgrid_great_circle
+    integer :: nlon_in, nlat_in, nlon_out, nlat_out, nxgrid, i, j
     real, dimension(size(lon_in(:))-1, size(lat_in(:))-1) :: mask_src
     integer, allocatable, dimension(:)   :: i_src, j_src, i_dst, j_dst
-    real,    allocatable, dimension(:)   :: xgrid_area
-    real,    allocatable, dimension(:,:) :: dst_area
+    real,    allocatable, dimension(:)   :: xgrid_area, clon, clat
+    real,    allocatable, dimension(:,:) :: dst_area, lon_src, lat_src
+
+    if(.not. module_is_initialized) call mpp_error(FATAL, &
+         'horiz_interp_conserve_new_1dx2d: horiz_interp_conserve_init is not called')
 
     if( (size(lon_out,1) .NE. size(lat_out,1)) .OR. (size(lon_out,2) .NE. size(lat_out,2)) )  &
         call mpp_error(FATAL, 'horiz_interp_conserve_mod: size mismatch between lon_out and lat_out')
     nlon_in  = size(lon_in(:)) - 1;  nlat_in  = size(lat_in(:)) - 1
     nlon_out = size(lon_out,1) - 1;  nlat_out = size(lon_out,2) - 1
 
-    mask_src = 1
+    mask_src = 1.
     if(present(mask_in)) then
        if( (size(mask_in,1) .NE. nlon_in) .OR.  (size(mask_in,2) .NE. nlat_in)) call mpp_error(FATAL, &
          'horiz_interp_conserve_mod: size mismatch between mask_in and lon_in/lat_in')
@@ -341,8 +361,23 @@ contains
     maxxgrid = get_maxxgrid()
     allocate(i_src(maxxgrid), j_src(maxxgrid), i_dst(maxxgrid), j_dst(maxxgrid) )
     allocate( xgrid_area(maxxgrid), dst_area(nlon_out, nlat_out) )
-    nxgrid = create_xgrid_1DX2D_order1(nlon_in, nlat_in, nlon_out, nlat_out, lon_in, lat_in, lon_out, lat_out, &
-                                       mask_src, i_src, j_src, i_dst, j_dst, xgrid_area)
+
+    if( .not. great_circle_algorithm ) then
+       nxgrid = create_xgrid_1DX2D_order1(nlon_in, nlat_in, nlon_out, nlat_out, lon_in, lat_in, lon_out, lat_out, &
+                                          mask_src, i_src, j_src, i_dst, j_dst, xgrid_area)
+    else
+       allocate(lon_src(nlon_in+1,nlat_in+1), lat_src(nlon_in+1,nlat_in+1))
+       allocate(clon(maxxgrid), clat(maxxgrid))       
+       do j = 1, nlat_in+1
+          do i = 1, nlon_in+1
+             lon_src(i,j) = lon_in(i)
+             lat_src(i,j) = lat_in(j)
+          enddo
+       enddo
+       nxgrid =  create_xgrid_great_circle(nlon_in, nlat_in, nlon_out, nlat_out, lon_src, lat_src, lon_out, lat_out, &
+                                          mask_src, i_src, j_src, i_dst, j_dst, xgrid_area, clon, clat)
+       deallocate(lon_src, lat_src, clon, clat)
+    endif
     allocate(Interp%i_src(nxgrid), Interp%j_src(nxgrid) )
     allocate(Interp%i_dst(nxgrid), Interp%j_dst(nxgrid) )
     allocate(Interp%area_frac_dst(nxgrid) )
@@ -354,7 +389,7 @@ contains
     Interp%j_dst = j_dst(1:nxgrid)+1
 
     ! sum over exchange grid area to get destination grid area
-    dst_area = 0
+    dst_area = 0.
     do i = 1, nxgrid
        dst_area(Interp%i_dst(i), Interp%j_dst(i)) = dst_area(Interp%i_dst(i), Interp%j_dst(i)) + xgrid_area(i)       
     end do    
@@ -379,28 +414,34 @@ contains
 
   !#######################################################################
   !<PUBLICROUTINE INTERFACE="horiz_interp_conserve_new">
-  subroutine horiz_interp_conserve_new_2dx1d ( Interp, lon_in, lat_in, lon_out, lat_out, mask_in, mask_out, verbose)
+  subroutine horiz_interp_conserve_new_2dx1d ( Interp, lon_in, lat_in, lon_out, lat_out, &
+                                               mask_in, mask_out, verbose)
     type(horiz_interp_type),        intent(inout) :: Interp
     real, intent(in),              dimension(:,:) :: lon_in , lat_in
     real, intent(in),              dimension(:)   :: lon_out, lat_out
     real, intent(in),    optional, dimension(:,:) :: mask_in
     real, intent(inout), optional, dimension(:,:) :: mask_out
     integer, intent(in), optional                 :: verbose
+
   !</PUBLICROUTINE>
 
     integer :: create_xgrid_2DX1D_order1, get_maxxgrid, maxxgrid
-    integer :: nlon_in, nlat_in, nlon_out, nlat_out, nxgrid, i
+    integer :: create_xgrid_great_circle
+    integer :: nlon_in, nlat_in, nlon_out, nlat_out, nxgrid, i, j
     real, dimension(size(lon_in,1)-1, size(lon_in,2)-1) :: mask_src
     integer, allocatable, dimension(:)   :: i_src, j_src, i_dst, j_dst
-    real,    allocatable, dimension(:)   :: xgrid_area
-    real,    allocatable, dimension(:,:) :: dst_area
+    real,    allocatable, dimension(:)   :: xgrid_area, clon, clat
+    real,    allocatable, dimension(:,:) :: dst_area, lon_dst, lat_dst
+
+    if(.not. module_is_initialized) call mpp_error(FATAL, &
+         'horiz_interp_conserve_new_2dx1d: horiz_interp_conserve_init is not called')
 
     if( (size(lon_in,1) .NE. size(lat_in,1)) .OR. (size(lon_in,2) .NE. size(lat_in,2)) )  &
         call mpp_error(FATAL, 'horiz_interp_conserve_mod: size mismatch between lon_in and lat_in')
     nlon_in  = size(lon_in,1)   - 1;  nlat_in  = size(lon_in,2)   - 1
     nlon_out = size(lon_out(:)) - 1;  nlat_out = size(lat_out(:)) - 1
 
-    mask_src = 1
+    mask_src = 1.
     if(present(mask_in)) then
        if( (size(mask_in,1) .NE. nlon_in) .OR.  (size(mask_in,2) .NE. nlat_in)) call mpp_error(FATAL, &
          'horiz_interp_conserve_mod: size mismatch between mask_in and lon_in/lat_in')
@@ -411,8 +452,22 @@ contains
     allocate(i_src(maxxgrid), j_src(maxxgrid), i_dst(maxxgrid), j_dst(maxxgrid) )
     allocate( xgrid_area(maxxgrid), dst_area(nlon_out, nlat_out) )
 
-    nxgrid = create_xgrid_2DX1D_order1(nlon_in, nlat_in, nlon_out, nlat_out, lon_in, lat_in, lon_out, lat_out, &
+    if( .not. great_circle_algorithm ) then    
+       nxgrid = create_xgrid_2DX1D_order1(nlon_in, nlat_in, nlon_out, nlat_out, lon_in, lat_in, lon_out, lat_out, &
                                        mask_src, i_src, j_src, i_dst, j_dst, xgrid_area)
+    else
+       allocate(lon_dst(nlon_out+1, nlat_out+1), lat_dst(nlon_out+1, nlat_out+1) )
+       allocate(clon(maxxgrid), clat(maxxgrid))   
+       do j = 1, nlat_out+1
+          do i = 1, nlon_out+1
+             lon_dst(i,j) = lon_out(i)
+             lat_dst(i,j) = lat_out(j)
+          enddo
+       enddo
+       nxgrid =  create_xgrid_great_circle(nlon_in, nlat_in, nlon_out, nlat_out, lon_in, lat_in, lon_dst, lat_dst, &
+                                          mask_src, i_src, j_src, i_dst, j_dst, xgrid_area, clon, clat)
+       deallocate(lon_dst, lat_dst, clon, clat)
+    endif
     allocate(Interp%i_src(nxgrid), Interp%j_src(nxgrid) )
     allocate(Interp%i_dst(nxgrid), Interp%j_dst(nxgrid) )
     allocate(Interp%area_frac_dst(nxgrid) )
@@ -424,7 +479,7 @@ contains
     Interp%j_dst = j_dst(1:nxgrid)+1
 
     ! sum over exchange grid area to get destination grid area
-    dst_area = 0
+    dst_area = 0.
     do i = 1, nxgrid
        dst_area(Interp%i_dst(i), Interp%j_dst(i)) = dst_area(Interp%i_dst(i), Interp%j_dst(i)) + xgrid_area(i)       
     end do    
@@ -449,7 +504,8 @@ contains
 
   !#######################################################################
   !<PUBLICROUTINE INTERFACE="horiz_interp_conserve_new">
-  subroutine horiz_interp_conserve_new_2dx2d ( Interp, lon_in, lat_in, lon_out, lat_out, mask_in, mask_out, verbose)
+  subroutine horiz_interp_conserve_new_2dx2d ( Interp, lon_in, lat_in, lon_out, lat_out, &
+                                               mask_in, mask_out, verbose)
     type(horiz_interp_type),        intent(inout) :: Interp
     real, intent(in),              dimension(:,:) :: lon_in , lat_in
     real, intent(in),              dimension(:,:) :: lon_out, lat_out
@@ -459,11 +515,15 @@ contains
   !</PUBLICROUTINE>
 
     integer :: create_xgrid_2DX2D_order1, get_maxxgrid, maxxgrid
+    integer :: create_xgrid_great_circle
     integer :: nlon_in, nlat_in, nlon_out, nlat_out, nxgrid, i
     real, dimension(size(lon_in,1)-1, size(lon_in,2)-1) :: mask_src
     integer, allocatable, dimension(:)   :: i_src, j_src, i_dst, j_dst
-    real,    allocatable, dimension(:)   :: xgrid_area
+    real,    allocatable, dimension(:)   :: xgrid_area, clon, clat
     real,    allocatable, dimension(:,:) :: dst_area
+
+    if(.not. module_is_initialized) call mpp_error(FATAL, &
+         'horiz_interp_conserve_new_2dx2d: horiz_interp_conserve_init is not called')
 
     if( (size(lon_in,1) .NE. size(lat_in,1)) .OR. (size(lon_in,2) .NE. size(lat_in,2)) )  &
         call mpp_error(FATAL, 'horiz_interp_conserve_mod: size mismatch between lon_in and lat_in')
@@ -472,7 +532,7 @@ contains
     nlon_in  = size(lon_in,1)  - 1;  nlat_in  = size(lon_in,2)  - 1
     nlon_out = size(lon_out,1) - 1;  nlat_out = size(lon_out,2) - 1
 
-    mask_src = 1
+    mask_src = 1.
     if(present(mask_in)) then
        if( (size(mask_in,1) .NE. nlon_in) .OR.  (size(mask_in,2) .NE. nlat_in)) call mpp_error(FATAL, &
          'horiz_interp_conserve_mod: size mismatch between mask_in and lon_in/lat_in')
@@ -482,8 +542,17 @@ contains
     maxxgrid = get_maxxgrid()
     allocate(i_src(maxxgrid), j_src(maxxgrid), i_dst(maxxgrid), j_dst(maxxgrid) )
     allocate( xgrid_area(maxxgrid), dst_area(nlon_out, nlat_out) )
-    nxgrid = create_xgrid_2DX2D_order1(nlon_in, nlat_in, nlon_out, nlat_out, lon_in, lat_in, lon_out, lat_out, &
-                                       mask_src, i_src, j_src, i_dst, j_dst, xgrid_area)
+
+    if( .not. great_circle_algorithm ) then   
+       nxgrid = create_xgrid_2DX2D_order1(nlon_in, nlat_in, nlon_out, nlat_out, lon_in, lat_in, lon_out, lat_out, &
+                                       mask_src, i_src, j_src, i_dst, j_dst, xgrid_area) 
+    else
+       allocate(clon(maxxgrid), clat(maxxgrid))   
+       nxgrid =  create_xgrid_great_circle(nlon_in, nlat_in, nlon_out, nlat_out, lon_in, lat_in, lon_out, lat_out, &
+                                          mask_src, i_src, j_src, i_dst, j_dst, xgrid_area, clon, clat)
+       deallocate(clon, clat)
+    endif
+
     allocate(Interp%i_src(nxgrid), Interp%j_src(nxgrid) )
     allocate(Interp%i_dst(nxgrid), Interp%j_dst(nxgrid) )
     allocate(Interp%area_frac_dst(nxgrid) )
@@ -495,7 +564,7 @@ contains
     Interp%j_dst = j_dst(1:nxgrid)+1
 
     ! sum over exchange grid area to get destination grid area
-    dst_area = 0
+    dst_area = 0.
     do i = 1, nxgrid
        dst_area(Interp%i_dst(i), Interp%j_dst(i)) = dst_area(Interp%i_dst(i), Interp%j_dst(i)) + xgrid_area(i)       
     end do    

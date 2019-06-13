@@ -1,6 +1,36 @@
 EXPID:  OutputDir/GCHP
 EXPDSC: GEOS-Chem_devel
 CoresPerNode: 6
+VERSION: 1
+
+#==============================================================================
+# Declare and define output grids. Add additional as needed.
+#==============================================================================
+GRID_LABELS: PC180x91-DC
+             PC360x181-DC
+             PE24x144-CF
+    ::
+    
+    PC180x91-DC.GRID_TYPE: LatLon
+    PC180x91-DC.IM_WORLD: 180
+    PC180x91-DC.JM_WORLD: 91
+    PC180x91-DC.POLE: PC
+    PC180x91-DC.DATELINE: DC
+    PC180x91-DC.LM: 72
+    
+    PC360x181-DC.GRID_TYPE: LatLon
+    PC360x181-DC.IM_WORLD: 360
+    PC360x181-DC.JM_WORLD: 181
+    PC360x181-DC.POLE: PC
+    PC360x181-DC.DATELINE: DC
+    PC360x181-DC.LM: 72
+
+    PE24x144-CF.GRID_TYPE: Cubed-Sphere
+    PE24x144-CF.IM_WORLD: 24
+    PE24x144-CF.JM_WORLD: 144
+    PE24x144-CF.POLE: PC
+    PE24x144-CF.DATELINE: DC
+    PE24x144-CF.LM: 72
 
 #===================================================================
 # Declare collection names and toggle on/off
@@ -23,7 +53,8 @@ COLLECTIONS: #'AerosolMass'
              #'WetLossConv',
              #'WetLossLS',
 ::
-#===================================================================
+#==============================================================================
+# Define collections
 # The rest of this file consists of collection definitions.
 # Above collections whose declarations are commented out will be ignored.
 # You can skip individual diagnostics by commenting them out.
@@ -31,7 +62,15 @@ COLLECTIONS: #'AerosolMass'
 # WARNING: Frequency, duration, and mode will be over-written with
 # settings in runConfig.sh. Edit those settings there. Add collections
 # as needed to that file as needed or edit in place new collections here.
-#===================================================================
+# NOTES:
+#    (1) Specify output grid in collection with grid_label keyword, referencing
+#        grid label defined above. For example,
+#           SpeciesConc.grid_label: PC180x91-DC
+#    (2) If output is on lat-lon grid, specify conservative regridding 
+#        with conservative keyword. For example,
+#           SpeciesConc.conservative: 1
+#    (3) Specifying output grid is optional; default is native cubed-sphere
+#==============================================================================
 # Emissions (see HEMCO_Diagn.rc for additional config settings)
   Emissions.template:         '%y4%m2%d2_%h2%n2z.nc4',
   Emissions.format:           'CFIO',

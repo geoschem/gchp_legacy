@@ -1,6 +1,6 @@
 module get_cal_time_mod
 
-!   <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">
+!   <CONTACT EMAIL="fms@gfdl.noaa.gov">
 !     fms
 !   </CONTACT>
 !   <OVERVIEW>
@@ -39,8 +39,8 @@ logical :: allow_calendar_conversion=.true.
 namelist / get_cal_time_nml / allow_calendar_conversion
 ! </NAMELIST>
 
-character(len=128) :: version='$Id$'
-character(len=128) :: tagname='$Name$'
+! Include variable "version" to be written to log file.
+#include<file_version.h>
 
 contains
 !------------------------------------------------------------------------
@@ -166,7 +166,8 @@ logical :: permit_conversion_local
 
 if(.not.module_is_initialized) then
 #ifdef INTERNAL_FILE_NML
-      read (input_nml_file, get_cal_time_nml, iostat=io)
+    read (input_nml_file, get_cal_time_nml, iostat=io)
+    ierr = check_nml_error (io, 'get_cal_time_nml')
 #else
   namelist_unit = open_namelist_file()
   ierr=1
@@ -177,7 +178,7 @@ if(.not.module_is_initialized) then
   20 call close_file (namelist_unit)
 #endif
 
-  call write_version_number (version, tagname)
+  call write_version_number("GET_CAL_TIME_MOD", version)
   logunit = stdlog()
   if(mpp_pe() == mpp_root_pe()) write (logunit, nml=get_cal_time_nml)
   module_is_initialized = .true.

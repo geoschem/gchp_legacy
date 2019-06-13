@@ -1,3 +1,4 @@
+#include "unused_dummy.H"
 !==============================================================================
 !BOP
 ! !MODULE: ESMF_CFIOVarInfoMod.F90 - Source file for CFIO VarInfo
@@ -110,7 +111,9 @@
 !------------------------------------------------------------------------------
       type(ESMF_CFIOVarInfo) :: varObj ! a CFIO grid object
       integer :: rtcode = 0
-      
+
+      _UNUSED_DUMMY(vName)
+
       varObj%grid = ESMF_CFIOGridCreate(rc=rtcode)
       if (rtcode .ne. 0) then 
          print *, "problem in getting ESMF_CFIOGridCreate:lon"

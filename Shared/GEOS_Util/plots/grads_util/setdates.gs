@@ -34,8 +34,8 @@ else
 
 * Compute TIME Boundaries based on CLIM tabl file
 * -----------------------------------------------
-if(  basename = clim.tabl )
-
+    begYYYYMM = 'NULL'
+    endYYYYMM = 'NULL'
     'q ctlinfo'
     title = sublin(result,2)
     n = 1
@@ -48,6 +48,23 @@ if(  basename = clim.tabl )
         endYYYYMM = subwrd(title,n+3)
     endif
     endwhile
+
+*if(  basename = clim.tabl )
+
+*    'q ctlinfo'
+*    title = sublin(result,2)
+*    n = 1
+*    word = subwrd(title,n)
+*    while( word != '' )
+*    n = n + 1
+*    word = subwrd(title,n)
+*    if(    word = "Climatology:" )
+*        begYYYYMM = subwrd(title,n+1)
+*        endYYYYMM = subwrd(title,n+3)
+*    endif
+*    endwhile
+
+if( begYYYYMM != 'NULL' & endYYYYMM != 'NULL' )
 
      begyear  = substr(begYYYYMM,1,4)
      begmonth = substr(begYYYYMM,5,2)

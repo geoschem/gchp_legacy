@@ -2,7 +2,7 @@
 $Id$
 
 Earth System Modeling Framework
-Copyright 2002-2018, University Corporation for Atmospheric Research,
+Copyright 2002-2019, University Corporation for Atmospheric Research,
 Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 Laboratory, University of Michigan, National Centers for Environmental
 Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -61,8 +61,8 @@ to have them by letting us write conditional code.
 
 #if 0
 Older PGI compilers had a bug which prevents forward pointer references from
-working if also using the sequence keyword.  for PGI only, dont sequence
-the State derived types.
+working if also using the sequence keyword. Don't sequence some select derived
+types to avoid issues.
 #endif
 
 #if (ESMF_PGIVERSION_MAJOR < 8)

@@ -56,8 +56,7 @@
 #if defined(HDFEOS)
       use ESMF_CFIOEOSMod
 #endif
-      use ESMF_CFIOGrADSMod
-      use m_chars
+      use esmf, only: ESMF_UtilStringUpperCase
       implicit none
 !------------------------------------------------------------------------------
 ! !PRIVATE TYPES:
@@ -163,25 +162,18 @@
  
       myFormat = 'SDF'
       if (present(format)) then
-         if (trim(uppercase(format)) .eq. 'GRADS' )  then
+         if (trim(ESMF_UtilStringUpperCase(format)) .eq. 'GRADS' )  then
              call ESMF_CFIOSet(cfio, format='GRADS')
              myFormat = 'GRADS' 
          end if
 #if defined(HDFEOS)
-         if (trim(uppercase(format)) .eq. 'EOS' )  then
+         if (ESMF_UtilStringUpperCase(format)) .eq. 'EOS' )  then
              call ESMF_CFIOSet(cfio, format='EOS')
              myFormat = 'EOS' 
          end if
 #endif
       end if
       select case (myFormat)
-      case ('GRADS')
-         if (present(expid)) then
-            call ESMF_CFIOGrADSFileCreate (cfio, rtcode, expid)
-         else
-            call ESMF_CFIOGrADSFileCreate (cfio, rtcode)
-         end if
-         return
       case ('SDF')
          if (present(expid)) then
             call ESMF_CFIOSdfFileCreate (cfio, rtcode, expid)
@@ -236,11 +228,11 @@
 !     Read a variable from an existing file
 !EOP
 !------------------------------------------------------------------------------
-      integer :: curStep, i, j, k, rtcode
+      integer :: i, rtcode
       integer :: myKbeg, myKount
       integer :: myXbeg, myXount
       integer :: myYbeg, myYount
-      integer :: myDate, myBegDate, myCurTime, myTimeInc, begTime
+      integer :: myDate, myCurTime
       integer :: im, jm, km
       integer :: nVars
       type(ESMF_CFIOGrid) :: grid
@@ -270,6 +262,7 @@
          if (km .lt. 1) km = 1
          if ( trim(vName) .eq. trim(myName) ) exit
       end do
+!@      call ESMF_CFIOVarInfoDestroy(vars,rtcode)
       deallocate(vars)
 
       myKbeg = 1
@@ -288,12 +281,6 @@
 
       myFormat = trim(format)
       select case (myFormat)
-      case ('GRADS')
-        call ESMF_CFIOGrADSVarRead(cfio, vName, field, date=myDate,          &
-                                   curTime=myCurTime, rc=rtcode)
-        if ( rtcode .ne. 0 ) print *, "problem in GrADS_read"
-        if ( present(rc) ) rc= rtcode
-        return
       case ('SDF')
         call ESMF_CFIOSdfVarRead(cfio, vName, field, date=myDate,            &
                                  curTime=myCurTime, kBeg=myKbeg,             &
@@ -344,11 +331,11 @@
 !     Read a variable from an existing file
 !EOP
 !------------------------------------------------------------------------------
-      integer :: curStep, i, j, k, rtcode
+      integer :: i, rtcode
       integer :: myKbeg, myKount
       integer :: myXbeg, myXount
       integer :: myYbeg, myYount
-      integer :: myDate, myBegDate, myCurTime, myTimeInc, begTime
+      integer :: myDate,  myCurTime
       integer :: im, jm, km
       integer :: nVars
       type(ESMF_CFIOGrid) :: grid
@@ -379,6 +366,7 @@
          if ( trim(vName) .eq. trim(myName) ) exit
       end do
 
+!@      call ESMF_CFIOVarInfoDestroy(vars,rtcode)
       deallocate(vars)
 
       myKbeg = 1
@@ -397,12 +385,6 @@
 
       myFormat = trim(format)
       select case (myFormat)
-      case ('GRADS')
-        call ESMF_CFIOGrADSVarRead(cfio, vName, field, date=myDate,            &
-                                   curTime=myCurTime, rc=rtcode)
-        if ( rtcode .ne. 0 ) print *, "problem in GrADS_read"
-        if ( present(rc) ) rc= rtcode
-        return
       case ('SDF')
         call ESMF_CFIOSdfVarRead(cfio, vName, field, date=myDate,            &
                                  curTime=myCurTime, kBeg=myKbeg,             &
@@ -449,14 +431,13 @@
 !     Read a variable from an existing file
 !EOP
 !------------------------------------------------------------------------------
-      integer :: curStep, i, j, k, rtcode
+      integer :: rtcode
       integer :: myXbeg, myXount
-      integer :: myDate, myCurTime, myTimeInc, begTime
+      integer :: myDate, myCurTime
       integer :: im
       integer :: nVars
       type(ESMF_CFIOGrid), pointer :: grid
       type(ESMF_CFIOVarInfo), pointer :: vars(:)
-      character(len=MLEN) :: myName
       character(len=MLEN) :: format
 
 
@@ -474,6 +455,7 @@
       call ESMF_CFIOGridGet(grid, im=im, rc=rtcode)
       if ( rtcode .ne. 0 ) print *, "problem in calling ESMF_CFIORead"
 
+!@      call ESMF_CFIOVarInfoDestroy(vars,rtcode)
       deallocate(vars)
 
       myXbeg = 1
@@ -558,7 +540,7 @@
 !EOP
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
-      integer :: i, rtcode
+      integer :: rtcode
       integer :: myDate, myCurTime
       character(len=16) :: format
       logical :: do_comp, do_chunk
@@ -575,11 +557,6 @@
       if ( rtcode .ne. 0 ) print *, "problem in ESMF_CFIOWrite in calling ESMF_CFIOGet"
 
       select case (format)
-      case ('GRADS')
-         call ESMF_CFIOGrADSVarWrite(cfio, vName, field, date, curTime, rc=rtcode)
-         if ( rtcode .ne. 0 ) print *, "problem in wGrADS_write"
-         if (present(rc)) rc = rtcode
-         return
       case ('SDF')
          if (present(kbeg) .and. present(kount)) then
             call ESMF_CFIOSdfVarWrite(cfio, vName, field, date=myDate,  &
@@ -675,8 +652,7 @@
 !EOP
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
-      integer :: i, rtcode
-      integer :: myKbeg, myKount
+      integer :: rtcode
       integer :: myDate, myCurTime
       character(len=16) :: format
       logical :: do_comp, do_chunk
@@ -694,11 +670,6 @@
       if ( rtcode .ne. 0 ) print *, "problem in ESMF_CFIOWrite in calling ESMF_CFIOGet"
 
       select case (format)
-      case ('GRADS')
-         call ESMF_CFIOGrADSVarWrite(cfio, vName, field, date, curTime, rc=rtcode)
-         if ( rtcode .ne. 0 ) print *, "problem in wGrADS_write"
-         if (present(rc)) rc = rtcode
-         return
       case ('SDF')
          if (present(kbeg) .and. present(kount)) then
            call ESMF_CFIOSdfVarWrite(cfio, vName, field, date=myDate,  &
@@ -790,7 +761,6 @@
 !------------------------------------------------------------------------------
       integer :: rtcode
       integer :: myDate, myCurTime
-      character(len=MLEN) :: fNameTmp     ! file name
       character(len=16) :: format
 
       if ( present(date) ) myDate = date
@@ -800,10 +770,6 @@
       call ESMF_CFIOGet(cfio, format=format, rc=rtcode)
       if ( rtcode .ne. 0 ) print *, "problem in ESMF_CFIOWrite in calling ESMF_CFIOGet"
       select case (format)
-      case ('GRADS')
-         print *, "No way to write 1D GrADS file."
-         if (present(rc)) rc = rtcode
-         return
       case ('SDF')
          call ESMF_CFIOSdfVarWrite(cfio, vName, field, date=myDate,  &
                         curTime=myCurTime, rc=rtcode)
@@ -868,20 +834,11 @@
 !     open a CFIO file, and get CFIO meta data into a cfio Object.
 !EOP
 !------------------------------------------------------------------------------
-      integer :: rtcode, i
-      character(len=MVARLEN),dimension(:),pointer :: grads_vars
+      integer :: rtcode
       character(len=16) :: dset
       character(len=16) :: format 
       logical :: ex
       character(len=MLEN) :: fileName
-      character(len=MVARLEN) :: varName
-      integer :: im, jm, km
-      integer :: nVars, nSteps
-      type(ESMF_CFIOGrid) :: grid
-      type(ESMF_CFIOVarInfo), pointer :: vars(:)
-      logical :: twoD
-      real :: amiss
-      real, pointer :: lon(:), lat(:), lev(:)
       logical :: myCyclic 
 
 
@@ -895,7 +852,7 @@
       call ESMF_CFIOGet(cfio, fName=fileName)
       inquire(file=fileName, EXIST=ex)
       if ( .not. ex ) then
-         print *, trim(fileName), " doesn't exist"
+         print *, trim(fileName), "doesn't exist"
          return
       end if
       open(11, file=fileName)
@@ -909,16 +866,6 @@
       end if
  
       select case (format)
-      case ('GRADS')
-         if ( present(expid) ) then
-            call ESMF_CFIOGrADSFileOpen (cfio, fmode, rc=rtcode, expid=expid, cyclic=myCyclic)
-         else
-            call ESMF_CFIOGrADSFileOpen (cfio, fmode, rc=rtcode, cyclic=myCyclic)
-         end if
-         if (rtcode .ne. 0) print *, "Error in ESMF_CFIOGrADSFileOpen"
-         if ( present(rc) ) rc = rtcode
-         return
-
       case ('SDF')
          if ( present(expid) ) then
             call ESMF_CFIOSdfFileOpen (cfio, fmode, rc=rtcode, expid=expid, cyclic=myCyclic)
@@ -963,11 +910,6 @@
       if (rtcode .ne. 0) print *, "Error in ESMF_CFIOGet in FileClose"
 
       select case (format)
-      case ('GRADS')
-          call ESMF_CFIOGrADSFileClose(cfio,rtcode)
-          if (rtcode .ne. 0) print *, "wGrADS_close failed"
-          if ( present(rc) ) rc = rtcode
-          return
       case ('SDF')
           call ESMF_CFIOSdfFileClose(cfio,rtcode)
           if (rtcode .ne. 0) print *, "Error in ESMF_CFIOFileClose"
@@ -1300,7 +1242,6 @@
       integer secs, secs1, secs2, nymd1, nymd2, nhms1, nhms2
       integer i, j, k
       integer im, jm, km
-      character*8 :: strBuf
       integer :: hour, min, sec
       logical ialloc,foundvar
                                                                                          
@@ -1538,9 +1479,8 @@
       integer rtcode
       integer begDate, begTime, incSecs, timeIndex1, timeIndex2
       integer secs, secs1, secs2, nymd1, nymd2, nhms1, nhms2
-      integer i, j, k
+      integer i, j
       integer im, jm, km
-      character*8 :: strBuf
       integer :: hour, min, sec
                                                                                          
       real    alpha, amiss

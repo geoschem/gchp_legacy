@@ -1,10 +1,15 @@
-! $Id: allreducesum.H,v 1.1 2009-02-23 20:01:21 trayanov Exp $
+! $Id$
 
 #ifdef NAME_
 #undef NAME_
 #endif
 
+#ifdef NAMESTR_
+#undef NAMESTr_
+#endif
+
 #define NAME_ MAPL_CommsAllReduceSum_
+#define NAMESTR_ 'MAPL_CommsAllReduceSum_'
 
 #include "overload.macro"
 
@@ -20,19 +25,21 @@
     integer                               :: comm
 
     call ESMF_VMGet(vm, mpiCommunicator=COMM, rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call mpi_allreduce ( sendbuf, recvbuf, cnt, MPITYPE_, &
                          MPI_SUM, comm, status )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
 
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
   END SUBROUTINE SUB_
 
 #undef NAME_
+#undef NAMESTR_
 
 #undef DIMENSIONS_
 #undef RANK_
+#undef RANKSTR_
 #undef VARTYPE_
 

@@ -3,6 +3,12 @@
 set datetime = `date +%Y%m%d_%H%M%S`
 cat $1 | sed -e 's/,/ , /g' > HISTORYRC.$datetime
 
+if( .$2 == . ) then
+    set PLOT_SCRIPTS = `echo $GEOSUTIL/plots/landscape.script $GEOSUTIL/plots/portrait.script`
+else
+    set PLOT_SCRIPTS = `echo $GEOSUTIL/plots/$2`
+endif
+
 set exports = ''
 set collections = `$GEOSUTIL/post/get_streams HISTORYRC.$datetime`
 
@@ -77,7 +83,7 @@ foreach export ($exports)
                              | grep -v "RH2:MOIST" \
                              | grep -v  "O3:CHEMISTRY" `
     if( $#tst1 != 0 ) then
-      set   tst2 = `grep $tst1 $GEOSUTIL/plots/landscape.script $GEOSUTIL/plots/portrait.script`
+      set   tst2 = `grep $tst1 $PLOT_SCRIPTS`
       if( $#tst2 == 0 | .$2 == .Check_ALL ) set dum = `echo $dum $tst1`
     endif
 end

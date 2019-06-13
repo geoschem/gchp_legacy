@@ -1,23 +1,39 @@
 function makplotz (args)
-                            k = 1
-name     = subwrd(args,k) ; k = k+1
-expid    = subwrd(args,k) ; k = k+1
-prefix   = subwrd(args,k) ; k = k+1
-season   = subwrd(args,k) ; k = k+1
-output   = subwrd(args,k) ; k = k+1
-mfile    = subwrd(args,k) ; k = k+1
-mdesc    = subwrd(args,k) ; k = k+1
-ofile    = subwrd(args,k) ; k = k+1
-oname    = subwrd(args,k) ; k = k+1
-odesc    = subwrd(args,k) ; k = k+1
-rfile    = subwrd(args,k) ; k = k+1
-bdate    = subwrd(args,k) ; k = k+1
-edate    = subwrd(args,k) ; k = k+1
-bdateo   = subwrd(args,k) ; k = k+1
-edateo   = subwrd(args,k) ; k = k+1
-climate  = subwrd(args,k) ; k = k+1
-gridcomp = subwrd(args,k) ; k = k+1
-math     = subwrd(args,k) ; k = k+1
+
+'numargs  'args
+ numargs = result
+
+* Initialize INPUT Parameters
+* ---------------------------
+        num = 0
+while ( num < numargs )
+        num = num + 1
+
+if( subwrd(args,num) = '-MVAR'     ) ; mvar     = subwrd(args,num+1) ; say 'mvar  = 'mvar  ; endif
+if( subwrd(args,num) = '-MNAME'    ) ; mname    = subwrd(args,num+1) ; say 'mname = 'mname ; endif
+if( subwrd(args,num) = '-MFILE'    ) ; mfile    = subwrd(args,num+1) ; say 'mfile = 'mfile ; endif
+if( subwrd(args,num) = '-MDESC'    ) ; mdesc    = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-MBEGDATE' ) ; bdate    = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-MENDDATE' ) ; edate    = subwrd(args,num+1) ; endif
+
+if( subwrd(args,num) = '-OVAR'     ) ; ovar     = subwrd(args,num+1) ; say 'ovar  = 'ovar  ; endif
+if( subwrd(args,num) = '-ONAME'    ) ; oname    = subwrd(args,num+1) ; say 'oname = 'oname ; endif
+if( subwrd(args,num) = '-OFILE'    ) ; ofile    = subwrd(args,num+1) ; say 'ofile = 'ofile ; endif
+if( subwrd(args,num) = '-ODESC'    ) ; odesc    = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-OBEGDATE' ) ; bdateo   = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-OENDDATE' ) ; edateo   = subwrd(args,num+1) ; endif
+
+if( subwrd(args,num) = '-EXPID'    ) ; expid    = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-PREFIX'   ) ; prefix   = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-SEASON'   ) ; season   = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-OUTPUT'   ) ; output   = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-CLIMATE'  ) ; climate  = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-GC'       ) ; gridcomp = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-MATH'     ) ; math     = subwrd(args,num+1) ; endif
+if( subwrd(args,num) = '-RGFILE'   ) ; rfile    = subwrd(args,num+1) ; endif
+
+endwhile
+* ---------------------------
 
 if( math = NULL ) ; math = '' ; endif
 
@@ -43,7 +59,7 @@ grid  = 'NULL'
 
 * Check for Existance of NAME Specific plot.rc
 * --------------------------------------------
-PLOTRC = geosutil'/plots/'name'/plot.rc'
+PLOTRC = geosutil'/plots/'mname'/plot.rc'
 
 '!remove   grads.txt'
 '!listfile 'PLOTRC' > grads.txt'
@@ -83,31 +99,34 @@ else
 * ---------------------------------------------
 PLOTRC = geosutil'/plots/grads_util/plot.rc'
 
-                        'getresource 'PLOTRC' 'name'_'gridcomp'_'level'_CBSCALE'
-if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'name'_'gridcomp'_CBSCALE' ; endif
+                        'getresource 'PLOTRC' 'mname'_'gridcomp'_'level'_CBSCALE'
+if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'mname'_'gridcomp'_CBSCALE' ; endif
                                                                 cbscale = result
 
-                        'getresource 'PLOTRC' 'name'_'gridcomp'_'level'_TITLE'
-if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'name'_'gridcomp'_TITLE' ; endif
+                        'getresource 'PLOTRC' 'mname'_'gridcomp'_'level'_TITLE'
+if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'mname'_'gridcomp'_TITLE' ; endif
                                                                 title = result
 
-                        'getresource 'PLOTRC' 'name'_'gridcomp'_'level'_CCOLS'
-if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'name'_'gridcomp'_CCOLS' ; endif
+                        'getresource 'PLOTRC' 'mname'_'gridcomp'_'level'_CCOLS'
+if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'mname'_'gridcomp'_CCOLS' ; endif
                                                                 ccols = result
 
-                        'getresource 'PLOTRC' 'name'_'gridcomp'_'level'_CLEVS'
-if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'name'_'gridcomp'_CLEVS' ; endif
+                        'getresource 'PLOTRC' 'mname'_'gridcomp'_'level'_CLEVS'
+if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'mname'_'gridcomp'_CLEVS' ; endif
                                                                 clevs = result
 
-                        'getresource 'PLOTRC' 'name'_'gridcomp'_REGRID'
+                        'getresource 'PLOTRC' 'mname'_'gridcomp'_REGRID'
                                                                 method = result
+
+if( axlim = 'NULL' ) ; 'getresource 'PLOTRC' 'mname'_'gridcomp'_AXLIM'math ; endif ; axlim =  result
+
 endif
 
 say ''
 if( title  = 'NULL' )
-   'getdesc 'name
+   'getdesc 'mname
              desc = result
-    title = name':'gridcomp'  'desc
+    title = mname':'gridcomp'  'desc
 endif
 
 if( axlim != NULL )
@@ -118,8 +137,8 @@ endif
 
 * Perform Mathematics if necessary
 * --------------------------------
-'define qmod = qmod'season
-'define qobs = qobs'season
+'define qmod = 'mvar''season
+'define qobs = 'ovar''season
 
 m = 0
 if( ccols = NULL )
@@ -184,31 +203,27 @@ endif
 
 * Count Seasons
 * -------------
-'set dfile 'ofile
-'count "'season'"'
- nobs = result
-
-'getinfo xdim'
-         xdim = result
-if( xdim = 540 ) ; 'set dfile 'mfile ; endif
-
-* Set DFILE to REGRID File to enable zonal averages with proper dimensions
-* ------------------------------------------------------------------------
-'set dfile 'rfile
-'setlons'
-'setlats'
-'makez qobs z'
-
 'set dfile 'mfile
 'count "'season'" 'bdate' 'edate
  nmod = result
 
+'set dfile 'ofile
+'count "'season'" 'bdateo' 'edateo
+ nobs = result
+
 * Set DFILE to REGRID File to enable zonal averages with proper dimensions
 * ------------------------------------------------------------------------
 'set dfile 'rfile
 'setlons'
 'setlats'
+'define qobs = maskout(qobs,abs(qmod))'
+'define qmod = maskout(qmod,abs(qobs))'
+
+'makez qobs z'
 'makez qmod z'
+
+'setlons'
+'setlats'
 
 'set dfile 'mfile
 'set t   1'
@@ -217,8 +232,25 @@ if( xdim = 540 ) ; 'set dfile 'mfile ; endif
 'set vpage 0 8.5 0 11'
 'set parea .8 8 4 9'
 if( ylab  != NULL ) ; 'set ylab  'ylab  ; endif
-if( axlim != NULL ) ; 'set axlim 'axlim ; endif
 if( grid  != NULL ) ; 'set grid  'grid  ; endif
+
+if( axlim = NULL ) 
+   'minmax qobsz'
+           qmax = subwrd(result,1)
+           qmin = subwrd(result,2)
+   'minmax qmodz'
+           dmax = subwrd(result,1)
+           dmin = subwrd(result,2)
+       if( dmax > qmax ) ; qmax = dmax ; endif
+       if( dmin < qmin ) ; qmin = dmin ; endif
+       qave = (qmax + qmin)/2
+       qdel = (qmax - qave)*1.10
+      axmax =  qave + qdel
+      axmin =  qave - qdel
+      axlim = ''axmin' 'axmax
+endif
+
+'set axlim 'axlim
 
 'set grads off'
 'set cmark  0'
@@ -280,7 +312,12 @@ eyearo = subwrd(date,2)
 'set string 1 c 6'
 * --------------------------------
 
-'myprint -name 'output'/'name'_z_'PFX''oname'.'season
+if( math = LOG )
+    mathparm = 'LOG_'
+else
+    mathparm = ''
+endif
+'myprint -name 'output'/'mname'_z_'mathparm''PFX''oname'.'season
 
 'set mproj latlon'
 return

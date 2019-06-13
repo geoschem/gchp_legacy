@@ -1,40 +1,35 @@
 module external_ic_mod
 
 #ifdef MAPL_MODE
-#define DEALLOCGLOB_(A) if(associated(A)) then;A=0;call MAPL_DeAllocNodeArray(A,rc=STATUS);if(STATUS==MAPL_NoShm) deallocate(A,stat=STATUS);NULLIFY(A);endif
+#define DEALLOCGLOB_(A) if(associated(A)) then;A=0;if(MAPL_ShmInitialized) then; call MAPL_DeAllocNodeArray(A,rc=status);else; deallocate(A);endif;NULLIFY(A);endif
 #endif
 
 #ifndef DYCORE_SOLO
    use amip_interp_mod,    only: i_sst, j_sst, sst_ncep
 #endif
+   use fv_arrays_mod,      only: REAL4, REAL8, FVPRC, R_GRID
    use fms_mod,            only: file_exist, read_data, field_exist
    use fms_io_mod,         only: get_tile_string, field_size
-   use mpp_mod,            only: mpp_error, FATAL, NOTE, mpp_broadcast
+   use mpp_mod,            only: mpp_error, FATAL, NOTE, mpp_broadcast,mpp_npes
    use mpp_parameter_mod,  only: AGRID_PARAM=>AGRID
    use mpp_domains_mod,    only: mpp_get_tile_id, domain2d, mpp_update_domains, mpp_get_boundary, DGRID_NE
    use tracer_manager_mod, only: get_tracer_names, get_number_tracers, get_tracer_index
    use field_manager_mod,  only: MODEL_ATMOS
 
-#ifndef MAPL_MODE
-   use constants_mod,     only: pi, omega, grav, kappa, rdgas, rvgas, cp_air
-#else
-   use MAPL_MOD,          only: MAPL_PI_R8, MAPL_OMEGA, MAPL_GRAV, &
-         MAPL_KAPPA, MAPL_RGAS, MAPL_RVAP, &
-         MAPL_CP
+   use constants_mod,     only: pi=>pi_8, omega, grav, kappa, rdgas, rvgas, cp_air
+#ifdef MAPL_MODE
    use MAPL_IOMod
    use MAPL_ShmemMod
+   use pFIO
 #endif
+   use, intrinsic :: iso_fortran_env, only: REAL64, REAL32
 
-   use fv_arrays_mod,     only: fv_atmos_type, FVPRC, REAL4, REAL8
+   use fv_arrays_mod,     only: fv_atmos_type, fv_grid_type, fv_grid_bounds_type
    use fv_diagnostics_mod,only: prt_maxmin
-   use fv_grid_tools_mod, only: grid, agrid, cubed_sphere,  &
-         dx,dy, dxa,dya, dxc,dyc, area, rarea
-   use fv_mp_mod,         only: gid, masterproc, domain, tile, ng, mp_barrier, mp_gather, mp_bcst, &
-         is,js,ie,je, isd,jsd,ied,jed, fill_corners, YDir, &
-         npes, npes_x, npes_y
-   use fv_grid_utils_mod, only: ptop_min, fc, f0, ew, es, g_sum, vlon, vlat,  &
-         edge_vect_s,edge_vect_n,edge_vect_w,edge_vect_e
-   use fv_grid_utils_mod, only: normalize_vect, a11, a12, a21, a22
+   use fv_mp_mod,         only: is_master, ng, mp_barrier, mp_gather, mp_bcst, &
+         is,js,ie,je, isd,jsd,ied,jed, fill_corners, YDir
+   use fv_grid_utils_mod, only: ptop_min
+   use fv_grid_utils_mod, only: normalize_vect
    use fv_mapz_mod,       only: mappm
    use fv_surf_map_mod,   only: surfdrv
    use fv_timing_mod,     only: timing_on, timing_off
@@ -45,7 +40,9 @@ module external_ic_mod
          get_var3_r4
 #endif
    use fv_timing_mod,      only: timing_on, timing_off
+   use mpp_mod,           only: mpp_pe
    use memutils_mod, only: print_memuse_stats
+   use fv_nwp_nudge_mod,  only: T_is_Tv
 
    implicit none
 
@@ -53,20 +50,12 @@ module external_ic_mod
 
    private
 
-#ifdef MAPL_MODE
-   real(REAL8), parameter :: PI           = MAPL_PI_R8
-   real(REAL8), parameter :: OMEGA        = MAPL_OMEGA
-   real(REAL8), parameter :: GRAV         = MAPL_GRAV
-   real(REAL8), parameter :: KAPPA        = MAPL_KAPPA
-   real(REAL8), parameter :: RDGAS        = MAPL_RGAS
-   real(REAL8), parameter :: RVGAS        = MAPL_RVAP
-   real(REAL8), parameter :: CP_AIR       = MAPL_CP
-#endif
+   real(FVPRC), parameter:: zvir = rvgas/rdgas - 1.
+   real(FVPRC) :: deg2rad
 
-   real, parameter:: zvir = rvgas/rdgas - 1.
-   real :: deg2rad
+   public get_external_ic,get_cubed_sphere_terrain
 
-   public get_external_ic
+   integer, SAVE :: tile, npes_x, npes_y
 
    integer :: status
    integer :: IUNIT=15
@@ -81,30 +70,33 @@ contains
       logical, optional,   intent(in)    :: use_geos_latlon_restart
       logical, optional,   intent(in)    :: use_geos_cubed_restart
       integer, optional,   intent(in)    :: ntracers(3)
-      real:: alpha = 0.
+      real(FVPRC):: alpha = 0.
       integer i,j,k,nq
+      logical :: cubed_sphere,fv_diag_ic
 
 ! * Initialize coriolis param:
 
       do j=jsd,jed+1
          do i=isd,ied+1
-            fc(i,j) = 2.*omega*( -1.*cos(grid(i,j,1))*cos(grid(i,j,2))*sin(alpha) + &
-                  sin(grid(i,j,2))*cos(alpha) )
+            Atm(1)%gridstruct%fc(i,j) = 2.*omega*( -1.*cos(Atm(1)%gridstruct%grid(i,j,1))*cos(Atm(1)%gridstruct%grid(i,j,2))*sin(alpha) + &
+                  sin(Atm(1)%gridstruct%grid(i,j,2))*cos(alpha) )
          enddo
       enddo
 
       do j=jsd,jed
          do i=isd,ied
-            f0(i,j) = 2.*omega*( -1.*cos(agrid(i,j,1))*cos(agrid(i,j,2))*sin(alpha) + &
-                  sin(agrid(i,j,2))*cos(alpha) )
+            Atm(1)%gridstruct%f0(i,j) = 2.*omega*( -1.*cos(Atm(1)%gridstruct%agrid(i,j,1))*cos(Atm(1)%gridstruct%agrid(i,j,2))*sin(alpha) + &
+                  sin(Atm(1)%gridstruct%agrid(i,j,2))*cos(alpha) )
          enddo
       enddo
 
-      call mpp_update_domains( f0, domain )
-      if ( cubed_sphere ) call fill_corners(f0, Atm(1)%npx, Atm(1)%npy, YDir)
+      cubed_sphere=.true.
+      fv_diag_ic=.false.
+      call mpp_update_domains( Atm(1)%gridstruct%f0, Atm(1)%domain )
+      if ( cubed_sphere ) call fill_corners(Atm(1)%gridstruct%f0, Atm(1)%npx, Atm(1)%npy, YDir)
 
 ! Read in cubed_sphere terrain
-      if ( Atm(1)%mountain ) then
+      if ( Atm(1)%flagstruct%mountain ) then
          call get_cubed_sphere_terrain(Atm, fv_domain)
       else
          Atm(1)%phis = 0.
@@ -120,7 +112,7 @@ contains
          allocate  ( Atm(1)%q(isd:ied,jsd:jed,Atm(1)%npz,Atm(1)%ncnst) )
          call get_geos_cubed_ic( Atm, fv_domain, Atm(1)%ncnst, ntracers )
       else
-         if ( Atm(1)%ncep_ic ) then
+         if ( Atm(1)%flagstruct%ncep_ic ) then
             nq = 1
             call timing_on('NCEP_IC')
             call get_ncep_ic( Atm, fv_domain, nq )
@@ -128,10 +120,10 @@ contains
 #ifndef MAPL_MODE          
 #ifndef NO_FV_TRACERS
             call fv_io_read_tracers( fv_domain, Atm )
-            if(gid==0) write(6,*) 'All tracers except sphum replaced by FV IC'
+            if(is_master()) write(6,*) 'All tracers except sphum replaced by FV IC'
 #endif
 #endif
-         elseif ( Atm(1)%fv_diag_ic ) then
+         elseif ( fv_diag_ic ) then
 ! Interpolate/remap diagnostic output from a FV model diagnostic output file on uniform lat-lon A grid:
             nq = size(Atm(1)%q,4)
 ! Needed variables: lon, lat, pfull(dim), zsurf, ps, ucomp, vcomp, w, temp, and all q
@@ -146,14 +138,14 @@ contains
          endif
       endif
 
-      call prt_maxmin('T', Atm(1)%pt, is, ie, js, je, ng, Atm(1)%npz, 1.d0, gid==0)
+      call prt_maxmin('T', Atm(1)%pt, is, ie, js, je, ng, Atm(1)%npz, 1.0_FVPRC)
 
       call p_var(Atm(1)%npz,  is, ie, js, je, Atm(1)%ak(1),  ptop_min,         &
             Atm(1)%delp, Atm(1)%delz, Atm(1)%pt, Atm(1)%ps,               &
             Atm(1)%pe,   Atm(1)%peln, Atm(1)%pk, Atm(1)%pkz,              &
-            kappa, Atm(1)%q, ng, Atm(1)%ncnst, Atm(1)%dry_mass,           &
-            Atm(1)%adjust_dry_mass, Atm(1)%mountain, Atm(1)%moist_phys,   &
-            Atm(1)%hydrostatic, Atm(1)%k_top, Atm(1)%nwat, Atm(1)%make_nh)
+            kappa, Atm(1)%q, ng, Atm(1)%ncnst, dble(Atm(1)%gridstruct%area),Atm(1)%flagstruct%dry_mass,           &
+            Atm(1)%flagstruct%adjust_dry_mass, Atm(1)%flagstruct%mountain, Atm(1)%flagstruct%moist_phys,   &
+            Atm(1)%flagstruct%hydrostatic, Atm(1)%flagstruct%nwat, Atm(1)%domain,Atm(1)%flagstruct%make_nh)
 
    end subroutine get_external_ic
 
@@ -167,7 +159,7 @@ contains
       character(len=64)    :: fname
       integer              ::  n
       integer              ::  jbeg, jend
-      real ftop
+      real(FVPRC) ftop
 
 #ifndef MAPL_MODE
 
@@ -186,7 +178,7 @@ contains
                   domain=fv_domain, tile_count=n)
          else
             call surfdrv(  Atm(n)%npx, Atm(n)%npy, grid, agrid,   &
-                  area, dx, dy, dxc, dyc, Atm(n)%phis, gid==0)
+                  area, dx, dy, dxc, dyc, Atm(n)%phis, is_master())
             call mpp_error(NOTE,'terrain datasets generated using USGS data')
          endif
 
@@ -195,8 +187,8 @@ contains
       call mpp_update_domains( Atm(1)%phis, domain )
       ftop = g_sum(Atm(1)%phis(is:ie,js:je), is, ie, js, je, ng, area, 1)
 
-      call prt_maxmin('ZS', Atm(1)%phis,  is, ie, js, je, ng, 1, 1./grav, gid==0)
-      if(gid==0) write(6,*) 'mean terrain height (m)=', ftop/grav
+      call prt_maxmin('ZS', Atm(1)%phis,  is, ie, js, je, ng, 1, 1./grav)
+      if(is_master()) write(6,*) 'mean terrain height (m)=', ftop/grav
 
       deallocate( tile_id )
 
@@ -212,13 +204,13 @@ contains
 ! local:
       character(len=128) :: fname, tracer_name
       real(kind=4), allocatable:: wk1(:), wk2(:,:), wk3(:,:,:)
-      real, allocatable:: tp(:,:,:), qp(:,:,:,:)
-      real, allocatable:: ua(:,:,:), va(:,:,:), wa(:,:,:)
-      real, allocatable:: lat(:), lon(:), ak0(:), bk0(:)
-      real:: s2c(is:ie,js:je,4)
+      real(FVPRC), allocatable:: tp(:,:,:), qp(:,:,:,:)
+      real(FVPRC), allocatable:: ua(:,:,:), va(:,:,:), wa(:,:,:)
+      real(FVPRC), allocatable:: lat(:), lon(:), ak0(:), bk0(:)
+      real(FVPRC):: s2c(is:ie,js:je,4)
       integer, dimension(is:ie,js:je):: id1, id2, jdc
-      real psc(is:ie,js:je)
-      real gzc(is:ie,js:je)
+      real(FVPRC) psc(is:ie,js:je)
+      real(FVPRC) gzc(is:ie,js:je)
       integer:: i, j, k, im, jm, km, npz, npt
       integer:: i1, i2, j1, ncid
       integer:: jbeg, jend
@@ -245,7 +237,7 @@ contains
 
          im = tsize(1); jm = tsize(2); km = tsize(3)
 
-         if(gid==0)  write(*,*) fname, ' FV_diag IC dimensions:', tsize
+         if(is_master())  write(*,*) fname, ' FV_diag IC dimensions:', tsize
 
          allocate (  lon(im) )
          allocate (  lat(jm) )
@@ -275,7 +267,7 @@ contains
       endif
 
 ! Initialize lat-lon to Cubed bi-linear interpolation coeff:
-      call remap_coef( im, jm, lon, lat, id1, id2, jdc, s2c )
+      call remap_coef( im, jm, lon, lat, id1, id2, jdc, s2c, Atm(1)%gridstruct%agrid, Atm(1)%bd )
 
 ! Find bounding latitudes:
       jbeg = jm-1;         jend = 2
@@ -348,7 +340,7 @@ contains
             enddo
          endif
       enddo
-      call remap_scalar(im, jm, km, npz, nq, nq, ak0, bk0, psc, gzc, tp, qp, Atm)
+      call remap_scalar(im, jm, km, npz, nq, nq, ak0, bk0, psc, gzc, tp, qp, Atm(1))
       deallocate ( tp )
       deallocate ( qp )
 
@@ -447,10 +439,10 @@ contains
       integer, intent(in):: nq, ntracers(3)
 
       character(len=128) :: fname, fname1
-      real(REAL8), allocatable:: pkz0(:,:)
-      real(REAL8), allocatable:: ps0(:,:), gz0(:,:), t0(:,:,:), q0(:,:,:)
-      real(REAL8), allocatable:: u0(:,:,:), v0(:,:,:)
-      real(REAL8), allocatable:: ak0(:), bk0(:)
+      real(FVPRC), allocatable:: pkz0(:,:)
+      real(FVPRC), allocatable:: ps0(:,:), gz0(:,:), t0(:,:,:), q0(:,:,:)
+      real(FVPRC), allocatable:: u0(:,:,:), v0(:,:,:)
+      real(FVPRC), allocatable:: ak0(:), bk0(:)
       integer :: i, j, k, l, iq, j1, j2, im, jm, km, npts, npx, npy, npz
       integer :: iq_moist0 , iq_moist1
       integer :: iq_gocart0, iq_gocart1
@@ -460,30 +452,29 @@ contains
       integer :: header(6)
       character (len=8) :: imc, jmc
 
-      real(REAL8) :: qtmp
+      real(FVPRC) :: qtmp
 
       integer:: i1, i2
       integer:: ic, jc, jc0
-      real(REAL8) psc(is:ie,js:je)
-      real(REAL8) gzc(is:ie,js:je)
-      real(REAL8), allocatable:: tp(:,:,:), qp(:,:,:,:)
-      real(REAL8), allocatable:: ua(:,:,:), va(:,:,:)
+      real(FVPRC) psc(is:ie,js:je)
+      real(FVPRC) gzc(is:ie,js:je)
+      real(FVPRC), allocatable:: tp(:,:,:), qp(:,:,:,:)
+      real(FVPRC), allocatable:: ua(:,:,:), va(:,:,:)
 
-      real(REAL8), allocatable :: akbk_r8(:)
+      real(REAL64), allocatable :: akbk_r8(:)
 
-      real(REAL8), dimension(:,:,:,:), allocatable :: corner_in, corner_out, weight_c2c
+      real(REAL64), dimension(:,:,:,:), allocatable :: corner_in, corner_out, weight_c2c
       integer, dimension(:,:,:,:), allocatable :: index_c2c
 
       integer :: is_i,ie_i, js_i,je_i
       integer :: isd_i,ied_i, jsd_i,jed_i
-      integer :: tile_i
       integer :: ng_i = 5
       type(domain2d) :: domain_i
 
-      real(REAL8), allocatable :: ebuffer(:,:)
-      real(REAL8), allocatable :: nbuffer(:,:)
-      real(REAL8), allocatable :: wbuffer(:,:)
-      real(REAL8), allocatable :: sbuffer(:,:)
+      real(FVPRC), allocatable :: ebuffer(:,:)
+      real(FVPRC), allocatable :: nbuffer(:,:)
+      real(FVPRC), allocatable :: wbuffer(:,:)
+      real(FVPRC), allocatable :: sbuffer(:,:)
 
       integer (kind=MPI_OFFSET_KIND) :: slice_2d
       integer (kind=MPI_OFFSET_KIND) :: offset
@@ -492,12 +483,19 @@ contains
 
       integer            :: filetype
       logical            :: isNC4
-      type(MAPL_NCIO)    :: ncio
+      type(Netcdf4_Fileformatter) :: formatter
+      type(FileMetadata), allocatable :: cfg(:)
+      type(StringIntegerMap) :: dims
       integer            :: nDims, nVars, ivar, dimSizes(3)
       character(len=128) :: vname
-      real,   allocatable  :: gslice_r4(:,:)
+      real(FVPRC),   allocatable  :: gslice_r4(:,:)
       real*8, allocatable  :: gslice_r8(:,:)
       integer            :: tileoff,lvar_cnt
+      character(len=128), allocatable :: vnames(:)
+      character(len=:), pointer :: var_name
+      type(StringVariableMap), pointer :: vars
+      type(StringVariableMapIterator) :: iter
+
 
 !bma added
       character(len=128) :: moist_order(9) = (/"Q   ","QLLS","QLCN","CLLS","CLCN","QILS","QICN","NCPL","NCPI"/)
@@ -533,17 +531,22 @@ contains
 
          if (isNC4) then
 
-            NCIO = MAPL_NCIOOpen(fname)
-            call MAPL_NCIOGetDimSizes(NCIO,lon=im,lat=jm,lev=km)
+            allocate(cfg(1))
+            call formatter%open(fname,pFIO_READ,rc=status)
+            cfg(1) = formatter%read(rc=status)
+            im =cfg(1)%get_dimension('lon',rc=status)
+            jm =cfg(1)%get_dimension('lat',rc=status)
+            km =cfg(1)%get_dimension('lev',rc=status)
+             
             allocate(gslice_r8(im,jm))
 
          else
 
             open(IUNIT,file=fname ,access='sequential',form='unformatted',status='old')
             read (IUNIT, IOSTAT=status) header
-            if (gid==0) print*, header
+            if (is_master()) print*, header
             read (IUNIT, IOSTAT=status) header(1:5)
-            if (gid==0) print*, header(1:5)
+            if (is_master()) print*, header(1:5)
 
             im=header(1)
             jm=header(2)
@@ -551,11 +554,11 @@ contains
 
          end if
 
-         if(gid==0) write(*,*) 'Using GEOS restart:', fname
+         if(is_master()) write(*,*) 'Using GEOS restart:', fname
 
          if ( file_exist(fname) ) then
-            if(gid==0)  write(*,*) 'External IC dimensions:', im   , jm       , km
-            if(gid==0)  write(*,*) 'Interpolating to      :', npx-1, (npy-1)*6, npz
+            if(is_master())  write(*,*) 'External IC dimensions:', im   , jm       , km
+            if(is_master())  write(*,*) 'Interpolating to      :', npx-1, (npy-1)*6, npz
          else
             call mpp_error(FATAL,'==> Error from get_external_ic:        &
                   & field not found')
@@ -565,7 +568,7 @@ contains
 ! setup input cubed-sphere domain                                    !
 !--------------------------------------------------------------------!
          call mpp_domain_decomp(domain_i,im+1,(jm/ntiles)+1,ntiles,ng_i,ntiles, &
-               is_i,ie_i,js_i,je_i,isd_i,ied_i,jsd_i,jed_i,tile_i)
+               is_i,ie_i,js_i,je_i,isd_i,ied_i,jsd_i,jed_i,tile)
 !--------------------------------------------------------------------!
 ! initialize cubed sphere grid: in                                   !
 !--------------------------------------------------------------------!
@@ -579,8 +582,8 @@ contains
          do l=tile,tile
             do j=js,je+1
                do i=is,ie+1
-                  corner_out(1,i,j,l) = grid(i,j,1)
-                  corner_out(2,i,j,l) = grid(i,j,2)
+                  corner_out(1,i,j,l) = Atm(1)%gridstruct%grid(i,j,1)
+                  corner_out(2,i,j,l) = Atm(1)%gridstruct%grid(i,j,2)
                enddo
             enddo
          enddo
@@ -604,13 +607,13 @@ contains
          allocate ( bk0(km+1) )
          allocate ( akbk_r8(km+1) )
          if (isNC4) then
-            call MAPL_VarRead(NCIO,"AK",akbk_r8)
+            call MAPL_VarRead(formatter,"AK",akbk_r8)
          else
             read (IUNIT, IOSTAT=status) akbk_r8
          end if
          ak0 = akbk_r8
          if (isNC4) then
-            call MAPL_VarRead(NCIO,"BK",akbk_r8)
+            call MAPL_VarRead(formatter,"BK",akbk_r8)
          else
             read (IUNIT, IOSTAT=status) akbk_r8
          end if
@@ -625,13 +628,13 @@ contains
          if (isNC4) then
             tileoff = (tile-1)*(jm/ntiles)
             do k=1,km
-               call MAPL_VarRead(NCIO,"U",gslice_r8,lev=k)
+               call MAPL_VarRead(formatter,"U",gslice_r8,lev=k)
                u0(is_i:ie_i,js_i:je_i,k) = gslice_r8(is_i:ie+i,tileoff+js_i:tileoff+je_i)
             enddo
          else
 !offset = sequential access: 4 + INT(6) + 8 + INT(5) + 8 + DBL(NPZ+1) + 8 + DBL(NPZ+1) + 8
             offset =                    4 + 24     + 8 + 20     + 8 + (km+1)*8   + 8 + (km+1)*8   + 8
-            if (gid==0) print*, offset
+            if (is_master()) print*, offset
             call parallel_read_file_r8(fname, npts, is_i,ie_i, js_i,je_i, km, offset, u0(is_i:ie_i,js_i:je_i,:))
          end if
          call print_memuse_stats('get_geos_cubed_ic: read U')
@@ -641,11 +644,11 @@ contains
          if (isNC4) then
             tileoff = (tile-1)*(jm/ntiles)
             do k=1,km
-               call MAPL_VarRead(NCIO,"V",gslice_r8,lev=k)
+               call MAPL_VarRead(formatter,"V",gslice_r8,lev=k)
                v0(is_i:ie_i,js_i:je_i,k) = gslice_r8(is_i:ie+i,tileoff+js_i:tileoff+je_i)
             enddo
          else
-            if (gid==0) print*, offset
+            if (is_master()) print*, offset
             call parallel_read_file_r8(fname, npts, is_i,ie_i, js_i,je_i, km, offset, v0(is_i:ie_i,js_i:je_i,:))
          end if
          call print_memuse_stats('get_geos_cubed_ic: read V')
@@ -670,13 +673,13 @@ contains
          deallocate ( nbuffer )
          deallocate ( ebuffer )
          call mpp_update_domains( u0, v0, domain_i, gridtype=DGRID_NE, complete=.true. )
-         call prt_maxmin(' U_geos', u0, is_i, ie_i, js_i, je_i, ng_i, km, 1.d0, gid==0)
-         call prt_maxmin(' V_geos', v0, is_i, ie_i, js_i, je_i, ng_i, km, 1.d0, gid==0)
+         call prt_maxmin(' U_geos', u0, is_i, ie_i, js_i, je_i, ng_i, km, 1.0_FVPRC)
+         call prt_maxmin(' V_geos', v0, is_i, ie_i, js_i, je_i, ng_i, km, 1.0_FVPRC)
          allocate ( ua(is:ie,js:je,km) )
          allocate ( va(is:ie,js:je,km) )
          call interp_c2c_vect(npts, npts, npx-1, npy-1, km, ntiles, domain_i, &
                is,ie, js,je, isd_i,ied_i, jsd_i,jed_i, is_i,ie_i, js_i,je_i, &
-               u0, v0, ua, va, index_c2c, weight_c2c, corner_in(:,is_i:ie_i+1,js_i:je_i+1,tile), corner_out)
+               u0, v0, ua, va, index_c2c, weight_c2c, corner_in(:,is_i:ie_i+1,js_i:je_i+1,tile), corner_out, Atm(1)%gridstruct)
          deallocate ( v0 )
          deallocate ( u0 )
          deallocate ( corner_in )
@@ -687,11 +690,11 @@ contains
          if (isNC4) then
             tileoff = (tile-1)*(jm/ntiles)
             do k=1,km
-               call MAPL_VarRead(NCIO,"PT",gslice_r8,lev=k)
+               call MAPL_VarRead(formatter,"PT",gslice_r8,lev=k)
                t0(is_i:ie_i,js_i:je_i,k) = gslice_r8(is_i:ie+i,tileoff+js_i:tileoff+je_i)
             enddo
          else
-            if (gid==0) print*, offset
+            if (is_master()) print*, offset
             call parallel_read_file_r8(fname, npts, is_i,ie_i, js_i,je_i, km, offset, t0(is_i:ie_i,js_i:je_i,:))
          end if
          call print_memuse_stats('get_geos_cubed_ic: read T')
@@ -700,14 +703,14 @@ contains
          ps0(:,:) = 0.0
          if (isNC4) then
             tileoff = (tile-1)*(jm/ntiles)
-            call MAPL_VarRead(NCIO,"PE",gslice_r8,lev=km+1)
+            call MAPL_VarRead(formatter,"PE",gslice_r8,lev=km+1)
             ps0(is_i:ie_i,js_i:je_i) = gslice_r8(is_i:ie+i,tileoff+js_i:tileoff+je_i)
          else
             slice_2d = npts*npts*ntiles
             do k=1,km
                offset = offset + slice_2d*8 + 8  ! skip first KM levels of Edge Pressure to find surface pressure
             enddo
-            if (gid==0) print*, offset, slice_2d
+            if (is_master()) print*, offset, slice_2d
             call parallel_read_file_r8(fname, npts, is_i,ie_i, js_i,je_i, 1, offset, ps0(is_i:ie_i,js_i:je_i))
          end if
          call mpp_update_domains(ps0, domain_i)
@@ -717,12 +720,12 @@ contains
          if (isNC4) then
             tileoff = (tile-1)*(jm/ntiles)
             do k=1,km
-               call MAPL_VarRead(NCIO,"PKZ",gslice_r8,lev=k)
+               call MAPL_VarRead(formatter,"PKZ",gslice_r8,lev=k)
                pkz0(is_i:ie_i,js_i:je_i) = gslice_r8(is_i:ie+i,tileoff+js_i:tileoff+je_i)
                t0(is_i:ie_i,js_i:je_i,k) = t0(is_i:ie_i,js_i:je_i,k)*pkz0(is_i:ie_i,js_i:je_i)
             enddo
          else
-            if (gid==0) print*, offset
+            if (is_master()) print*, offset
             do k=1,km
                call parallel_read_file_r8(fname, npts, is_i,ie_i, js_i,je_i, 1, offset, pkz0(is_i:ie_i,js_i:je_i))
 ! t0 needs to be just temperature with no virtual effect
@@ -733,7 +736,8 @@ contains
          deallocate ( pkz0 )
 
          if (isNC4) then
-            call MAPL_NCIOClose(NCIO,destroy=.true.)
+            call formatter%close()
+            deallocate(cfg)
             deallocate(gslice_r8)
          end if
 
@@ -758,12 +762,12 @@ contains
 ! Read cubed-sphere phis from file since IMPORT is not ready yet
          offset = 4
          call parallel_read_file_r4('topo_dynave.data', Atm(1)%npx-1, is,ie, js,je, 1, offset, Atm(1)%phis(is:ie,js:je))
-         call mpp_update_domains(Atm(1)%phis, domain)
+         call mpp_update_domains(Atm(1)%phis, Atm(1)%domain)
          Atm(1)%phis = Atm(1)%phis*grav
          call print_memuse_stats('get_geos_cubed_ic: phis')
 
 ! Horiz Interp for surface pressure 
-         call prt_maxmin('PS_geos', ps0, is_i, ie_i, js_i, je_i, ng_i, 1, 1.0, gid==0)
+         call prt_maxmin('PS_geos', ps0, is_i, ie_i, js_i, je_i, ng_i, 1, 1.0_FVPRC)
          do j=js,je
             do i=is,ie
                ic=index_c2c(1,i,j,tile)
@@ -776,7 +780,7 @@ contains
          enddo
          deallocate ( ps0 )
 ! Horiz Interp for surface height
-         call prt_maxmin('GZ_geos', gz0, is_i, ie_i, js_i, je_i, ng_i, 1, 1.d0/grav, gid==0)
+         call prt_maxmin('GZ_geos', gz0, is_i, ie_i, js_i, je_i, ng_i, 1, 1.0/grav)
          do j=js,je
             do i=is,ie
                ic=index_c2c(1,i,j,tile)
@@ -799,7 +803,7 @@ contains
 ! is there a moist restart file to interpolate?
 ! Read in tracers: only sphum at this point
          if( file_exist("moist_internal_restart_in") .and. ntracers(1) > 0 ) then
-            if (gid==0) print*, 'Trying to interpolate moist_internal_restart_in'
+            if (is_master()) print*, 'Trying to interpolate moist_internal_restart_in'
 
             call MAPL_NCIOGetFileType("moist_internal_restart_in",filetype)
 
@@ -808,8 +812,10 @@ contains
             else
                lvar_cnt = 0
                allocate(gslice_r4(im,jm))
-               NCIO = MAPL_NCIOOpen("moist_internal_restart_in")
-               call MAPL_NCIOGetDimSizes(NCIO,nVars=nVars)
+               allocate(cfg(1))
+               call formatter%open("moist_internal_restart_in",pFIO_READ,rc=status)
+               cfg(1) = formatter%read(rc=status)
+               call MAPL_IOCountNonDimVars(cfg(1),nvars,rc=status)
                if (nVars /= iq_moist1-iq_moist0+1) call mpp_error(FATAL,'Wrong number of variables in moist file') 
                tileoff = (tile-1)*(jm/ntiles)
             end if
@@ -822,7 +828,7 @@ contains
                      call mpp_update_domains(q0(:,:,k), domain_i)
                   else
                      vname = trim(moist_order(lvar_cnt))
-                     call MAPL_VarRead(NCIO,vname,gslice_r4,lev=k)
+                     call MAPL_VarRead(formatter,vname,gslice_r4,lev=k)
                      q0(is_i:ie_i,js_i:je_i,k)=gslice_r4(is_i:ie+i,tileoff+js_i:tileoff+je_i)
                   end if
                   call mpp_update_domains(q0(:,:,k), domain_i)
@@ -838,12 +844,13 @@ contains
                   enddo
 
                enddo
-               if (ivar == 1) t0(is_i:ie_i,js_i:je_i,:) = (t0(is_i:ie_i,js_i:je_i,:)/(1.0 + zvir*q0(is_i:ie_i,js_i:je_i,:)))
-               call prt_maxmin( 'Q_geos', q0, is_i, ie_i, js_i, je_i, ng_i, km, 1., gid==0)
+          !WMP if (ivar == 1) t0(is_i:ie_i,js_i:je_i,:) = (t0(is_i:ie_i,js_i:je_i,:)/(1.0 + zvir*q0(is_i:ie_i,js_i:je_i,:)))
+               call prt_maxmin( 'Q_geos_moist', q0, is_i, ie_i, js_i, je_i, ng_i, km, 1._FVPRC)
             enddo
 
             if (filetype == 0) then
-               call MAPL_NCIOClose(NCIO,destroy=.true.)
+               call formatter%close()
+               deallocate(cfg)
                deallocate(gslice_r4)
             end if
 
@@ -853,7 +860,7 @@ contains
 ! is there a gocart restart file to interpolate?
 ! Read in tracers: only sphum at this point
          if( file_exist("gocart_internal_restart_in") .and. ntracers(2) > 0 ) then
-            if (gid==0) print*, 'Trying to interpolate gocart_internal_restart_in'
+            if (is_master()) print*, 'Trying to interpolate gocart_internal_restart_in'
 
             call MAPL_NCIOGetFileType("gocart_internal_restart_in",filetype)
 
@@ -862,12 +869,29 @@ contains
             else
                lvar_cnt = 0 
                allocate(gslice_r4(im,jm))
-               NCIO = MAPL_NCIOOpen("gocart_internal_restart_in")
-               call MAPL_NCIOGetDimSizes(NCIO,nVars=nVars)
+               allocate(cfg(1))
+               call formatter%open("gocart_internal_restart_in",pFIO_READ,rc=status)
+               cfg(1) = formatter%read(rc=status)
+               call MAPL_IOCountNonDimVars(cfg(1),nvars,rc=status)
                if (nVars /= iq_gocart1-iq_gocart0+1) call mpp_error(FATAL,'Wrong number of variables in gocart file') 
                tileoff = (tile-1)*(jm/ntiles)
+
+               allocate(vnames(nVars))
+               vars => cfg(1)%get_variables()
+               iter = vars%begin()
+        
+               lvar_cnt=0 
+               do while(iter /= vars%end())
+                  var_name => iter%key()
+                  if (.not.cfg(1)%is_coordinate_variable(var_name)) then
+                     lvar_cnt=lvar_cnt+1
+                     vnames(lvar_cnt)=var_name
+                  end if
+                  call iter%next()
+               enddo
             end if
 
+            lvar_cnt = 0
             do ivar=iq_gocart0,iq_gocart1
                if (filetype ==0) lvar_cnt=lvar_cnt+1
                do k=1,km
@@ -875,8 +899,7 @@ contains
                      call parallel_read_file_r4('gocart_internal_restart_in', npts, is_i,ie_i, js_i,je_i, 1, offset, q0(is_i:ie_i,js_i:je_i,k))
                      call mpp_update_domains(q0(:,:,k), domain_i)
                   else
-                     call MAPL_NCIOGetVarName(NCIO,lvar_cnt,vname)
-                     call MAPL_VarRead(NCIO,vname,gslice_r4,lev=k)
+                     call MAPL_VarRead(formatter,vnames(lvar_cnt),gslice_r4,lev=k)
                      q0(is_i:ie_i,js_i:je_i,k)=gslice_r4(is_i:ie+i,tileoff+js_i:tileoff+je_i)
                   end if
                   call mpp_update_domains(q0(:,:,k), domain_i)
@@ -892,11 +915,13 @@ contains
                   enddo
 
                enddo
-               call prt_maxmin( 'Q_geos', q0, is_i, ie_i, js_i, je_i, ng_i, km, 1., gid==0)
+               call prt_maxmin( 'Q_geos_gocart', q0, is_i, ie_i, js_i, je_i, ng_i, km, 1._FVPRC)
             enddo
 
             if (filetype == 0) then
-               call MAPL_NCIOClose(NCIO,destroy=.true.)
+               call formatter%close()
+               deallocate(cfg)
+               deallocate(vnames)
                deallocate(gslice_r4)
             end if
 
@@ -905,7 +930,7 @@ contains
 ! is there a gocart restart file to interpolate?
 ! Read in tracers: only sphum at this point
          if( file_exist("pchem_internal_restart_in") .and. ntracers(3) > 0 ) then
-            if (gid==0) print*, 'Trying to interpolate pchem_internal_restart_in'
+            if (is_master()) print*, 'Trying to interpolate pchem_internal_restart_in'
 
             call MAPL_NCIOGetFileType("pchem_internal_restart_in",filetype)
 
@@ -914,12 +939,29 @@ contains
             else
                lvar_cnt = 0 
                allocate(gslice_r4(im,jm))
-               NCIO = MAPL_NCIOOpen("pchem_internal_restart_in")
-               call MAPL_NCIOGetDimSizes(NCIO,nVars=nVars)
+               allocate(cfg(1))
+               call formatter%open("pchem_internal_restart_in",pFIO_READ,rc=status)
+               cfg(1) = formatter%read(rc=status)
+               call MAPL_IOCountNonDimVars(cfg(1),nvars,rc=status)
                if (nVars /= iq_pchem1-iq_pchem0+1) call mpp_error(FATAL,'Wrong number of variables in pchem file') 
                tileoff = (tile-1)*(jm/ntiles)
+
+               allocate(vnames(nVars))
+               vars => cfg(1)%get_variables()
+               iter = vars%begin()
+        
+               lvar_cnt=0 
+               do while(iter /= vars%end())
+                  var_name => iter%key()
+                  if (.not.cfg(1)%is_coordinate_variable(var_name)) then
+                     lvar_cnt=lvar_cnt+1
+                     vnames(lvar_cnt)=var_name
+                  end if
+                  call iter%next()
+               enddo
             end if
 
+            lvar_cnt=0
             do ivar=iq_pchem0,iq_pchem1
                if (filetype == 0) lvar_cnt=lvar_cnt+1
                do k=1,km
@@ -927,8 +969,7 @@ contains
                      call parallel_read_file_r4('pchem_internal_restart_in', npts, is_i,ie_i, js_i,je_i, 1, offset, q0(is_i:ie_i,js_i:je_i,k))
                      call mpp_update_domains(q0(:,:,k), domain_i)
                   else
-                     call MAPL_NCIOGetVarName(NCIO,lvar_cnt,vname)
-                     call MAPL_VarRead(NCIO,vname,gslice_r4,lev=k)
+                     call MAPL_VarRead(formatter,vnames(lvar_cnt),gslice_r4,lev=k)
                      q0(is_i:ie_i,js_i:je_i,k)=gslice_r4(is_i:ie+i,tileoff+js_i:tileoff+je_i)
                   end if
                   call mpp_update_domains(q0(:,:,k), domain_i)
@@ -944,11 +985,13 @@ contains
                   enddo
 
                enddo
-               call prt_maxmin( 'Q_geos', q0, is_i, ie_i, js_i, je_i, ng_i, km, 1., gid==0)
+               call prt_maxmin( 'Q_geos_pchem', q0, is_i, ie_i, js_i, je_i, ng_i, km, 1._FVPRC)
             enddo
 
             if (filetype == 0) then
-               call MAPL_NCIOClose(NCIO,destroy=.true.)
+               call formatter%close()
+               deallocate(cfg)
+               deallocate(vnames)
                deallocate(gslice_r4)
             end if
 
@@ -957,7 +1000,7 @@ contains
 ! Horiz Interp for T
          deallocate ( q0 )
          call mpp_update_domains(t0, domain_i)
-         call prt_maxmin( 'T_geos', t0, is_i, ie_i, js_i, je_i, ng_i, km, 1.d0, gid==0)
+         call prt_maxmin( 'T_geos', t0, is_i, ie_i, js_i, je_i, ng_i, km, 1.0_FVPRC)
          allocate (  tp(is:ie,js:je,km) )
          do k=1,km
             do j=js,je
@@ -978,7 +1021,7 @@ contains
 ! Horz/Vert remap for scalars
          nqmap =  nmoist + ngocart + npchem 
 
-         call remap_scalar(im, jm, km, npz, nqmap, nqmap, ak0, bk0, psc, gzc, tp, qp, Atm)
+         call remap_scalar(im, jm, km, npz, nqmap, nqmap, ak0, bk0, psc, gzc, tp, qp, Atm(1))
 
          deallocate ( tp )
          deallocate ( qp )
@@ -999,12 +1042,12 @@ contains
 
 ! Finished, let's check the results !
 
-      call prt_maxmin('GZ_model', Atm(1)%phis, is, ie, js, je, ng, 1, 1.d0/grav, gid==0)
-      call prt_maxmin('PS_model', Atm(1)%ps, is, ie, js, je, ng, 1, 0.01, gid==0)
-      call prt_maxmin('DP_model', Atm(1)%delp, is, ie, js, je, ng, npz, 1.d0, gid==0)
-      call prt_maxmin(' U_model', Atm(1)%u, is, ie, js, je, ng, npz, 1.d0, gid==0)
-      call prt_maxmin(' V_model', Atm(1)%v, is, ie, js, je, ng, npz, 1.d0, gid==0)
-      call prt_maxmin('PT_model', Atm(1)%pt, is, ie, js, je, ng, npz, 1.d0, gid==0)
+      call prt_maxmin('GZ_model', Atm(1)%phis, is, ie, js, je, ng, 1, 1.0/grav)
+      call prt_maxmin('PS_model', Atm(1)%ps, is, ie, js, je, ng, 1, 0.01_FVPRC)
+      call prt_maxmin('DP_model', Atm(1)%delp, is, ie, js, je, ng, npz, 1.0_FVPRC)
+      call prt_maxmin(' U_model', Atm(1)%u, is, ie, js, je, ng, npz, 1.0_FVPRC)
+      call prt_maxmin(' V_model', Atm(1)%v, is, ie, js, je, ng, npz, 1.0_FVPRC)
+      call prt_maxmin('PT_model', Atm(1)%pt, is, ie, js, je, ng, npz, 1.0_FVPRC)
 ! Range check the MOIST tracers
       do iq=iq_moist0,iq_moist1
          do k=1,npz
@@ -1017,7 +1060,7 @@ contains
          enddo
       enddo
       do iq=1,nmoist+npchem+ngocart
-         call prt_maxmin('QP_model', Atm(1)%q(is:ie,js:je,1:npz,iq), is, ie, js, je, 0, npz, 1., gid==0)
+         call prt_maxmin('QP_model', Atm(1)%q(is:ie,js:je,1:npz,iq), is, ie, js, je, 0, npz, 1._FVPRC)
       enddo
 
    end subroutine get_geos_cubed_ic
@@ -1028,41 +1071,48 @@ contains
       integer, intent(in):: nq,ntracers(3)
 
       character(len=128) :: fname, fname1
-      real(REAL8), allocatable:: pkz0(:,:)
-      real(REAL8), allocatable:: ps0(:,:), gz0(:,:), t0(:,:,:), q0(:,:,:)
-      real(REAL8), allocatable:: u0(:,:,:), v0(:,:,:), ua0(:,:), va0(:,:)
-      real(REAL8), allocatable:: lat(:), lon(:), ak0(:), bk0(:)
+      real(FVPRC), allocatable:: pkz0(:,:)
+      real(FVPRC), allocatable:: ps0(:,:), gz0(:,:), t0(:,:,:), q0(:,:,:)
+      real(FVPRC), allocatable:: u0(:,:,:), v0(:,:,:), ua0(:,:), va0(:,:)
+      real(FVPRC), allocatable:: lat(:), lon(:), ak0(:), bk0(:)
       integer :: i, j, k, l, iq, j1, j2, im, jm, km, npz
       logical found
-      real(REAL8) dak, dbk
+      real(FVPRC) dak, dbk
       integer :: header(6)
       character (len=8) :: imc, jmc
 
       integer:: i1, i2, nmoist, ngocart, npchem, nqmap, offset
-      real(REAL8):: s2c(is:ie,js:je,4)
+      real(FVPRC):: s2c(is:ie,js:je,4)
       integer, dimension(is:ie,js:je):: id1, id2, jdc
-      real(REAL8) psc(is:ie,js:je)
-      real(REAL8) gzc(is:ie,js:je)          
-      real(REAL8), allocatable:: tp(:,:,:), qp(:,:,:,:)
-      real(REAL8), allocatable:: ua(:,:,:), va(:,:,:)
+      real(FVPRC) psc(is:ie,js:je)
+      real(FVPRC) gzc(is:ie,js:je)          
+      real(FVPRC), allocatable:: tp(:,:,:), qp(:,:,:,:)
+      real(FVPRC), allocatable:: ua(:,:,:), va(:,:,:)
 
       real(REAL4), allocatable :: phis_r4(:,:)
-      real(REAL8), allocatable :: r8latlon(:,:)
+      real(REAL64), allocatable :: r8latlon(:,:)
       real(REAL4), allocatable :: r4latlon(:,:)
-      real(REAL8), allocatable :: akbk_r8(:)
+      real(REAL64), allocatable :: akbk_r8(:)
 
       character(len=128) :: tag
       character(len=3)   :: cid
 
       integer            :: filetype
       logical            :: isNC4
-      type(MAPL_NCIO)    :: ncio
       integer            :: nDims, nVars, ivar, dimSizes(3)
       character(len=128) :: vname
       integer :: iq_moist0 , iq_moist1
       integer :: iq_gocart0, iq_gocart1
       integer :: iq_pchem0 , iq_pchem1
       integer :: lvar_cnt
+      type(Netcdf4_Fileformatter) :: formatter
+      type(FileMetadata), allocatable :: cfg(:)
+      character(len=128), allocatable :: vnames(:)
+      character(len=:), pointer :: var_name
+      type(StringVariableMap), pointer :: vars
+      type(StringVariableMapIterator) :: iter
+
+
 !bma added
       character(len=128) :: moist_order(9) = (/"Q   ","QLLS","QLCN","CLLS","CLCN","QILS","QICN","NCPL","NCPI"/)
 
@@ -1096,16 +1146,20 @@ contains
 
          if (isNC4) then
 
-            NCIO = MAPL_NCIOOpen(fname)
-            call MAPL_NCIOGetDimSizes(NCIO,lon=im,lat=jm,lev=km)
+            allocate(cfg(1))
+            call formatter%open(fname,pFIO_READ,rc=status)
+            cfg(1) = formatter%read(rc=status)
+            im =cfg(1)%get_dimension('lon',rc=status)
+            jm =cfg(1)%get_dimension('lat',rc=status)
+            km =cfg(1)%get_dimension('lev',rc=status)
 
          else
 
             open(IUNIT,file=fname ,access='sequential',form='unformatted',status='old')
             read (IUNIT, IOSTAT=status) header
-            if (gid==0) print*, header
+            if (is_master()) print*, header
             read (IUNIT, IOSTAT=status) header(1:5)
-            if (gid==0) print*, header(1:5)
+            if (is_master()) print*, header(1:5)
 
             im=header(1)
             jm=header(2)
@@ -1113,8 +1167,8 @@ contains
 
          end if
 
-         if(gid==0) write(*,*) 'Using GEOS restart:', fname
-         if(gid==0)  write(*,*) 'External IC dimensions:', im, jm, km
+         if(is_master()) write(*,*) 'Using GEOS restart:', fname
+         if(is_master())  write(*,*) 'External IC dimensions:', im, jm, km
 
          allocate (  lon(im) )
          do i=1,im
@@ -1125,19 +1179,19 @@ contains
             lat(j) = -0.5*pi + real(j-1)*pi/real(jm-1)   ! SP to NP 
          enddo
 
-         call remap_coef( im, jm, lon, lat, id1, id2, jdc, s2c )
+         call remap_coef( im, jm, lon, lat, id1, id2, jdc, s2c , Atm(1)%gridstruct%agrid, Atm(1)%bd)
 
          allocate ( ak0(km+1) )
          allocate ( bk0(km+1) )
          allocate ( akbk_r8(km+1) )
          if (isNC4) then
-            call MAPL_VarRead(NCIO,"AK",akbk_r8)
+            call MAPL_VarRead(formatter,"AK",akbk_r8)
          else
             read (IUNIT, IOSTAT=status) akbk_r8
          end if
          ak0 = akbk_r8
          if (isNC4) then
-            call MAPL_VarRead(NCIO,"BK",akbk_r8)
+            call MAPL_VarRead(formatter,"BK",akbk_r8)
          else
             read (IUNIT, IOSTAT=status) akbk_r8
          end if
@@ -1151,7 +1205,7 @@ contains
          allocate (  u0(im,jm,km) )
          do k=1,km
             if (isNC4) then
-               call MAPL_VarRead(NCIO,"U",r8latlon,lev=k)
+               call MAPL_VarRead(formatter,"U",r8latlon,lev=k)
             else
                read (IUNIT, IOSTAT=status) r8latlon
             end if
@@ -1164,7 +1218,7 @@ contains
          allocate (  v0(im,jm,km) )
          do k=1,km
             if (isNC4) then
-               call MAPL_VarRead(NCIO,"V",r8latlon,lev=k)
+               call MAPL_VarRead(formatter,"V",r8latlon,lev=k)
             else
                read (IUNIT, IOSTAT=status) r8latlon
             end if
@@ -1173,8 +1227,8 @@ contains
             v0(im/2 + 1:im  ,:,k) = r8latlon(1        :im/2, :)
          enddo
          call print_memuse_stats('get_geos_latlon_ic: read v')
-         if(gid==0) call pmaxmin( 'U_geos',   u0(:,2:jm,:), im*(jm-1), km, 1.d0)
-         if(gid==0) call pmaxmin( 'V_geos',   v0,           im*jm    , km, 1.d0)
+         if(is_master()) call pmaxmin( 'U_geos',   u0(:,2:jm,:), im*(jm-1), km, 1.0_FVPRC)
+         if(is_master()) call pmaxmin( 'V_geos',   v0,           im*jm    , km, 1.0_FVPRC)
          allocate ( ua(is:ie,js:je,km) )
          allocate ( va(is:ie,js:je,km) )
          allocate ( ua0(im,jm) )
@@ -1212,7 +1266,7 @@ contains
          allocate (  t0(im,jm,km) )
          do k=1,km
             if (isNC4) then
-               call MAPL_VarRead(NCIO,"PT",r8latlon,lev=k)
+               call MAPL_VarRead(formatter,"PT",r8latlon,lev=k)
             else
                read (IUNIT, IOSTAT=status) r8latlon
             end if
@@ -1224,7 +1278,7 @@ contains
 ! Read PE
          do k=1,km+1 
             if (isNC4) then
-               call MAPL_VarRead(NCIO,"PE",r8latlon,lev=k)
+               call MAPL_VarRead(formatter,"PE",r8latlon,lev=k)
             else
                read (IUNIT, IOSTAT=status) r8latlon
             end if
@@ -1236,7 +1290,7 @@ contains
          allocate ( pkz0(im,jm) )
          do k=1,km
             if (isNC4) then
-               call MAPL_VarRead(NCIO,"PKZ",r8latlon,lev=k)
+               call MAPL_VarRead(formatter,"PKZ",r8latlon,lev=k)
             else
                read (IUNIT, IOSTAT=status) r8latlon
             end if
@@ -1250,7 +1304,8 @@ contains
          call print_memuse_stats('get_geos_latlon_ic: converted T')
          deallocate ( pkz0 )
          if (isNC4) then
-            call MAPL_NCIOClose(NCIO,destroy=.true.)
+            call formatter%close()
+            deallocate(cfg)
          else
             close (IUNIT)
          end if
@@ -1291,12 +1346,12 @@ contains
          read(IUNIT) phis_r4
          close(IUNIT)
          Atm(1)%phis(is:ie,js:je) = phis_r4(is:ie,js+(tile-1)*(Atm(1)%npy-1):je+(tile-1)*(Atm(1)%npy-1))*grav
-         call mpp_update_domains(Atm(1)%phis, domain)
+         call mpp_update_domains(Atm(1)%phis, Atm(1)%domain)
          deallocate( phis_r4 )
          call print_memuse_stats('get_geos_latlon_ic: phis')
 
 ! Horiz Interp for surface pressure 
-         if(gid==0) call pmaxmin( 'PS_geos', ps0, im,    jm, 0.01)
+         if(is_master()) call pmaxmin( 'PS_geos', ps0, im,    jm, 0.01_FVPRC)
          do j=js,je
             do i=is,ie
                i1 = id1(i,j)
@@ -1308,7 +1363,7 @@ contains
          enddo
          deallocate ( ps0 )
 ! Horiz Interp for surface height
-         if(gid==0) call pmaxmin( 'ZS_geos', gz0, im,    jm, 1.d0/grav)
+         if(is_master()) call pmaxmin( 'ZS_geos', gz0, im,    jm, 1.0/grav)
          do j=js,je
             do i=is,ie
                i1 = id1(i,j)
@@ -1330,7 +1385,7 @@ contains
 ! is there a moist restart file to interpolate?
 ! Read in tracers: only sphum at this point
          if( file_exist("moist_internal_restart_in") .and. ntracers(1) > 0 ) then
-            if (gid==0) print*, 'Trying to interpolate moist_internal_restart_in'
+            if (is_master()) print*, 'Trying to interpolate moist_internal_restart_in'
             allocate ( r4latlon(im,jm) )
 
             call MAPL_NCIOGetFileType("moist_internal_restart_in",filetype)
@@ -1339,8 +1394,9 @@ contains
                open(IUNIT,file="moist_internal_restart_in" ,access='sequential',form='unformatted',status='old')
             else
                lvar_cnt = 0
-               NCIO = MAPL_NCIOOpen("moist_internal_restart_in")
-               call MAPL_NCIOGetDimSizes(NCIO,nVars=nVars)
+               call formatter%open("moist_internal_restart_in",pFIO_READ,rc=status)
+               cfg = formatter%read(rc=status)
+               call MAPL_IOCountNonDimVars(cfg(1),nvars,rc=status)
                if (nVars /= iq_moist1-iq_moist0+1) call mpp_error(FATAL,'Wrong number of variables in moist file')
             end if
 
@@ -1351,7 +1407,7 @@ contains
                      read (IUNIT, IOSTAT=status) r4latlon
                   else
                      vname = trim(moist_order(lvar_cnt))
-                     call MAPL_VarRead(NCIO,vname,r4latlon,lev=k)
+                     call MAPL_VarRead(formatter,vname,r4latlon,lev=k)
                   end if
                   q0(1       :im/2,:,k) = r4latlon(im/2 + 1 :im  , :) ! Regrid from -180:180 to 0:360
                   q0(im/2 + 1:im  ,:,k) = r4latlon(1        :im/2, :) ! Regrid from -180:180 to 0:360
@@ -1366,10 +1422,11 @@ contains
                   enddo
                enddo
                if (ivar == 1) t0 = (t0/(1.0 + zvir*q0(:,:,:)))
-               if (gid==0) call pmaxmin( 'MOIST_Q_',  q0(:,:,:), im*jm, km, 1.d0)
+               if (is_master()) call pmaxmin( 'MOIST_Q_',  q0(:,:,:), im*jm, km, 1.0_FVPRC)
             enddo
             if (filetype == 0) then
-               call MAPL_NCIOClose(NCIO,destroy=.true.)
+               call formatter%close()
+               deallocate(cfg)
             else
                close(IUNIT)
             end if
@@ -1381,7 +1438,7 @@ contains
 ! is there a gocart restart file to interpolate?
 ! Read in tracers: only sphum at this point
          if( file_exist("gocart_internal_restart_in") .and. ntracers(2) > 0 ) then
-            if (gid==0) print*, 'Trying to interpolate gocart_internal_restart_in'
+            if (is_master()) print*, 'Trying to interpolate gocart_internal_restart_in'
             allocate ( r4latlon(im,jm) )
             call MAPL_NCIOGetFileType("gocart_internal_restart_in",filetype)
 
@@ -1389,19 +1446,34 @@ contains
                open(IUNIT,file="gocart_internal_restart_in" ,access='sequential',form='unformatted',status='old')
             else
                lvar_cnt = 0
-               NCIO = MAPL_NCIOOpen("gocart_internal_restart_in")
-               call MAPL_NCIOGetDimSizes(NCIO,nVars=nVars)
+               allocate(cfg(1))
+               call formatter%open("gocart_internal_restart_in",pFIO_READ,rc=status)
+               cfg(1) = formatter%read(rc=status)
+               call MAPL_IOCountNonDimVars(cfg(1),nvars,rc=status)
                if (nVars /= iq_gocart1-iq_gocart0+1) call mpp_error(FATAL,'Wrong number of variables in gocart file')
+
+               allocate(vnames(nVars))
+               vars => cfg(1)%get_variables()
+               iter = vars%begin()
+
+               do while(iter /= vars%end())
+                  var_name => iter%key()
+                  if (.not.cfg(1)%is_coordinate_variable(var_name)) then
+                     lvar_cnt=lvar_cnt+1
+                     vnames(lvar_cnt)=var_name
+                  end if
+               enddo
+
             end if
 
+            lvar_cnt=0
             do ivar=iq_gocart0,iq_gocart1
                if (filetype ==0) lvar_cnt=lvar_cnt+1
                do k=1,km
                   if (filetype /= 0) then
                      read (IUNIT, IOSTAT=status) r4latlon
                   else
-                     call MAPL_NCIOGetVarName(NCIO,lvar_cnt,vname)
-                     call MAPL_VarRead(NCIO,vname,r4latlon,lev=k)
+                     call MAPL_VarRead(formatter,vnames(lvar_cnt),r4latlon,lev=k)
                   end if
                   q0(1       :im/2,:,k) = r4latlon(im/2 + 1 :im  , :) ! Regrid from -180:180 to 0:360
                   q0(im/2 + 1:im  ,:,k) = r4latlon(1        :im/2, :) ! Regrid from -180:180 to 0:360
@@ -1416,11 +1488,13 @@ contains
                   enddo
 
                enddo
-               if (gid==0) call pmaxmin( 'GOCART_Q_',  q0(:,:,:), im*jm, km, 1.d0)
+               if (is_master()) call pmaxmin( 'GOCART_Q_',  q0(:,:,:), im*jm, km, 1.0_FVPRC)
             enddo
 
             if (filetype == 0) then
-               call MAPL_NCIOClose(NCIO,destroy=.true.)
+               call formatter%close()
+               deallocate(cfg)
+               deallocate(vnames)
             else
                close(IUNIT)
             end if
@@ -1431,7 +1505,7 @@ contains
 ! is there a pchem restart file to interpolate?
 ! Read in tracers: only sphum at this point
          if( file_exist("pchem_internal_restart_in") .and. ntracers(3) > 0 ) then
-            if (gid==0) print*, 'Trying to interpolate pchem_internal_restart_in'
+            if (is_master()) print*, 'Trying to interpolate pchem_internal_restart_in'
             allocate ( r4latlon(im,jm) )
             call MAPL_NCIOGetFileType("pchem_internal_restart_in",filetype)
 
@@ -1439,9 +1513,24 @@ contains
                open(IUNIT,file="pchem_internal_restart_in" ,access='sequential',form='unformatted',status='old')
             else
                lvar_cnt = 0
-               NCIO = MAPL_NCIOOpen("pchem_internal_restart_in")
-               call MAPL_NCIOGetDimSizes(NCIO,nVars=nVars)
+               allocate(cfg(1))
+               call formatter%open("pchem_internal_restart_in",pFIO_READ,rc=status)
+               cfg(1) = formatter%read(rc=status)
+               call MAPL_IOCountNonDimVars(cfg(1),nvars,rc=status)
                if (nVars /= iq_pchem1-iq_pchem0+1) call mpp_error(FATAL,'Wrong number of variables in pchem file')
+
+               allocate(vnames(nVars))
+               vars => cfg(1)%get_variables()
+               iter = vars%begin()
+
+               do while(iter /= vars%end())
+                  var_name => iter%key()
+                  if (.not.cfg(1)%is_coordinate_variable(var_name)) then
+                     lvar_cnt=lvar_cnt+1
+                     vnames(lvar_cnt)=var_name
+                  end if
+               enddo
+
             end if
 
             do ivar=iq_pchem0,iq_pchem1
@@ -1450,8 +1539,7 @@ contains
                   if (filetype /= 0) then
                      read (IUNIT, IOSTAT=status) r4latlon
                   else
-                     call MAPL_NCIOGetVarName(NCIO,lvar_cnt,vname)
-                     call MAPL_VarRead(NCIO,vname,r4latlon,lev=k)
+                     call MAPL_VarRead(formatter,vnames(lvar_cnt),r4latlon,lev=k)
                   end if
                   q0(1       :im/2,:,k) = r4latlon(im/2 + 1 :im  , :) ! Regrid from -180:180 to 0:360
                   q0(im/2 + 1:im  ,:,k) = r4latlon(1        :im/2, :) ! Regrid from -180:180 to 0:360
@@ -1466,11 +1554,13 @@ contains
                   enddo
 
                enddo
-               if (gid==0) call pmaxmin( 'PCHEM_Q_',  q0(:,:,:), im*jm, km, 1.d0)
+               if (is_master()) call pmaxmin( 'PCHEM_Q_',  q0(:,:,:), im*jm, km, 1.0_FVPRC)
             enddo
 
             if (filetype == 0) then
-               call MAPL_NCIOClose(NCIO,destroy=.true.)
+               call formatter%close()
+               deallocate(cfg)
+               deallocate(vnames)
             else
                close(IUNIT)
             end if
@@ -1481,7 +1571,7 @@ contains
          deallocate ( q0 )
 
 ! Horiz Interp for T
-         if(gid==0) call pmaxmin( 'T_geos',   t0, im*jm, km, 1.d0) 
+         if(is_master()) call pmaxmin( 'T_geos',   t0, im*jm, km, 1.0_FVPRC) 
          allocate (  tp(is:ie,js:je,km) )
          do k=1,km
             do j=js,je
@@ -1501,7 +1591,7 @@ contains
 ! -----------------------------------------------------------------------------------------------
          nqmap = nmoist + ngocart + npchem 
 
-         call remap_scalar(im, jm, km, npz, nqmap, nqmap, ak0, bk0, psc, gzc, tp, qp, Atm)
+         call remap_scalar(im, jm, km, npz, nqmap, nqmap, ak0, bk0, psc, gzc, tp, qp, Atm(1))
 
          deallocate ( tp )
          deallocate ( qp ) 
@@ -1525,12 +1615,12 @@ contains
 
 ! Finished, let's check the results !
 
-      call prt_maxmin('GZ_model', Atm(1)%phis, is, ie, js, je, ng,   1, 1.d0/grav, gid==0)
-      call prt_maxmin('PS_model', Atm(1)%ps  , is, ie, js, je, ng,   1, 0.01, gid==0)
-      call prt_maxmin('DP_model', Atm(1)%delp, is, ie, js, je, ng, npz, 1.d0, gid==0)
-      call prt_maxmin(' U_model', Atm(1)%u   , is, ie, js, je, ng, npz, 1.d0, gid==0)
-      call prt_maxmin(' V_model', Atm(1)%v   , is, ie, js, je, ng, npz, 1.d0, gid==0)
-      call prt_maxmin('PT_model', Atm(1)%pt  , is, ie, js, je, ng, npz, 1.d0, gid==0)
+      call prt_maxmin('GZ_model', Atm(1)%phis, is, ie, js, je, ng,   1, 1.0/grav)
+      call prt_maxmin('PS_model', Atm(1)%ps  , is, ie, js, je, ng,   1, 0.01_FVPRC)
+      call prt_maxmin('DP_model', Atm(1)%delp, is, ie, js, je, ng, npz, 1.0_FVPRC)
+      call prt_maxmin(' U_model', Atm(1)%u   , is, ie, js, je, ng, npz, 1.0_FVPRC)
+      call prt_maxmin(' V_model', Atm(1)%v   , is, ie, js, je, ng, npz, 1.0_FVPRC)
+      call prt_maxmin('PT_model', Atm(1)%pt  , is, ie, js, je, ng, npz, 1.0_FVPRC)
 
 ! Range check the MOIST tracers
       do iq=iq_moist0,iq_moist1
@@ -1544,17 +1634,17 @@ contains
          enddo
       enddo
 
-      if (gid==0) print*
+      if (is_master()) print*
       do iq=iq_moist0,iq_moist1
-         call prt_maxmin('QP_MOIST_Q', Atm(1)%q(is:ie,js:je,1:npz,iq), is, ie, js, je, 0, npz, 1., gid==0)
+         call prt_maxmin('QP_MOIST_Q', Atm(1)%q(is:ie,js:je,1:npz,iq), is, ie, js, je, 0, npz, 1._FVPRC)
       enddo
-      if (gid==0) print*
+      if (is_master()) print*
       do iq=iq_gocart0,iq_gocart1
-         call prt_maxmin('QP_GOCART_Q', Atm(1)%q(is:ie,js:je,1:npz,iq), is, ie, js, je, 0, npz, 1., gid==0)
+         call prt_maxmin('QP_GOCART_Q', Atm(1)%q(is:ie,js:je,1:npz,iq), is, ie, js, je, 0, npz, 1._FVPRC)
       enddo
-      if (gid==0) print*
+      if (is_master()) print*
       do iq=iq_pchem0,iq_pchem1
-         call prt_maxmin('QP_PCHEM_Q', Atm(1)%q(is:ie,js:je,1:npz,iq), is, ie, js, je, 0, npz, 1., gid==0)
+         call prt_maxmin('QP_PCHEM_Q', Atm(1)%q(is:ie,js:je,1:npz,iq), is, ie, js, je, 0, npz, 1._FVPRC)
       enddo
 
    end subroutine get_geos_latlon_ic
@@ -1566,14 +1656,14 @@ contains
 ! local:
       character(len=128) :: fname
       real(kind=4), allocatable:: wk1(:), wk2(:,:), wk3(:,:,:)
-      real, allocatable:: tp(:,:,:), qp(:,:,:)
-      real, allocatable:: ua(:,:,:), va(:,:,:)
-      real, allocatable:: lat(:), lon(:), ak0(:), bk0(:)
-      real:: s2c(is:ie,js:je,4)
+      real(FVPRC), allocatable:: tp(:,:,:), qp(:,:,:)
+      real(FVPRC), allocatable:: ua(:,:,:), va(:,:,:)
+      real(FVPRC), allocatable:: lat(:), lon(:), ak0(:), bk0(:)
+      real(FVPRC):: s2c(is:ie,js:je,4)
       integer, dimension(is:ie,js:je):: id1, id2, jdc
-      real psc(is:ie,js:je)
-      real gzc(is:ie,js:je)
-      real tmean
+      real(FVPRC) psc(is:ie,js:je)
+      real(FVPRC) gzc(is:ie,js:je)
+      real(FVPRC) tmean
       integer:: i, j, k, im, jm, km, npz, npt
       integer:: i1, i2, j1, ncid
       integer:: jbeg, jend
@@ -1600,7 +1690,7 @@ contains
 
          im = tsize(1); jm = tsize(2); km = tsize(3)
 
-         if(gid==0)  write(*,*) fname, ' NCEP IC dimensions:', tsize
+         if(is_master())  write(*,*) fname, ' NCEP IC dimensions:', tsize
 
          allocate (  lon(im) )
          allocate (  lat(jm) )
@@ -1633,7 +1723,7 @@ contains
       endif
 
 ! Initialize lat-lon to Cubed bi-linear interpolation coeff:
-      call remap_coef( im, jm, lon, lat, id1, id2, jdc, s2c )
+      call remap_coef( im, jm, lon, lat, id1, id2, jdc, s2c, Atm(1)%gridstruct%agrid, Atm(1)%bd )
 
 ! Find bounding latitudes:
       jbeg = jm-1;         jend = 2
@@ -1729,14 +1819,14 @@ contains
                      s2c(i,j,3)*wk2(i2,j1+1) + s2c(i,j,4)*wk2(i1,j1+1)
             enddo
          enddo
-         call prt_maxmin('SST_model', Atm(1)%ts, is, ie, js, je, 0, 1, 1., gid==0)
+         call prt_maxmin('SST_model', Atm(1)%ts, is, ie, js, je, 0, 1, 1._FVPRC)
 
 ! Perform interp to FMS SST format/grid
 #ifndef DYCORE_SOLO
          call ncep2fms(im, jm, lon, lat, wk2)
-         if( gid==0 ) then
+         if( is_master() ) then
             write(*,*) 'External_ic_mod: i_sst=', i_sst, ' j_sst=', j_sst
-            call pmaxmin( 'SST_ncep_fms',  sst_ncep, i_sst, j_sst, 1.)
+            call pmaxmin( 'SST_ncep_fms',  sst_ncep, i_sst, j_sst, 1._FVPRC)
          endif
 #endif
       endif  !(read_ts)
@@ -1834,9 +1924,9 @@ contains
       integer, intent(in):: nq
 
       character(len=128) :: fname, tracer_name
-      real, allocatable:: ps0(:,:), gz0(:,:), u0(:,:,:), v0(:,:,:), t0(:,:,:), dp0(:,:,:), q0(:,:,:,:)
-      real, allocatable:: ua(:,:,:), va(:,:,:)
-      real, allocatable:: lat(:), lon(:), ak0(:), bk0(:)
+      real(FVPRC), allocatable:: ps0(:,:), gz0(:,:), u0(:,:,:), v0(:,:,:), t0(:,:,:), dp0(:,:,:), q0(:,:,:,:)
+      real(FVPRC), allocatable:: ua(:,:,:), va(:,:,:)
+      real(FVPRC), allocatable:: lat(:), lon(:), ak0(:), bk0(:)
       integer :: i, j, k, im, jm, km, npz, tr_ind
       integer tsize(4)
 !     integer sphum, liq_wat, ice_wat, cld_amt       ! GFDL AM2 physics
@@ -1853,11 +1943,11 @@ contains
 
       if( file_exist(fname) ) then
          call field_size(fname, 'T', tsize, field_found=found)
-         if(gid==0) write(*,*) 'Using lat-lon FV restart:', fname 
+         if(is_master()) write(*,*) 'Using lat-lon FV restart:', fname 
 
          if ( found ) then
             im = tsize(1); jm = tsize(2); km = tsize(3)
-            if(gid==0)  write(*,*) 'External IC dimensions:', tsize
+            if(is_master())  write(*,*) 'External IC dimensions:', tsize
          else
             call mpp_error(FATAL,'==> Error in get_external_ic: field not found')
          endif
@@ -1892,11 +1982,11 @@ contains
          call read_data (fname, 'DELP', dp0)
 
 ! Share the load
-         if(gid==0) call pmaxmin( 'ZS_data', gz0, im,    jm, 1./grav)
-         if(gid==1) call pmaxmin( 'U_data',   u0, im*jm, km, 1.)
-         if(gid==1) call pmaxmin( 'V_data',   v0, im*jm, km, 1.)
-         if(gid==2) call pmaxmin( 'T_data',   t0, im*jm, km, 1.)
-         if(gid==3) call pmaxmin( 'DEL-P',   dp0, im*jm, km, 0.01)
+         if(is_master()) call pmaxmin( 'ZS_data', gz0, im,    jm, 1./grav)
+         if(is_master()) call pmaxmin( 'U_data',   u0, im*jm, km, 1._FVPRC)
+         if(is_master()) call pmaxmin( 'V_data',   v0, im*jm, km, 1._FVPRC)
+         if(is_master()) call pmaxmin( 'T_data',   t0, im*jm, km, 1._FVPRC)
+         if(is_master()) call pmaxmin( 'DEL-P',   dp0, im*jm, km, 0.01_FVPRC)
 
 
       else
@@ -1907,7 +1997,7 @@ contains
       fname = Atm(1)%res_latlon_tracers
 
       if( file_exist(fname) ) then
-         if(gid==0) write(*,*) 'Using lat-lon tracer restart:', fname 
+         if(is_master()) write(*,*) 'Using lat-lon tracer restart:', fname 
 
          allocate ( q0(im,jm,km,Atm(1)%ncnst) )
          q0 = 0.
@@ -1933,8 +2023,8 @@ contains
       deallocate ( u0 ) 
       deallocate ( v0 ) 
 
-      if(gid==4) call pmaxmin( 'UA', ua, im*jm, km, 1.)
-      if(gid==4) call pmaxmin( 'VA', va, im*jm, km, 1.)
+      if(is_master()) call pmaxmin( 'UA', ua, im*jm, km, 1._FVPRC)
+      if(is_master()) call pmaxmin( 'VA', va, im*jm, km, 1._FVPRC)
 
       do j=1,jm
          do i=1,im
@@ -1950,7 +2040,7 @@ contains
          enddo
       enddo
 
-      if (gid==0) call pmaxmin( 'PS_data (mb)', ps0, im, jm, 0.01)
+      if (is_master()) call pmaxmin( 'PS_data (mb)', ps0, im, jm, 0.01_FVPRC)
 
 ! Horizontal interpolation to the cubed sphere grid center
 ! remap vertically with terrain adjustment
@@ -1978,15 +2068,15 @@ contains
    subroutine ncep2fms(im, jm, lon, lat, wk)
 
       integer, intent(in):: im, jm
-      real,    intent(in):: lon(im), lat(jm)
+      real(FVPRC),    intent(in):: lon(im), lat(jm)
       real(kind=4),    intent(in):: wk(im,jm)
 ! local:
-      real :: rdlon(im)
-      real :: rdlat(jm)
-      real:: a1, b1
-      real:: delx, dely
-      real:: xc, yc    ! "data" location
-      real:: c1, c2, c3, c4
+      real(FVPRC) :: rdlon(im)
+      real(FVPRC) :: rdlat(jm)
+      real(FVPRC):: a1, b1
+      real(FVPRC):: delx, dely
+      real(FVPRC):: xc, yc    ! "data" location
+      real(FVPRC):: c1, c2, c3, c4
       integer i,j, i1, i2, jc, i0, j0, it, jt
 
       do i=1,im-1
@@ -2049,7 +2139,7 @@ contains
 111         continue
 
             if ( a1<0.0 .or. a1>1.0 .or.  b1<0.0 .or. b1>1.0 ) then
-               write(*,*) 'gid=', gid, i,j,a1, b1
+               write(*,*) 'gid=', mpp_pe(), i,j,a1, b1
             endif
 
             c1 = (1.-a1) * (1.-b1)
@@ -2066,236 +2156,281 @@ contains
 #endif
 
 
+ subroutine remap_coef( im, jm, lon, lat, id1, id2, jdc, s2c, agrid, bd )
 
-      subroutine remap_coef( im, jm, lon, lat, id1, id2, jdc, s2c )
-
-         integer, intent(in):: im, jm
-         real(REAL8),    intent(in):: lon(im), lat(jm)
-         real(REAL8),    intent(out):: s2c(is:ie,js:je,4)
-         integer, intent(out), dimension(is:ie,js:je):: id1, id2, jdc
+   type(fv_grid_bounds_type), intent(IN) :: bd
+  integer, intent(in):: im, jm
+  real(FVPRC),    intent(in):: lon(im), lat(jm)
+  real(FVPRC),    intent(out):: s2c(bd%is:bd%ie,bd%js:bd%je,4)
+  integer, intent(out), dimension(bd%is:bd%ie,bd%js:bd%je):: id1, id2, jdc
+  real(FVPRC),    intent(in):: agrid(bd%isd:bd%ied,bd%jsd:bd%jed,2)
 ! local:
-         real(REAL8) :: rdlon(im)
-         real(REAL8) :: rdlat(jm)
-         real(REAL8):: a1, b1
-         integer i,j, i1, i2, jc, i0, j0
+  real(FVPRC) :: rdlon(im)
+  real(FVPRC) :: rdlat(jm)
+  real(FVPRC):: a1, b1
+  integer i,j, i1, i2, jc, i0, j0
 
-         do i=1,im-1
-            rdlon(i) = 1. / (lon(i+1) - lon(i))
-         enddo
-         rdlon(im) = 1. / (lon(1) + 2.*pi - lon(im))
+  integer :: is,  ie,  js,  je
+  integer :: isd, ied, jsd, jed
 
-         do j=1,jm-1
-            rdlat(j) = 1. / (lat(j+1) - lat(j))
-         enddo
+  is  = bd%is
+  ie  = bd%ie
+  js  = bd%js
+  je  = bd%je
+  isd = bd%isd
+  ied = bd%ied
+  jsd = bd%jsd
+  jed = bd%jed
+  do i=1,im-1
+     rdlon(i) = 1. / (lon(i+1) - lon(i))
+  enddo
+     rdlon(im) = 1. / (lon(1) + 2.*pi - lon(im))
+
+  do j=1,jm-1
+     rdlat(j) = 1. / (lat(j+1) - lat(j))
+  enddo
 
 ! * Interpolate to cubed sphere cell center
-         do 5000 j=js,je
+  do 5000 j=js,je
 
-            do i=is,ie
+     do i=is,ie
 
-               if ( agrid(i,j,1)>lon(im) ) then
-                  i1 = im;     i2 = 1
-                  a1 = (agrid(i,j,1)-lon(im)) * rdlon(im)
-               elseif ( agrid(i,j,1)<lon(1) ) then
-                  i1 = im;     i2 = 1
-                  a1 = (agrid(i,j,1)+2.*pi-lon(im)) * rdlon(im)
-               else
-                  do i0=1,im-1
-                     if ( agrid(i,j,1)>=lon(i0) .and. agrid(i,j,1)<=lon(i0+1) ) then
-                        i1 = i0;  i2 = i0+1
-                        a1 = (agrid(i,j,1)-lon(i1)) * rdlon(i0)
-                        go to 111
-                     endif
-                  enddo
-               endif
-111            continue
+       if ( agrid(i,j,1)>lon(im) ) then
+            i1 = im;     i2 = 1
+            a1 = (agrid(i,j,1)-lon(im)) * rdlon(im)
+       elseif ( agrid(i,j,1)<lon(1) ) then
+            i1 = im;     i2 = 1
+            a1 = (agrid(i,j,1)+2.*pi-lon(im)) * rdlon(im)
+       else
+            do i0=1,im-1
+            if ( agrid(i,j,1)>=lon(i0) .and. agrid(i,j,1)<=lon(i0+1) ) then
+               i1 = i0;  i2 = i0+1
+               a1 = (agrid(i,j,1)-lon(i1)) * rdlon(i0)
+               go to 111
+            endif
+            enddo
+       endif
+111    continue       
+       if ( agrid(i,j,2)<lat(1) ) then
+            jc = 1
+            b1 = 0.
+       elseif ( agrid(i,j,2)>lat(jm) ) then
+            jc = jm-1
+            b1 = 1.
+       else
+          do j0=1,jm-1
+          if ( agrid(i,j,2)>=lat(j0) .and. agrid(i,j,2)<=lat(j0+1) ) then
+               jc = j0
+               b1 = (agrid(i,j,2)-lat(jc)) * rdlat(jc)
+               go to 222
+          endif
+          enddo
+       endif
+222    continue
 
-               if ( agrid(i,j,2)<lat(1) ) then
-                  jc = 1
-                  b1 = 0.
-               elseif ( agrid(i,j,2)>lat(jm) ) then
-                  jc = jm-1
-                  b1 = 1.
-               else
-                  do j0=1,jm-1
-                     if ( agrid(i,j,2)>=lat(j0) .and. agrid(i,j,2)<=lat(j0+1) ) then
-                        jc = j0
-                        b1 = (agrid(i,j,2)-lat(jc)) * rdlat(jc)
-                        go to 222
-                     endif
-                  enddo
-               endif
-222            continue
+       if ( a1<0.0 .or. a1>1.0 .or.  b1<0.0 .or. b1>1.0 ) then
+            write(*,*) 'gid=', mpp_pe(), i,j,a1, b1
+       endif
 
-               if ( a1<0.0 .or. a1>1.0 .or.  b1<0.0 .or. b1>1.0 ) then
-                  write(*,*) 'gid=', gid, i,j,a1, b1
-               endif
+       s2c(i,j,1) = (1.-a1) * (1.-b1)
+       s2c(i,j,2) =     a1  * (1.-b1)
+       s2c(i,j,3) =     a1  *     b1
+       s2c(i,j,4) = (1.-a1) *     b1
+       id1(i,j) = i1
+       id2(i,j) = i2
+       jdc(i,j) = jc
+     enddo   !i-loop
+5000 continue   ! j-loop
 
-               s2c(i,j,1) = (1.-a1) * (1.-b1)
-               s2c(i,j,2) =     a1  * (1.-b1)
-               s2c(i,j,3) =     a1  *     b1
-               s2c(i,j,4) = (1.-a1) *     b1
-               id1(i,j) = i1
-               id2(i,j) = i2
-               jdc(i,j) = jc
-            enddo   !i-loop
-5000        continue   ! j-loop
+ end subroutine remap_coef
 
-         end subroutine remap_coef
-
-
-         subroutine remap_scalar(im, jm, km, npz, nq, ncnst, ak0, bk0, psc, gzc, ta, qa, Atm)
-            type(fv_atmos_type), intent(inout) :: Atm(:)
-            integer, intent(in):: im, jm, km, npz, nq, ncnst
-            real(REAL8),    intent(in):: ak0(km+1), bk0(km+1)
-            real(REAL8),    intent(in), dimension(is:ie,js:je):: psc, gzc
-            real(REAL8),    intent(in), dimension(is:ie,js:je,km):: ta
-            real(REAL8),    intent(in), dimension(is:ie,js:je,km,ncnst):: qa
+ subroutine remap_scalar(im, jm, km, npz, nq, ncnst, ak0, bk0, psc, gzc, ta, qa, Atm)
+  type(fv_atmos_type), intent(inout) :: Atm
+  integer, intent(in):: im, jm, km, npz, nq, ncnst
+  real(FVPRC),    intent(in):: ak0(km+1), bk0(km+1)
+  real(FVPRC),    intent(in), dimension(Atm%bd%is:Atm%bd%ie,Atm%bd%js:Atm%bd%je):: psc, gzc
+  real(FVPRC),    intent(in), dimension(Atm%bd%is:Atm%bd%ie,Atm%bd%js:Atm%bd%je,km):: ta
+  real(FVPRC),    intent(in), dimension(Atm%bd%is:Atm%bd%ie,Atm%bd%js:Atm%bd%je,km,ncnst):: qa
 ! local:
-            real(REAL8), dimension(is:ie,km):: tp
-            real(REAL8), dimension(is:ie,km+1):: pe0, pn0
-            real(REAL8), dimension(is:ie,npz):: qn1
-            real(REAL8), dimension(is:ie,npz+1):: pe1, pn1
-            real(REAL8) pt0(km), gz(km+1), pk0(km+1)
-            real(REAL8) qp(is:ie,km,ncnst)
-            real(REAL8) pst, alpha
-            integer i,j,k, iq
-            integer  sphum
+  real(FVPRC), dimension(Atm%bd%is:Atm%bd%ie,km):: tp
+  real(FVPRC), dimension(Atm%bd%is:Atm%bd%ie,km+1):: pe0, pn0
+  real(FVPRC), dimension(Atm%bd%is:Atm%bd%ie,npz):: qn1
+  real(FVPRC), dimension(Atm%bd%is:Atm%bd%ie,npz+1):: pe1, pn1
+  real(FVPRC) pt0(km), gz(km+1), pk0(km+1)
+  real(FVPRC) qp(Atm%bd%is:Atm%bd%ie,km,ncnst)
+  real(FVPRC) pst, p1, p2, alpha, rdg
+  integer i,j,k, iq
+  integer  sphum
+  integer :: is,  ie,  js,  je
+  integer :: isd, ied, jsd, jed
+
+  is  = Atm%bd%is
+  ie  = Atm%bd%ie
+  js  = Atm%bd%js
+  je  = Atm%bd%je
+  isd = Atm%bd%isd
+  ied = Atm%bd%ied
+  jsd = Atm%bd%jsd
+  jed = Atm%bd%jed
+
 
 #ifdef MAPL_MODE
             sphum   = 1
 #else
             sphum   = get_tracer_index(MODEL_ATMOS, 'sphum')
 #endif
-            if ( sphum/=1 ) then
-               call mpp_error(FATAL,'SPHUM must be 1st tracer')
-            endif
+  if ( sphum/=1 ) then
+       call mpp_error(FATAL,'SPHUM must be 1st tracer')
+  endif
 
-            do 5000 j=js,je
+  do 5000 j=js,je
+     do i=is,ie
 
-               do i=is,ie
+       do iq=1,ncnst
+          do k=1,km
+             qp(i,k,iq) = qa(i,j,k,iq)
+          enddo
+       enddo
 
-                  do iq=1,ncnst
-                     do k=1,km
-                        qp(i,k,iq) = qa(i,j,k,iq)
-                     enddo
-                  enddo
-
-                  do k=1,km
-                     tp(i,k) = ta(i,j,k)*(1.+zvir*qp(i,k,sphum))
-                  enddo
+    if ( T_is_Tv ) then
+! The "T" field in NCEP analysis is actually virtual temperature (Larry H. post processing)
+! BEFORE 20051201
+       do k=1,km
+          tp(i,k) = ta(i,j,k)
+       enddo
+    else
+       do k=1,km
+          tp(i,k) = ta(i,j,k)*(1.+zvir*qp(i,k,sphum))
+       enddo
+    endif
 ! Tracers:
 
-                  do k=1,km+1
-                     pe0(i,k) = ak0(k) + bk0(k)*psc(i,j)
-                     pn0(i,k) = log(pe0(i,k))
-                     pk0(k) = pe0(i,k)**kappa
-                  enddo
+       do k=1,km+1
+          pe0(i,k) = ak0(k) + bk0(k)*psc(i,j)
+          pn0(i,k) = log(pe0(i,k))
+            pk0(k) = pe0(i,k)**kappa
+       enddo
 
 #ifdef USE_DATA_ZS
-                  Atm(1)%  ps(i,j) = psc(i,j)
-                  Atm(1)%phis(i,j) = gzc(i,j)
+       Atm%  ps(i,j) = psc(i,j)
+       Atm%phis(i,j) = gzc(i,j)
 #else
 
 ! * Adjust interpolated ps to model terrain
-                  gz(km+1) = gzc(i,j)
-                  do k=km,1,-1
-                     gz(k) = gz(k+1) + rdgas*tp(i,k)*(pn0(i,k+1)-pn0(i,k))
-                  enddo
+       gz(km+1) = gzc(i,j)
+       do k=km,1,-1
+           gz(k) = gz(k+1) + rdgas*tp(i,k)*(pn0(i,k+1)-pn0(i,k))
+       enddo
 ! Only lowest layer potential temp is needed
-                  pt0(km) = tp(i,km)/(pk0(km+1)-pk0(km))*(kappa*(pn0(i,km+1)-pn0(i,km)))
-                  if( Atm(1)%phis(i,j)>gzc(i,j) ) then
-                     do k=km,1,-1
-                        if( Atm(1)%phis(i,j) <  gz(k)  .and.    &
-                              Atm(1)%phis(i,j) >= gz(k+1) ) then
-                           pst = pk0(k) + (pk0(k+1)-pk0(k))*(gz(k)-Atm(1)%phis(i,j))/(gz(k)-gz(k+1))
-                           go to 123
-                        endif
-                     enddo
-                  else
+          pt0(km) = tp(i,km)/(pk0(km+1)-pk0(km))*(kappa*(pn0(i,km+1)-pn0(i,km)))
+       if( Atm%phis(i,j)>gzc(i,j) ) then
+           do k=km,1,-1
+              if( Atm%phis(i,j) <  gz(k)  .and.    &
+                  Atm%phis(i,j) >= gz(k+1) ) then
+                  pst = pk0(k) + (pk0(k+1)-pk0(k))*(gz(k)-Atm%phis(i,j))/(gz(k)-gz(k+1))
+                  go to 123
+              endif
+           enddo
+       else
 ! Extrapolation into the ground
-                     pst = pk0(km+1) + (gzc(i,j)-Atm(1)%phis(i,j))/(cp_air*pt0(km))
-                  endif
+           pst = pk0(km+1) + (gzc(i,j)-Atm%phis(i,j))/(cp_air*pt0(km))
+       endif
 
-123               Atm(1)%ps(i,j) = pst**(1./kappa)
+123    Atm%ps(i,j) = pst**(1./kappa)
 #endif
-               enddo   !i-loop
+     enddo   !i-loop
 
 
-               do i=is,ie
-                  pe1(i,1) = Atm(1)%ak(1)
-                  pn1(i,1) = log(pe1(i,1))
-               enddo
-               do k=2,npz+1
-                  do i=is,ie
-                     pe1(i,k) = Atm(1)%ak(k) + Atm(1)%bk(k)*Atm(1)%ps(i,j)
-                     pn1(i,k) = log(pe1(i,k))
-                  enddo
-               enddo
+     do i=is,ie
+        pe1(i,1) = Atm%ak(1)
+        pn1(i,1) = log(pe1(i,1))
+     enddo
+     do k=2,npz+1
+       do i=is,ie
+          pe1(i,k) = Atm%ak(k) + Atm%bk(k)*Atm%ps(i,j)
+          pn1(i,k) = log(pe1(i,k))
+       enddo
+     enddo
 
 ! * Compute delp
-               do k=1,npz
-                  do i=is,ie
-                     Atm(1)%delp(i,j,k) = pe1(i,k+1) - pe1(i,k)
-                  enddo
-               enddo
+     do k=1,npz
+        do i=is,ie
+           Atm%delp(i,j,k) = pe1(i,k+1) - pe1(i,k)
+        enddo
+     enddo
 
 !---------------
 ! map tracers
 !----------------
-               do iq=1,ncnst
-                  call mappm(km, pe0, qp(is,1,iq), npz, pe1,  qn1, is,ie, 0, 11)
-                  if ( iq==sphum .and. Atm(1)%ncep_ic ) then
+      do iq=1,ncnst
+         call mappm(km, pe0, qp(is,1,iq), npz, pe1,  qn1, is,ie, 0, 11, Atm%ptop)
+         if ( iq==sphum .and. Atm%flagstruct%ncep_ic ) then
+             p1 = 200.E2
+             p2 =  75.E2
 ! Blend model sphum with NCEP data
-                     do k=1,npz
-                        do i=is,ie
-                           pst = 0.5*(pe1(i,k)+pe1(i,k+1))
-                           alpha = min( 1.0, (pst-Atm(1)%ak(1))/200.E2 )
-                           Atm(1)%q(i,j,k,1) = qn1(i,k)*alpha +  Atm(1)%q(i,j,k,1)*(1.-alpha)
-                        enddo
-                     enddo
-                  else
-                     do k=1,npz
-                        do i=is,ie
-                           Atm(1)%q(i,j,k,iq) = qn1(i,k)
-                        enddo
-                     enddo
-                  endif
-               enddo
+         do k=1,npz
+            do i=is,ie
+               pst = 0.5*(pe1(i,k)+pe1(i,k+1))
+               if ( pst > p1 ) then
+                    Atm%q(i,j,k,iq) = qn1(i,k)
+               elseif( pst > p2 ) then            ! p2 < pst < p1
+                    alpha = (pst-p2)/(p1-p2)
+                    Atm%q(i,j,k,1) = qn1(i,k)*alpha + Atm%q(i,j,k,1)*(1.-alpha)
+               endif
+            enddo
+         enddo
+         else
+         do k=1,npz
+            do i=is,ie
+               Atm%q(i,j,k,iq) = qn1(i,k)
+            enddo
+         enddo
+         endif
+      enddo
 
 !-------------------------------------------------------------
 ! map virtual temperature using geopotential conserving scheme.
 !-------------------------------------------------------------
-               call mappm(km, pn0, tp, npz, pn1, qn1, is,ie, 1, 9)
-               do k=1,npz
-                  do i=is,ie
-                     Atm(1)%pt(i,j,k) = qn1(i,k)/(1.+zvir*Atm(1)%q(i,j,k,sphum))
-                  enddo
-               enddo
+      call mappm(km, pn0, tp, npz, pn1, qn1, is,ie, 1, 9, Atm%ptop)
+      do k=1,npz
+         do i=is,ie
+            Atm%pt(i,j,k) = qn1(i,k)/(1.+zvir*Atm%q(i,j,k,sphum))
+         enddo
+      enddo
 
-5000           continue
+      if ( .not. Atm%flagstruct%hydrostatic .and. Atm%flagstruct%ncep_ic ) then
+! Replace delz with NCEP hydrostatic state
+         rdg = -rdgas / grav
+         do k=1,npz
+            do i=is,ie
+               atm%delz(i,j,k) = rdg*qn1(i,k)*(pn1(i,k+1)-pn1(i,k))
+            enddo
+         enddo
+      endif
 
-               call prt_maxmin('PS_model', Atm(1)%ps, is, ie, js, je, ng, 1, 0.01, gid==0)
+5000 continue
 
-               if (gid==0) write(*,*) 'done remap_scalar'
+  call prt_maxmin('PS_model', Atm%ps, is, ie, js, je, ng, 1, 0.01_FVPRC)
 
-            end subroutine remap_scalar
+  if (is_master()) write(*,*) 'done remap_scalar'
 
-
+ end subroutine remap_scalar
 
             subroutine remap_winds(im, jm, km, npz, ak0, bk0, psc, ua, va, Atm)
                type(fv_atmos_type), intent(inout) :: Atm(:)
                integer, intent(in):: im, jm, km, npz
-               real(REAL8),    intent(in):: ak0(km+1), bk0(km+1)
-               real(REAL8),    intent(in):: psc(is:ie,js:je)
-               real(REAL8),    intent(in), dimension(is:ie,js:je,km):: ua, va
+               real(FVPRC),    intent(in):: ak0(km+1), bk0(km+1)
+               real(FVPRC),    intent(in):: psc(is:ie,js:je)
+               real(FVPRC),    intent(in), dimension(is:ie,js:je,km):: ua, va
 ! local:
-               real(REAL8), dimension(isd:ied,jsd:jed,npz):: ut, vt   ! winds
-               real(REAL8), dimension(is:ie, km+1):: pe0
-               real(REAL8), dimension(is:ie,npz+1):: pe1
-               real(REAL8), dimension(is:ie,npz):: qn1
+               real(FVPRC), dimension(isd:ied,jsd:jed,npz):: ut, vt   ! winds
+               real(FVPRC), dimension(is:ie, km+1):: pe0
+               real(FVPRC), dimension(is:ie,npz+1):: pe1
+               real(FVPRC), dimension(is:ie,npz):: qn1
                integer i,j,k
 
+               ut = 0.0
+               vt = 0.0
                do 5000 j=js,je
 
                   do k=1,km+1
@@ -2313,7 +2448,7 @@ contains
 !------
 ! map u
 !------
-                  call mappm(km, pe0, ua(is:ie,j,1:km), npz, pe1, qn1, is,ie, -1, 4)
+                  call mappm(km, pe0, ua(is:ie,j,1:km), npz, pe1, qn1, is,ie, -1, 4, Atm(1)%ptop)
                   do k=1,npz
                      do i=is,ie
                         ut(i,j,k) = qn1(i,k)
@@ -2322,7 +2457,7 @@ contains
 !------
 ! map v
 !------
-                  call mappm(km, pe0, va(is:ie,j,1:km), npz, pe1, qn1, is,ie, -1, 4)
+                  call mappm(km, pe0, va(is:ie,j,1:km), npz, pe1, qn1, is,ie, -1, 4, Atm(1)%ptop)
                   do k=1,npz
                      do i=is,ie
                         vt(i,j,k) = qn1(i,k)
@@ -2331,15 +2466,16 @@ contains
 
 5000              continue
 
-                  call prt_maxmin('UT', ut, is, ie, js, je, ng, npz, 1.d0, gid==0)
-                  call prt_maxmin('VT', vt, is, ie, js, je, ng, npz, 1.d0, gid==0)
+                  call prt_maxmin('UT', ut, is, ie, js, je, ng, npz, 1.0_FVPRC)
+                  call prt_maxmin('VT', vt, is, ie, js, je, ng, npz, 1.0_FVPRC)
 
 !----------------------------------------------
 ! winds: lat-lon ON A to Cubed-D transformation:
 !----------------------------------------------
-                  call cubed_a2d(Atm(1)%npx, Atm(1)%npy, npz, ut, vt, Atm(1)%u, Atm(1)%v )
+                  call cubed_a2d(Atm(1)%npx, Atm(1)%npy, npz, ut, vt, Atm(1)%u, Atm(1)%v, Atm(1)%gridstruct, &
+                  Atm(1)%domain, Atm(1)%bd )
 
-                  if (gid==0) write(*,*) 'done remap_winds'
+                  if (is_master()) write(*,*) 'done remap_winds'
 
                end subroutine remap_winds
 
@@ -2348,14 +2484,14 @@ contains
                   type(fv_atmos_type), intent(inout) :: Atm(:)
                   integer, intent(in):: im, jm, km, npz
                   integer, intent(in):: mg     ! mg = 0 for delz; mg=3 for w
-                  real(REAL8),    intent(in):: ak0(km+1), bk0(km+1)
-                  real(REAL8),    intent(in):: psc(is:ie,js:je)
-                  real(REAL8),    intent(in), dimension(is:ie,js:je,km):: wa
-                  real(REAL8),   intent(out):: wz(is-mg:ie+mg,js-mg:je+mg,npz)
+                  real(FVPRC),    intent(in):: ak0(km+1), bk0(km+1)
+                  real(FVPRC),    intent(in):: psc(is:ie,js:je)
+                  real(FVPRC),    intent(in), dimension(is:ie,js:je,km):: wa
+                  real(FVPRC),   intent(out):: wz(is-mg:ie+mg,js-mg:je+mg,npz)
 ! local:
-                  real(REAL8), dimension(is:ie, km+1):: pe0
-                  real(REAL8), dimension(is:ie,npz+1):: pe1
-                  real(REAL8), dimension(is:ie,npz):: qn1
+                  real(FVPRC), dimension(is:ie, km+1):: pe0
+                  real(FVPRC), dimension(is:ie,npz+1):: pe1
+                  real(FVPRC), dimension(is:ie,npz):: qn1
                   integer i,j,k
 
                   do 5000 j=js,je
@@ -2375,7 +2511,7 @@ contains
 !------
 ! map w
 !------
-                     call mappm(km, pe0, wa(is:ie,j,1:km), npz, pe1, qn1, is,ie, -1, 4)
+                     call mappm(km, pe0, wa(is:ie,j,1:km), npz, pe1, qn1, is,ie, -1, 4, Atm(1)%ptop)
                      do k=1,npz
                         do i=is,ie
                            wz(i,j,k) = qn1(i,k)
@@ -2384,257 +2520,270 @@ contains
 
 5000                 continue
 
-! call prt_maxmin('WZ', wz, is, ie, js, je, mg, npz, 1., gid==0)
-! if (gid==0) write(*,*) 'done remap_wz'
+! call prt_maxmin('WZ', wz, is, ie, js, je, mg, npz, 1._FVPRC, is_master())
+! if (is_master()) write(*,*) 'done remap_wz'
 
                   end subroutine remap_wz
 
-
-
-                  subroutine remap_xyz( im, jbeg, jend, jm, km, npz, nq, ncnst, lon, lat, ak0, bk0, ps0, gz0,   &
+  subroutine remap_xyz( im, jbeg, jend, jm, km, npz, nq, ncnst, lon, lat, ak0, bk0, ps0, gz0,   &
                         ua, va, ta, qa, Atm )
 
-                     type(fv_atmos_type), intent(inout) :: Atm(:)
-                     integer, intent(in):: im, jm, km, npz, nq, ncnst
-                     integer, intent(in):: jbeg, jend
-                     real(REAL8),    intent(in):: lon(im), lat(jm), ak0(km+1), bk0(km+1)
-                     real(REAL8),    intent(in):: gz0(im,jbeg:jend), ps0(im,jbeg:jend)
-                     real(REAL8),    intent(in), dimension(im,jbeg:jend,km):: ua, va, ta
-                     real(REAL8),    intent(in), dimension(im,jbeg:jend,km,ncnst):: qa
-! local:
-                     real(REAL8), dimension(isd:ied,jsd:jed,npz):: ut, vt   ! winds 
-                     real(REAL8), dimension(is:ie,km):: up, vp, tp
-                     real(REAL8), dimension(is:ie,km+1):: pe0, pn0
-                     real(REAL8) pt0(km), gz(km+1), pk0(km+1)
-                     real(REAL8) qp(is:ie,km,ncnst)
-                     real(REAL8), dimension(is:ie,npz):: qn1
-                     real(REAL8), dimension(is:ie,npz+1):: pe1, pn1
-                     real(REAL8) :: rdlon(im)
-                     real(REAL8) :: rdlat(jm)
-                     real(REAL8):: a1, b1, c1, c2, c3, c4
-                     real(REAL8):: gzc, psc, pst
-                     integer i,j,k, i1, i2, jc, i0, j0, iq
-! integer  sphum, liq_wat, ice_wat, cld_amt
-                     integer  sphum
+  type(fv_atmos_type), intent(inout), target :: Atm
+  integer, intent(in):: im, jm, km, npz, nq, ncnst
+  integer, intent(in):: jbeg, jend
+  real(FVPRC),    intent(in):: lon(im), lat(jm), ak0(km+1), bk0(km+1)
+  real(FVPRC),    intent(in):: gz0(im,jbeg:jend), ps0(im,jbeg:jend)
+  real(FVPRC),    intent(in), dimension(im,jbeg:jend,km):: ua, va, ta
+  real(FVPRC),    intent(in), dimension(im,jbeg:jend,km,ncnst):: qa
 
-                     sphum   = get_tracer_index(MODEL_ATMOS, 'sphum')
+  real(FVPRC), pointer, dimension(:,:,:) :: agrid
+
+! local:
+  real(FVPRC), dimension(Atm%bd%isd:Atm%bd%ied,Atm%bd%jsd:Atm%bd%jed,npz):: ut, vt   ! winds 
+  real(FVPRC), dimension(Atm%bd%is:Atm%bd%ie,km):: up, vp, tp
+  real(FVPRC), dimension(Atm%bd%is:Atm%bd%ie,km+1):: pe0, pn0
+  real(FVPRC) pt0(km), gz(km+1), pk0(km+1)
+  real(FVPRC) qp(Atm%bd%is:Atm%bd%ie,km,ncnst)
+  real(FVPRC), dimension(Atm%bd%is:Atm%bd%ie,npz):: qn1
+  real(FVPRC), dimension(Atm%bd%is:Atm%bd%ie,npz+1):: pe1, pn1
+  real(FVPRC) :: rdlon(im)
+  real(FVPRC) :: rdlat(jm)
+  real(FVPRC):: a1, b1, c1, c2, c3, c4
+  real(FVPRC):: gzc, psc, pst
+  integer i,j,k, i1, i2, jc, i0, j0, iq
+! integer  sphum, liq_wat, ice_wat, cld_amt
+  integer  sphum
+  integer :: is,  ie,  js,  je
+  integer :: isd, ied, jsd, jed
+
+  is  = Atm%bd%is
+  ie  = Atm%bd%ie
+  js  = Atm%bd%js
+  je  = Atm%bd%je
+  isd = Atm%bd%isd
+  ied = Atm%bd%ied
+  jsd = Atm%bd%jsd
+  jed = Atm%bd%jed
+
+  !!NOTE: Only Atm is used in this routine.
+  agrid => Atm%gridstruct%agrid
+
+  sphum   = get_tracer_index(MODEL_ATMOS, 'sphum')
 ! liq_wat = get_tracer_index(MODEL_ATMOS, 'liq_wat')
 ! ice_wat = get_tracer_index(MODEL_ATMOS, 'ice_wat')
 ! cld_amt = get_tracer_index(MODEL_ATMOS, 'cld_amt')
 
-                     if ( sphum/=1 ) then
-                        call mpp_error(FATAL,'SPHUM must be 1st tracer')
-                     endif
+   if ( sphum/=1 ) then
+        call mpp_error(FATAL,'SPHUM must be 1st tracer')
+   endif
+  pk0(1) = ak0(1)**kappa
 
-                     pk0(1) = ak0(1)**kappa 
+  do i=1,im-1
+     rdlon(i) = 1. / (lon(i+1) - lon(i))
+  enddo
+     rdlon(im) = 1. / (lon(1) + 2.*pi - lon(im))
 
-                     do i=1,im-1
-                        rdlon(i) = 1. / (lon(i+1) - lon(i))
-                     enddo
-                     rdlon(im) = 1. / (lon(1) + 2.*pi - lon(im))
-
-                     do j=1,jm-1
-                        rdlat(j) = 1. / (lat(j+1) - lat(j))
-                     enddo
+  do j=1,jm-1
+     rdlat(j) = 1. / (lat(j+1) - lat(j))
+  enddo
 
 ! * Interpolate to cubed sphere cell center
-                     do 5000 j=js,je
+  do 5000 j=js,je
 
-                        do i=is,ie
-                           pe0(i,1) = ak0(1)
-                           pn0(i,1) = log(ak0(1))
-                        enddo
+     do i=is,ie
+        pe0(i,1) = ak0(1)
+        pn0(i,1) = log(ak0(1))
+     enddo
 
-                        do i=is,ie
+     do i=is,ie
 
-                           if ( agrid(i,j,1)>lon(im) ) then
-                              i1 = im;     i2 = 1
-                              a1 = (agrid(i,j,1)-lon(im)) * rdlon(im)
-                           elseif ( agrid(i,j,1)<lon(1) ) then
-                              i1 = im;     i2 = 1
-                              a1 = (agrid(i,j,1)+2.*pi-lon(im)) * rdlon(im)
-                           else
-                              do i0=1,im-1
-                                 if ( agrid(i,j,1)>=lon(i0) .and. agrid(i,j,1)<=lon(i0+1) ) then
-                                    i1 = i0;  i2 = i0+1
-                                    a1 = (agrid(i,j,1)-lon(i1)) * rdlon(i0)
-                                    go to 111
-                                 endif
-                              enddo
-                           endif
+       if ( agrid(i,j,1)>lon(im) ) then
+            i1 = im;     i2 = 1
+            a1 = (agrid(i,j,1)-lon(im)) * rdlon(im)
+       elseif ( agrid(i,j,1)<lon(1) ) then
+            i1 = im;     i2 = 1
+            a1 = (agrid(i,j,1)+2.*pi-lon(im)) * rdlon(im)
+       else
+            do i0=1,im-1
+            if ( agrid(i,j,1)>=lon(i0) .and. agrid(i,j,1)<=lon(i0+1) ) then
+               i1 = i0;  i2 = i0+1
+               a1 = (agrid(i,j,1)-lon(i1)) * rdlon(i0)
+               go to 111
+            endif
+            enddo
+       endif
 
-111                        continue
-
-                           if ( agrid(i,j,2)<lat(1) ) then
-                              jc = 1
-                              b1 = 0.
-                           elseif ( agrid(i,j,2)>lat(jm) ) then
-                              jc = jm-1
-                              b1 = 1.
-                           else
-                              do j0=1,jm-1
-                                 if ( agrid(i,j,2)>=lat(j0) .and. agrid(i,j,2)<=lat(j0+1) ) then
-                                    jc = j0
-                                    b1 = (agrid(i,j,2)-lat(jc)) * rdlat(jc)
-                                    go to 222
-                                 endif
-                              enddo
-                           endif
-222                        continue
+111    continue
+       if ( agrid(i,j,2)<lat(1) ) then
+            jc = 1
+            b1 = 0.
+       elseif ( agrid(i,j,2)>lat(jm) ) then
+            jc = jm-1
+            b1 = 1.
+       else
+          do j0=1,jm-1
+          if ( agrid(i,j,2)>=lat(j0) .and. agrid(i,j,2)<=lat(j0+1) ) then
+               jc = j0
+               b1 = (agrid(i,j,2)-lat(jc)) * rdlat(jc)
+               go to 222
+          endif
+          enddo
+       endif
+222    continue
 
 #ifndef DEBUG_REMAP
-                           if ( a1<0.0 .or. a1>1.0 .or.  b1<0.0 .or. b1>1.0 ) then
-                              write(*,*) i,j,a1, b1
-                           endif
+       if ( a1<0.0 .or. a1>1.0 .or.  b1<0.0 .or. b1>1.0 ) then
+            write(*,*) i,j,a1, b1
+       endif
 #endif
-                           c1 = (1.-a1) * (1.-b1)
-                           c2 =     a1  * (1.-b1)
-                           c3 =     a1  *     b1
-                           c4 = (1.-a1) *     b1
+       c1 = (1.-a1) * (1.-b1)
+       c2 =     a1  * (1.-b1)
+       c3 =     a1  *     b1
+       c4 = (1.-a1) *     b1
 
 ! Interpolated surface pressure
-                           psc = c1*ps0(i1,jc  ) + c2*ps0(i2,jc  ) +    &
-                                 c3*ps0(i2,jc+1) + c4*ps0(i1,jc+1)
+       psc = c1*ps0(i1,jc  ) + c2*ps0(i2,jc  ) +    &
+             c3*ps0(i2,jc+1) + c4*ps0(i1,jc+1)
 
 ! Interpolated surface geopotential
-                           gzc = c1*gz0(i1,jc  ) + c2*gz0(i2,jc  ) +    &
-                                 c3*gz0(i2,jc+1) + c4*gz0(i1,jc+1)
+       gzc = c1*gz0(i1,jc  ) + c2*gz0(i2,jc  ) +    &
+             c3*gz0(i2,jc+1) + c4*gz0(i1,jc+1)
 
 ! 3D fields:
-                           do iq=1,ncnst
+       do iq=1,ncnst
 !          if ( iq==sphum .or. iq==liq_wat .or. iq==ice_wat .or. iq==cld_amt ) then
-                              do k=1,km
-                                 qp(i,k,iq) = c1*qa(i1,jc,  k,iq) + c2*qa(i2,jc,  k,iq) +  &
-                                       c3*qa(i2,jc+1,k,iq) + c4*qa(i1,jc+1,k,iq)
-                              enddo
+          do k=1,km
+             qp(i,k,iq) = c1*qa(i1,jc,  k,iq) + c2*qa(i2,jc,  k,iq) +  &
+                          c3*qa(i2,jc+1,k,iq) + c4*qa(i1,jc+1,k,iq)
+          enddo
 !          endif
-                           enddo
-
-                           do k=1,km
-                              up(i,k) = c1*ua(i1,jc,  k) + c2*ua(i2,jc,  k) +  &
-                                    c3*ua(i2,jc+1,k) + c4*ua(i1,jc+1,k)
-                              vp(i,k) = c1*va(i1,jc,  k) + c2*va(i2,jc,  k) +  &
-                                    c3*va(i2,jc+1,k) + c4*va(i1,jc+1,k)
-                              tp(i,k) = c1*ta(i1,jc,  k) + c2*ta(i2,jc,  k) +  &
-                                    c3*ta(i2,jc+1,k) + c4*ta(i1,jc+1,k)
+       enddo
+       do k=1,km
+          up(i,k) = c1*ua(i1,jc,  k) + c2*ua(i2,jc,  k) +  &
+                    c3*ua(i2,jc+1,k) + c4*ua(i1,jc+1,k)
+          vp(i,k) = c1*va(i1,jc,  k) + c2*va(i2,jc,  k) +  &
+                    c3*va(i2,jc+1,k) + c4*va(i1,jc+1,k)
+          tp(i,k) = c1*ta(i1,jc,  k) + c2*ta(i2,jc,  k) +  &
+                    c3*ta(i2,jc+1,k) + c4*ta(i1,jc+1,k)
 ! Virtual effect:
-                              tp(i,k) = tp(i,k)*(1.+zvir*qp(i,k,sphum))
-                           enddo
+          tp(i,k) = tp(i,k)*(1.+zvir*qp(i,k,sphum))
+       enddo
 ! Tracers:
 
-                           do k=2,km+1
-                              pe0(i,k) = ak0(k) + bk0(k)*psc
-                              pn0(i,k) = log(pe0(i,k))
-                              pk0(k) = pe0(i,k)**kappa
-                           enddo
+       do k=2,km+1
+          pe0(i,k) = ak0(k) + bk0(k)*psc
+          pn0(i,k) = log(pe0(i,k))
+          pk0(k) = pe0(i,k)**kappa
+       enddo
 
 #ifdef USE_DATA_ZS
-                           Atm(1)%  ps(i,j) = psc
-                           Atm(1)%phis(i,j) = gzc
+       Atm%  ps(i,j) = psc
+       Atm%phis(i,j) = gzc
 #else
 
 ! * Adjust interpolated ps to model terrain
-                           gz(km+1) = gzc 
-                           do k=km,1,-1
-                              gz(k) = gz(k+1) + rdgas*tp(i,k)*(pn0(i,k+1)-pn0(i,k)) 
-                           enddo
+       gz(km+1) = gzc
+       do k=km,1,-1
+           gz(k) = gz(k+1) + rdgas*tp(i,k)*(pn0(i,k+1)-pn0(i,k))
+       enddo
 ! Only lowest layer potential temp is needed
-                           pt0(km) = tp(i,km)/(pk0(km+1)-pk0(km))*(kappa*(pn0(i,km+1)-pn0(i,km)))
-                           if( Atm(1)%phis(i,j)>gzc ) then
-                              do k=km,1,-1
-                                 if( Atm(1)%phis(i,j) <  gz(k)  .and.    &
-                                       Atm(1)%phis(i,j) >= gz(k+1) ) then
-                                    pst = pk0(k) + (pk0(k+1)-pk0(k))*(gz(k)-Atm(1)%phis(i,j))/(gz(k)-gz(k+1))
-                                    go to 123
-                                 endif
-                              enddo
-                           else
+          pt0(km) = tp(i,km)/(pk0(km+1)-pk0(km))*(kappa*(pn0(i,km+1)-pn0(i,km)))
+       if( Atm%phis(i,j)>gzc ) then
+           do k=km,1,-1
+              if( Atm%phis(i,j) <  gz(k)  .and.    &
+                  Atm%phis(i,j) >= gz(k+1) ) then
+                  pst = pk0(k) + (pk0(k+1)-pk0(k))*(gz(k)-Atm%phis(i,j))/(gz(k)-gz(k+1))
+                  go to 123
+              endif
+           enddo
+       else
 ! Extrapolation into the ground
-                              pst = pk0(km+1) + (gzc-Atm(1)%phis(i,j))/(cp_air*pt0(km))
-                           endif
+           pst = pk0(km+1) + (gzc-Atm%phis(i,j))/(cp_air*pt0(km))
+       endif
 
-123                        Atm(1)%ps(i,j) = pst**(1./kappa)
+123    Atm%ps(i,j) = pst**(1./kappa)
 #endif
-                        enddo   !i-loop
+     enddo   !i-loop
 
 
 ! * Compute delp from ps
-                        do i=is,ie
-                           pe1(i,1) = Atm(1)%ak(1)
-                           pn1(i,1) = log(pe1(i,1))
-                        enddo
-                        do k=2,npz+1
-                           do i=is,ie
-                              pe1(i,k) = Atm(1)%ak(k) + Atm(1)%bk(k)*Atm(1)%ps(i,j)
-                              pn1(i,k) = log(pe1(i,k))
-                           enddo
-                        enddo
+     do i=is,ie
+        pe1(i,1) = Atm%ak(1)
+        pn1(i,1) = log(pe1(i,1))
+     enddo
+     do k=2,npz+1
+       do i=is,ie
+          pe1(i,k) = Atm%ak(k) + Atm%bk(k)*Atm%ps(i,j)
+          pn1(i,k) = log(pe1(i,k))
+       enddo
+     enddo
 
-                        do k=1,npz
-                           do i=is,ie
-                              Atm(1)%delp(i,j,k) = pe1(i,k+1) - pe1(i,k)
-                           enddo
-                        enddo
+     do k=1,npz
+        do i=is,ie
+           Atm%delp(i,j,k) = pe1(i,k+1) - pe1(i,k)
+        enddo
+     enddo
 
 ! Use kord=9 for winds; kord=11 for tracers
 !------
 ! map u
 !------
-                        call mappm(km, pe0, up, npz, pe1, qn1, is,ie, -1, 9)
-                        do k=1,npz
-                           do i=is,ie
-                              ut(i,j,k) = qn1(i,k)
-                           enddo
-                        enddo
+      call mappm(km, pe0, up, npz, pe1, qn1, is,ie, -1, 9, Atm%ptop)
+      do k=1,npz
+         do i=is,ie
+            ut(i,j,k) = qn1(i,k)
+         enddo
+      enddo
 !------
 ! map v
 !------
-                        call mappm(km, pe0, vp, npz, pe1, qn1, is,ie, -1, 9)
-                        do k=1,npz
-                           do i=is,ie
-                              vt(i,j,k) = qn1(i,k)
-                           enddo
-                        enddo
+      call mappm(km, pe0, vp, npz, pe1, qn1, is,ie, -1, 9, Atm%ptop)
+      do k=1,npz
+         do i=is,ie
+            vt(i,j,k) = qn1(i,k)
+         enddo
+      enddo
 
 !---------------
 ! map tracers
 !----------------
-                        do iq=1,ncnst
+      do iq=1,ncnst
 ! Note: AM2 physics tracers only
 !         if ( iq==sphum .or. iq==liq_wat .or. iq==ice_wat .or. iq==cld_amt ) then
-                           call mappm(km, pe0, qp(is,1,iq), npz, pe1,  qn1, is,ie, 0, 11)
-                           do k=1,npz
-                              do i=is,ie
-                                 Atm(1)%q(i,j,k,iq) = qn1(i,k)
-                              enddo
-                           enddo
+         call mappm(km, pe0, qp(is,1,iq), npz, pe1,  qn1, is,ie, 0, 11, Atm%ptop)
+         do k=1,npz
+            do i=is,ie
+               Atm%q(i,j,k,iq) = qn1(i,k)
+            enddo
+         enddo
 !         endif
-                        enddo
+      enddo
 
 !-------------------------------------------------------------
 ! map virtual temperature using geopotential conserving scheme.
 !-------------------------------------------------------------
-                        call mappm(km, pn0, tp, npz, pn1, qn1, is,ie, 1, 9)
-                        do k=1,npz
-                           do i=is,ie
-                              Atm(1)%pt(i,j,k) = qn1(i,k)/(1.+zvir*Atm(1)%q(i,j,k,sphum))
-                           enddo
-                        enddo
+      call mappm(km, pn0, tp, npz, pn1, qn1, is,ie, 1, 9, Atm%ptop)
+      do k=1,npz
+         do i=is,ie
+            Atm%pt(i,j,k) = qn1(i,k)/(1.+zvir*Atm%q(i,j,k,sphum))
+         enddo
+      enddo
 
-5000                    continue
+5000 continue
 
-                        call prt_maxmin('PS_model', Atm(1)%ps, is, ie, js, je, ng, 1, 0.01, gid==0)
-                        call prt_maxmin('UT', ut, is, ie, js, je, ng, npz, 1.d0, gid==0)
-                        call prt_maxmin('VT', vt, is, ie, js, je, ng, npz, 1.d0, gid==0)
+  call prt_maxmin('PS_model', Atm%ps, is, ie, js, je, ng, 1, 0.01_FVPRC)
+  call prt_maxmin('UT', ut, is, ie, js, je, ng, npz, 1._FVPRC)
+  call prt_maxmin('VT', vt, is, ie, js, je, ng, npz, 1._FVPRC)
 
 !----------------------------------------------
 ! winds: lat-lon ON A to Cubed-D transformation:
 !----------------------------------------------
-                        call cubed_a2d(Atm(1)%npx, Atm(1)%npy, npz, ut, vt, Atm(1)%u, Atm(1)%v )
+  call cubed_a2d(Atm%npx, Atm%npy, npz, ut, vt, Atm%u, Atm%v, Atm%gridstruct, Atm%domain, Atm%bd )
 
-                        if (gid==0) write(*,*) 'done remap_xyz'
+  if (is_master()) write(*,*) 'done remap_xyz'
 
-                     end subroutine remap_xyz
+ end subroutine remap_xyz
+
 
 
                      subroutine init_cubsph_grid(npts, is,ie, js,je, ntiles, sph_corner)  
@@ -2667,13 +2816,13 @@ contains
 #ifdef SMEM_MAPL_MODE
 ! allocate global arrays (preferable in shared memory)
                         if(MAPL_ShmInitialized) then
-                           if (gid==masterproc) write(*,*) 'Using MAPL_Shmem in external_ic: init_cubsph_grid' 
+                           if (is_master()) write(*,*) 'Using MAPL_Shmem in external_ic: init_cubsph_grid' 
                            call MAPL_AllocNodeArray(grid_in,Shp=(/npts,npts,2,ntiles/),rc=STATUS)
                         else
-                           if (gid==masterproc) write(*,*) 'WARNING... in external_ic: Global grid allocate'
+                           if (is_master()) write(*,*) 'WARNING... in external_ic: Global grid allocate'
                            allocate( grid_in(npts,npts,2,ntiles) )
                         endif
-                        if (gid==masterproc) then
+                        if (is_master()) then
                           allocate( xs(npts,npts) )
                           allocate( ys(npts,npts) )
                           call gnomonic_grids(grid_type, npts-1, xs, ys)
@@ -2740,7 +2889,7 @@ contains
 
                      subroutine interp_c2c_vect(npx_in, npy_in, npx_out, npy_out, npz, ntiles, domain_i, &
                            is,ie, js,je, isd_i,ied_i, jsd_i,jed_i, is_i,ie_i, js_i,je_i, &
-                           u_in, v_in, u_out, v_out, index_c2c, weight_c2c, corner_in, corner_out)
+                           u_in, v_in, u_out, v_out, index_c2c, weight_c2c, corner_in, corner_out, gridstruct)
                         use GRID_UTILS_mod, only: latlon2xyz
                         use GRID_UTILS_mod,   only: get_dx, get_dxa, get_dy, get_dya,     &
                               get_center_vect, get_west_vect,       &
@@ -2752,31 +2901,33 @@ contains
                         type(domain2d), intent(INOUT) :: domain_i
                         integer, intent(IN) :: is,ie, js,je, isd_i,ied_i, jsd_i,jed_i, is_i,ie_i, js_i,je_i
                         integer, intent(IN) ::  index_c2c(3, is:ie, js:je )
-                        real(REAL8),  intent(IN) :: weight_c2c(4, is:ie, js:je )
-                        real(REAL8),  intent(IN) :: corner_in(2,is_i:ie_i+1,js_i:je_i+1)
-                        real(REAL8),  intent(IN) :: corner_out(2,is:ie+1,js:je+1)
-                        real(REAL8),  intent(IN) ::  u_in(isd_i:ied_i,jsd_i:jed_i+1,npz)
-                        real(REAL8),  intent(IN) ::  v_in(isd_i:ied_i+1,jsd_i:jed_i,npz)
-                        real(REAL8),  intent(OUT):: u_out(is:ie,js:je,npz)
-                        real(REAL8),  intent(OUT):: v_out(is:ie,js:je,npz)
+                        real(REAL64),  intent(IN) :: weight_c2c(4, is:ie, js:je )
+                        real(REAL64),  intent(IN) :: corner_in(2,is_i:ie_i+1,js_i:je_i+1)
+                        real(REAL64),  intent(IN) :: corner_out(2,is:ie+1,js:je+1)
+                        real(FVPRC),  intent(IN) ::  u_in(isd_i:ied_i,jsd_i:jed_i+1,npz)
+                        real(FVPRC),  intent(IN) ::  v_in(isd_i:ied_i+1,jsd_i:jed_i,npz)
+                        real(FVPRC),  intent(OUT):: u_out(is:ie,js:je,npz)
+                        real(FVPRC),  intent(OUT):: v_out(is:ie,js:je,npz)
+                        type(fv_grid_type), intent(IN), target :: gridstruct
 
-                        real(REAL8) :: tmp(isd_i:ied_i,jsd_i:jed_i)
+                        real(FVPRC) :: tmp(isd_i:ied_i,jsd_i:jed_i)
 
                         integer :: i,j,l,k,n
-                        real(REAL8), dimension(:,:,:), allocatable :: vxyz_in, vxyz_out
-                        real(REAL8), dimension(:,:,:), allocatable :: ec1, ec2, ew1, ew2, es1, es2
-                        real(REAL8), dimension(:,:)  , allocatable :: dx, dy, dxa, dya, rdxa, rdya, cosa_s, sina_s
-                        real(REAL8) :: u1, v1, vx, vy, vz
-                        real(REAL8) :: pc1(3), pc2(3)
+                        real(REAL64), dimension(:,:,:), allocatable :: vxyz_in, vxyz_out
+                        real(REAL64), dimension(:,:,:), allocatable :: ec1, ec2, ew1, ew2, es1, es2
+                        real(REAL64), dimension(:,:)  , allocatable :: dx, dy, dxa, dya, rdxa, rdya, cosa_s, sina_s
+                        real(FVPRC) :: u1, v1, vx, vy, vz
+                        real(REAL64) :: pc1(3), pc2(3)
                         integer :: ic, jc, lc
 
-                        real(REAL8), dimension(:,:,:), allocatable :: xyz_corner_in, xyz_corner_out
+                        real(REAL64), dimension(:,:,:), allocatable :: xyz_corner_in, xyz_corner_out
 
                         character(len=64) :: strTxt
 
 !------------------------------------------------------------------!
 ! calculate xyz cell corners and cell centers                      !
 !------------------------------------------------------------------!
+                        tmp = 0.0
                         allocate(xyz_corner_in (3, isd_i:ied_i+1, jsd_i:jed_i+1), &
                               xyz_corner_out(3, is   :ie   +1, js   :je   +1))
                         do j=js_i,je_i+1
@@ -2827,7 +2978,7 @@ contains
 !-------------------------------------------------------!
 ! calculate flow vector for a-grid                      !
 !-------------------------------------------------------!
-                           call d2a_vect(DBLE(u_in(:,:,k)), DBLE(v_in(:,:,k)), dx, dy, rdxa, rdya, cosa_s, ec1, ec2, &
+                           call d2a_vect(DBLE(u_in(:,:,k)), DBLE(v_in(:,:,k)), DBLE(dx), DBLE(dy), DBLE(rdxa), DBLE(rdya), DBLE(cosa_s), DBLE(ec1), DBLE(ec2), &
                                  isd_i, ied_i, jsd_i, jed_i, 1, 1,           &
                                  is_i , ie_i , js_i , je_i , 1, 1,           &
                                  vxyz_in(:,isd_i:ied_i,jsd_i:jed_i))
@@ -2875,8 +3026,8 @@ contains
 !----------------------------------------------------------!
 ! rotate wind vectors from cubed to latlon orientation     !
 !----------------------------------------------------------!
-                                 u_out(i,j,k) = 2.0*(a11(i,j)*u1 + a12(i,j)*v1)
-                                 v_out(i,j,k) = 2.0*(a21(i,j)*u1 + a22(i,j)*v1)
+                                 u_out(i,j,k) = 2.0*(gridstruct%a11(i,j)*u1 + gridstruct%a12(i,j)*v1)
+                                 v_out(i,j,k) = 2.0*(gridstruct%a21(i,j)*u1 + gridstruct%a22(i,j)*v1)
                               enddo
                            enddo
                            write(strTxt,'(A,i3.3)') 'interp_c2c_vect: OUTPUT A-grid C2L level:', k
@@ -2891,8 +3042,8 @@ contains
                      end subroutine interp_c2c_vect
 
                      Function REVERSE(A) Result(B)
-                        real(REAL8), Intent(In) :: A(:,:)
-                        real(REAL8) :: B(Size(A,1),Size(A,2))
+                        real(FVPRC), Intent(In) :: A(:,:)
+                        real(FVPRC) :: B(Size(A,1),Size(A,2))
 
                         Integer :: i, n
 
@@ -2904,171 +3055,203 @@ contains
 
                      End Function REVERSE
 
-                     subroutine cubed_a2d( npx, npy, npz, ua, va, u, v )
+ subroutine cubed_a2d( npx, npy, npz, ua, va, u, v, gridstruct, fv_domain, bd )
 
 ! Purpose; Transform wind on A grid to D grid
 
-                        use mpp_domains_mod,    only: mpp_update_domains
+  use mpp_domains_mod,    only: mpp_update_domains
 
-                        integer, intent(in):: npx, npy, npz
-                        real(REAL8), intent(inout), dimension(isd:ied,jsd:jed,npz):: ua, va
-                        real(REAL8), intent(out):: u(isd:ied,  jsd:jed+1,npz)
-                        real(REAL8), intent(out):: v(isd:ied+1,jsd:jed  ,npz)
+  type(fv_grid_bounds_type), intent(IN) :: bd
+  integer, intent(in):: npx, npy, npz
+  real(FVPRC), intent(inout), dimension(bd%isd:bd%ied,bd%jsd:bd%jed,npz):: ua, va
+  real(FVPRC), intent(out):: u(bd%isd:bd%ied,  bd%jsd:bd%jed+1,npz)
+  real(FVPRC), intent(out):: v(bd%isd:bd%ied+1,bd%jsd:bd%jed  ,npz)
+  type(fv_grid_type), intent(IN), target :: gridstruct
+  type(domain2d), intent(INOUT) :: fv_domain
 ! local:
-                        real(REAL8) v3(is-1:ie+1,js-1:je+1,3)
-                        real(REAL8) ue(is-1:ie+1,js:je+1,3)    ! 3D winds at edges
-                        real(REAL8) ve(is:ie+1,js-1:je+1,  3)    ! 3D winds at edges
-                        real(REAL8), dimension(is:ie):: ut1, ut2, ut3
-                        real(REAL8), dimension(js:je):: vt1, vt2, vt3
-                        integer i, j, k, im2, jm2
+  real(FVPRC) v3(3,bd%is-1:bd%ie+1,bd%js-1:bd%je+1)
+  real(FVPRC) ue(3,bd%is-1:bd%ie+1,bd%js:bd%je+1)    ! 3D winds at edges
+  real(FVPRC) ve(3,bd%is:bd%ie+1,bd%js-1:bd%je+1)    ! 3D winds at edges
+  real(FVPRC), dimension(bd%is:bd%ie):: ut1, ut2, ut3
+  real(FVPRC), dimension(bd%js:bd%je):: vt1, vt2, vt3
+  integer i, j, k, im2, jm2
 
-                        call mpp_update_domains(ua, domain, complete=.false.)
-                        call mpp_update_domains(va, domain, complete=.true.)
+  real(REAL64), pointer, dimension(:,:,:)   :: vlon, vlat
+  real(REAL64), pointer, dimension(:)       :: edge_vect_w, edge_vect_e, edge_vect_s, edge_vect_n
+  real(REAL64), pointer, dimension(:,:,:,:) :: ew, es
 
-                        im2 = (npx-1)/2
-                        jm2 = (npy-1)/2
+  integer :: is,  ie,  js,  je
+  integer :: isd, ied, jsd, jed
 
-                        do k=1, npz
+  is  = bd%is
+  ie  = bd%ie
+  js  = bd%js
+  je  = bd%je
+  isd = bd%isd
+  ied = bd%ied
+  jsd = bd%jsd
+  jed = bd%jed
+  vlon => gridstruct%vlon
+  vlat => gridstruct%vlat
+
+  edge_vect_w => gridstruct%edge_vect_w
+  edge_vect_e => gridstruct%edge_vect_e
+  edge_vect_s => gridstruct%edge_vect_s
+  edge_vect_n => gridstruct%edge_vect_n
+
+  ew => gridstruct%ew
+  es => gridstruct%es
+
+  call mpp_update_domains(ua, fv_domain, complete=.false.)
+  call mpp_update_domains(va, fv_domain, complete=.true.)
+
+    im2 = (npx-1)/2
+    jm2 = (npy-1)/2
+    do k=1, npz
 ! Compute 3D wind on A grid
-                           do j=js-1,je+1
-                              do i=is-1,ie+1
-                                 v3(i,j,1) = ua(i,j,k)*vlon(i,j,1) + va(i,j,k)*vlat(i,j,1)
-                                 v3(i,j,2) = ua(i,j,k)*vlon(i,j,2) + va(i,j,k)*vlat(i,j,2)
-                                 v3(i,j,3) = ua(i,j,k)*vlon(i,j,3) + va(i,j,k)*vlat(i,j,3)
-                              enddo
-                           enddo
+       do j=js-1,je+1
+          do i=is-1,ie+1
+             !v3(1,i,j) = ua(i,j,k)*vlon(1,i,j) + va(i,j,k)*vlat(1,i,j)
+             !v3(2,i,j) = ua(i,j,k)*vlon(2,i,j) + va(i,j,k)*vlat(2,i,j)
+             !v3(3,i,j) = ua(i,j,k)*vlon(3,i,j) + va(i,j,k)*vlat(3,i,j)
+             v3(1,i,j) = ua(i,j,k)*vlon(i,j,1) + va(i,j,k)*vlat(i,j,1)
+             v3(2,i,j) = ua(i,j,k)*vlon(i,j,2) + va(i,j,k)*vlat(i,j,2)
+             v3(3,i,j) = ua(i,j,k)*vlon(i,j,3) + va(i,j,k)*vlat(i,j,3)
+          enddo
+       enddo
 
 ! A --> D
 ! Interpolate to cell edges
-                           do j=js,je+1
-                              do i=is-1,ie+1
-                                 ue(i,j,1) = 0.5*(v3(i,j-1,1) + v3(i,j,1))
-                                 ue(i,j,2) = 0.5*(v3(i,j-1,2) + v3(i,j,2))
-                                 ue(i,j,3) = 0.5*(v3(i,j-1,3) + v3(i,j,3))
-                              enddo
-                           enddo
+       do j=js,je+1
+          do i=is-1,ie+1
+             ue(1,i,j) = 0.5*(v3(1,i,j-1) + v3(1,i,j))
+             ue(2,i,j) = 0.5*(v3(2,i,j-1) + v3(2,i,j))
+             ue(3,i,j) = 0.5*(v3(3,i,j-1) + v3(3,i,j))
+          enddo
+       enddo
 
-                           do j=js-1,je+1
-                              do i=is,ie+1
-                                 ve(i,j,1) = 0.5*(v3(i-1,j,1) + v3(i,j,1))
-                                 ve(i,j,2) = 0.5*(v3(i-1,j,2) + v3(i,j,2))
-                                 ve(i,j,3) = 0.5*(v3(i-1,j,3) + v3(i,j,3))
-                              enddo
-                           enddo
+       do j=js-1,je+1
+          do i=is,ie+1
+             ve(1,i,j) = 0.5*(v3(1,i-1,j) + v3(1,i,j))
+             ve(2,i,j) = 0.5*(v3(2,i-1,j) + v3(2,i,j))
+             ve(3,i,j) = 0.5*(v3(3,i-1,j) + v3(3,i,j))
+          enddo
+       enddo
 
 ! --- E_W edges (for v-wind):
-                           if ( is==1 ) then
-                              i = 1
-                              do j=js,je
-                                 if ( j>jm2 ) then
-                                    vt1(j) = edge_vect_w(j)*ve(i,j-1,1)+(1.-edge_vect_w(j))*ve(i,j,1)
-                                    vt2(j) = edge_vect_w(j)*ve(i,j-1,2)+(1.-edge_vect_w(j))*ve(i,j,2)
-                                    vt3(j) = edge_vect_w(j)*ve(i,j-1,3)+(1.-edge_vect_w(j))*ve(i,j,3)
-                                 else
-                                    vt1(j) = edge_vect_w(j)*ve(i,j+1,1)+(1.-edge_vect_w(j))*ve(i,j,1)
-                                    vt2(j) = edge_vect_w(j)*ve(i,j+1,2)+(1.-edge_vect_w(j))*ve(i,j,2)
-                                    vt3(j) = edge_vect_w(j)*ve(i,j+1,3)+(1.-edge_vect_w(j))*ve(i,j,3)
-                                 endif
-                              enddo
-                              do j=js,je
-                                 ve(i,j,1) = vt1(j)
-                                 ve(i,j,2) = vt2(j)
-                                 ve(i,j,3) = vt3(j)
-                              enddo
-                           endif
+     if (.not. gridstruct%nested) then
+     if ( is==1) then
+       i = 1
+       do j=js,je
+        if ( j>jm2 ) then
+             vt1(j) = edge_vect_w(j)*ve(1,i,j-1)+(1.-edge_vect_w(j))*ve(1,i,j)
+             vt2(j) = edge_vect_w(j)*ve(2,i,j-1)+(1.-edge_vect_w(j))*ve(2,i,j)
+             vt3(j) = edge_vect_w(j)*ve(3,i,j-1)+(1.-edge_vect_w(j))*ve(3,i,j)
+        else
+             vt1(j) = edge_vect_w(j)*ve(1,i,j+1)+(1.-edge_vect_w(j))*ve(1,i,j)
+             vt2(j) = edge_vect_w(j)*ve(2,i,j+1)+(1.-edge_vect_w(j))*ve(2,i,j)
+             vt3(j) = edge_vect_w(j)*ve(3,i,j+1)+(1.-edge_vect_w(j))*ve(3,i,j)
+        endif
+       enddo
+       do j=js,je
+          ve(1,i,j) = vt1(j)
+          ve(2,i,j) = vt2(j)
+          ve(3,i,j) = vt3(j)
+       enddo
+     endif
 
-                           if ( (ie+1)==npx ) then
-                              i = npx
-                              do j=js,je
-                                 if ( j>jm2 ) then
-                                    vt1(j) = edge_vect_e(j)*ve(i,j-1,1)+(1.-edge_vect_e(j))*ve(i,j,1)
-                                    vt2(j) = edge_vect_e(j)*ve(i,j-1,2)+(1.-edge_vect_e(j))*ve(i,j,2)
-                                    vt3(j) = edge_vect_e(j)*ve(i,j-1,3)+(1.-edge_vect_e(j))*ve(i,j,3)
-                                 else
-                                    vt1(j) = edge_vect_e(j)*ve(i,j+1,1)+(1.-edge_vect_e(j))*ve(i,j,1)
-                                    vt2(j) = edge_vect_e(j)*ve(i,j+1,2)+(1.-edge_vect_e(j))*ve(i,j,2)
-                                    vt3(j) = edge_vect_e(j)*ve(i,j+1,3)+(1.-edge_vect_e(j))*ve(i,j,3)
-                                 endif
-                              enddo
-                              do j=js,je
-                                 ve(i,j,1) = vt1(j)
-                                 ve(i,j,2) = vt2(j)
-                                 ve(i,j,3) = vt3(j)
-                              enddo
-                           endif
+     if ( (ie+1)==npx ) then
+       i = npx
+       do j=js,je
+        if ( j>jm2 ) then
+             vt1(j) = edge_vect_e(j)*ve(1,i,j-1)+(1.-edge_vect_e(j))*ve(1,i,j)
+             vt2(j) = edge_vect_e(j)*ve(2,i,j-1)+(1.-edge_vect_e(j))*ve(2,i,j)
+             vt3(j) = edge_vect_e(j)*ve(3,i,j-1)+(1.-edge_vect_e(j))*ve(3,i,j)
+        else
+             vt1(j) = edge_vect_e(j)*ve(1,i,j+1)+(1.-edge_vect_e(j))*ve(1,i,j)
+             vt2(j) = edge_vect_e(j)*ve(2,i,j+1)+(1.-edge_vect_e(j))*ve(2,i,j)
+             vt3(j) = edge_vect_e(j)*ve(3,i,j+1)+(1.-edge_vect_e(j))*ve(3,i,j)
+        endif
+       enddo
+       do j=js,je
+          ve(1,i,j) = vt1(j)
+          ve(2,i,j) = vt2(j)
+          ve(3,i,j) = vt3(j)
+       enddo
+     endif
 
 ! N-S edges (for u-wind):
-                           if ( js==1 ) then
-                              j = 1
-                              do i=is,ie
-                                 if ( i>im2 ) then
-                                    ut1(i) = edge_vect_s(i)*ue(i-1,j,1)+(1.-edge_vect_s(i))*ue(i,j,1)
-                                    ut2(i) = edge_vect_s(i)*ue(i-1,j,2)+(1.-edge_vect_s(i))*ue(i,j,2)
-                                    ut3(i) = edge_vect_s(i)*ue(i-1,j,3)+(1.-edge_vect_s(i))*ue(i,j,3)
-                                 else
-                                    ut1(i) = edge_vect_s(i)*ue(i+1,j,1)+(1.-edge_vect_s(i))*ue(i,j,1)
-                                    ut2(i) = edge_vect_s(i)*ue(i+1,j,2)+(1.-edge_vect_s(i))*ue(i,j,2)
-                                    ut3(i) = edge_vect_s(i)*ue(i+1,j,3)+(1.-edge_vect_s(i))*ue(i,j,3)
-                                 endif
-                              enddo
-                              do i=is,ie
-                                 ue(i,j,1) = ut1(i)
-                                 ue(i,j,2) = ut2(i)
-                                 ue(i,j,3) = ut3(i)
-                              enddo
-                           endif
+     if ( js==1 ) then
+       j = 1
+       do i=is,ie
+        if ( i>im2 ) then
+             ut1(i) = edge_vect_s(i)*ue(1,i-1,j)+(1.-edge_vect_s(i))*ue(1,i,j)
+             ut2(i) = edge_vect_s(i)*ue(2,i-1,j)+(1.-edge_vect_s(i))*ue(2,i,j)
+             ut3(i) = edge_vect_s(i)*ue(3,i-1,j)+(1.-edge_vect_s(i))*ue(3,i,j)
+        else
+             ut1(i) = edge_vect_s(i)*ue(1,i+1,j)+(1.-edge_vect_s(i))*ue(1,i,j)
+             ut2(i) = edge_vect_s(i)*ue(2,i+1,j)+(1.-edge_vect_s(i))*ue(2,i,j)
+             ut3(i) = edge_vect_s(i)*ue(3,i+1,j)+(1.-edge_vect_s(i))*ue(3,i,j)
+        endif
+       enddo
+       do i=is,ie
+          ue(1,i,j) = ut1(i)
+          ue(2,i,j) = ut2(i)
+          ue(3,i,j) = ut3(i)
+       enddo
+     endif
 
-                           if ( (je+1)==npy ) then
-                              j = npy
-                              do i=is,ie
-                                 if ( i>im2 ) then
-                                    ut1(i) = edge_vect_n(i)*ue(i-1,j,1)+(1.-edge_vect_n(i))*ue(i,j,1)
-                                    ut2(i) = edge_vect_n(i)*ue(i-1,j,2)+(1.-edge_vect_n(i))*ue(i,j,2)
-                                    ut3(i) = edge_vect_n(i)*ue(i-1,j,3)+(1.-edge_vect_n(i))*ue(i,j,3)
-                                 else
-                                    ut1(i) = edge_vect_n(i)*ue(i+1,j,1)+(1.-edge_vect_n(i))*ue(i,j,1)
-                                    ut2(i) = edge_vect_n(i)*ue(i+1,j,2)+(1.-edge_vect_n(i))*ue(i,j,2)
-                                    ut3(i) = edge_vect_n(i)*ue(i+1,j,3)+(1.-edge_vect_n(i))*ue(i,j,3)
-                                 endif
-                              enddo
-                              do i=is,ie
-                                 ue(i,j,1) = ut1(i)
-                                 ue(i,j,2) = ut2(i)
-                                 ue(i,j,3) = ut3(i)
-                              enddo
-                           endif
+     if ( (je+1)==npy ) then
+       j = npy
+       do i=is,ie
+        if ( i>im2 ) then
+             ut1(i) = edge_vect_n(i)*ue(1,i-1,j)+(1.-edge_vect_n(i))*ue(1,i,j)
+             ut2(i) = edge_vect_n(i)*ue(2,i-1,j)+(1.-edge_vect_n(i))*ue(2,i,j)
+             ut3(i) = edge_vect_n(i)*ue(3,i-1,j)+(1.-edge_vect_n(i))*ue(3,i,j)
+        else
+             ut1(i) = edge_vect_n(i)*ue(1,i+1,j)+(1.-edge_vect_n(i))*ue(1,i,j)
+             ut2(i) = edge_vect_n(i)*ue(2,i+1,j)+(1.-edge_vect_n(i))*ue(2,i,j)
+             ut3(i) = edge_vect_n(i)*ue(3,i+1,j)+(1.-edge_vect_n(i))*ue(3,i,j)
+        endif
+       enddo
+       do i=is,ie
+          ue(1,i,j) = ut1(i)
+          ue(2,i,j) = ut2(i)
+          ue(3,i,j) = ut3(i)
+       enddo
+     endif
 
-                           do j=js,je+1
-                              do i=is,ie
-                                 u(i,j,k) =  ue(i,j,1)*es(1,i,j,1) +  &
-                                       ue(i,j,2)*es(2,i,j,1) +  &
-                                       ue(i,j,3)*es(3,i,j,1)
-                              enddo
-                           enddo
-                           do j=js,je
-                              do i=is,ie+1
-                                 v(i,j,k) = ve(i,j,1)*ew(1,i,j,2) +  &
-                                       ve(i,j,2)*ew(2,i,j,2) +  &
-                                       ve(i,j,3)*ew(3,i,j,2)
-                              enddo
-                           enddo
+     endif ! .not. nested
+     do j=js,je+1
+        do i=is,ie
+           u(i,j,k) =  ue(1,i,j)*es(1,i,j,1) +  &
+                       ue(2,i,j)*es(2,i,j,1) +  &
+                       ue(3,i,j)*es(3,i,j,1)
+        enddo
+     enddo
+     do j=js,je
+        do i=is,ie+1
+           v(i,j,k) = ve(1,i,j)*ew(1,i,j,2) +  &
+                      ve(2,i,j)*ew(2,i,j,2) +  &
+                      ve(3,i,j)*ew(3,i,j,2)
+        enddo
+     enddo
 
-                        enddo         ! k-loop
+   enddo         ! k-loop
 
-                     end subroutine cubed_a2d
-
+ end subroutine cubed_a2d
 
 
                      subroutine d2a3d(u, v,  ua,   va,  im,  jm, km, lon)
                         integer, intent(in):: im, jm, km           ! Dimensions
-                        real(REAL8), intent(in ) :: lon(im)
-                        real(REAL8), intent(in ), dimension(im,jm,km):: u, v
-                        real(REAL8), intent(out), dimension(im,jm,km):: ua, va
+                        real(FVPRC), intent(in ) :: lon(im)
+                        real(FVPRC), intent(in ), dimension(im,jm,km):: u, v
+                        real(FVPRC), intent(out), dimension(im,jm,km):: ua, va
 ! local
-                        real(REAL8) :: coslon(im),sinlon(im)    ! Sine and cosine in longitude
+                        real(FVPRC) :: coslon(im),sinlon(im)    ! Sine and cosine in longitude
                         integer i, j, k
                         integer imh
-                        real(REAL8) un, vn, us, vs
+                        real(FVPRC) un, vn, us, vs
 
                         integer :: ks, ke
 
@@ -3140,11 +3323,11 @@ contains
                         integer, intent(in):: im, jm
                         character(len=*) :: qname
                         integer i, j
-                        real(REAL8) a(im,jm)
+                        real(FVPRC) a(im,jm)
 
-                        real(REAL8) qmin(jm), qmax(jm)
-                        real(REAL8) pmax, pmin
-                        real(REAL8) fac                     ! multiplication factor
+                        real(FVPRC) qmin(jm), qmax(jm)
+                        real(FVPRC) pmax, pmin
+                        real(FVPRC) fac                     ! multiplication factor
 
                         do j=1,jm
                            pmax = a(1,j)
@@ -3175,11 +3358,11 @@ contains
                         character*(*)  qname 
                         integer, intent(in):: im, jm, km, lm
                         integer i, j, k, l
-                        real a(im,jm,km,lm)
+                        real(FVPRC) a(im,jm,km,lm)
 
-                        real qmin(jm), qmax(jm)
-                        real pmax, pmin
-                        real fac                     ! multiplication factor
+                        real(FVPRC) qmin(jm), qmax(jm)
+                        real(FVPRC) pmax, pmin
+                        real(FVPRC) fac                     ! multiplication factor
 
                         pmax = a(1,1,1,1)
                         pmin = a(1,1,1,1)
@@ -3223,6 +3406,9 @@ contains
                         character(len=32) :: type = "unknown"
                         logical :: is_symmetry
                         logical :: debug=.false.
+                        integer :: npes
+
+                        npes = mpp_npes()
 
                         nx = npx-1
                         ny = npy-1
@@ -3292,21 +3478,13 @@ contains
                            end if
                            npes_per_tile = npes/ntiles
                            call  mpp_define_layout( (/1,npx-1,1,npy-1/), npes_per_tile, layout )
-
-                           if ( npes_x == 0 ) then
-                              npes_x = layout(1)
-                           endif
-                           if ( npes_y == 0 ) then
-                              npes_y = layout(2)
-                           endif
-
+                           npes_x = layout(1)
+                           npes_y = layout(2)
                            if ( (npx/npes_x < ng) .or. (npy/npes_y < ng) ) then
                               write(*,310) npes_x, npes_y, npx/npes_x, npy/npes_y
 310                           format('Invalid layout, NPES_X:',i4.4,'NPES_Y:',i4.4,'ncells_X:',i4.4,'ncells_Y:',i4.4)
                               call mpp_error(FATAL, 'mpp_domain_decomp: bad decomp')
                            endif
-
-                           layout = (/npes_x,npes_y/)
                         case default
                            call mpp_error(FATAL, 'mpp_domain_decomp: no such test: '//type)
                         end select
@@ -3467,10 +3645,10 @@ contains
                         character(len=*), intent(IN) :: fname
                         integer,            intent(IN) :: npts, is,ie, js,je, km
                         integer (kind=MPI_OFFSET_KIND), intent(INOUT) :: offset
-                        real(REAL8),               intent(INOUT) :: var(is:ie, js:je, km)
+                        real(FVPRC),               intent(INOUT) :: var(is:ie, js:je, km)
 
                         integer :: ntiles=6
-                        real(REAL8) :: var_r8(is:ie, js:je)
+                        real(REAL64) :: var_r8(is:ie, js:je)
                         integer :: k
 
                         integer :: MUNIT=17
@@ -3481,7 +3659,7 @@ contains
                         integer :: mpistatus(MPI_STATUS_SIZE)
                         integer (kind=MPI_OFFSET_KIND) :: slice_2d
 
-                        real :: xmod, ymod
+                        real(FVPRC) :: xmod, ymod
                         character(128) :: strErr
 
                         xmod = mod(npts,npes_x)
@@ -3525,7 +3703,7 @@ contains
                         character(len=*), intent(IN) :: fname
                         integer,            intent(IN) :: npts, is,ie, js,je, km
                         integer (kind=MPI_OFFSET_KIND), intent(INOUT) :: offset
-                        real(REAL8),               intent(INOUT) :: var(is:ie, js:je, km)
+                        real(FVPRC),               intent(INOUT) :: var(is:ie, js:je, km)
 
                         integer :: ntiles=6
                         real(REAL4) :: var_r4(is:ie, js:je)
@@ -3539,7 +3717,7 @@ contains
                         integer :: mpistatus(MPI_STATUS_SIZE)
                         integer (kind=MPI_OFFSET_KIND) :: slice_2d
 
-                        real :: xmod, ymod
+                        real(FVPRC) :: xmod, ymod
                         character(128) :: strErr
 
                         xmod = mod(npts,npes_x)

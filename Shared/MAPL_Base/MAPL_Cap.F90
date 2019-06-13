@@ -1,1885 +1,801 @@
-!  $Id: MAPL_Cap.F90,v 1.53 2016-02-03 16:51:04 bmauer Exp $
+#include "MAPL_ErrLog.h"
+#include "unused_dummy.H"
 
-#include "MAPL_Generic.h"
 
 module MAPL_CapMod
+   use MPI
+   use ESMF
+   ! Comment out for GCHP since not using command line tool
+   !use FLAP
+   use MAPL_SimpleCommSplitterMod
+   use MAPL_SplitCommunicatorMod
+   use MAPL_KeywordEnforcerMod
+   use MAPL_CapGridCompMod
+   use MAPL_CFIOServerMod
+   use MAPL_BaseMod
+   use MAPL_ErrorHandlingMod
+   use pFIO
+   use MAPL_ServerManagerMod
+   implicit none
+   private
 
-!BOP
+   public :: MAPL_Cap
 
-! !MODULE: MAPL_CapMod --- Implements the top entry point for MAPL components
+   type :: MAPL_Cap
+      ! Make members of this derived type public for GCHP so can manually set
+      !private
+      character(:), allocatable :: name
+      procedure(), nopass, pointer :: set_services => null()
+      integer :: comm_world = MPI_COMM_WORLD
+      integer :: rank
+      ! command line options
+      character(:), allocatable :: egress_file, cap_rc_file
+      type (ESMF_LogKind_Flag) :: esmf_logging_mode = ESMF_LOGKIND_NONE
+      integer :: npes_model
+      integer :: npes_input_server
+      integer :: npes_output_server
+      integer :: nodes_input_server
+      integer :: nodes_output_server
+      ! ensemble options
+      integer :: n_members = 1
+      integer :: npes_member
+      character(:), allocatable :: ensemble_subdir_prefix
 
-! !USES:
+      ! misc
+      logical :: mpi_already_initialized = .false.
 
-  use ESMF
-  use MAPL_BaseMod
-  use MAPL_ConstantsMod
-  use MAPL_ProfMod
-  use MAPL_MemUtilsMod
-  use MAPL_IOMod
-  use MAPL_CommsMod
-  use MAPL_GenericMod
-  use MAPL_LocStreamMod
-  use ESMFL_Mod
-  use MAPL_ShmemMod
-  use MAPL_HistoryGridCompMod, only : Hist_SetServices => SetServices
-  use MAPL_HistoryGridCompMod, only : HISTORY_ExchangeListWrap
-  use MAPL_ExtDataGridCompMod, only : ExtData_SetServices => SetServices
-  use MAPL_ExtDataGridCompMod, only : T_EXTDATA_STATE, EXTDATA_WRAP
-  use MAPL_CFIOServerMod
-  use m_inpak90
+      type(MAPL_CapGridComp), public :: cap_gc
+      type (SplitCommunicator) :: split_comm
+      type(MAPL_Communicators) :: mapl_comm
+      type(MpiServer), pointer :: i_server=>null()
+      type(MpiServer), pointer :: o_server=>null()
+      type(DirectoryService) :: directory_service
 
-  implicit none
-  private
+   contains
+      procedure :: run
+      procedure :: run_ensemble
+      procedure :: run_member
+      procedure :: run_model
+      procedure :: step_model
 
-! !PUBLIC MEMBER FUNCTIONS:
+      procedure :: create_member_subcommunicator
+      procedure :: initialize_io_servers
+      procedure :: initialize_cap_gc
+      procedure :: initialize_mpi
+      procedure :: finalize_mpi
 
-  public MAPL_Cap
-  public MAPL_ConfigSetAttribute
+      ! Comment out for GCHP pending install of command line tool
+      !! Methods for processing command line arguments
+      !procedure, nopass :: add_command_line_options
+      !procedure :: parse_command_line_arguments
+      procedure :: set_esmf_logging_mode
 
-! !DESCRIPTION: 
+      !setters and getters
+      procedure :: set_npes_model
+      procedure :: set_npes_input_server
+      procedure :: set_npes_output_server
+      procedure :: set_nodes_input_server
+      procedure :: set_nodes_output_server
+      procedure :: set_n_members
+      procedure :: set_npes_member
+      procedure :: set_comm_world
+      procedure :: set_ensemble_subdir_prefix
 
-! \input{MAPL_CapIntro.tex}
- 
-!EOP
+      procedure :: get_npes_model
+      procedure :: get_comm_world
+      procedure :: get_n_members
+      procedure :: get_mapl_comm
+      procedure :: get_cap_gc
+      
+   end type MAPL_Cap
 
-  interface MAPL_ConfigSetAttribute
-   
-! !PRIVATE MEMBER FUNCTIONS:
-     module procedure MAPL_ConfigSetString
-     module procedure MAPL_ConfigSetIntI4
-  end interface
+   interface MAPL_Cap
+      module procedure new_MAPL_Cap
+   end interface MAPL_Cap
 
-  include "mpif.h"
+
+   interface
+      integer function c_chdir(path) bind(C,name="chdir")
+         use iso_c_binding
+         character(kind=c_char) :: path(*)
+      end function c_chdir
+   end interface
 
 contains
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-!BOPI
-
-! !IROUTINE: MAPL_Cap -- Implements generic Cap functionality
-
-! !INTERFACE:
-
-  subroutine MAPL_CAP(ROOT_SetServices, Name, AmIRoot, FinalFile, CommIn, RC)
-
-! !ARGUMENTS:
-
-    external                             :: ROOT_SetServices
-    character*(*), optional, intent(IN ) :: Name
-    logical,       optional, intent(OUT) :: AmIRoot
-    character*(*), optional, intent(IN ) :: FinalFile
-    integer,       optional, intent(IN ) :: CommIn
-    integer,       optional, intent(OUT) :: rc
-
-!EOPI
-
-! Handles to the CAP's Gridded Components GCs
-! -------------------------------------------
-
-   integer                      :: ROOT
-   integer                      :: HIST
-   integer                      :: EXTDATA
-   character(len=ESMF_MAXSTR)   :: ROOT_NAME
-
-! A MAPL object for the cap
-!--------------------------
-
-   type(MAPL_MetaComp)          :: MAPLOBJ
-
-! The children's GCs and IM/Ex states
-!------------------------------------
-
-   type(ESMF_GridComp), pointer :: GCS(:)
-   type(ESMF_State),    pointer :: IMPORTS(:)
-   type(ESMF_State),    pointer :: EXPORTS(:)
-
-! ESMF stuff
-!-----------
-
-   type(ESMF_VM)                :: VM
-   type(ESMF_Config)            :: config
-   type(ESMF_Config)            :: cf_root
-   type(ESMF_Config)            :: cf_hist
-   type(ESMF_Config)            :: cf_ext
-   type(ESMF_Clock)             :: clock
-   type(ESMF_Clock)             :: clock_HIST
-   type(ESMF_Time)              :: CurrTime, StopTime
-   type(ESMF_Alarm)             :: PERPETUAL
-   type(ESMF_TimeInterval)      :: Frequency
-
-   
-! ErrLog variables
-!-----------------
-
-   integer                      :: STATUS
-   character(len=ESMF_MAXSTR)   :: Iam="MAPL_Cap"
-
-! Misc locals
-!------------
-
-   character(len=ESMF_MAXSTR)   :: ROOT_CF
-   character(len=ESMF_MAXSTR)   :: HIST_CF
-   character(len=ESMF_MAXSTR)   :: EXTDATA_CF
-   character(len=ESMF_MAXSTR)   :: enableTimers
-   character(len=ESMF_MAXSTR)   :: enableMemUtils
-   character(len=ESMF_MAXSTR)   :: clockname
-   character(len=ESMF_MAXSTR)   :: EXPID
-   character(len=ESMF_MAXSTR)   :: EXPDSC
-
-   logical                      :: done
-   logical                      :: LPERP
-   logical                      :: AmIRoot_
-   integer                      :: printSpec
-
-   integer                      :: HEARTBEAT_DT
-   integer                      :: RUN_DT
-   integer                      :: PERPETUAL_YEAR
-   integer                      :: PERPETUAL_MONTH
-   integer                      :: PERPETUAL_DAY
-   integer                      :: AGCM_YY, AGCM_MM, AGCM_DD, AGCM_H, AGCM_M, AGCM_S
-   integer                      :: N,NSTEPS
-   integer                      :: NPES,CoresPerNode
-
-   integer                      :: Debug_Level
-   character(len=ESMF_MAXSTR)   :: TileFileDir
-
-   integer*8, pointer           :: LSADDR(:) => null()
-   type(HISTORY_ExchangeListWrap) :: lswrap
-
-   integer                               :: i, j, itemcount, comm
-   type (ESMF_StateItem_Flag), pointer   :: ITEMTYPES(:)
-   character(len=ESMF_MAXSTR ), pointer  :: ITEMNAMES(:)
-   type (ESMF_Field)                     :: field
-   type (ESMF_FieldBundle)               :: bundle
-   integer                               :: useShmem
-   integer                               :: esmfcommsize
-   integer                               :: myRank, ioColor, esmfColor, esmfComm, ioComm, tmpioCommRoot,tRank
-   type(MAPL_Communicators)              :: mapl_Comm
-   character(len=ESMF_MAXSTR )           :: DYCORE
-   integer                               :: snglcol
-   integer                               :: NX, NY
-   integer                               :: CommCap
-   integer                               :: NX1,NY1,commCnt,lastNode,ioCommSize,useIOServer
-   logical                               :: esmfNodesDone
-   character(len=ESMF_MAXSTR)            :: replayMode
-   type(ESMF_GridComp)                   :: GCMGC
-   type (T_ExtData_STATE), pointer       :: ExtData_internal_state => null()
-   type (ExtData_wrap)                   :: wrap
-   type (ESMF_VM)                        :: gcmVM
-   character(len=ESMF_MAXSTR )           :: timerModeStr
-   integer                               :: timerMode
-   integer                               :: reverse_time
-
-
-! Begin
-!------
-
-!  Initialize ESMF
-!-----------------
-
-   if (present(CommIn)) then
-       CommCap = CommIn
-   else
-       CommCap = MPI_COMM_WORLD
-   end if
-
-   if (.not.present(CommIn)) then
-      call mpi_init(status)
-      VERIFY_(STATUS) 
-   end if
-   call mpi_comm_size(CommCap,nPes,status)
-   VERIFY_(STATUS)
-   call mpi_comm_rank(CommCap,myRank,status)
-   VERIFY_(STATUS)
-   mapl_comm%myGlobalRank = myRank
-
-   ioColor = MPI_UNDEFINED
-   esmfColor = MPI_UNDEFINED
-   useIOServer = 0
-   NX1=0
-   NY1=0
-   esmfCommSize=0
-   if (myRank == 0) then
-      call i90_loadf("CAP.rc",status)
-      VERIFY_(STATUS)
-      call i90_label("USE_IOSERVER:",status)
-      if (status ==  0) then
-         useIOServer = i90_gint(status)
-         VERIFY_(STATUS)
-      endif
-      if (useIOServer /=0 ) then
-         call i90_label("ROOT_CF:",status)
-         VERIFY_(STATUS)
-         call i90_gstr(root_cf,status)
-         VERIFY_(STATUS)
-         call i90_release()
-         call i90_loadf(root_cf,status)
-         VERIFY_(STATUS)
-         call i90_label("NX:",status)
-         VERIFY_(STATUS)
-         NX1 = i90_gint(status)
-         VERIFY_(STATUS)
-         call i90_label("NY:",status)
-         VERIFY_(STATUS)
-         NY1 = i90_gint(status)
-         call i90_release()
-         esmfcommsize = NX1*NY1
-      else
-         call i90_release()
-         esmfcommsize = nPes
-      endif
-   end if
-   call MPI_BCAST(useIOServer, 1, MPI_INTEGER, 0, CommCap, status)
-   VERIFY_(STATUS)
-   call MPI_BCAST(NX1, 1, MPI_INTEGER, 0, CommCap, status)
-   VERIFY_(STATUS)
-   call MPI_BCAST(NY1, 1, MPI_INTEGER, 0, CommCap, status)
-   VERIFY_(STATUS)
-   call MPI_BCAST(esmfcommsize, 1, MPI_INTEGER, 0, CommCap, status)
-   VERIFY_(STATUS)
-   ioCommSize=0
-
-   if (useIOServer /= 0) then 
-      call MAPL_GetNodeInfo (comm=commCap, rc=status)
-      VERIFY_(STATUS)
-      commCnt = 0
-      esmfNodesDone = .false.
-      do i=1,size(MAPL_NodeRankList)
-         do j=1,size(MAPL_NodeRankList(i)%rank)
-            commCnt = commCnt + 1
-            if (myRank == MAPL_NodeRankList(i)%rank(j)) esmfColor = 0
-            if (commCnt == NX1*NY1) then
-               esmfNodesDone = .true.
-               exit
-            end if
-         enddo
-         if (esmfNodesDone) then
-            lastNode = i
-            exit
-         endif
-      enddo
-      ASSERT_(lastNode < size(MAPL_NodeRankList))
-      tmpioCommRoot = MAPL_NodeRankList(lastNode+1)%rank(1)
-      do i=lastNode+1,size(MAPL_NodeRankList)
-         ioCommSize = ioCommSize + size(MAPL_NodeRankList(i)%rank)
-         do j=1,size(MAPL_NodeRankList(i)%rank)
-            if (myRank == MAPL_NodeRankList(i)%rank(j)) ioColor = 0
-         enddo
-      enddo
-   else
-      commCnt = nPes
-      esmfColor =0 
-   endif
-
-   mapl_comm%globalCommSize = npes
-   mapl_comm%ioCommSize = ioCommSize
- 
-   call mpi_comm_split(CommCap,esmfColor,myRank,esmfComm,status)
-   VERIFY_(STATUS)
-   call mpi_comm_split(CommCap,ioColor,myRank,ioComm,status)
-   VERIFY_(STATUS)
-
-   mapl_comm%esmfCommSize = esmfcommsize
-   mapl_comm%MaplCommSize = nPes
-
-   mapl_Comm%maplComm = CommCap
-   mapl_comm%esmfComm = esmfComm
-   mapl_comm%ioComm = ioComm
-
-   tRank = myRank
-   if (ioComm /= MPI_COMM_NULL) then
-      call MPI_BCast(tRank,1, MPI_INTEGER, 0, ioComm, status)
-      VERIFY_(STATUS)
-   endif
-   ! now everyone in iocomm knows the global rank of root
-   ! broadcast from any rank in the IOComm to everyone knows it
-   if (useIOServer /= 0) then
-      call MPI_Bcast(tRank,1,MPI_INTEGER,tmpIOCommRoot,commCap,status)
-      VERIFY_(STATUS)
-      mapl_comm%ioCommRoot = tRank
-   end if
-
-   call MAPL_CFIOServerInitMpiTypes()
-
-   if (useIOServer /= 0) then 
-      call MAPL_FinalizeShmem(rc=status)
-      VERIFY_(STATUS)
-   endif
-
-   ESMFCOMMIF: if (esmfComm /= MPI_COMM_NULL) then
-#if defined(ENABLE_ESMF_ERR_LOGGING)
-      call ESMF_Initialize (vm=vm, mpiCommunicator=esmfComm, rc=status)
-#else
-      call ESMF_Initialize (vm=vm, logKindFlag=ESMF_LOGKIND_NONE, mpiCommunicator=esmfComm, rc=status)
-#endif
-      VERIFY_(STATUS)
-      call ESMF_VMGet      (VM, petcount=NPES, mpiCommunicator=comm, rc=status)
-      VERIFY_(STATUS)
-
-
-      call MAPL_GetNodeInfo (comm=comm, rc=status)
-      VERIFY_(STATUS)
-
-      AmIRoot_ = MAPL_Am_I_Root(vm)
-
-      if (present(AmIRoot)) then
-         AmIRoot = AmIRoot_
-      end if
-
-   !  Open the CAP's configuration from CAP.rc
-   !------------------------------------------
-
-      config = ESMF_ConfigCreate (                   rc=STATUS )
-      VERIFY_(STATUS)
-      call ESMF_ConfigLoadFile   ( config, 'CAP.rc', rc=STATUS )
-      VERIFY_(STATUS)
-
-   !  CAP's MAPL MetaComp
-   !---------------------
-
-      call MAPL_Set(MAPLOBJ, maplComm=mapl_Comm, rc=status)
-      VERIFY_(STATUS)
-
-      if(present(Name)) then
-         call MAPL_Set (MAPLOBJ, name= Name, cf=CONFIG,    rc=STATUS )
-         VERIFY_(STATUS)
-      else
-         call MAPL_Set (MAPLOBJ, name='CAP', cf=CONFIG,    rc=STATUS )
-         VERIFY_(STATUS)
-      end if
-
-   ! Check if user wants to use node shared memory (default is no)
-   !--------------------------------------------------------------
-      call MAPL_GetResource( MAPLOBJ, useShmem,  label='USE_SHMEM:',  default = 0, rc=STATUS )
-      if (useShmem /= 0) then
-         call MAPL_InitializeShmem (rc=status)
-         VERIFY_(STATUS)
-      end if
-
-   !  Create Clock. This is a private routine that sets the start and 
-   !   end times and the time interval of the clock from the configuration.
-   !   The start time is temporarily set to 1 interval before the time in the
-   !   configuration. Once the Alarms are set in intialize, the clock will
-   !   be advanced to guarantee it and its alarms are in the same state as they
-   !   were after the last advance before the previous Finalize.
-   !---------------------------------------------------------------------------
-
-      call MAPL_ClockInit ( MAPLOBJ, clock, NSTEPS,          rc=STATUS )
-      VERIFY_(STATUS)
-
-      clock_HIST = ESMF_ClockCreate ( clock, rc=STATUS )  ! Create copy for HISTORY
-      VERIFY_(STATUS)
-
-      CoresPerNode = MAPL_CoresPerNodeGet(comm,rc=status)
-      VERIFY_(STATUS)
-
-      ! We check resource for CoresPerNode (no longer needed to be in CAR.rc)
-      ! If it is set in the resource, we issue an warning if the
-      ! value does not agree with the detected CoresPerNode
-
-      call ESMF_ConfigGetAttribute(config, value=N, Label="CoresPerNode:", rc=status)
-      if(STATUS==ESMF_SUCCESS) then
-         if (CoresPerNode /= N) then
-            call WRITE_PARALLEL("WARNING: CoresPerNode set, but does NOT match detected value")
-         end if
-      end if
-
-      ASSERT_(CoresPerNode<=NPES)
-
-      call ESMF_ConfigGetAttribute(config, value=HEARTBEAT_DT, Label="HEARTBEAT_DT:", rc=status)
-      VERIFY_(STATUS)
-      call ESMF_TimeIntervalSet( Frequency, S=HEARTBEAT_DT, rc=status )
-      VERIFY_(STATUS)
-
-
-      PERPETUAL = ESMF_AlarmCreate( clock=clock_HIST, name='PERPETUAL', ringinterval=Frequency, sticky=.false., rc=status )
-      VERIFY_(STATUS)
-      call ESMF_AlarmRingerOff( PERPETUAL, rc=status )
-      VERIFY_(STATUS)
-
-   ! Set CLOCK for AGCM
-   ! ------------------
-
-      call MAPL_GetResource( MAPLOBJ, PERPETUAL_YEAR,  label='PERPETUAL_YEAR:',  default = -999, rc=STATUS )
-      VERIFY_(STATUS)
-      call MAPL_GetResource( MAPLOBJ, PERPETUAL_MONTH, label='PERPETUAL_MONTH:', default = -999, rc=STATUS )
-      VERIFY_(STATUS)
-      call MAPL_GetResource( MAPLOBJ, PERPETUAL_DAY,   label='PERPETUAL_DAY:',   default = -999, rc=STATUS )
-      VERIFY_(STATUS)
-
-      LPERP = ( ( PERPETUAL_DAY   /= -999 ) .or. &
-                ( PERPETUAL_MONTH /= -999 ) .or. &
-                ( PERPETUAL_YEAR  /= -999 ) )
-
-      if(         PERPETUAL_DAY   /= -999 ) then
-         ASSERT_( PERPETUAL_MONTH /= -999 )
-         ASSERT_( PERPETUAL_YEAR  /= -999 )
-      endif
-
-      if( LPERP ) then
-          if (AmIRoot_) then
-              if( PERPETUAL_YEAR  /= -999 ) print *, 'Using Perpetual  Year: ',PERPETUAL_YEAR
-              if( PERPETUAL_MONTH /= -999 ) print *, 'Using Perpetual Month: ',PERPETUAL_MONTH
-              if( PERPETUAL_DAY   /= -999 ) print *, 'Using Perpetual   Day: ',PERPETUAL_DAY
-          endif
-
-          call ESMF_ClockGet ( clock, name=clockname, rc=status )
-          clockname = trim( clockname ) // '_PERPETUAL'
-          call ESMF_Clockset ( clock, name=clockname, rc=status )
-
-          call ESMF_ClockGet ( clock_HIST, name=clockname, rc=status )
-          clockname = trim( clockname ) // '_PERPETUAL'
-          call ESMF_Clockset ( clock_HIST, name=clockname, rc=status )
-
-          call Perpetual_Clock ( clock, clock_HIST, PERPETUAL_YEAR, PERPETUAL_MONTH, PERPETUAL_DAY, STATUS )
-          VERIFY_(STATUS)
-      endif
-
-   !  Get configurable info to create HIST 
-   !  and the ROOT of the computational hierarchy
-   !---------------------------------------------
-
-   !BOR
-
-   ! !RESOURCE_ITEM: string :: Name of ROOT's config file
-      call MAPL_GetResource(MAPLOBJ, ROOT_CF,      "ROOT_CF:", default="ROOT.rc",       RC=STATUS ) 
-      VERIFY_(STATUS)
-
-   ! !RESOURCE_ITEM: string :: Name to assign to the ROOT component
-      call MAPL_GetResource(MAPLOBJ, ROOT_NAME,    "ROOT_NAME:", default="ROOT",           RC=STATUS ) 
-      VERIFY_(STATUS)
-
-   ! !RESOURCE_ITEM: string :: Name of HISTORY's config file 
-      call MAPL_GetResource(MAPLOBJ, HIST_CF,      "HIST_CF:", default="HIST.rc",        RC=STATUS ) 
-      VERIFY_(STATUS)
-
-   ! !RESOURCE_ITEM: string :: Name of ExtData's config file
-      call MAPL_GetResource(MAPLOBJ, EXTDATA_CF,   "EXTDATA_CF:", default='ExtData.rc',     RC=STATUS ) 
-      VERIFY_(STATUS)
-
-   ! !RESOURCE_ITEM: integer :: MAPL debug level
-      call MAPL_GetResource(MAPLOBJ, Debug_Level, "DEBUG_LEVEL:", default=0,                RC=STATUS )
-      VERIFY_(STATUS)
-
-    ! !RESOURCE_ITEM: integer :: Reverse time
-    call MAPL_GetResource(MAPLOBJ, reverse_time, label='REVERSE_TIME:', &
-                          default=0, rc = status)
-    VERIFY_(STATUS)
-
-   ! !RESOURCE_ITEM: integer :: Tile file path
-      call MAPL_GetResource(MAPLOBJ, TileFileDir, "TILEPATH:", default='.',                RC=STATUS )
-      VERIFY_(STATUS)
-
-   ! !RESOURCE_ITEM: string :: Control Timers 
-      call MAPL_GetResource(MAPLOBJ, enableTimers, "MAPL_ENABLE_TIMERS:", default='NO',             RC=STATUS )
-      VERIFY_(STATUS)
-
-   ! !RESOURCE_ITEM: string :: Control Memory Diagnostic Utility 
-      call MAPL_GetResource(MAPLOBJ, enableMemUtils, "MAPL_ENABLE_MEMUTILS:", default='NO',             RC=STATUS )
-      VERIFY_(STATUS)
-   !EOR
-      enableTimers = ESMF_UtilStringUpperCase(enableTimers)
-      if (enableTimers /= 'YES') then
-         call MAPL_ProfDisable( rc=STATUS )
-         VERIFY_(STATUS)
-      else
-         call MAPL_GetResource(MAPLOBJ, timerModeStr, "MAPL_TIMER_MODE:", &
-                               default='MAX', RC=STATUS )
-         VERIFY_(STATUS)
-         timerModeStr = ESMF_UtilStringUpperCase(timerModeStr)
-
-         TestTimerMode: select case(timerModeStr)
-         case("OLD")
-            timerMode = MAPL_TimerModeOld      ! this has barriers
-         case("ROOTONLY")
-            timerMode = MAPL_TimerModeRootOnly ! this is the fastest
-         case("MAX")
-            timerMode = MAPL_TimerModeMax      ! this is the default
-         case("MINMAX")
-            timerMode = MAPL_TimerModeMinMax      ! this is the default
-         case default
-            ASSERT_(.false.)
-         end select TestTimerMode
-         call MAPL_TimerModeSet(timerMode, RC=status)
-         VERIFY_(status)
-      end if
-
-      enableMemUtils = ESMF_UtilStringUpperCase(enableMemUtils)
-      if (enableMemUtils /= 'YES') then
-         call MAPL_MemUtilsDisable( rc=STATUS )
-         VERIFY_(STATUS)
-      else
-         call MAPL_MemUtilsInit( rc=STATUS )
-         VERIFY_(STATUS)
-      end if
-
-      call MAPL_GetResource( MAPLOBJ, printSpec, label='PRINTSPEC:', default = 0, rc=STATUS )
-      VERIFY_(STATUS)
-
-   ! Handle RUN_DT in ROOT_CF
-   !-------------------------
-
-      cf_root = ESMF_ConfigCreate(rc=STATUS )
-      VERIFY_(STATUS)
-      call ESMF_ConfigLoadFile(cf_root, ROOT_CF, rc=STATUS )
-      VERIFY_(STATUS)
-
-      call ESMF_ConfigGetAttribute(cf_root, value=RUN_DT, Label="RUN_DT:", rc=status)
-      if (STATUS == ESMF_SUCCESS) then
-         if (heartbeat_dt /= run_dt) then
-            if (AmIRoot_) then
-               print *, "ERROR: inconsistent values of HEATBEAT_DT and RUN_DT"
-            end if
-            call ESMF_VMBarrier(VM)
-            RETURN_(ESMF_FAILURE)
-         end if
-      else
-         call MAPL_ConfigSetAttribute(cf_root, value=heartbeat_dt, Label="RUN_DT:", rc=status)
-         VERIFY_(STATUS)
-      endif
+    
+   function new_MAPL_Cap(name, set_services, comm, cap_rc_file) result(cap)
+      type (MAPL_Cap) :: cap
+      character(*), intent(in) :: name
+      procedure() :: set_services
+      integer, optional, intent(in) :: comm
+      character(*), optional, intent(in) :: cap_rc_file
+
+      cap%name = name
+      cap%set_services => set_services
+      cap%cap_rc_file = cap_rc_file
       
-   ! Add EXPID and EXPDSC from HISTORY.rc to AGCM.rc
-   !------------------------------------------------
-      cf_hist = ESMF_ConfigCreate(rc=STATUS )
-      VERIFY_(STATUS)
-      call ESMF_ConfigLoadFile(cf_hist, HIST_CF, rc=STATUS )
-      VERIFY_(STATUS)
-
-      call MAPL_ConfigSetAttribute(cf_hist, value=HIST_CF, Label="HIST_CF:", rc=status)
-      VERIFY_(STATUS)
-
-      call ESMF_ConfigGetAttribute(cf_hist, value=EXPID,  Label="EXPID:",  rc=status)
-      VERIFY_(STATUS)
-      call ESMF_ConfigGetAttribute(cf_hist, value=EXPDSC, Label="EXPDSC:", rc=status)
-      VERIFY_(STATUS)
-
-      call MAPL_ConfigSetAttribute(cf_root, value=EXPID,  Label="EXPID:",  rc=status)
-      VERIFY_(STATUS)
-      call MAPL_ConfigSetAttribute(cf_root, value=EXPDSC, Label="EXPDSC:", rc=status)
-      VERIFY_(STATUS)
+      if (present(comm)) then
+         cap%comm_world = comm
+      else
+         cap%comm_world = MPI_COMM_WORLD
+      end if
       
-   ! Add CoresPerNode from CAP.rc to HISTORY.rc and AGCM.rc
-   !-------------------------------------------------------
-      call MAPL_ConfigSetAttribute(cf_root, value=CoresPerNode,  Label="CoresPerNode:",  rc=status)
-      VERIFY_(STATUS)
-      call MAPL_ConfigSetAttribute(cf_hist, value=CoresPerNode,  Label="CoresPerNode:",  rc=status)
-      VERIFY_(STATUS)
+      ! Defaults that can be overridden by command line arguments
+      cap%egress_file = 'EGRESS'
+      cap%esmf_logging_mode = ESMF_LOGKIND_NONE          
 
-   ! Add a SINGLE_COLUMN flag in HISTORY.rc based on DYCORE value(from AGCM.rc)
-   !---------------------------------------------------------------------------
-      call ESMF_ConfigGetAttribute(cf_root, value=DYCORE,  Label="DYCORE:",  rc=status)
-      VERIFY_(STATUS)
-      if (DYCORE == 'DATMO') then
-         snglcol = 1
-         call MAPL_ConfigSetAttribute(cf_hist, value=snglcol,  Label="SINGLE_COLUMN:",  rc=status)
-         VERIFY_(STATUS)
+    end function new_MAPL_Cap
+
+   ! 1. Start MPI if necessary
+   ! 2. Parse command line options
+   ! 3. Run the ensemble (default is 1 member)
+   ! 4. Finalize MPI if initialized locally.
+! Edit for GCHP to remove dependency on command line interface
+   !subroutine run(this, options, unusable, rc)
+   subroutine run(this, unusable, rc)
+      class (MAPL_Cap), intent(inout) :: this
+      ! Comment out for GCHP
+      !type (command_line_interface), intent(inout) :: options
+      class (KeywordEnforcer), optional, intent(in) :: unusable
+      integer, optional, intent(out) :: rc
+
+      integer :: status
+
+      _UNUSED_DUMMY(unusable)
+      call this%initialize_mpi(rc=status); _VERIFY(status)
+
+      ! Comment out GCHP; replace with manually setting options
+      !call this%parse_command_line_arguments(options, rc=status); _VERIFY(status)
+      this%npes_input_server = 0
+      this%npes_output_server = 0
+      this%nodes_input_server = 0
+      this%nodes_output_server = 0
+      this%ensemble_subdir_prefix = ''
+      call MPI_Comm_Size(this%comm_world, this%npes_model, status)
+      call MPI_Comm_Size(this%comm_world, this%npes_member, status)
+
+      call this%run_ensemble(rc=status); _VERIFY(status)
+      call this%finalize_mpi(rc=status); _VERIFY(status)
+      _RETURN(_SUCCESS)
+
+    end subroutine run
+    
+
+   ! This layer splits the communicator to support running a
+   ! multi-member ensemble.
+   subroutine run_ensemble(this, unusable, rc)
+      class (MAPL_Cap), target, intent(inout) :: this
+      class (KeywordEnforcer), optional, intent(in) :: unusable
+      integer, optional, intent(out) :: rc
+
+      integer :: status
+      integer :: subcommunicator
+
+      _UNUSED_DUMMY(unusable)
+
+      subcommunicator = this%create_member_subcommunicator(this%comm_world, rc=status); _VERIFY(status)
+      if (subcommunicator /= MPI_COMM_NULL) then
+         call this%initialize_io_servers(subcommunicator, rc = status); _VERIFY(status)
+         call this%run_member(rc=status); _VERIFY(status)
       end if
 
-   ! Detect if this a regular replay in the AGCM.rc
-   ! ----------------------------------------------
-     call ESMF_ConfigGetAttribute(cf_root, value=ReplayMode, Label="REPLAY_MODE:", default="NoReplay", rc=status)
-     VERIFY_(STATUS)
+      _RETURN(_SUCCESS)
+      
+   end subroutine run_ensemble
+
+
+   subroutine initialize_io_servers(this, comm, unusable, rc)
+     use MAPL_CFIOMod
+     class (MAPL_Cap), target, intent(inout) :: this
+     integer, intent(in) :: comm
+     class (KeywordEnforcer), optional, intent(in) :: unusable
+     integer, optional, intent(out) :: rc
+
+     type (SimpleCommSplitter) :: splitter
+
+      integer :: status
+      logical :: running_o_server ! relevant only for "old" o-server
+
+     _UNUSED_DUMMY(unusable)
+
+     this%directory_service = DirectoryService(comm)
+     splitter = SimpleCommSplitter(comm)
+     call splitter%add_group(this%npes_model, name='model', isolate_nodes=.true.)
+
+     if (this%npes_input_server > 0 .or. this%nodes_input_server > 0) then
+        call splitter%add_group(this%npes_input_server, nnodes=this%nodes_input_server, name='i_server', isolate_nodes=.true.)
+     end if
+
+     running_o_server = .false.
+     if (this%npes_output_server > 0 .or. this%nodes_output_server > 0) then
+        running_o_server = .true.
+        call splitter%add_group(this%npes_output_server,nnodes=this%nodes_output_server, name='o_server', isolate_nodes=.true.)
+     end if
+
+     this%split_comm = splitter%split(rc=status); _VERIFY(status)
+
+     call fill_mapl_comm(this%split_comm, comm, running_o_server, this%mapl_comm, rc=status)
+     _VERIFY(status)
      
+     ! New server
+!!$      o_server = MpiServer(this%split_comm%subcommunicator, 'o_server')
+!!$      call this%directory_service%publish(PortInfo('o_server',o_server), o_server)
 
-   ! Register the children with MAPL
-   !--------------------------------
+     select case (this%split_comm%get_name())
+     case ('o_server')
+        allocate(this%o_server, source = MpiServer(this%split_comm%get_subcommunicator(), 'o_server'))
+        call this%directory_service%publish(PortInfo('o_server',this%o_server), this%o_server)
+        call this%directory_service%connect_to_client('o_server', this%o_server)
+        call this%o_server%start()
+!!!  this is for old_o server
+!!$     call MAPL_CFIOServerStart(this%mapl_Comm,rc=status)
+!!$     _VERIFY(STATUS)
 
-   !  Create Root child
-   !-------------------
-      call MAPL_Set(MAPLOBJ, CF=CF_ROOT, RC=STATUS)
-      VERIFY_(STATUS)
+    case ('i_server')
+        allocate(this%i_server, source = MpiServer(this%split_comm%get_subcommunicator(), 'i_server'))
+        call this%directory_service%publish(PortInfo('i_server',this%i_server), this%i_server)
+        call this%directory_service%connect_to_client('i_server', this%i_server)
+        call this%i_server%start()
+    case ('model')
+        if (this%npes_input_server == 0 .and. this%nodes_input_server == 0) then
+           allocate(this%i_server, source = MpiServer(this%split_comm%get_subcommunicator(), 'i_server'))
+           call this%directory_service%publish(PortInfo('i_server',this%i_server), this%i_server)
+        end if
+        if (this%npes_output_server == 0 .and. this%nodes_output_server == 0) then
+           allocate(this%o_server, source = MpiServer(this%split_comm%get_subcommunicator(), 'o_server'))
+           call this%directory_service%publish(PortInfo('o_server',this%o_server), this%o_server)
+        end if
 
-      ROOT = MAPL_AddChild ( MAPLOBJ,     &
-           name       = ROOT_NAME,        &
-           SS         = ROOT_SetServices, &
-                                rc=STATUS )  
-      VERIFY_(STATUS)
+        call init_servers()
+        call this%directory_service%connect_to_server('i_server', i_ClientPtr, this%split_comm%get_subcommunicator())  
+        call this%directory_service%connect_to_server('o_server', o_ClientPtr, this%split_comm%get_subcommunicator())  
+    end select
+     
+   end subroutine initialize_io_servers
 
-   !  Create History child
-   !----------------------
+   
+   ! This layer splits the communicator to support separate i/o servers
+   ! and runs the model via a CapGridComp.
+   subroutine run_member(this, rc)
+      use MAPL_CFIOMod
+      class (MAPL_Cap), intent(inout) :: this
+      integer, optional, intent(out) :: rc
+      
+      integer :: status
 
-      call MAPL_Set(MAPLOBJ, CF=CF_HIST, RC=STATUS)
-      VERIFY_(STATUS)
-
-      HIST = MAPL_AddChild ( MAPLOBJ,        &
-           name       = 'HIST',           &
-           SS         = HIST_SetServices, &
-                                rc=STATUS )  
-      VERIFY_(STATUS)
-
-
-   !  Create ExtData child
-   !----------------------
-      cf_ext = ESMF_ConfigCreate(rc=STATUS )
-      VERIFY_(STATUS)
-      call ESMF_ConfigLoadFile(cf_ext, EXTDATA_CF, rc=STATUS )
-      VERIFY_(STATUS)
-
-      call ESMF_ConfigGetAttribute(cf_ext, value=RUN_DT, Label="RUN_DT:", rc=status)
-      if (STATUS == ESMF_SUCCESS) then
-         if (heartbeat_dt /= run_dt) then
-            if (AmIRoot_) then
-               print *, "ERROR: inconsistent values of HEATBEAT_DT and RUN_DT"
-            end if
-            call ESMF_VMBarrier(VM)
-            RETURN_(ESMF_FAILURE)
-         end if
-      else
-         call MAPL_ConfigSetAttribute(cf_ext, value=heartbeat_dt, Label="RUN_DT:", rc=status)
-         VERIFY_(STATUS)
-      endif
-
-      call MAPL_Set(MAPLOBJ, CF=CF_EXT, RC=STATUS)
-      VERIFY_(STATUS)
-
-      EXTDATA = MAPL_AddChild ( MAPLOBJ,        &
-           name       = 'EXTDATA',           &
-           SS         = ExtData_SetServices, &
-                                rc=STATUS )  
-      VERIFY_(STATUS)
-
-   ! Add NX and NY from AGCM.rc to ExtData.rc as well as name of ExtData rc file
-      call ESMF_ConfigGetAttribute(cf_root, value = NX, Label="NX:", rc=status)
-      VERIFY_(STATUS)
-      call ESMF_ConfigGetAttribute(cf_root, value = NY, Label="NY:", rc=status)
-      VERIFY_(STATUS)
-      call MAPL_ConfigSetAttribute(cf_ext, value=NX,  Label="NX:",  rc=status)
-      VERIFY_(STATUS)
-      call MAPL_ConfigSetAttribute(cf_ext, value=NY,  Label="NY:",  rc=status)
-      VERIFY_(STATUS)
-      call MAPL_ConfigSetAttribute(cf_ext, value=EXTDATA_CF,  Label="CF_EXTDATA:",  rc=status)
-      VERIFY_(STATUS)
-      call MAPL_ConfigSetAttribute(cf_ext, value=DEBUG_LEVEL, Label="DEBUG_LEVEL:",  rc=status)
-      VERIFY_(STATUS)
-      call MAPL_ConfigSetAttribute(cf_ext, value=TileFileDir, Label="TILEPATH:",  rc=status)
-      VERIFY_(STATUS)
-
-   !  Query MAPL for the the children's for GCS, IMPORTS, EXPORTS
-   !-------------------------------------------------------------
-
-      call MAPL_Get ( MAPLOBJ, GCS=GCS, GIM=IMPORTS, GEX=EXPORTS,      RC=STATUS )
-      VERIFY_(STATUS)
-
-   ! Run as usual unless PRINTSPEC> 0 as set in CAP.rc. If set then
-   ! model will not run completely and instead it will simply run MAPL_SetServices
-   ! and print out the IM/EX specs. This step uses MAPL_StatePrintSpecCSV found
-   ! in MAPL_Generic.F90.
+      select case(this%split_comm%get_name())
+      case('model')
+         call this%run_model(this%mapl_comm, rc=status); _VERIFY(status)
+         call i_ClientPtr%terminate()
+         call o_ClientPtr%terminate()
+      end select
+                  
+   end subroutine run_member
 
 
-      if (printSpec>0) then
+    subroutine fill_mapl_comm(split_comm, gcomm, running_o_server, mapl_comm, unusable, rc)
+      type (SplitCommunicator), intent(in) :: split_comm
+      integer, intent(in) :: gcomm
+      logical, intent(in) :: running_o_server
+      type (MAPL_Communicators), intent(OUT) :: mapl_comm
+      class (KeywordEnforcer), optional, intent(in) :: unusable
+      integer, optional, intent(out) :: rc
 
-         call MAPL_StatePrintSpecCSV(GCS(ROOT), printSpec, RC=status)
-         VERIFY_(STATUS)
-         call ESMF_VMBarrier       ( VM,                            RC=STATUS )
-         VERIFY_(STATUS)
+      integer :: comm
+      integer :: status
+      integer :: grank
+      integer :: source
+      integer, parameter :: MAPL_TAG_GLOBAL_IOROOT_RANK = 987654
+      integer :: stat(MPI_STATUS_SIZE)
 
-      else
+      _UNUSED_DUMMY(unusable)
 
+      mapl_comm%mapl%comm = gcomm
+      mapl_comm%global%comm = gcomm
+      mapl_comm%esmf%comm = MPI_COMM_NULL
+      mapl_comm%io%comm = MPI_COMM_NULL
 
-   !  Initialize the Computational Hierarchy
-   !----------------------------------------
+      comm = split_comm%get_subcommunicator()
 
-      call ESMF_GridCompInitialize ( GCS(ROOT), importState=IMPORTS(ROOT), &
-           exportState=EXPORTS(ROOT), clock=CLOCK, userRC=STATUS )
-      VERIFY_(STATUS)
+      select case (split_comm%get_name())
+      case ('o_server')
+         mapl_comm%io%comm = comm
+      case ('model')
+         mapl_comm%esmf%comm = comm
+      end select
 
-   ! All the EXPORTS of the Hierachy are made IMPORTS of History
-   !------------------------------------------------------------
+      call fill_comm(mapl_comm%mapl, rc=status); _VERIFY(status)
+      call fill_comm(mapl_comm%global, rc=status); _VERIFY(status)
+      call fill_comm(mapl_comm%esmf, rc=status); _VERIFY(status)
+      call fill_comm(mapl_comm%io, rc=status); _VERIFY(status)
 
-      call ESMF_StateAdd ( IMPORTS(HIST), (/EXPORTS(ROOT)/), RC=STATUS )
-      VERIFY_(STATUS)
-
-      allocate(lswrap%ptr, stat=status)
-      VERIFY_(STATUS)
-      call ESMF_UserCompSetInternalState(GCS(HIST), 'MAPL_LocStreamList', &
-           lswrap, STATUS)
-      VERIFY_(STATUS)
-      call MAPL_GetAllExchangeGrids(GCS(ROOT), LSADDR, RC=STATUS)
-      VERIFY_(STATUS)
-      lswrap%ptr%LSADDR_PTR => LSADDR
-
-   ! Initialize the History
-   !------------------------
-
-      call ESMF_GridCompInitialize (   GCS(HIST), importState=IMPORTS(HIST), &
-           exportState=EXPORTS(HIST), clock=CLOCK_HIST,  userRC=STATUS )
-      VERIFY_(STATUS)
-    
-   ! Prepare EXPORTS for ExtData
-   ! ---------------------------
-       call ESMF_StateGet(IMPORTS(ROOT), ITEMCOUNT=ITEMCOUNT, RC=STATUS)
-       VERIFY_(STATUS)
-       allocate(ITEMNAMES(ITEMCOUNT), STAT=STATUS)
-       VERIFY_(STATUS)
-       allocate(ITEMTYPES(ITEMCOUNT), STAT=STATUS)
-       VERIFY_(STATUS)
-
-       call ESMF_StateGet(IMPORTS(ROOT), ITEMNAMELIST=ITEMNAMES, &
-                          ITEMTYPELIST=ITEMTYPES, RC=STATUS)
-       VERIFY_(STATUS)
-
-       DO I=1, ITEMCOUNT
-          if(ItemTypes(I) == ESMF_StateItem_Field) then
-             call ESMF_StateGet(IMPORTS(ROOT), ItemNames(i), field, rc=status)
-             VERIFY_(STATUS)
-             
-             call MAPL_StateAdd(EXPORTS(EXTDATA), field, rc=status)
-             VERIFY_(STATUS)
-          else if(ItemTypes(I) == ESMF_StateItem_FieldBundle) then
-             call ESMF_StateGet(IMPORTS(ROOT), ItemNames(i), bundle, rc=status)
-             VERIFY_(STATUS)
-             call MAPL_StateAdd(EXPORTS(EXTDATA), bundle, rc=status)
-             VERIFY_(STATUS)
-          end if
-       END DO
-       deallocate(itemtypes)
-       deallocate(itemnames)
-
-
-   ! Initialize the ExtData
-   !------------------------
-
-      call ESMF_GridCompInitialize (   GCS(EXTDATA), importState=IMPORTS(EXTDATA), &
-           exportState=EXPORTS(EXTDATA), & 
-           clock=CLOCK,  userRC=STATUS )
-      VERIFY_(STATUS)
-
-   ! Finally check is this is a regular replay
-   ! If so stuff gc and input state for ExtData in GCM internal state
-   ! -----------------------------------------------------------------
-   if (trim(replayMode)=="Regular") then
-      call MAPL_GCGet(GCS(ROOT),"GCM",gcmGC,rc=status)
-      VERIFY_(STATUS)
-      call ESMF_GridCompGet(gcmGC,vm=gcmVM,rc=status)
-      VERIFY_(STATUS)
-      ASSERT_(vm==gcmVM)
-      call ESMF_UserCompGetInternalState(gcmGC,'ExtData_state',wrap,status)
-      VERIFY_(STATUS)
-      ExtData_internal_state => wrap%ptr
-      ExtData_internal_state%gc = GCS(EXTDATA)
-      ExtData_internal_state%expState = EXPORTS(EXTDATA) 
-   end if
-    
-    ! Time Loop starts by checking for Segment Ending Time
-    !-----------------------------------------------------
-    if ( reverse_time == 1 ) then
-       ! Reverse the direction of clock. Now the calls to ESMF_ClockAdvance
-       ! would tick the clock backwards
-       call ESMF_ClockSet ( clock, direction=ESMF_DIRECTION_REVERSE, &
-                            rc=status )
-       VERIFY_(STATUS)
-       
-       ! Also, for this example, we need to move current time to the end
-       ! In the adjoint code this step might not be needed,
-       ! since most likely you already would be at the stop time
-       call ESMF_ClockGet ( clock, stopTime=stopTime, rc=status )
-       VERIFY_(STATUS)
-       currTime = stopTime ! we want to start from the "stop time"
-       call ESMF_ClockSet ( clock, currTime=currTime, rc=status )
-       VERIFY_(STATUS)
-    endif
-
-   ! Time Loop starts by checking for Segment Ending Time
-   !-----------------------------------------------------
-      TIME_LOOP: do n=1,nsteps
-
-         call MAPL_MemUtilsWrite(vm, 'MAPL_Cap:TimeLoop',           RC=STATUS )
-         VERIFY_(STATUS)
-
-         if( .not.LPERP ) then
-             if ( reverse_time == 0 ) then
-                done = ESMF_ClockIsStopTime(clock_hist, rc = status)
-             else
-                done = ESMF_ClockIsDone(clock_hist, rc = status)
-             endif
-              VERIFY_(STATUS)
-              if ( DONE ) exit
+! Find the global rank of root in the io communicator      
+      if (running_o_server) then
+         if(mapl_comm%io%rank == 0) then
+            grank=mapl_comm%global%rank
+            call MPI_Send(grank,1,MPI_INTEGER,0,MAPL_TAG_GLOBAL_IOROOT_RANK, &
+                          mapl_comm%global%comm, status)
+            _VERIFY(status)
          endif
 
-   ! Run the ExtData Component
-   ! --------------------------
-
-         call ESMF_GridCompRun     ( GCS(EXTDATA), importState=IMPORTS(EXTDATA), &
-                                     exportState=EXPORTS(EXTDATA), &
-                                     clock=CLOCK, userRC=STATUS )
-         VERIFY_(STATUS)
-
-   ! Call Record for intermediate checkpoint (if desired)
-   !  Note that we are not doing a Record for History.
-   ! ------------------------------------------------------
-
-         call ESMF_GridCompWriteRestart( GCS(ROOT), importState=IMPORTS(ROOT), &
-              exportState=EXPORTS(ROOT), clock=CLOCK_HIST, userRC=STATUS )
-         VERIFY_(STATUS)
-
-   ! Run the Gridded Component
-   ! --------------------------
-
-         call ESMF_GridCompRun( GCS(ROOT), importState=IMPORTS(ROOT), &
-              exportState=EXPORTS(ROOT), clock=CLOCK, userRC=STATUS )
-         VERIFY_(STATUS)
-
-   ! Synchronize for Next TimeStep
-   ! -----------------------------
-
-         call ESMF_VMBarrier( VM, RC=STATUS )
-         VERIFY_(STATUS)
-
-   ! Advance the Clock before running History and Record
-   ! ---------------------------------------------------
-
-         call ESMF_ClockAdvance     ( CLOCK,                        RC=STATUS )
-         VERIFY_(STATUS)
-         call ESMF_ClockAdvance     ( CLOCK_HIST,                   RC=STATUS )
-         VERIFY_(STATUS)
-
-   ! Update Perpetual Clock
-   ! ----------------------
-
-         if( LPERP ) then
-             call Perpetual_Clock ( clock, clock_HIST, PERPETUAL_YEAR, PERPETUAL_MONTH, PERPETUAL_DAY, STATUS )
-             VERIFY_(STATUS)
+         if(mapl_comm%global%rank == 0) then
+            call MPI_Recv(grank,1,MPI_INTEGER,MPI_ANY_SOURCE,&
+                          MAPL_TAG_GLOBAL_IOROOT_RANK, mapl_comm%global%comm, &
+                          stat, status)
+            _VERIFY(status)
+            source = stat(MPI_SOURCE)
+            _ASSERT(source == grank, "Invalid rank error, most likely due to non-unique tag")
          endif
 
-         call ESMF_ClockGet ( clock, CurrTime=currTime, rc=status )
-         VERIFY_(STATUS)
-         call ESMF_TimeGet  ( CurrTime, YY = AGCM_YY, &
-                                        MM = AGCM_MM, &
-                                        DD = AGCM_DD, &
-                                        H  = AGCM_H , &
-                                        M  = AGCM_M , &
-                                        S  = AGCM_S, rc=status )
-         VERIFY_(STATUS)
-         if( AmIRoot_ ) write(6,1000) AGCM_YY,AGCM_MM,AGCM_DD,AGCM_H,AGCM_M,AGCM_S
-    1000 format(1x,'AGCM Date: ',i4.4,'/',i2.2,'/',i2.2,2x,'Time: ',i2.2,':',i2.2,':',i2.2)
+         call MPI_Bcast(grank,1,MPI_INTEGER,0,mapl_comm%global%comm, status)
+         _VERIFY(status)
 
-   ! Call History Run for Output
-   ! ---------------------------
+         mapl_comm%io%root = grank
 
-         call ESMF_GridCompRun( GCS(HIST), importState=IMPORTS(HIST), &
-              exportState=EXPORTS(HIST), clock=CLOCK_HIST, userRC=STATUS )
-         VERIFY_(STATUS)
+         call MPI_Bcast(mapl_comm%io%size,1,MPI_INTEGER,grank,mapl_comm%global%comm, status)
+         _VERIFY(status)
 
-      enddo TIME_LOOP ! end of time loop
-
-   !  Finalize
-   !  --------
-
-      call ESMF_GridCompFinalize( GCS(ROOT), importState=IMPORTS(ROOT),&
-           exportState=EXPORTS(ROOT), clock=CLOCK, userRC=STATUS )
-      VERIFY_(STATUS)
-      call ESMF_GridCompFinalize( GCS(HIST), importState=IMPORTS(HIST),&
-           exportState=EXPORTS(HIST), clock=CLOCK_HIST,userRC=STATUS )
-      VERIFY_(STATUS)
-      call ESMF_GridCompFinalize( GCS(EXTDATA), importState=IMPORTS(EXTDATA),&
-            exportState=EXPORTS(EXTDATA), clock=CLOCK, userRC=STATUS )
-      VERIFY_(STATUS)
-
-   !  Finalize itselt
-   ! ----------------
-
-      call CAP_Finalize(CLOCK_HIST, "cap_restart", rc=STATUS)
-      VERIFY_(STATUS)
-
-      call ESMF_ConfigDestroy(cf_ext, RC=status)
-      VERIFY_(STATUS)
-      call ESMF_ConfigDestroy(cf_hist, RC=status)
-      VERIFY_(STATUS)
-      call ESMF_ConfigDestroy(cf_root, RC=status)
-      VERIFY_(STATUS)
-      call ESMF_ConfigDestroy(config, RC=status)
-      VERIFY_(STATUS)
-
-      end if ! PRINTSPEC
-
-      call MAPL_FinalizeShmem (rc=status)
-      VERIFY_(STATUS)
-
-   ! Write EGRESS file
-   !------------------
-      call ESMF_VMBarrier(VM)
-      if(present(FinalFile)) then
-         if (AmIRoot_) then
-            close(99)
-            open (99,file=FinalFile,form='formatted')
-            close(99)
-         end if
+         call MAPL_CFIOServerInitMpiTypes()
       end if
 
-   end if ESMFCOMMIF
-
-   IOCOMMIF: if (ioComm /= MPI_COMM_NULL) then
-      call MPI_comm_rank(mapl_comm%iocomm,mapl_comm%myIoRank,status)
-      VERIFY_(STATUS)
-      call MAPL_CFIOServerStart(mapl_Comm,rc=status)
-      VERIFY_(STATUS)
-   end if IOCOMMIF
-
-   call MPI_Barrier(CommCap,status)
-   VERIFY_(STATUS) 
-!  Finalize framework
-!  ------------------
-
-   if (.not.present(CommIn)) then   
-#if 0
-!ALT due to a bug in MAPL (or in the garbage collection of ESMF_VMFinalize)
-!we have to bypass next line
-   call ESMF_Finalize (RC=status)
-   VERIFY_(STATUS)
-#else
-   call mpi_finalize(status)
-   VERIFY_(STATUS)
-#endif
-   end if
-
-   RETURN_(ESMF_SUCCESS)
-
- end subroutine MAPL_CAP
-
-   subroutine Perpetual_Clock ( clock, clock_HIST, PERPETUAL_YEAR, PERPETUAL_MONTH, PERPETUAL_DAY, rc )
-     type(ESMF_Clock),intent(inout) :: clock
-     type(ESMF_Clock),intent(inout) :: clock_HIST
-     integer,         intent(in)    :: PERPETUAL_YEAR
-     integer,         intent(in)    :: PERPETUAL_MONTH
-     integer,         intent(in)    :: PERPETUAL_DAY
-     integer,         intent(out)   :: rc
-
-     type(ESMF_Time)                :: currTime
-     type(ESMF_Alarm)               :: PERPETUAL
-     type(ESMF_Calendar)            :: cal
-     integer                        :: status
-     integer                        :: HIST_YY, HIST_MM, HIST_DD, HIST_H, HIST_M, HIST_S
-     integer                        :: AGCM_YY, AGCM_MM, AGCM_DD, AGCM_H, AGCM_M, AGCM_S
-
-     character(len=ESMF_MAXSTR), parameter :: IAm="Perpetual_Clock"
-
-     call ESMF_ClockGetAlarm ( clock_HIST, alarmName='PERPETUAL', alarm=PERPETUAL, rc=status )
-     VERIFY_(STATUS)
-     call ESMF_AlarmRingerOff( PERPETUAL, rc=status )
-     VERIFY_(STATUS)
-
-         call ESMF_ClockGet ( clock, currTime=currTime, calendar=cal, rc=status )
-         VERIFY_(STATUS)
-         call ESMF_TimeGet  ( CurrTime, YY = AGCM_YY, &
-                                        MM = AGCM_MM, &
-                                        DD = AGCM_DD, &
-                                        H  = AGCM_H , &
-                                        M  = AGCM_M , &
-                                        S  = AGCM_S, rc=status )
-         VERIFY_(STATUS)
-
-         call ESMF_ClockGet ( clock_HIST, CurrTime=CurrTime, calendar=cal, rc=status )
-         VERIFY_(STATUS)
-         call ESMF_TimeGet  ( CurrTime, YY = HIST_YY, &
-                                        MM = HIST_MM, &
-                                        DD = HIST_DD, &
-                                        H  = HIST_H , &
-                                        M  = HIST_M , &
-                                        S  = HIST_S, rc=status )
-         VERIFY_(STATUS)
-#ifdef DEBUG
-         if( AmIRoot_ ) then
-            write(6,"(a,2x,i4.4,'/',i2.2,'/',i2.2,2x,'Time: ',i2.2,':',i2.2,':',i2.2)") "Inside PERP M0: ",AGCM_YY,AGCM_MM,AGCM_DD,AGCM_H,AGCM_M,AGCM_S
-            write(6,"(a,2x,i4.4,'/',i2.2,'/',i2.2,2x,'Time: ',i2.2,':',i2.2,':',i2.2)") "Inside PERP H0: ",HIST_YY,HIST_MM,HIST_DD,HIST_H,HIST_M,HIST_S
-         endif
-#endif
-         if( (PERPETUAL_YEAR  /= -999)  .and. &
-             (PERPETUAL_MONTH == -999)  .and. &
-             (PERPETUAL_DAY   == -999) ) then
-                                         AGCM_YY  = PERPETUAL_YEAR
-         endif
-
-         if( (PERPETUAL_YEAR  /= -999)  .and. &
-             (PERPETUAL_MONTH /= -999)  .and. &
-             (PERPETUAL_DAY   == -999) ) then
-                                         AGCM_YY  = PERPETUAL_YEAR
-                                         AGCM_MM  = PERPETUAL_MONTH
-                                     if( HIST_MM /= PERPETUAL_MONTH ) then 
-                                         HIST_MM  = PERPETUAL_MONTH
-                                                if( PERPETUAL_MONTH /= 12) HIST_YY  = HIST_YY + 1
-                                         call ESMF_AlarmRingerOn( PERPETUAL, rc=status )
-                                         VERIFY_(STATUS)
-                                     endif
-#ifdef DEBUG
-      if( AmIRoot_ ) then
-          write(6,"(a,2x,i4.4,'/',i2.2,'/',i2.2,2x,'Time: ',i2.2,':',i2.2,':',i2.2)") "Inside PERP M1: ",AGCM_YY,AGCM_MM,AGCM_DD,AGCM_H,AGCM_M,AGCM_S
-          write(6,"(a,2x,i4.4,'/',i2.2,'/',i2.2,2x,'Time: ',i2.2,':',i2.2,':',i2.2)") "Inside PERP H1: ",HIST_YY,HIST_MM,HIST_DD,HIST_H,HIST_M,HIST_S
-      endif
-#endif
-         endif
-
-         if( (PERPETUAL_YEAR  == -999)  .and. &
-             (PERPETUAL_MONTH /= -999)  .and. &
-             (PERPETUAL_DAY   == -999) ) then
-                                         AGCM_MM  = PERPETUAL_MONTH
-                                     if( HIST_MM /= PERPETUAL_MONTH ) then 
-                                         HIST_MM  = PERPETUAL_MONTH
-                                                if( PERPETUAL_MONTH /= 12) HIST_YY  = HIST_YY + 1
-                                                                           AGCM_YY  = HIST_YY
-                                         call ESMF_AlarmRingerOn( PERPETUAL, rc=status )
-                                         VERIFY_(STATUS)
-                                     endif
-         endif
-
-         if( (PERPETUAL_YEAR  /= -999)  .and. &
-             (PERPETUAL_MONTH /= -999)  .and. &
-             (PERPETUAL_DAY   /= -999) ) then
-                                         AGCM_YY  = PERPETUAL_YEAR
-                                         AGCM_MM  = PERPETUAL_MONTH
-                                         AGCM_DD  = PERPETUAL_DAY
-                                     if( HIST_MM /= PERPETUAL_MONTH ) then 
-                                         HIST_MM  = PERPETUAL_MONTH
-                                                if( PERPETUAL_MONTH /= 12) HIST_YY  = HIST_YY + 1
-                                         call ESMF_AlarmRingerOn( PERPETUAL, rc=status )
-                                         VERIFY_(STATUS)
-                                     endif
-         endif
-
-         call ESMF_TimeSet( CurrTime, YY = AGCM_YY, &
-                                      MM = AGCM_MM, &
-                                      DD = AGCM_DD, &
-                                       H = AGCM_H , &
-                                       M = AGCM_M , &
-                                       S = AGCM_S , &
-                       calendar=cal,  rc = STATUS  )
-         VERIFY_(STATUS)
-         call ESMFL_ClockSet ( clock, CurrTime=CurrTime, rc=status )
-         VERIFY_(STATUS)
-
-         call ESMF_TimeSet( CurrTime, YY = HIST_YY, &
-                                      MM = HIST_MM, &
-                                      DD = HIST_DD, &
-                                       H = HIST_H , &
-                                       M = HIST_M , &
-                                       S = HIST_S , &
-                       calendar=cal,  rc = STATUS  )
-         VERIFY_(STATUS)
-         call ESMFL_ClockSet ( clock_HIST, CurrTime=CurrTime, rc=status )
-         VERIFY_(STATUS)
-
-     RETURN_(ESMF_SUCCESS)
-   end subroutine Perpetual_Clock
-
-  subroutine ESMFL_ClockSet(clock, currTime, rc)
-! Args
-    type (ESMF_Clock)                :: clock
-    type (ESMF_Time),  intent(IN   ) :: currTime
-    integer, optional, intent(  OUT) :: rc
-
-! ErrLog vars
-    integer                                :: status
-    character(len=ESMF_MAXSTR), parameter  :: IAm='ESMFL_ClockCreate'
-
-! Local Vars    
-    type(ESMF_Time)                        :: targetTime
-    type(ESMF_Time)                        :: cTime
-    type(ESMF_TimeInterval)                :: zero
-    type(ESMF_TimeInterval)                :: delt
-    type(ESMF_Time)                        :: ringTime
-    type(ESMF_TimeInterval)                :: ringInterval
-    type(ESMF_Alarm), allocatable          :: AlarmList(:)
-    logical                                :: ringing
-    integer                                :: I
-    integer                                :: nalarms
-
-
-    targetTime = currTime
-
-! get the CurrentTime from the clock
-    call ESMF_ClockGet(clock, alarmCount = nalarms, currTime=cTime, rc=status)
-    VERIFY_(STATUS)
-
-    delt = targetTime - cTime
-
-    call ESMF_TimeIntervalSet(zero, rc=status)
-    VERIFY_(STATUS)
-
-! Get the list of current alarms in the clock
-    allocate (alarmList(nalarms), stat = status)
-    VERIFY_(STATUS)
-    call ESMF_ClockGetAlarmList(clock, alarmListFlag=ESMF_ALARMLIST_ALL, &
-         alarmList=alarmList, alarmCount = nalarms, rc=status)
-    VERIFY_(STATUS)
-
-! Loop over all alarms
-    DO I = 1, nalarms
-       call ESMF_AlarmGet(alarmList(I), ringTime=ringTime, ringInterval=ringInterval, &
-            ringing=ringing, rc=status)
-       VERIFY_(STATUS)
-
-! skip alarms with zero ringing interval
-       if (ringInterval == zero) cycle
-
-! Make sure the time-shift is multiple of ringing interval
-       ASSERT_(MOD(delt,ringInterval) == zero)
-       ringTime=ringTime + delt
-
-       call ESMF_AlarmSet(alarmList(I), ringTime=ringTime, ringing=ringing, rc=status)
-       VERIFY_(STATUS)
-
-    END DO
-
-! Protection in case we reset the clock outside of StopTime
-    call ESMF_ClockStopTimeDisable(clock, rc=status)
-    VERIFY_(STATUS)
-
-    call ESMF_ClockSet(clock, currTime=targetTime, rc=status)
-    VERIFY_(STATUS)
-
-! We do not need the protection anymore
-    call ESMF_ClockStopTimeEnable(clock, rc=status)
-    VERIFY_(STATUS)
-
-! clean-up
-    deallocate(alarmList)
-
-    RETURN_(ESMF_SUCCESS)
-  end subroutine ESMFL_ClockSet
-
- subroutine CAP_FINALIZE ( clock,filen, rc )
-
-   type(ESMF_Clock),    intent(in   ) :: clock
-   character(len=*),    optional      :: filen
-   integer, optional,   intent(  out) :: rc
-
-   integer        :: UNIT
-   integer        :: datetime(2)
-   integer        :: YY, MM, DD, H, M, S
-   integer        :: status
-   character(len=ESMF_MAXSTR), parameter :: IAm="CAP_FINALIZE"
-   character(len=ESMF_MAXSTR)            :: filen_
-
-   type(ESMF_Time)     :: CurrentTime
-   
-   filen_ = "cap_restart"
-   if (present(filen))     filen_ = trim(filen )
-   
-! Retrieve Current Time for Cap Restart
-! -------------------------------------
-
-   call ESMF_ClockGet ( clock, currTime=currentTime, rc=status )
-   VERIFY_(STATUS)
-   call ESMF_TimeGet  ( CurrentTime, YY = YY, &
-                                     MM = MM, &
-                                     DD = DD, &
-                                     H  = H , &
-                                     M  = M , &
-                                     S  = S, rc=status )
-   VERIFY_(STATUS)
-
-   CALL MAPL_PackDateTime(DATETIME, YY, MM, DD, H, M, S)
-
-! Write CAP Restart File and Ending Time for Current Segment
-! ----------------------------------------------------------
-
-    if( MAPL_AM_I_ROOT() ) then
-       UNIT = GETFILE( filen_, form="formatted" )
-       write(unit,100) datetime
-100    format(i8.8,1x,i6.6)
-       call FREE_FILE (UNIT)
-    endif
-
-    RETURN_(ESMF_SUCCESS)
-  end subroutine CAP_FINALIZE
-
-
-! !IROUTINE: MAPL_ClockInit -- Sets the clock
-
-! !INTERFACE: 
-
-  subroutine MAPL_ClockInit ( MAPLOBJ, Clock, nsteps, rc)
-
-! !ARGUMENTS:
-
-     type(MAPL_MetaComp), intent(inout) :: MAPLOBJ
-     type(ESMF_Clock),    intent(  out) :: Clock
-     integer,             intent(  out) :: nsteps
-     integer, optional,   intent(  out) :: rc
-
-!  !DESCRIPTION:
-
-!   This is a private routine that sets the start and 
-!   end times and the time interval of the application clock from the configuration.
-!   This time interal is the ``heartbeat'' of the application.
-!   The Calendar is set to Gregorian by default. 
-!   The start time is temporarily set to 1 interval before the time in the
-!   configuration. Once the Alarms are set in intialize, the clock will
-!   be advanced to guarantee it and its alarms are in the same state as they
-!   were after the last advance before the previous Finalize.
-!
-
-
-     type(ESMF_Time)          :: StartTime    ! Initial     Begin  Time of Experiment
-     type(ESMF_Time)          :: EndTime      ! Final       Ending Time of Experiment
-     type(ESMF_Time)          :: StopTime     ! Final       Ending Time of Experiment
-     type(ESMF_Time)          :: CurrTime     ! Current     Current Time of Experiment
-     type(ESMF_TimeInterval)  :: timeStep     ! HEARTBEAT
-     type(ESMF_TimeInterval)  :: duration
-     type(ESMF_Calendar)      :: cal
-     character(ESMF_MAXSTR)   :: CALENDAR
-
-     integer                  :: STATUS
-     character(ESMF_MAXSTR)   :: IAM="MAPL_ClockInit"
-
-     integer        :: BEG_YY
-     integer        :: BEG_MM
-     integer        :: BEG_DD
-     integer        :: BEG_H
-     integer        :: BEG_M
-     integer        :: BEG_S
-
-     integer        :: CUR_YY
-     integer        :: CUR_MM
-     integer        :: CUR_DD
-     integer        :: CUR_H
-     integer        :: CUR_M
-     integer        :: CUR_S
-
-     integer        :: END_YY
-     integer        :: END_MM
-     integer        :: END_DD
-     integer        :: END_H
-     integer        :: END_M
-     integer        :: END_S
-
-     integer        :: DUR_YY
-     integer        :: DUR_MM
-     integer        :: DUR_DD
-     integer        :: DUR_H
-     integer        :: DUR_M
-     integer        :: DUR_S
-
-     integer        :: HEARTBEAT_DT
-     integer        :: NUM_DT
-     integer        :: DEN_DT
-
-     integer        :: UNIT
-     integer        :: datetime(2)
-
-! Begin
-!------
-
-! Read Times From Config
-! ----------------------
-
-!BOR
-
-     call MAPL_GetResource( MAPLOBJ, datetime, label='BEG_DATE:', rc=STATUS )
-     if(STATUS==ESMF_SUCCESS) then
-        CALL MAPL_UnpackDateTime(DATETIME, BEG_YY, BEG_MM, BEG_DD, BEG_H, BEG_M, BEG_S)
-     else
-
-! !RESOURCE_ITEM: year :: Beginning year (integer)
-        call MAPL_GetResource( MAPLOBJ, BEG_YY, label='BEG_YY:', DEFAULT=1, rc=STATUS )
-        VERIFY_(STATUS)
-! !RESOURCE_ITEM: month :: Beginning month (integer 1-12)
-        call MAPL_GetResource( MAPLOBJ, BEG_MM, label='BEG_MM:', default=1, rc=STATUS )
-        VERIFY_(STATUS)
-! !RESOURCE_ITEM: day  :: Beginning day of month (integer 1-31)
-        call MAPL_GetResource( MAPLOBJ, BEG_DD, label='BEG_DD:', default=1, rc=STATUS )
-        VERIFY_(STATUS)
-! !RESOURCE_ITEM: hour :: Beginning hour of day (integer 0-23)
-        call MAPL_GetResource( MAPLOBJ, BEG_H , label='BEG_H:' , default=0, rc=STATUS )
-        VERIFY_(STATUS)
-! !RESOURCE_ITEM: minute :: Beginning minute (integer 0-59)
-        call MAPL_GetResource( MAPLOBJ, BEG_M , label='BEG_M:' , default=0, rc=STATUS )
-        VERIFY_(STATUS)
-! !RESOURCE_ITEM: second :: Beginning second (integer 0-59)
-        call MAPL_GetResource( MAPLOBJ, BEG_S , label='BEG_S:' , default=0, rc=STATUS )
-        VERIFY_(STATUS)
-     end if
-
-     call MAPL_GetResource( MAPLOBJ, datetime, label='END_DATE:', rc=STATUS )
-     if(STATUS==ESMF_SUCCESS) then
-        CALL MAPL_UnpackDateTime(DATETIME, END_YY, END_MM, END_DD, END_H, END_M, END_S)
-     else
-! !RESOURCE_ITEM: year :: Ending year (integer)
-        call MAPL_GetResource( MAPLOBJ, END_YY, label='END_YY:', DEFAULT=1, rc=STATUS )
-        VERIFY_(STATUS)
-! !RESOURCE_ITEM: month :: Ending month (integer 1-12)
-        call MAPL_GetResource( MAPLOBJ, END_MM, label='END_MM:', default=1, rc=STATUS )
-        VERIFY_(STATUS)
-! !RESOURCE_ITEM: day  :: Ending day of month (integer 1-31)
-        call MAPL_GetResource( MAPLOBJ, END_DD, label='END_DD:', default=1, rc=STATUS )
-        VERIFY_(STATUS)
-! !RESOURCE_ITEM: hour :: Ending hour of day (integer 0-23)
-        call MAPL_GetResource( MAPLOBJ, END_H , label='END_H:' , default=0, rc=STATUS )
-        VERIFY_(STATUS)
-! !RESOURCE_ITEM: minute :: Ending minute (integer 0-59)
-        call MAPL_GetResource( MAPLOBJ, END_M , label='END_M:' , default=0, rc=STATUS )
-        VERIFY_(STATUS)
-! !RESOURCE_ITEM: second :: Ending second (integer 0-59)
-        call MAPL_GetResource( MAPLOBJ, END_S , label='END_S:' , default=0, rc=STATUS )
-        VERIFY_(STATUS)
-     end if
-
-! Replace JOB_DURATION with JOB_SGMT as prefered RC parameter
-! -----------------------------------------------------------
-     call MAPL_GetResource( MAPLOBJ, datetime, label='JOB_SGMT:',     rc=STATUS )
-     if(STATUS/=ESMF_SUCCESS) then
-     call MAPL_GetResource( MAPLOBJ, datetime, label='JOB_DURATION:', rc=STATUS )
-     end if
-
-     if(STATUS==ESMF_SUCCESS) then
-        CALL MAPL_UnpackDateTime(DATETIME, DUR_YY, DUR_MM, DUR_DD, DUR_H, DUR_M, DUR_S)
-     else
-! !RESOURCE_ITEM: year :: Ending year (integer)
-        call MAPL_GetResource( MAPLOBJ, DUR_YY, label='DUR_YY:', DEFAULT=0, rc=STATUS )
-        VERIFY_(STATUS)
-! !RESOURCE_ITEM: month :: Ending month (integer 1-12)
-        call MAPL_GetResource( MAPLOBJ, DUR_MM, label='DUR_MM:', default=0, rc=STATUS )
-        VERIFY_(STATUS)
-! !RESOURCE_ITEM: day  :: Ending day of month (integer 1-31)
-        call MAPL_GetResource( MAPLOBJ, DUR_DD, label='DUR_DD:', default=1, rc=STATUS )
-        VERIFY_(STATUS)
-! !RESOURCE_ITEM: hour :: Ending hour of day (integer 0-23)
-        call MAPL_GetResource( MAPLOBJ, DUR_H , label='DUR_H:' , default=0, rc=STATUS )
-        VERIFY_(STATUS)
-! !RESOURCE_ITEM: minute :: Ending minute (integer 0-59)
-        call MAPL_GetResource( MAPLOBJ, DUR_M , label='DUR_M:' , default=0, rc=STATUS )
-        VERIFY_(STATUS)
-! !xRESOURCE_ITEM: second :: Ending second (integer 0-59)
-        call MAPL_GetResource( MAPLOBJ, DUR_S , label='DUR_S:' , default=0, rc=STATUS )
-        VERIFY_(STATUS)
-     end if
-
-! !RESOURCE_ITEM: seconds :: Interval of the application clock (the Heartbeat)
-     call MAPL_GetResource( MAPLOBJ, HEARTBEAT_DT, label='HEARTBEAT_DT:',            rc=STATUS )
-     VERIFY_(STATUS)
-! !RESOURCE_ITEM: 1 :: numerator of decimal fraction of time step
-     call MAPL_GetResource( MAPLOBJ, NUM_DT, label='NUM_DT:', default=0, rc=STATUS )
-     VERIFY_(STATUS)
-! !RESOURCE_ITEM: 1 :: denominator of decimal fraction of time step
-     call MAPL_GetResource( MAPLOBJ, DEN_DT, label='DEN_DT:', default=1, rc=STATUS )
-     VERIFY_(STATUS)
-! !RESOURCE_ITEM: string :: Calendar type
-     call MAPL_GetResource( MAPLOBJ, CALENDAR, label='CALENDAR:', default="GREGORIAN", rc=STATUS )
-     VERIFY_(STATUS)
-
-!EOR
-
-     ASSERT_(NUM_DT>=0)
-     ASSERT_(DEN_DT> 0)
-     ASSERT_(HEARTBEAT_DT>=0)
-!     ASSERT_(NUM_DT*HEARTBEAT_DT>0)
-     ASSERT_(NUM_DT<DEN_DT)
-
-! initialize calendar to be Gregorian type
-! ----------------------------------------
-
-     if    (CALENDAR=="GREGORIAN") then
-        cal = ESMF_CalendarCreate( ESMF_CALKIND_GREGORIAN, name="ApplicationCalendar", rc=status )
-        VERIFY_(STATUS)
-        call ESMF_CalendarSetDefault(ESMF_CALKIND_GREGORIAN, RC=STATUS)
-        VERIFY_(STATUS)
-     elseif(CALENDAR=="JULIAN"   ) then
-        cal = ESMF_CalendarCreate( ESMF_CALKIND_JULIAN, name="ApplicationCalendar", rc=status )
-        VERIFY_(STATUS)
-        call ESMF_CalendarSetDefault(ESMF_CALKIND_JULIAN, RC=STATUS)
-        VERIFY_(STATUS)
-     elseif(CALENDAR=="NOLEAP"   ) then
-        cal = ESMF_CalendarCreate( ESMF_CALKIND_NOLEAP, name="ApplicationCalendar", rc=status )
-        VERIFY_(STATUS)
-        call ESMF_CalendarSetDefault(ESMF_CALKIND_NOLEAP, RC=STATUS)
-        VERIFY_(STATUS)
-     else
-        ASSERT_(.false.)
-     endif
-
-! initialize start time for Alarm frequencies
-! -------------------------------------------
-
-     call ESMF_TimeSet( StartTime, YY = BEG_YY, &
-                                   MM = BEG_MM, &
-                                   DD = BEG_DD, &
-                                    H = BEG_H , &
-                                    M = BEG_M , &
-                                    S = BEG_S , &
-                    calendar=cal,  rc = STATUS  )
-     VERIFY_(STATUS)
-
-     call ESMF_TimeSet(   EndTime, YY = END_YY, &
-                                   MM = END_MM, &
-                                   DD = END_DD, &
-                                    H = END_H , &
-                                    M = END_M , &
-                                    S = END_S , &
-                    calendar=cal,  rc = STATUS  )
-     VERIFY_(STATUS)  
-
-! Read CAP Restart File for Current Time
-! --------------------------------------
-
-     CUR_YY = BEG_YY
-     CUR_MM = BEG_MM
-     CUR_DD = BEG_DD
-     CUR_H  = BEG_H
-     CUR_M  = BEG_M
-     CUR_S  = BEG_S
-
-     UNIT = GETFILE ( "cap_restart", form="formatted", ALL_PES=.true., rc=status )
-     VERIFY_(STATUS)
-
-     rewind(UNIT)
-     read(UNIT,100,err=999,end=999) datetime
-100  format(i8.8,1x,i6.6)
-
-     CALL MAPL_UnpackDateTime(DATETIME, CUR_YY, CUR_MM, CUR_DD, CUR_H, CUR_M, CUR_S)
-
-     if( MAPL_AM_I_ROOT() ) then
-         write(6,"(a,2x,i4.4,'/',i2.2,'/',i2.2)") 'Read CAP restart properly, Current Date = ', CUR_YY,CUR_MM,CUR_DD
-         write(6,"(a,2x,i2.2,':',i2.2,':',i2.2)") '                           Current Time = ', CUR_H ,CUR_M ,CUR_S
-         print *
-     endif
-
-
-999  continue  ! Initialize Current time
-
-     call FREE_FILE (UNIT)
-
-     call ESMF_TimeSet( CurrTime, YY = CUR_YY, &
-                                  MM = CUR_MM, &
-                                  DD = CUR_DD, &
-                                   H = CUR_H , &
-                                   M = CUR_M , &
-                                   S = CUR_S , &
-                    calendar=cal,  rc = STATUS  )
-     VERIFY_(STATUS)
-
-! initialize final stop time
-! --------------------------
-
-     call ESMF_TimeIntervalSet(  duration, YY = DUR_YY, &
-                                   MM = DUR_MM, &
-                                    D = DUR_DD, &
-                                    H = DUR_H , &
-                                    M = DUR_M , &
-                                    S = DUR_S , &
-                                    startTime = currTime, &
-                                    rc = STATUS  )
-     VERIFY_(STATUS)
-
-     stopTime = currTime + duration
-
-! initialize model time step
-! --------------------------
-
-     call ESMF_TimeIntervalSet( timeStep, S=HEARTBEAT_DT, sN=NUM_DT, sD=DEN_DT, rc=STATUS )
-     VERIFY_(STATUS)
-
-     nsteps = duration/timestep
-
-! Create Clock and set it to one time step before StartTime.
-! After Initialize has created all alarms, we will advance the
-! clock to ensure the proper ringing state of all alarms
-!-------------------------------------------------------------
-
-     if (endTime < stopTime) then
-        clock = ESMF_ClockCreate( name="ApplClock", timeStep=timeStep, &
-             startTime=StartTime, stopTime=EndTime, rc=STATUS )
-     else
-        clock = ESMF_ClockCreate( name="ApplClock", timeStep=timeStep, &
-             startTime=StartTime, stopTime=StopTime, rc=STATUS )
-     end if
-     VERIFY_(STATUS)
-
-     call ESMF_ClockSet ( clock, CurrTime=CurrTime, rc=status )
-     VERIFY_(STATUS)
-
-     RETURN_(ESMF_SUCCESS)
-   end subroutine MAPL_ClockInit
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-   subroutine MAPL_PackDateTime(DATETIME, YY, MM, DD, H, M, S)
-     integer, intent(IN   ) :: YY, MM, DD, H, M, S
-     integer, intent(  OUT) :: DATETIME(:)
-
-     datetime(1) = 10000*YY + 100*MM + DD
-     datetime(2) = 10000* H + 100* M + S
-     return
-   end subroutine MAPL_PackDateTime
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-   subroutine MAPL_UnpackDateTime(DATETIME, YY, MM, DD, H, M, S)
-     integer, intent(IN   ) :: DATETIME(:)
-     integer, intent(  OUT) :: YY, MM, DD, H, M, S
-
-     YY =     datetime(1)/10000
-     MM = mod(datetime(1),10000)/100
-     DD = mod(datetime(1),100)
-     H  =     datetime(2)/10000
-     M  = mod(datetime(2),10000)/100
-     S  = mod(datetime(2),100)
-     return
-   end subroutine MAPL_UnpackDateTime
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-! BOPI -------------------------------------------------------------------
-!
-! !IROUTINE: MAPL_ConfigSetAttribute - Set a 4-byte integer number
-
-!
-! !INTERFACE:
-      ! Private name; call using ESMF_ConfigSetAttribute()
-      subroutine MAPL_ConfigSetString( config, value, label, rc )
-
-! !ARGUMENTS:
-      type(ESMF_Config), intent(inout)             :: config     
-      character(len=*), intent(in)                 :: value
-      character(len=*), intent(in), optional       :: label 
-      integer, intent(out), optional               :: rc   
-
-!
-! !DESCRIPTION: 
-!  Sets an integer {\tt value} in the {\tt config} object.
-!
-!   The arguments are:
-!   \begin{description}
-!   \item [config]
-!     Already created {\tt ESMF\_Config} object.
-!   \item [value]
-!     Integer value to set. 
-!   \item [{[label]}]
-!     Identifying attribute label. 
-!   \item [{[rc]}]
-!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-!   \end{description}
-!
-! EOPI -------------------------------------------------------------------
-
-       integer,   parameter :: LSZ = 256  ! Maximum line size
-       !integer,   parameter :: MSZ = 512  ! Used to size buffer; this is
-       integer,   parameter :: MSZ = 1024 ! Used to size buffer; this is
-                                          ! usually *less* than the number
-                                          ! of non-blank/comment lines
-                                          ! (because most lines are shorter
-                                          ! then LSZ)
- 
-       integer,   parameter :: NBUF_MAX = MSZ*LSZ ! max size of buffer
-       integer,   parameter :: NATT_MAX = NBUF_MAX/16 ! max # attributes;  
-                                                  ! assumes an average line
-                                                  ! size of 16, the code
-                                                  ! will do a bound check
-
-       character, parameter :: BLK = achar(32)   ! blank (space)
-       character, parameter :: TAB = achar(09)   ! TAB
-#ifdef ESMF_HAS_ACHAR_BUG
-       character, parameter :: EOL = achar(12)   ! end of line mark (cr)
-#else
-       character, parameter :: EOL = achar(10)   ! end of line mark (newline)
-#endif
-       character, parameter :: EOB = achar(00)   ! end of buffer mark (null)
-       character, parameter :: NUL = achar(00)   ! what it says
-
-      character(len=ESMF_MAXSTR) :: Iam = 'MAPL_ConfigSetString'
-
-      character(len=ESMF_MAXSTR) :: logmsg
-      character(len=LSZ) :: curVal, newVal
-      integer :: iret, i, j, k, m, nchar, ninsert, ndelete, lenThisLine
-
-      ! Initialize return code; assume routine not implemented
-      iret = ESMF_RC_NOT_IMPL
-      if (present(rc)) rc = ESMF_RC_NOT_IMPL
-
-      !check variables
-!ALT      ESMF_INIT_CHECK_DEEP(ESMF_ConfigGetInit,config,rc)
-
-      ! Set config buffer at desired attribute
-      if ( present (label) ) then
-         call ESMF_ConfigGetAttribute( config, value=curVal, label=label, rc = iret )
-      else
-         call ESMF_ConfigGetAttribute( config, value=curVal, rc = iret )
-      endif
-
-      if ( iret .ne. ESMF_SUCCESS ) then
-        if ( iret .eq. ESMF_RC_NOT_FOUND ) then
-          ! set config buffer at end for appending
-          i = config%cptr%nbuf
-        else
-          if ( present( rc ) ) then
-            rc = iret
-          endif
-          return
-        endif
-      else ! attribute found
-        ! set config buffer for overwriting/inserting
-        i = config%cptr%value_begin
-        curVal = BLK // trim(curVal) // BLK // EOL ! like config%cptr%this_line
-      endif
-
-      ! for appending, create new attribute string with label and value
-      if ( i .eq. config%cptr%nbuf .and. present(label) ) then
-        write(newVal, *) label, trim(value)
-        newVal = trim(adjustl(newVal)) // EOL
-        j = i + len_trim(newVal)
-
-        ! check to ensure len of newVal doesn't exceed LSZ
-        if ( (j-i) .gt. LSZ) then
-           write(logmsg, *) ", attribute label, value & EOL are ", j-i, &
-               " characters long, only ", LSZ, " characters allowed per line"
-           RETURN_(ESMC_RC_LONG_STR)
-        endif
-
-        ! check if enough space left in config buffer
-        if (j .ge. NBUF_MAX) then   ! room for EOB if necessary
-           write(logmsg, *) ", attribute label & value require ", j-i+1, &
-               " characters (including EOL & EOB), only ", NBUF_MAX-i, &
-               " characters left in config buffer"
-           RETURN_(ESMC_RC_LONG_STR)
-        endif
-      endif
-
-      ! overwrite, with possible insertion or deletion of extra characters
-      if (i .eq. config%cptr%value_begin) then
-         write(newVal, *) value
-         newVal = BLK // trim(adjustl(newVal)) // EOL
-         j = i + len_trim(newVal) - 1
-
-         !  check if we need more space to insert new characters;
-         !  shift buffer down (linked-list redesign would be better!)
-         nchar = j-i+1
-         lenThisLine = len_trim(curVal) - 1
-         if ( nchar .gt. lenThisLine) then
-
-            ! check to ensure length of extended line doesn't exceed LSZ
-            do m = i, 1, -1
-              if (config%cptr%buffer(m:m) .eq. EOL) then
-                exit
-              endif
-            enddo
-            if (j-m+1 .gt. LSZ) then
-               write(logmsg, *) ", attribute label, value & EOL are ", j-m+1, &
-                  " characters long, only ", LSZ, " characters allowed per line"
-               RETURN_(ESMC_RC_LONG_STR)
-            endif
-
-            ! check if enough space left in config buffer to extend line
-            if (j+1 .ge. NBUF_MAX) then   ! room for EOB if necessary
-               write(logmsg, *) ", attribute label & value require ", j-m+1, &
-                   " characters (including EOL & EOB), only ", NBUF_MAX-i, &
-                   " characters left in config buffer"
-               RETURN_(ESMC_RC_LONG_STR)
-            endif
-
-            ninsert = nchar - lenThisLine
-            do k = config%cptr%nbuf, j, -1
-               config%cptr%buffer(k+ninsert:k+ninsert) = config%cptr%buffer(k:k)
-            enddo
-            config%cptr%nbuf = config%cptr%nbuf + ninsert
-
-         ! or if we need less space and remove characters;
-         ! shift buffer up
-         elseif ( nchar .lt. lenThisLine ) then
-           ndelete = lenThisLine - nchar
-            do k = j+1, config%cptr%nbuf
-               config%cptr%buffer(k-ndelete:k-ndelete) = config%cptr%buffer(k:k)
-            enddo
-            config%cptr%nbuf = config%cptr%nbuf - ndelete
-         endif
-      endif
-
-      ! write new attribute value into config
-      config%cptr%buffer(i:j) = newVal(1:len_trim(newVal))
-
-      ! if appended, reset EOB marker and nbuf
-      if (i .eq. config%cptr%nbuf) then
-!@@        j = j + 1
-!@@        config%cptr%buffer(j:j) = EOB
-        config%cptr%nbuf = j
-      endif
-
-      if( present( rc )) then
-        if ( iret .eq. ESMF_RC_NOT_FOUND ) iret = ESMF_SUCCESS
-        rc = iret
-      endif
-      
       return
-    end subroutine MAPL_ConfigSetString
+    end subroutine fill_mapl_comm
 
-! BOPI -------------------------------------------------------------------
-!
-! !IROUTINE: MAPL_ConfigSetAttribute - Set a 4-byte integer number
+    subroutine fill_comm(mcomm, rc)
+      type (MAPL_Communicator), intent(inout) :: mcomm
+      integer, optional, intent(out) :: rc
+      integer :: comm
+      integer :: status
 
-!
-! !INTERFACE:
-      ! Private name; call using ESMF_ConfigSetAttribute()
-      subroutine MAPL_ConfigSetIntI4( config, value, label, rc )
-
-! !ARGUMENTS:
-      type(ESMF_Config), intent(inout)             :: config     
-      integer(ESMF_KIND_I4), intent(in)            :: value
-      character(len=*), intent(in), optional       :: label 
-      integer, intent(out), optional               :: rc   
-
-!
-! !DESCRIPTION: 
-!  Sets an integer {\tt value} in the {\tt config} object.
-!
-!   The arguments are:
-!   \begin{description}
-!   \item [config]
-!     Already created {\tt ESMF\_Config} object.
-!   \item [value]
-!     Integer value to set. 
-!   \item [{[label]}]
-!     Identifying attribute label. 
-!   \item [{[rc]}]
-!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
-!   \end{description}
-!
-! EOPI -------------------------------------------------------------------
-
-       integer,   parameter :: LSZ = 256  ! Maximum line size
-       !integer,   parameter :: MSZ = 512  ! Used to size buffer; this is
-       integer,   parameter :: MSZ = 1024 ! Used to size buffer; this is
-                                          ! usually *less* than the number
-                                          ! of non-blank/comment lines
-                                          ! (because most lines are shorter
-                                          ! then LSZ)
- 
-       integer,   parameter :: NBUF_MAX = MSZ*LSZ ! max size of buffer
-       integer,   parameter :: NATT_MAX = NBUF_MAX/16 ! max # attributes;  
-                                                  ! assumes an average line
-                                                  ! size of 16, the code
-                                                  ! will do a bound check
-
-       character, parameter :: BLK = achar(32)   ! blank (space)
-       character, parameter :: TAB = achar(09)   ! TAB
-#ifdef ESMF_HAS_ACHAR_BUG
-       character, parameter :: EOL = achar(12)   ! end of line mark (cr)
-#else
-       character, parameter :: EOL = achar(10)   ! end of line mark (newline)
-#endif
-       character, parameter :: EOB = achar(00)   ! end of buffer mark (null)
-       character, parameter :: NUL = achar(00)   ! what it says
-
-      character(len=ESMF_MAXSTR) :: Iam = 'MAPL_ConfigSetString'
-
-      character(len=ESMF_MAXSTR) :: logmsg
-      character(len=LSZ) :: curVal, newVal
-      integer :: iret, i, j, k, m, nchar, ninsert, ndelete, lenThisLine
-
-      ! Initialize return code; assume routine not implemented
-      iret = ESMF_RC_NOT_IMPL
-      if (present(rc)) rc = ESMF_RC_NOT_IMPL
-
-      !check variables
-!ALT      ESMF_INIT_CHECK_DEEP(ESMF_ConfigGetInit,config,rc)
-
-      ! Set config buffer at desired attribute
-      if ( present (label) ) then
-         call ESMF_ConfigGetAttribute( config, value=curVal, label=label, rc = iret )
+      comm = mcomm%comm
+      if (comm == MPI_COMM_NULL) then
+         mcomm%size = 0
+         mcomm%rank = MPI_UNDEFINED
+         mcomm%root = MPI_UNDEFINED
       else
-         call ESMF_ConfigGetAttribute( config, value=curVal, rc = iret )
-      endif
-
-      if ( iret .ne. ESMF_SUCCESS ) then
-        if ( iret .eq. ESMF_RC_NOT_FOUND ) then
-          ! set config buffer at end for appending
-          i = config%cptr%nbuf
-        else
-          if ( present( rc ) ) then
-            rc = iret
-          endif
-          return
-        endif
-      else ! attribute found
-        ! set config buffer for overwriting/inserting
-        i = config%cptr%value_begin
-        curVal = BLK // trim(curVal) // BLK // EOL ! like config%cptr%this_line
-      endif
-
-      ! for appending, create new attribute string with label and value
-      if ( i .eq. config%cptr%nbuf .and. present(label) ) then
-        write(newVal, *) label, value
-        newVal = trim(adjustl(newVal)) // EOL
-        j = i + len_trim(newVal)
-
-        ! check to ensure len of newVal doesn't exceed LSZ
-        if ( (j-i) .gt. LSZ) then
-           write(logmsg, *) ", attribute label, value & EOL are ", j-i, &
-               " characters long, only ", LSZ, " characters allowed per line"
-           RETURN_(ESMC_RC_LONG_STR)
-        endif
-
-        ! check if enough space left in config buffer
-        if (j .ge. NBUF_MAX) then   ! room for EOB if necessary
-           write(logmsg, *) ", attribute label & value require ", j-i+1, &
-               " characters (including EOL & EOB), only ", NBUF_MAX-i, &
-               " characters left in config buffer"
-           RETURN_(ESMC_RC_LONG_STR)
-        endif
-      endif
-
-      ! overwrite, with possible insertion or deletion of extra characters
-      if (i .eq. config%cptr%value_begin) then
-         write(newVal, *) value
-         newVal = BLK // trim(adjustl(newVal)) // EOL
-         j = i + len_trim(newVal) - 1
-
-         !  check if we need more space to insert new characters;
-         !  shift buffer down (linked-list redesign would be better!)
-         nchar = j-i+1
-         lenThisLine = len_trim(curVal) - 1
-         if ( nchar .gt. lenThisLine) then
-
-            ! check to ensure length of extended line doesn't exceed LSZ
-            do m = i, 1, -1
-              if (config%cptr%buffer(m:m) .eq. EOL) then
-                exit
-              endif
-            enddo
-            if (j-m+1 .gt. LSZ) then
-               write(logmsg, *) ", attribute label, value & EOL are ", j-m+1, &
-                  " characters long, only ", LSZ, " characters allowed per line"
-               RETURN_(ESMC_RC_LONG_STR)
-            endif
-
-            ! check if enough space left in config buffer to extend line
-            if (j+1 .ge. NBUF_MAX) then   ! room for EOB if necessary
-               write(logmsg, *) ", attribute label & value require ", j-m+1, &
-                   " characters (including EOL & EOB), only ", NBUF_MAX-i, &
-                   " characters left in config buffer"
-               RETURN_(ESMC_RC_LONG_STR)
-            endif
-
-            ninsert = nchar - lenThisLine
-            do k = config%cptr%nbuf, j, -1
-               config%cptr%buffer(k+ninsert:k+ninsert) = config%cptr%buffer(k:k)
-            enddo
-            config%cptr%nbuf = config%cptr%nbuf + ninsert
-
-         ! or if we need less space and remove characters;
-         ! shift buffer up
-         elseif ( nchar .lt. lenThisLine ) then
-           ndelete = lenThisLine - nchar
-            do k = j+1, config%cptr%nbuf
-               config%cptr%buffer(k-ndelete:k-ndelete) = config%cptr%buffer(k:k)
-            enddo
-            config%cptr%nbuf = config%cptr%nbuf - ndelete
-         endif
-      endif
-
-      ! write new attribute value into config
-      config%cptr%buffer(i:j) = newVal(1:len_trim(newVal))
-
-      ! if appended, reset EOB marker and nbuf
-      if (i .eq. config%cptr%nbuf) then
-!@@        j = j + 1
-!@@        config%cptr%buffer(j:j) = EOB
-        config%cptr%nbuf = j
-      endif
-
-      if( present( rc )) then
-        if ( iret .eq. ESMF_RC_NOT_FOUND ) iret = ESMF_SUCCESS
-        rc = iret
-      endif
+         call MPI_Comm_Size(comm, mcomm%size,status)
+         _VERIFY(status)
+         call MPI_Comm_Rank(comm, mcomm%rank,status)
+         _VERIFY(status)
+         mcomm%root = 0
+      end if
+      _RETURN(ESMF_SUCCESS)
+    end subroutine fill_comm
       
-      return
-    end subroutine MAPL_ConfigSetIntI4
+   subroutine run_model(this, mapl_comm, unusable, rc)
+      class (MAPL_Cap), intent(inout) :: this
+      type(MAPL_Communicators), intent(in) :: mapl_comm
+!!$      integer, intent(in) :: comm
+      class (KeywordEnforcer), optional, intent(in) :: unusable
+      integer, optional, intent(out) ::rc
 
- end module MAPL_CapMod
+      type (ESMF_VM) :: vm
+      integer :: start_tick, stop_tick, tick_rate
+      integer :: status
+      _UNUSED_DUMMY(unusable)
+
+
+      call start_timer()
+      call ESMF_Initialize (vm=vm, logKindFlag=this%esmf_logging_mode, mpiCommunicator=mapl_comm%esmf%comm, rc=status)
+      _VERIFY(status)
+
+      call this%initialize_cap_gc(mapl_comm)
+
+      call this%cap_gc%set_services(rc = status)
+      _VERIFY(status)
+      call this%cap_gc%initialize(rc=status)
+      _VERIFY(status)
+      call this%cap_gc%run(rc=status)
+      _VERIFY(status)
+      call this%cap_gc%finalize(rc=status)
+      _VERIFY(status)
+!!$      call ESMF_Finalize(rc=status)
+!!$      _VERIFY(status)
+      
+
+      call stop_timer()
+      call report_throughput()
+
+      _RETURN(_SUCCESS)
+   contains
+
+      subroutine start_timer()
+         call system_clock(start_tick, count_rate=tick_rate)
+      end subroutine start_timer
+
+      subroutine stop_timer()
+         call system_clock(stop_tick)
+      end subroutine stop_timer
+
+      subroutine report_throughput(rc)
+         use, intrinsic :: iso_fortran_env, only: REAL64, OUTPUT_UNIT
+         integer, optional, intent(out) :: rc
+
+         integer :: rank, ierror
+         real(kind=REAL64) :: model_duration, wall_time, model_days_per_day
+
+         call MPI_Comm_rank(this%comm_world, rank, ierror)
+         _VERIFY(ierror)
+
+         if (rank == 0) then
+            model_duration = this%cap_gc%get_model_duration()
+            wall_time = (stop_tick - start_tick) / real(tick_rate, kind=REAL64)
+
+            model_days_per_day = model_duration / wall_time
+            
+            write(OUTPUT_UNIT,'("Model Throughput:",X,F12.3,X,"days per day")') model_days_per_day
+         end if
+         
+      end subroutine report_throughput
+
+   end subroutine run_model
+
+   
+   subroutine initialize_cap_gc(this, mapl_comm)
+     class(MAPL_Cap), intent(inout) :: this
+     type(MAPL_Communicators), intent(in) :: mapl_comm
+     call MAPL_CapGridCompCreate(this%cap_gc, mapl_comm, this%set_services, this%cap_rc_file, &
+           this%name, this%egress_file)     
+   end subroutine initialize_cap_gc
+   
+
+   subroutine step_model(this, rc)
+     class(MAPL_Cap), intent(inout) :: this
+     integer, intent(out) :: rc
+     integer :: status
+     call this%cap_gc%step(rc = status); _VERIFY(status)
+   end subroutine step_model
+   
+
+   integer function create_member_subcommunicator(this, comm, unusable, rc) result(subcommunicator)
+      class (MAPL_Cap), intent(in) :: this
+      integer, intent(in) :: comm
+      class (KeywordEnforcer), optional, intent(in) :: unusable
+      integer, optional, intent(out) :: rc
+      
+      type (SimpleCommSplitter) :: splitter
+      type (SplitCommunicator) :: split_comm
+
+      integer :: status
+      character(:), allocatable :: dir_name
+!!$      external :: chdir
+
+      _UNUSED_DUMMY(unusable)
+      
+      subcommunicator = MPI_COMM_NULL ! in case of failure
+      splitter = SimpleCommSplitter(comm, this%n_members, this%npes_member, base_name=this%ensemble_subdir_prefix)
+      split_comm = splitter%split(rc=status); _VERIFY(status)
+      subcommunicator = split_comm%get_subcommunicator()
+
+      if (this%n_members > 1) then
+         dir_name = split_comm%get_name()
+         status = c_chdir(dir_name)
+         _VERIFY(status)
+      end if
+      
+      _RETURN(_SUCCESS)
+      
+   end function create_member_subcommunicator
+
+
+   subroutine initialize_mpi(this, unusable, rc)
+      class (MAPL_Cap), intent(inout) :: this
+      class (KeywordEnforcer), optional, intent(in) :: unusable
+      integer, optional, intent(out) :: rc
+
+      integer :: ierror
+      integer :: provided
+
+      _UNUSED_DUMMY(unusable)
+
+      call MPI_Initialized(this%mpi_already_initialized, ierror)
+      _VERIFY(ierror)
+
+      if (.not. this%mpi_already_initialized) then
+!!$         call MPI_Init_thread(MPI_THREAD_MULTIPLE, provided, ierror)
+!!$         _ASSERT(provided == MPI_THREAD_MULTIPLE, 'MPI_THREAD_MULTIPLE not supporte by this MPI.')
+         call MPI_Init_thread(MPI_THREAD_SINGLE, provided, ierror)
+         _VERIFY(ierror)
+         _ASSERT(provided == MPI_THREAD_SINGLE, "MPI_THREAD_SINGLE not supported by this MPI.")
+      end if
+
+      call MPI_Comm_rank(this%comm_world, this%rank, ierror); _VERIFY(ierror)
+
+      _RETURN(_SUCCESS)
+
+   contains
+
+   end subroutine initialize_mpi
+
+
+   ! From  https://stackoverflow.com/questions/26730836/change-of-directory-in-fortran-in-a-non-compiler-specific-way
+   subroutine chdir(path, err)
+      use iso_c_binding
+      character(*) :: path
+      integer, optional, intent(out) :: err
+      integer :: loc_err
+      
+      loc_err =  c_chdir(path//c_null_char)
+      
+      if (present(err)) err = loc_err
+      
+   end subroutine chdir
+   
+   subroutine finalize_mpi(this, unusable, rc)
+      class (MAPL_Cap), intent(in) :: this
+      class (KeywordEnforcer), optional, intent(in) :: unusable
+      integer, optional, intent(out) :: rc
+
+      integer :: ierror
+      _UNUSED_DUMMY(unusable)
+
+      if (.not. this%mpi_already_initialized) then
+         call MPI_Finalize(ierror)
+         _VERIFY(ierror)
+      end if
+
+      _RETURN(_SUCCESS)
+
+   end subroutine finalize_mpi
+
+   ! Comment out for GCHP
+   !! Static method
+   !subroutine add_command_line_options(options, unusable, rc)
+   !   type (command_line_interface), intent(inout) :: options
+   !   class (KeywordEnforcer), optional, intent(in) :: unusable
+   !   integer, optional, intent(out) :: rc
+   !
+   !   integer :: status
+   !   _UNUSED_DUMMY(unusable)
+   !
+   !   call options%add(switch='--esmf_logtype',                   &
+   !        help='ESMF Logging type',                   &
+   !        required=.false.,                           &
+   !        choices='none,single,multi,multi_on_error', &
+   !        def='none',                                 &
+   !        act='store',                                &
+   !        error=status)
+   !   _VERIFY(status)
+   !   call options%add(switch='--egress_file', &
+   !               help='Egress file name', &
+   !               required=.false.,        &
+   !               def='EGRESS',            &
+   !               act='store',             &
+   !               hidden=.true.,           &
+   !               error=status)
+   !   _VERIFY(status)
+   !   call options%add(switch='--cap_rc',            &
+   !        help='CAP resource file name', &
+   !        required=.false.,              &
+   !        def='CAP.rc',                  &
+   !        act='store',                   &
+   !        error=status)
+   !   _VERIFY(status)
+   !
+   !
+   !   call options%add(switch='--npes', &
+   !        help='# MPI processes used by model CapGridComp', &
+   !        required=.false., &
+   !        act='store', &
+   !        def='*', &
+   !        error=status)
+   !   _VERIFY(status)
+   !
+   !   call options%add(switch='--n_members', &
+   !        help='# MPI processes used by model CapGridComp1', &
+   !        required=.false., &
+   !        act='store', &
+   !        def='1', &
+   !        error=status)
+   !   _VERIFY(status)
+   !
+   !   call options%add(switch='--prefix', &
+   !        help='prefix for ensemble subdirectories', &
+   !        required=.false., &
+   !        act='store', &
+   !        def='mem', &
+   !        error=status)
+   !   _VERIFY(status)
+   !
+   !   call options%add(switch='--npes_input_server', &
+   !        help='# MPI processes used by input server', &
+   !        required=.false., &
+   !        def='0', &
+   !        exclude = '--nodes_input_server', &
+   !        act='store', &
+   !        error=status)
+   !   _VERIFY(status)
+   !   
+   !   call options%add(switch='--npes_output_server', &
+   !        help='# MPI processes used by output server', &
+   !        required=.false., &
+   !        def='0', &
+   !        exclude = '--nodes_output_server', &
+   !        act='store', &
+   !        error=status)
+   !   _VERIFY(status)
+   !
+   !   call options%add(switch='--nodes_input_server', &
+   !        help='# NCCS nodes (28 or more processors ) used by input server', &
+   !        required=.false., &
+   !        def='0', &
+   !        exclude = '--npes_input_server', &
+   !        act='store', &
+   !        error=status)
+   !   _VERIFY(status)
+   !   
+   !   call options%add(switch='--nodes_output_server', &
+   !        help='# NCCS nodes (28 or more processors) used by output server', &
+   !        required=.false., &
+   !        def='0', &
+   !        exclude = '--npes_output_server', &
+   !        act='store', &
+   !        error=status)
+   !   _VERIFY(status)
+   !   _RETURN(_SUCCESS)
+   !
+   !
+   !end subroutine add_command_line_options
+
+   ! Comment out for GCHP
+   !subroutine parse_command_line_arguments(this, options, unusable, rc)
+   !   class (MAPL_Cap), intent(inout) :: this
+   !   type (command_line_interface), intent(inout) :: options
+   !   class (KeywordEnforcer), optional, intent(in) :: unusable
+   !   integer, optional, intent(out) :: rc
+   !
+   !   integer :: status, ierror
+   !   character(80) :: buffer
+   !   integer :: npes_world
+   !
+   !   _UNUSED_DUMMY(unusable)
+   !
+   !   call options%get(val=buffer, switch='--egress_file', error=status); _VERIFY(status)
+   !   this%egress_file = trim(buffer)
+   !
+   !   call MPI_Comm_size(this%comm_world, npes_world, ierror); _VERIFY(ierror)
+   !   call options%get(val=buffer, switch='--npes', error=status); _VERIFY(status)
+   !   select case (trim(buffer))
+   !   case ('*')
+   !      this%npes_model = npes_world
+   !   case default
+   !      call options%get(val=this%npes_model, switch='--npes', error=status); _VERIFY(status)
+   !   end select
+   !
+   !   call options%get(val=this%npes_input_server, switch='--npes_input_server', error=status); _VERIFY(status)
+   !   call options%get(val=this%npes_output_server, switch='--npes_output_server', error=status); _VERIFY(status)
+   !   call options%get(val=this%nodes_input_server, switch='--nodes_input_server', error=status); _VERIFY(status)
+   !   call options%get(val=this%nodes_output_server, switch='--nodes_output_server', error=status); _VERIFY(status)
+   !
+   !   call options%get(val=buffer, switch='--esmf_logtype', error=status); _VERIFY(status)
+   !   call this%set_esmf_logging_mode(trim(buffer), rc=status); _VERIFY(status)
+   !
+   !   ! Ensemble specific options
+   !   call options%get(val=buffer, switch='--prefix', error=status); _VERIFY(status)
+   !   this%ensemble_subdir_prefix = trim(buffer)
+   !   call options%get(val=this%n_members, switch='--n_members', error=status); _VERIFY(status)
+   !   
+   !   call options%get(val=buffer, switch='--cap_rc', error=status); _VERIFY(status)
+   !   this%cap_rc_file = trim(buffer)
+   !   ! Note: we round down when computing the number of pe's in each
+   !   ! member.  This is either eneough for all members or not enough
+   !   ! for all members.
+   !   this%npes_member = npes_world / this%n_members
+   !
+   !end subroutine parse_command_line_arguments
+
+
+   subroutine set_esmf_logging_mode(this, flag_name, unusable, rc)
+      class (MAPL_Cap), intent(inout) :: this
+      character(*), intent(in) :: flag_name
+      class (KeywordEnforcer), optional, intent(in) :: unusable
+      integer, optional, intent(out) :: rc
+      character(len=255) :: msg
+
+      _UNUSED_DUMMY(unusable)
+
+      select case (flag_name)
+      case ('none')
+         this%esmf_logging_mode = ESMF_LOGKIND_NONE
+      case ('single')
+         this%esmf_logging_mode = ESMF_LOGKIND_SINGLE
+      case ('multi')
+         this%esmf_logging_mode = ESMF_LOGKIND_MULTI
+      case ('multi_on_error')
+         this%esmf_logging_mode = ESMF_LOGKIND_MULTI_ON_ERROR
+      case default
+         msg = "Unsupported ESMF logging option: "//flag_name
+         _FAIL(trim(msg))
+      end select
+
+      _RETURN(_SUCCESS)
+   end subroutine set_esmf_logging_mode
+
+
+  subroutine set_npes_model(this, npes_model)
+    class(MAPL_Cap), intent(inout) :: this
+    integer, intent(in) :: npes_model
+    this%npes_model = npes_model
+  end subroutine set_npes_model
+
+  subroutine set_npes_input_server(this, npes_input_server)
+    class(MAPL_Cap), intent(inout) :: this
+    integer, intent(in) :: npes_input_server
+    this%npes_input_server = npes_input_server
+  end subroutine set_npes_input_server
+
+  subroutine set_nodes_input_server(this, nodes_input_server)
+    class(MAPL_Cap), intent(inout) :: this
+    integer, intent(in) :: nodes_input_server
+    this%nodes_input_server = nodes_input_server
+  end subroutine set_nodes_input_server
+
+  subroutine set_npes_output_server(this, npes_output_server)
+    class(MAPL_Cap), intent(inout) :: this
+    integer, intent(in) :: npes_output_server
+    this%npes_output_server = npes_output_server
+  end subroutine set_npes_output_server
+
+  subroutine set_nodes_output_server(this, nodes_output_server)
+    class(MAPL_Cap), intent(inout) :: this
+    integer, intent(in) :: nodes_output_server
+    this%nodes_output_server = nodes_output_server
+  end subroutine set_nodes_output_server
+
+  subroutine set_n_members(this, n_members)
+    class(MAPL_Cap), intent(inout) :: this
+    integer, intent(in) :: n_members
+    this%n_members = n_members
+  end subroutine set_n_members
+
+  subroutine set_npes_member(this, npes_member)
+    class(MAPL_Cap), intent(inout) :: this
+    integer, intent(in) :: npes_member
+    this%npes_member = npes_member
+  end subroutine set_npes_member
+
+  subroutine set_comm_world(this, comm_world)
+    class(MAPL_Cap), intent(inout) :: this
+    integer, intent(in) :: comm_world
+    this%comm_world = comm_world
+  end subroutine set_comm_world
+
+  subroutine set_ensemble_subdir_prefix(this, ensemble_subdir_prefix)
+    class(MAPL_Cap), intent(inout) :: this
+    character(*), intent(in) :: ensemble_subdir_prefix
+    this%ensemble_subdir_prefix = ensemble_subdir_prefix
+  end subroutine set_ensemble_subdir_prefix
+  
+  function get_npes_model(this) result(npes_model)
+    class(MAPL_Cap), intent(in) :: this
+    integer :: npes_model
+    npes_model = this%npes_model
+  end function get_npes_model
+    
+  function get_comm_world(this) result(comm_world)
+    class(MAPL_Cap), intent(in) :: this
+    integer :: comm_world
+    comm_world = this%comm_world
+  end function get_comm_world
+
+  function get_n_members(this) result(n_members)
+    class(MAPL_Cap), intent(in) :: this
+    integer :: n_members
+    n_members = this%n_members
+  end function get_n_members
+
+  function get_cap_gc(this) result(cap_gc)
+    class(MAPL_Cap), intent(in) :: this
+    type(MAPL_CapGridComp) :: cap_gc
+    cap_gc = this%cap_gc
+  end function get_cap_gc
+
+  function get_mapl_comm(this) result(mapl_comm)
+    class(MAPL_Cap), intent(in) :: this
+    type(MAPL_Communicators) :: mapl_comm
+    mapl_comm = this%mapl_comm
+  end function get_mapl_comm
+
+  
+end module MAPL_CapMod
+

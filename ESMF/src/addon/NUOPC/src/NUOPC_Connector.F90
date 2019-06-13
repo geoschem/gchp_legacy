@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2018, University Corporation for Atmospheric Research, 
+! Copyright 2002-2019, University Corporation for Atmospheric Research, 
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 ! Laboratory, University of Michigan, National Centers for Environmental 
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -25,7 +25,7 @@ module NUOPC_Connector
   
   private
   
-  public SetServices
+  public SetVM, SetServices
   public label_ComputeRouteHandle, label_ExecuteRouteHandle, &
     label_ReleaseRouteHandle, label_Finalize
   
@@ -79,6 +79,16 @@ module NUOPC_Connector
   contains
   !-----------------------------------------------------------------------------
   
+  subroutine SetVM(connector, rc)
+    type(ESMF_CplComp)   :: connector
+    integer, intent(out) :: rc
+
+    rc = ESMF_SUCCESS
+  
+  end subroutine
+
+  !-----------------------------------------------------------------------------
+  
   subroutine SetServices(connector, rc)
     type(ESMF_CplComp)   :: connector
     integer, intent(out) :: rc
@@ -88,8 +98,8 @@ module NUOPC_Connector
 
     rc = ESMF_SUCCESS
 
-    ! query the Component for info
-    call ESMF_CplCompGet(connector, name=name, rc=rc)
+    ! query the component for info
+    call NUOPC_CompGet(connector, name=name, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
     
@@ -197,74 +207,86 @@ module NUOPC_Connector
     integer, intent(out) :: rc
     
     ! local variables
-    character(*), parameter               :: rName="InitializeP0"
-    character(ESMF_MAXSTR)                :: name
-    character(ESMF_MAXSTR)                :: valueString
-    integer                               :: verbosity
+    character(*), parameter   :: rName="InitializeP0"
+    character(ESMF_MAXSTR)    :: name
+    integer                   :: verbosity, diagnostic
+    type(ESMF_Time)           :: currTime
+    character(len=40)         :: currTimeString
 
     rc = ESMF_SUCCESS
 
-    ! query the Component for info
-    call ESMF_CplCompGet(cplcomp, name=name, rc=rc)
+    ! query the component for info
+    call NUOPC_CompGet(cplcomp, name=name, verbosity=verbosity, &
+      diagnostic=diagnostic, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
 
-    ! determine verbosity
-    call NUOPC_CompAttributeGet(cplcomp, name="Verbosity", value=valueString, &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    verbosity = ESMF_UtilString2Int(valueString, &
-      specialStringList=(/"high", "max "/), &
-      specialValueList=(/131071, 131071/), &  ! all 16 lower bits set
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
     ! intro
-    if (btest(verbosity,0)) then
-      call ESMF_LogWrite(trim(name)//": "//rName//" intro.", ESMF_LOGMSG_INFO, &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,1)) then
-      call ESMF_VMLogMemInfo(trim(name)//": "//rName//" intro: ", rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,2)) then
-      call ESMF_VMLogCurrentGarbageInfo(trim(name)//": "//rName//" intro: ", &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    !--- intro done ---
+    call NUOPC_LogIntro(name, rName, verbosity, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
 
+    ! handle diagnostic
+    if (diagnostic>0) then
+      call ESMF_ClockGet(clock, currTime=currTime, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+      call ESMF_TimePrint(currTime, unit=currTimeString, options="underscore", &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    if (btest(diagnostic,0)) then
+      call NUOPC_Write(importState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_enter_import_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    if (btest(diagnostic,1)) then
+      call NUOPC_Write(exportState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_enter_export_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    
     ! filter all other entries but those of type IPDv05
     call NUOPC_CompFilterPhaseMap(cplcomp, ESMF_METHOD_INITIALIZE, &
       acceptStringList=(/"IPDv05p"/), rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
 
-    !--- extro start ---
+    ! handle diagnostic
+    if (btest(diagnostic,2)) then
+      call NUOPC_Write(importState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_exit_import_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    if (btest(diagnostic,3)) then
+      call NUOPC_Write(exportState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_exit_export_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    
     ! extro
-    if (btest(verbosity,0)) then
-      call ESMF_LogWrite(trim(name)//": "//rName//" extro.", ESMF_LOGMSG_INFO, &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,1)) then
-      call ESMF_VMLogMemInfo(trim(name)//": "//rName//" extro: ", rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,2)) then
-      call ESMF_VMLogCurrentGarbageInfo(trim(name)//": "//rName//" extro: ", &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
+    call NUOPC_LogExtro(name, rName, verbosity, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
 
   end subroutine
   
@@ -277,62 +299,57 @@ module NUOPC_Connector
     integer, intent(out) :: rc
 
     ! local variables
-    character(*), parameter               :: rName="InitializeIPDv05p1"
-    character(ESMF_MAXSTR)                :: name, valueString
-    character(ESMF_MAXSTR)                :: importXferPolicy, exportXferPolicy
-    integer                               :: profiling
-    integer                               :: verbosity
+    character(*), parameter   :: rName="InitializeIPDv05p1"
+    character(ESMF_MAXSTR)    :: name
+    character(ESMF_MAXSTR)    :: importXferPolicy, exportXferPolicy
+    integer                   :: verbosity, profiling, diagnostic
+    type(ESMF_Time)           :: currTime
+    character(len=40)         :: currTimeString
 
     rc = ESMF_SUCCESS
 
-
-    ! query the Component for info
-    call ESMF_CplCompGet(cplcomp, name=name, rc=rc)
+    ! query the component for info
+    call NUOPC_CompGet(cplcomp, name=name, verbosity=verbosity, &
+      profiling=profiling, diagnostic=diagnostic, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
 
-    ! determine verbosity
-    call NUOPC_CompAttributeGet(cplcomp, name="Verbosity", value=valueString, &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    verbosity = ESMF_UtilString2Int(valueString, &
-      specialStringList=(/"high", "max "/), &
-      specialValueList=(/131071, 131071/), &  ! all 16 lower bits set
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
     ! intro
-    if (btest(verbosity,0)) then
-      call ESMF_LogWrite(trim(name)//": "//rName//" intro.", ESMF_LOGMSG_INFO, &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,1)) then
-      call ESMF_VMLogMemInfo(trim(name)//": "//rName//" intro: ", rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,2)) then
-      call ESMF_VMLogCurrentGarbageInfo(trim(name)//": "//rName//" intro: ", &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    !--- intro done ---
-
-    ! determine profiling
-    call NUOPC_CompAttributeGet(cplcomp, name="Profiling", value=valueString, &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    profiling = ESMF_UtilString2Int(valueString, &
-      specialStringList=(/"high", "max "/), specialValueList=(/65535, 65535/), &
-      rc=rc)
+    call NUOPC_LogIntro(name, rName, verbosity, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
 
+    ! handle diagnostic
+    if (diagnostic>0) then
+      call ESMF_ClockGet(clock, currTime=currTime, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+      call ESMF_TimePrint(currTime, unit=currTimeString, options="underscore", &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    if (btest(diagnostic,0)) then
+      call NUOPC_Write(importState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_enter_import_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    if (btest(diagnostic,1)) then
+      call NUOPC_Write(exportState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_enter_export_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    
     ! reconcile the States including Attributes
     if (btest(profiling,1)) then    ! PROFILE
       call ESMF_VMLogMemInfo("befP1 Reconcile")
@@ -359,11 +376,11 @@ module NUOPC_Connector
       line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
 
     if (btest(verbosity,8)) then
-      call ESMF_LogWrite(trim(name)//": importState xferPolicy = "// &
+      call ESMF_LogWrite(trim(name)//": importState FieldTransferPolicy = "// &
         trim(importXferPolicy), ESMF_LOGMSG_INFO, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-      call ESMF_LogWrite(trim(name)//": exportState xferPolicy = "// &
+      call ESMF_LogWrite(trim(name)//": exportState FieldTransferPolicy = "// &
         trim(exportXferPolicy), ESMF_LOGMSG_INFO, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
@@ -380,25 +397,30 @@ module NUOPC_Connector
         line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
     endif
 
-    !--- extro start ---
+    ! handle diagnostic
+    if (btest(diagnostic,2)) then
+      call NUOPC_Write(importState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_exit_import_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    if (btest(diagnostic,3)) then
+      call NUOPC_Write(exportState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_exit_export_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    
     ! extro
-    if (btest(verbosity,0)) then
-      call ESMF_LogWrite(trim(name)//": "//rName//" extro.", ESMF_LOGMSG_INFO, &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,1)) then
-      call ESMF_VMLogMemInfo(trim(name)//": "//rName//" extro: ", rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,2)) then
-      call ESMF_VMLogCurrentGarbageInfo(trim(name)//": "//rName//" extro: ", &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
+    call NUOPC_LogExtro(name, rName, verbosity, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
 
    contains
 
@@ -507,7 +529,7 @@ module NUOPC_Connector
     character(*), parameter               :: rName="InitializeIPDv05p2a"
     integer                               :: i, j
     integer                               :: bondLevel, bondLevelMax
-    character(ESMF_MAXSTR)                :: name, valueString
+    character(ESMF_MAXSTR)                :: name
     character(ESMF_MAXSTR), pointer       :: importStandardNameList(:)
     character(ESMF_MAXSTR), pointer       :: exportStandardNameList(:)
     type(ESMF_Field),       pointer       :: importFieldList(:)
@@ -518,58 +540,54 @@ module NUOPC_Connector
     character(ESMF_MAXSTR), pointer       :: exportNamespaceList(:)
     character(ESMF_MAXSTR), pointer       :: importCplSetList(:)
     character(ESMF_MAXSTR), pointer       :: exportCplSetList(:)
-    integer                               :: profiling
     logical                               :: match
-    integer                               :: verbosity
+    integer                   :: verbosity, profiling, diagnostic
+    type(ESMF_Time)           :: currTime
+    character(len=40)         :: currTimeString
 
     rc = ESMF_SUCCESS
 
-    ! query the Component for info
-    call ESMF_CplCompGet(cplcomp, name=name, rc=rc)
+    ! query the component for info
+    call NUOPC_CompGet(cplcomp, name=name, verbosity=verbosity, &
+      profiling=profiling, diagnostic=diagnostic, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
 
-    ! determine verbosity
-    call NUOPC_CompAttributeGet(cplcomp, name="Verbosity", value=valueString, &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    verbosity = ESMF_UtilString2Int(valueString, &
-      specialStringList=(/"high", "max "/), &
-      specialValueList=(/131071, 131071/), &  ! all 16 lower bits set
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
     ! intro
-    if (btest(verbosity,0)) then
-      call ESMF_LogWrite(trim(name)//": "//rName//" intro.", ESMF_LOGMSG_INFO, &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,1)) then
-      call ESMF_VMLogMemInfo(trim(name)//": "//rName//" intro: ", rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,2)) then
-      call ESMF_VMLogCurrentGarbageInfo(trim(name)//": "//rName//" intro: ", &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    !--- intro done ---
+    call NUOPC_LogIntro(name, rName, verbosity, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
 
-    ! determine profiling
-    call NUOPC_CompAttributeGet(cplcomp, name="Profiling", value=valueString, &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    profiling = ESMF_UtilString2Int(valueString, &
-      specialStringList=(/"high", "max "/), specialValueList=(/65535, 65535/), &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+    ! handle diagnostic
+    if (diagnostic>0) then
+      call ESMF_ClockGet(clock, currTime=currTime, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+      call ESMF_TimePrint(currTime, unit=currTimeString, options="underscore", &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    if (btest(diagnostic,0)) then
+      call NUOPC_Write(importState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_enter_import_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    if (btest(diagnostic,1)) then
+      call NUOPC_Write(exportState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_enter_export_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
 
     ! reconcile the States including Attributes
     if (btest(profiling,1)) then    ! PROFILE
@@ -697,25 +715,30 @@ print *, "bondLevelMax:", bondLevelMax, "bondLevel:", bondLevel
     if (associated(exportNamespaceList)) deallocate(exportNamespaceList)
     if (associated(exportCplSetList)) deallocate(exportCplSetList)
     
-    !--- extro start ---
+    ! handle diagnostic
+    if (btest(diagnostic,2)) then
+      call NUOPC_Write(importState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_exit_import_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    if (btest(diagnostic,3)) then
+      call NUOPC_Write(exportState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_exit_export_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    
     ! extro
-    if (btest(verbosity,0)) then
-      call ESMF_LogWrite(trim(name)//": "//rName//" extro.", ESMF_LOGMSG_INFO, &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,1)) then
-      call ESMF_VMLogMemInfo(trim(name)//": "//rName//" extro: ", rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,2)) then
-      call ESMF_VMLogCurrentGarbageInfo(trim(name)//": "//rName//" extro: ", &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
+    call NUOPC_LogExtro(name, rName, verbosity, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
 
   end subroutine
   
@@ -737,69 +760,65 @@ print *, "bondLevelMax:", bondLevelMax, "bondLevel:", bondLevel
     type(ESMF_Field),       pointer       :: importFieldList(:)
     type(ESMF_Field),       pointer       :: exportFieldList(:)
     type(ESMF_Field)                      :: field
-    character(ESMF_MAXSTR)                :: connectionString, valueString
+    character(ESMF_MAXSTR)                :: connectionString
     character(ESMF_MAXSTR), pointer       :: importNamespaceList(:)
     character(ESMF_MAXSTR), pointer       :: exportNamespaceList(:)
     character(ESMF_MAXSTR), pointer       :: importCplSetList(:)
     character(ESMF_MAXSTR), pointer       :: exportCplSetList(:)
     character(ESMF_MAXSTR), pointer       :: cplList(:)
     character(ESMF_MAXSTR), pointer       :: cplSetList(:)
-    character(len=160)                    :: msgString
-    integer                               :: verbosity
-    integer                               :: profiling
+    character(len=240)                    :: msgString
     logical                               :: match
     type(ESMF_StateIntent_Flag)           :: importStateIntent
     character(ESMF_MAXSTR)                :: fieldName
+    integer                   :: verbosity, profiling, diagnostic
+    type(ESMF_Time)           :: currTime
+    character(len=40)         :: currTimeString
     
     rc = ESMF_SUCCESS
 
-    ! query the Component for info
-    call ESMF_CplCompGet(cplcomp, name=name, rc=rc)
+    ! query the component for info
+    call NUOPC_CompGet(cplcomp, name=name, verbosity=verbosity, &
+      profiling=profiling, diagnostic=diagnostic, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
       
-    ! determine verbosity
-    call NUOPC_CompAttributeGet(cplcomp, name="Verbosity", value=valueString, &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    verbosity = ESMF_UtilString2Int(valueString, &
-      specialStringList=(/"high", "max "/), &
-      specialValueList=(/131071, 131071/), &  ! all 16 lower bits set
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    ! intro
-    if (btest(verbosity,0)) then
-      call ESMF_LogWrite(trim(name)//": "//rName//" intro.", ESMF_LOGMSG_INFO, &
+    ! handle diagnostic
+    if (diagnostic>0) then
+      call ESMF_ClockGet(clock, currTime=currTime, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+      call ESMF_TimePrint(currTime, unit=currTimeString, options="underscore", &
         rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
     endif
-    if (btest(verbosity,1)) then
-      call ESMF_VMLogMemInfo(trim(name)//": "//rName//" intro: ", rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,2)) then
-      call ESMF_VMLogCurrentGarbageInfo(trim(name)//": "//rName//" intro: ", &
+    if (btest(diagnostic,0)) then
+      call NUOPC_Write(importState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_enter_import_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
         rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
     endif
-    !--- intro done ---
-      
-    ! determine profiling
-    call NUOPC_CompAttributeGet(cplcomp, name="Profiling", value=valueString, &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    profiling = ESMF_UtilString2Int(valueString, &
-      specialStringList=(/"high", "max "/), specialValueList=(/65535, 65535/), &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+    if (btest(diagnostic,1)) then
+      call NUOPC_Write(exportState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_enter_export_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
 
+    ! intro
+    call NUOPC_LogIntro(name, rName, verbosity, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+      
     ! reconcile the States including Attributes
     if (btest(profiling,1)) then    ! PROFILE
       call ESMF_VMLogMemInfo("befP1b Reconcile")
@@ -988,15 +1007,10 @@ print *, "current bondLevel=", bondLevel
                 cplList(count) = importStandardNameList(i)
                 cplSetList(count) = importCplSetList(i)
                 if (btest(verbosity,10)) then
-                  write (msgString,'(A, ": added cplList(", I3, ")=", A60)') &
-                    trim(name), count, cplList(count)
-                  call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
-                  if (ESMF_LogFoundError(rcToCheck=rc, &
-                    msg=ESMF_LOGERR_PASSTHRU, &
-                    line=__LINE__, file=trim(name)//":"//FILENAME, &
-                    rcToReturn=rc)) return  ! bail out
-                  write (msgString,'(A, ": added cplSet(", I3, ")=", A60)') &
-                    trim(name), count, cplSetList(count)
+                  write (msgString, '(A, ": added cplList(", I3, ")=", A, '//&
+                    '", cplSet(", I3, ")=", A)') &
+                    trim(name), count, trim(cplList(count)), &
+                    count, trim(cplSetList(count))
                   call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
                   if (ESMF_LogFoundError(rcToCheck=rc, &
                     msg=ESMF_LOGERR_PASSTHRU, &
@@ -1043,25 +1057,30 @@ print *, "current bondLevel=", bondLevel
     if (associated(exportNamespaceList)) deallocate(exportNamespaceList)
     if (associated(exportCplSetList)) deallocate(exportCplSetList)
     
-    !--- extro start ---
+    ! handle diagnostic
+    if (btest(diagnostic,2)) then
+      call NUOPC_Write(importState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_exit_import_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    if (btest(diagnostic,3)) then
+      call NUOPC_Write(exportState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_exit_export_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    
     ! extro
-    if (btest(verbosity,0)) then
-      call ESMF_LogWrite(trim(name)//": "//rName//" extro.", ESMF_LOGMSG_INFO, &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,1)) then
-      call ESMF_VMLogMemInfo(trim(name)//": "//rName//" extro: ", rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,2)) then
-      call ESMF_VMLogCurrentGarbageInfo(trim(name)//": "//rName//" extro: ", &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
+    call NUOPC_LogExtro(name, rName, verbosity, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
 
   end subroutine
   
@@ -1074,49 +1093,56 @@ print *, "current bondLevel=", bondLevel
     integer, intent(out) :: rc
     
     ! local variables
-    character(*), parameter               :: rName="InitializeIPDv03p1"
-    type(ESMF_Clock)                      :: internalClock
-    character(ESMF_MAXSTR)                :: name
-    character(ESMF_MAXSTR)                :: valueString
-    integer                               :: verbosity
+    character(*), parameter   :: rName="InitializeIPDv03p1"
+    type(ESMF_Clock)          :: internalClock
+    character(ESMF_MAXSTR)    :: name
+    integer                   :: verbosity, diagnostic
+    type(ESMF_Time)           :: currTime
+    character(len=40)         :: currTimeString
 
     rc = ESMF_SUCCESS
 
-    ! query the Component for info
-    call ESMF_CplCompGet(cplcomp, name=name, rc=rc)
+    ! query the component for info
+    call NUOPC_CompGet(cplcomp, name=name, verbosity=verbosity, &
+      diagnostic=diagnostic, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
 
-    ! determine verbosity
-    call NUOPC_CompAttributeGet(cplcomp, name="Verbosity", value=valueString, &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    verbosity = ESMF_UtilString2Int(valueString, &
-      specialStringList=(/"high", "max "/), &
-      specialValueList=(/131071, 131071/), &  ! all 16 lower bits set
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
     ! intro
-    if (btest(verbosity,0)) then
-      call ESMF_LogWrite(trim(name)//": "//rName//" intro.", ESMF_LOGMSG_INFO, &
+    call NUOPC_LogIntro(name, rName, verbosity, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+
+    ! handle diagnostic
+    if (diagnostic>0) then
+      call ESMF_ClockGet(clock, currTime=currTime, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+      call ESMF_TimePrint(currTime, unit=currTimeString, options="underscore", &
         rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
     endif
-    if (btest(verbosity,1)) then
-      call ESMF_VMLogMemInfo(trim(name)//": "//rName//" intro: ", rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,2)) then
-      call ESMF_VMLogCurrentGarbageInfo(trim(name)//": "//rName//" intro: ", &
+    if (btest(diagnostic,0)) then
+      call NUOPC_Write(importState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_enter_import_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
         rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
     endif
-    !--- intro done ---
+    if (btest(diagnostic,1)) then
+      call NUOPC_Write(exportState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_enter_export_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
 
 #if 0
 ! There is currently no need to set the internal clock of a Connector. Also
@@ -1140,25 +1166,30 @@ print *, "current bondLevel=", bondLevel
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
     
-    !--- extro start ---
+    ! handle diagnostic
+    if (btest(diagnostic,2)) then
+      call NUOPC_Write(importState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_exit_import_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    if (btest(diagnostic,3)) then
+      call NUOPC_Write(exportState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_exit_export_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    
     ! extro
-    if (btest(verbosity,0)) then
-      call ESMF_LogWrite(trim(name)//": "//rName//" extro.", ESMF_LOGMSG_INFO, &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,1)) then
-      call ESMF_VMLogMemInfo(trim(name)//": "//rName//" extro: ", rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,2)) then
-      call ESMF_VMLogCurrentGarbageInfo(trim(name)//": "//rName//" extro: ", &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
+    call NUOPC_LogExtro(name, rName, verbosity, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
 
   end subroutine
   
@@ -1192,62 +1223,58 @@ print *, "current bondLevel=", bondLevel
     type(type_InternalState)        :: is
     logical                         :: foundFlag
     character(ESMF_MAXSTR)          :: connectionString
-    character(ESMF_MAXSTR)          :: name, valueString
+    character(ESMF_MAXSTR)          :: name, iString
     character(len=160)              :: msgString
     character(ESMF_MAXSTR)          :: iTransferOffer, eTransferOffer
     character(ESMF_MAXSTR)          :: iSharePolicy, eSharePolicy
-    integer                         :: profiling
     logical                         :: matchE, matchI, acceptFlag
-    integer                         :: verbosity
+    integer                   :: verbosity, profiling, diagnostic
+    type(ESMF_Time)           :: currTime
+    character(len=40)         :: currTimeString
 
     rc = ESMF_SUCCESS
 
-    ! query the Component for info
-    call ESMF_CplCompGet(cplcomp, name=name, rc=rc)
+    ! query the component for info
+    call NUOPC_CompGet(cplcomp, name=name, verbosity=verbosity, &
+      profiling=profiling, diagnostic=diagnostic, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
       
-    ! determine verbosity
-    call NUOPC_CompAttributeGet(cplcomp, name="Verbosity", value=valueString, &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    verbosity = ESMF_UtilString2Int(valueString, &
-      specialStringList=(/"high", "max "/), &
-      specialValueList=(/131071, 131071/), &  ! all 16 lower bits set
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
     ! intro
-    if (btest(verbosity,0)) then
-      call ESMF_LogWrite(trim(name)//": "//rName//" intro.", ESMF_LOGMSG_INFO, &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,1)) then
-      call ESMF_VMLogMemInfo(trim(name)//": "//rName//" intro: ", rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,2)) then
-      call ESMF_VMLogCurrentGarbageInfo(trim(name)//": "//rName//" intro: ", &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    !--- intro done ---
+    call NUOPC_LogIntro(name, rName, verbosity, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
       
-    ! determine profiling
-    call NUOPC_CompAttributeGet(cplcomp, name="Profiling", value=valueString, &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    profiling = ESMF_UtilString2Int(valueString, &
-      specialStringList=(/"high", "max "/), specialValueList=(/65535, 65535/), &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+    ! handle diagnostic
+    if (diagnostic>0) then
+      call ESMF_ClockGet(clock, currTime=currTime, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+      call ESMF_TimePrint(currTime, unit=currTimeString, options="underscore", &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    if (btest(diagnostic,0)) then
+      call NUOPC_Write(importState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_enter_import_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    if (btest(diagnostic,1)) then
+      call NUOPC_Write(exportState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_enter_export_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
 
     ! prepare local pointer variables
     nullify(cplList)
@@ -1363,7 +1390,6 @@ print *, "current bondLevel=", bondLevel
 
     ! main loop over all entries in the cplList
     do i=1, cplListSize
-!print *, "cplList(",i,")=", trim(cplList(i))
       call chopString(cplList(i), chopChar=":", chopStringList=chopStringList, &
         rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -1371,6 +1397,16 @@ print *, "current bondLevel=", bondLevel
       cplName = chopStringList(1) ! first part is the standard name of cpl field
       deallocate(chopStringList)
 
+      if (btest(verbosity,11).or.btest(verbosity,12)) then
+        write (iString,'(I4)') i
+        write (msgString, '(A)') trim(name)//": handle "// &
+          "cplList("//trim(adjustl(iString))//"): "//trim(cplName)
+        call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+          return  ! bail out
+      endif
+      
       ! find import and export side match
       foundFlag = .false. ! reset
       do eMatch=1, size(exportStandardNameList)  ! consumer side
@@ -1429,6 +1465,14 @@ print *, "current bondLevel=", bondLevel
         return  ! bail out
       endif
       
+      if (btest(verbosity,12)) then
+        write (msgString, '(A)') trim(name)//": - connected."
+        call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+          return  ! bail out
+      endif
+      
       if (iMatch>0 .and. eMatch>0) then
         ! there are matching Fields in the import and export States
         iField=importFieldList(iMatch)
@@ -1470,6 +1514,14 @@ print *, "current bondLevel=", bondLevel
               name="TransferActionField", value="provide", rc=rc)
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
               line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+            if (btest(verbosity,12)) then
+              write (msgString, '(A)') trim(name)//": "//&
+                "- both sides must provide the Field."
+              call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+              if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+                return  ! bail out
+            endif
           elseif (trim(eTransferOffer)=="can provide") then
             ! -> import side must provide, export side must accept
             acceptFlag=.true.
@@ -1481,6 +1533,14 @@ print *, "current bondLevel=", bondLevel
               name="TransferActionField", value="accept", rc=rc)
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
               line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+            if (btest(verbosity,12)) then
+              write (msgString, '(A)') trim(name)//": "//&
+                "- import side must provide, export side must accept the Field."
+              call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+              if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+                return  ! bail out
+            endif
           else  ! eTransferOffer=="cannot provide"
             ! -> import side must provide, export side must accept
             acceptFlag=.true.
@@ -1492,6 +1552,14 @@ print *, "current bondLevel=", bondLevel
               name="TransferActionField", value="accept", rc=rc)
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
               line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+            if (btest(verbosity,12)) then
+              write (msgString, '(A)') trim(name)//": "//&
+                "- import side must provide, export side must accept the Field."
+              call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+              if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+                return  ! bail out
+            endif
           endif
         elseif (trim(iTransferOffer)=="can provide") then
           if (trim(eTransferOffer)=="will provide") then
@@ -1505,6 +1573,14 @@ print *, "current bondLevel=", bondLevel
               name="TransferActionField", value="provide", rc=rc)
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
               line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+            if (btest(verbosity,12)) then
+              write (msgString, '(A)') trim(name)//": "//&
+                "- import side must accept, export side must provide the Field."
+              call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+              if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+                return  ! bail out
+            endif
           elseif (trim(eTransferOffer)=="can provide") then
             ! -> import side must provide, export side must accept
             acceptFlag=.true.
@@ -1516,6 +1592,14 @@ print *, "current bondLevel=", bondLevel
               name="TransferActionField", value="accept", rc=rc)
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
               line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+            if (btest(verbosity,12)) then
+              write (msgString, '(A)') trim(name)//": "//&
+                "- import side must accept, export side must provide the Field."
+              call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+              if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+                return  ! bail out
+            endif
           else  ! eTransferOffer=="cannot provide"
             ! -> import side must provide, export side must accept
             acceptFlag=.true.
@@ -1527,6 +1611,14 @@ print *, "current bondLevel=", bondLevel
               name="TransferActionField", value="accept", rc=rc)
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
               line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+            if (btest(verbosity,12)) then
+              write (msgString, '(A)') trim(name)//": "//&
+                "- import side must accept, export side must provide the Field."
+              call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+              if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+                return  ! bail out
+            endif
           endif
         else  ! iTransferOffer=="cannot provide"
           if (trim(eTransferOffer)=="will provide") then
@@ -1540,6 +1632,14 @@ print *, "current bondLevel=", bondLevel
               name="TransferActionField", value="provide", rc=rc)
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
               line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+            if (btest(verbosity,12)) then
+              write (msgString, '(A)') trim(name)//": "//&
+                "- import side must accept, export side must provide the Field."
+              call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+              if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+                return  ! bail out
+            endif
           elseif (trim(eTransferOffer)=="can provide") then
             ! -> import side must accept, export side must provide
             acceptFlag=.true.
@@ -1551,6 +1651,14 @@ print *, "current bondLevel=", bondLevel
               name="TransferActionField", value="provide", rc=rc)
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
               line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+            if (btest(verbosity,12)) then
+              write (msgString, '(A)') trim(name)//": "//&
+                "- import side must accept, export side must provide the Field."
+              call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+              if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+                return  ! bail out
+            endif
           else  ! eTransferOffer=="cannot provide"
             ! -> neither side is able to provide -> error
             call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
@@ -1579,6 +1687,14 @@ print *, "current bondLevel=", bondLevel
               name="ShareStatusField", value="shared", rc=rc)
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
               line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+            if (btest(verbosity,12)) then
+              write (msgString, '(A)') trim(name)//": "//&
+                "- both sides want to share the Field -> shared."
+              call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+              if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+                return  ! bail out
+            endif
           else
             ! at least one side does not want to share -> not shared
             ! but don't modify attribute here because if alread shared through
@@ -1608,6 +1724,14 @@ print *, "current bondLevel=", bondLevel
               name="TransferActionGeomObject", value="provide", rc=rc)
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
               line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+            if (btest(verbosity,12)) then
+              write (msgString, '(A)') trim(name)//": "//&
+                "- both sides must provide the GeomObject."
+              call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+              if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+                return  ! bail out
+            endif
           elseif (trim(eTransferOffer)=="can provide") then
             ! -> import side must provide, export side must accept
             acceptFlag=.true.
@@ -1619,6 +1743,14 @@ print *, "current bondLevel=", bondLevel
               name="TransferActionGeomObject", value="accept", rc=rc)
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
               line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+            if (btest(verbosity,12)) then
+              write (msgString, '(A)') trim(name)//": "//&
+                "- import side must provide, export side must accept the GeomObject."
+              call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+              if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+                return  ! bail out
+            endif
           else  ! eTransferOffer=="cannot provide"
             ! -> import side must provide, export side must accept
             acceptFlag=.true.
@@ -1630,6 +1762,14 @@ print *, "current bondLevel=", bondLevel
               name="TransferActionGeomObject", value="accept", rc=rc)
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
               line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+            if (btest(verbosity,12)) then
+              write (msgString, '(A)') trim(name)//": "//&
+                "- import side must provide, export side must accept the GeomObject."
+              call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+              if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+                return  ! bail out
+            endif
           endif
         elseif (trim(iTransferOffer)=="can provide") then
           if (trim(eTransferOffer)=="will provide") then
@@ -1643,6 +1783,14 @@ print *, "current bondLevel=", bondLevel
               name="TransferActionGeomObject", value="provide", rc=rc)
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
               line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+            if (btest(verbosity,12)) then
+              write (msgString, '(A)') trim(name)//": "//&
+                "- import side must accept, export side must provide the GeomObject."
+              call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+              if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+                return  ! bail out
+            endif
           elseif (trim(eTransferOffer)=="can provide") then
             ! -> import side must provide, export side must accept
             acceptFlag=.true.
@@ -1654,6 +1802,14 @@ print *, "current bondLevel=", bondLevel
               name="TransferActionGeomObject", value="accept", rc=rc)
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
               line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+            if (btest(verbosity,12)) then
+              write (msgString, '(A)') trim(name)//": "//&
+                "- import side must provide, export side must accept the GeomObject."
+              call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+              if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+                return  ! bail out
+            endif
           else  ! eTransferOffer=="cannot provide"
             ! -> import side must provide, export side must accept
             acceptFlag=.true.
@@ -1665,6 +1821,14 @@ print *, "current bondLevel=", bondLevel
               name="TransferActionGeomObject", value="accept", rc=rc)
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
               line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+            if (btest(verbosity,12)) then
+              write (msgString, '(A)') trim(name)//": "//&
+                "- import side must provide, export side must accept the GeomObject."
+              call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+              if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+                return  ! bail out
+            endif
           endif
         else  ! iTransferOffer=="cannot provide"
           if (trim(eTransferOffer)=="will provide") then
@@ -1678,6 +1842,14 @@ print *, "current bondLevel=", bondLevel
               name="TransferActionGeomObject", value="provide", rc=rc)
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
               line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+            if (btest(verbosity,12)) then
+              write (msgString, '(A)') trim(name)//": "//&
+                "- import side must accept, export side must provide the GeomObject."
+              call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+              if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+                return  ! bail out
+            endif
           elseif (trim(eTransferOffer)=="can provide") then
             ! -> import side must accept, export side must provide
             acceptFlag=.true.
@@ -1689,6 +1861,14 @@ print *, "current bondLevel=", bondLevel
               name="TransferActionGeomObject", value="provide", rc=rc)
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
               line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+            if (btest(verbosity,12)) then
+              write (msgString, '(A)') trim(name)//": "//&
+                "- import side must accept, export side must provide the GeomObject."
+              call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+              if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+                return  ! bail out
+            endif
           else  ! eTransferOffer=="cannot provide"
             ! -> neither side is able to provide -> error
             call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
@@ -1717,6 +1897,14 @@ print *, "current bondLevel=", bondLevel
               name="ShareStatusGeomObject", value="shared", rc=rc)
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
               line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+            if (btest(verbosity,12)) then
+              write (msgString, '(A)') trim(name)//": "//&
+                "- both sides want to share the GeomObject -> shared."
+              call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+              if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+                return  ! bail out
+            endif
           else
             ! at least one side does not want to share -> not shared
             ! at least one side does not want to share -> not shared
@@ -1746,25 +1934,30 @@ print *, "current bondLevel=", bondLevel
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
     
-    !--- extro start ---
+    ! handle diagnostic
+    if (btest(diagnostic,2)) then
+      call NUOPC_Write(importState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_exit_import_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    if (btest(diagnostic,3)) then
+      call NUOPC_Write(exportState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_exit_export_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    
     ! extro
-    if (btest(verbosity,0)) then
-      call ESMF_LogWrite(trim(name)//": "//rName//" extro.", ESMF_LOGMSG_INFO, &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,1)) then
-      call ESMF_VMLogMemInfo(trim(name)//": "//rName//" extro: ", rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,2)) then
-      call ESMF_VMLogCurrentGarbageInfo(trim(name)//": "//rName//" extro: ", &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
+    call NUOPC_LogExtro(name, rName, verbosity, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
 
   end subroutine
   
@@ -1809,70 +2002,67 @@ print *, "current bondLevel=", bondLevel
     type(type_InternalState)        :: is
     logical                         :: foundFlag
     character(ESMF_MAXSTR)          :: connectionString
-    character(ESMF_MAXSTR)          :: name, valueString
+    character(ESMF_MAXSTR)          :: name, iString
     character(len=160)              :: msgString
     character(ESMF_MAXSTR)          :: geomobjname, fieldName
     character(ESMF_MAXSTR)          :: iTransferAction, eTransferAction
     character(ESMF_MAXSTR)          :: iShareStatus, eShareStatus
-    integer                         :: verbosity
     integer(ESMF_KIND_I4), pointer  :: ungriddedLBound(:), ungriddedUBound(:)
     integer(ESMF_KIND_I4), pointer  :: gridToFieldMap(:)
     integer                         :: fieldDimCount, gridDimCount, arbDimCount
-    integer                         :: profiling
     logical                         :: matchE, matchI
     integer                         :: dimCount
     integer, allocatable            :: minIndex(:), maxIndex(:)
     logical                         :: sharedFlag
     type(ESMF_Array)                :: array
+    integer                         :: verbosity, profiling, diagnostic
+    type(ESMF_Time)                 :: currTime
+    character(len=40)               :: currTimeString
+    character(len=40)               :: transferDirection
     
     rc = ESMF_SUCCESS
 
-    ! query the Component for info
-    call ESMF_CplCompGet(cplcomp, name=name, rc=rc)
+    ! query the component for info
+    call NUOPC_CompGet(cplcomp, name=name, verbosity=verbosity, &
+      profiling=profiling, diagnostic=diagnostic, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
       
-    ! determine verbosity
-    call NUOPC_CompAttributeGet(cplcomp, name="Verbosity", value=valueString, &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    verbosity = ESMF_UtilString2Int(valueString, &
-      specialStringList=(/"high", "max "/), &
-      specialValueList=(/131071, 131071/), &  ! all 16 lower bits set
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
     ! intro
-    if (btest(verbosity,0)) then
-      call ESMF_LogWrite(trim(name)//": "//rName//" intro.", ESMF_LOGMSG_INFO, &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,1)) then
-      call ESMF_VMLogMemInfo(trim(name)//": "//rName//" intro: ", rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,2)) then
-      call ESMF_VMLogCurrentGarbageInfo(trim(name)//": "//rName//" intro: ", &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    !--- intro done ---
+    call NUOPC_LogIntro(name, rName, verbosity, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
 
-    ! determine profiling
-    call NUOPC_CompAttributeGet(cplcomp, name="Profiling", value=valueString, &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    profiling = ESMF_UtilString2Int(valueString, &
-      specialStringList=(/"high", "max "/), specialValueList=(/65535, 65535/), &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+    ! handle diagnostic
+    if (diagnostic>0) then
+      call ESMF_ClockGet(clock, currTime=currTime, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+      call ESMF_TimePrint(currTime, unit=currTimeString, options="underscore", &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    if (btest(diagnostic,0)) then
+      call NUOPC_Write(importState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_enter_import_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    if (btest(diagnostic,1)) then
+      call NUOPC_Write(exportState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_enter_export_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
 
     ! prepare local pointer variables
     nullify(cplList)
@@ -1962,13 +2152,22 @@ print *, "current bondLevel=", bondLevel
     
     ! main loop over all entries in the cplList
     do i=1, cplListSize
-!print *, "cplList(",i,")=", trim(cplList(i))
       call chopString(cplList(i), chopChar=":", chopStringList=chopStringList, &
         rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
       cplName = chopStringList(1) ! first part is the standard name of cpl field
       deallocate(chopStringList)
+      
+      if (btest(verbosity,11).or.btest(verbosity,12)) then
+        write (iString,'(I4)') i
+        write (msgString, '(A)') trim(name)//": handle "// &
+          "cplList("//trim(adjustl(iString))//"): "//trim(cplName)
+        call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+          return  ! bail out
+      endif
       
       ! find import and export side match
       foundFlag = .false. ! reset
@@ -2049,12 +2248,14 @@ print *, "current bondLevel=", bondLevel
           acceptorField = eField
           providerState = importState
           acceptorState = exportState
+          transferDirection = "(import -> export)"
         elseif ((trim(eTransferAction)=="provide") &
           .and.(trim(iTransferAction)=="accept")) then
           providerField = eField
           acceptorField = iField
           providerState = exportState
           acceptorState = importState
+          transferDirection = "(import <- export)"
         else  ! not a situation that needs handling here
           cycle ! continue with the next i
         endif
@@ -2067,10 +2268,22 @@ print *, "current bondLevel=", bondLevel
           value=eShareStatus, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-#if 0
-call ESMF_LogWrite("iShareStatus: "//trim(iShareStatus), ESMF_LOGMSG_INFO, rc=rc)
-call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc)
-#endif
+
+        if (btest(verbosity,12)) then
+          write (msgString, '(A)') trim(name)//": "//&
+            "- import Field ShareStatus="//trim(iShareStatus)
+          call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+            return  ! bail out
+          write (msgString, '(A)') trim(name)//": "//&
+            "- export Field ShareStatus="//trim(eShareStatus)
+          call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+            return  ! bail out
+        endif
+
         sharedFlag = .false. ! reset
         if (trim(iShareStatus)=="shared" .and. trim(eShareStatus)=="shared") &
           sharedFlag = .true.
@@ -2096,14 +2309,24 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
               line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
             if (btest(verbosity,11)) then
               call ESMF_LogWrite(trim(name)//": transferring underlying "// &
-                "DistGrid for Grid: "//trim(geomobjname), &
+                "DistGrid "//trim(transferDirection)//" for Grid: "&
+                //trim(geomobjname), ESMF_LOGMSG_INFO, rc=rc)
+              if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+                line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+            endif
+#if 0
+call ESMF_LogSet(trace=.true.)
+#endif
+            acceptorDG = ESMF_DistGridCreate(providerDG, vm=vm, rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+            if (btest(verbosity,11)) then
+              call ESMF_LogWrite(trim(name)//&
+                ": done creating acceptorDG from providerDG", &
                 ESMF_LOGMSG_INFO, rc=rc)
               if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
                 line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
             endif
-            acceptorDG = ESMF_DistGridCreate(providerDG, vm=vm, rc=rc)
-            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-              line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
             grid = ESMF_GridEmptyCreate(vm=vm, rc=rc)
               if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
               line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
@@ -2171,10 +2394,18 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
               name="MinIndex", valueList=minIndex, &
               convention="NUOPC", purpose="Instance", &
               attnestflag=ESMF_ATTNEST_ON, rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, &
+              file=FILENAME)) &
+              return  ! bail out
             call ESMF_AttributeSet(acceptorField, &
               name="MaxIndex", valueList=maxIndex, &
               convention="NUOPC", purpose="Instance", &
               attnestflag=ESMF_ATTNEST_ON, rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, &
+              file=FILENAME)) &
+              return  ! bail out
             ! bring over arbDimCount as attribute
             call ESMF_AttributeSet(acceptorField, &
               name="ArbDimCount", value=arbDimCount, &
@@ -2215,9 +2446,13 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
                 return  ! bail out
             endif
           else
-            ! shared: query additional info from provider to share with acceptor
-            call ESMF_FieldGet(providerField, name=fieldName, array=array, &
-              rc=rc)
+            ! shared:
+            ! obtain the array from provider to be shared with acceptor
+            call ESMF_FieldGet(providerField, array=array, rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+            ! accceptor fieldName to remain unchanged
+            call ESMF_FieldGet(acceptorField, name=fieldName, rc=rc)
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
               line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
             !TODO: make sure that this FieldCreate() sets total widths correctly
@@ -2284,8 +2519,9 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
               line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
             if (btest(verbosity,11)) then
-              call ESMF_LogWrite(trim(name)//": transferring underlying DistGrid", &
-                ESMF_LOGMSG_INFO, rc=rc)
+              call ESMF_LogWrite(trim(name)//&
+                ": transferring underlying DistGrid "//trim(transferDirection)&
+                //" for Mesh", ESMF_LOGMSG_INFO, rc=rc)
               if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
                 line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
             endif
@@ -2377,9 +2613,13 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
                 return  ! bail out
             endif
           else
-            ! shared: query additional info from provider to share with acceptor
-            call ESMF_FieldGet(providerField, name=fieldName, array=array, &
-              rc=rc)
+            ! shared:
+            ! obtain the array from provider to be shared with acceptor
+            call ESMF_FieldGet(providerField, array=array, rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+            ! accceptor fieldName to remain unchanged
+            call ESMF_FieldGet(acceptorField, name=fieldName, rc=rc)
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
               line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
             !TODO: make sure that this FieldCreate() sets total widths correctly
@@ -2441,8 +2681,9 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
             line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
           if (btest(verbosity,11)) then
-            call ESMF_LogWrite(trim(name)//": transferring underlying DistGrid", &
-              ESMF_LOGMSG_INFO, rc=rc)
+            call ESMF_LogWrite(trim(name)//&
+              ": transferring underlying DistGrid "//trim(transferDirection)&
+              //" for LocStream", ESMF_LOGMSG_INFO, rc=rc)
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
               line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
           endif
@@ -2487,25 +2728,30 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
     if (associated(exportNamespaceList)) deallocate(exportNamespaceList)
     if (associated(exportCplSetList)) deallocate(exportCplSetList)
     
-    !--- extro start ---
+    ! handle diagnostic
+    if (btest(diagnostic,2)) then
+      call NUOPC_Write(importState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_exit_import_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    if (btest(diagnostic,3)) then
+      call NUOPC_Write(exportState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_exit_export_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+
     ! extro
-    if (btest(verbosity,0)) then
-      call ESMF_LogWrite(trim(name)//": "//rName//" extro.", ESMF_LOGMSG_INFO, &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,1)) then
-      call ESMF_VMLogMemInfo(trim(name)//": "//rName//" extro: ", rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,2)) then
-      call ESMF_VMLogCurrentGarbageInfo(trim(name)//": "//rName//" extro: ", &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
+    call NUOPC_LogExtro(name, rName, verbosity, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
 
   end subroutine
 
@@ -2548,62 +2794,60 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
     type(type_InternalState)        :: is
     logical                         :: foundFlag
     character(ESMF_MAXSTR)          :: connectionString
-    character(ESMF_MAXSTR)          :: name, valueString
+    character(ESMF_MAXSTR)          :: name, iString
     character(len=160)              :: msgString
     character(ESMF_MAXSTR)          :: geomobjname
     character(ESMF_MAXSTR)          :: iTransferAction, eTransferAction
-    integer                         :: verbosity
-    integer                         :: profiling
     logical                         :: matchE, matchI
+    integer                         :: verbosity, profiling, diagnostic
+    type(ESMF_Time)                 :: currTime
+    character(len=40)               :: currTimeString
+    character(len=40)               :: transferDirection
+    logical                         :: isPresentNDG, isPresentEDG
 
     rc = ESMF_SUCCESS
 
-    ! query the Component for info
-    call ESMF_CplCompGet(cplcomp, name=name, rc=rc)
+    ! query the component for info
+    call NUOPC_CompGet(cplcomp, name=name, verbosity=verbosity, &
+      profiling=profiling, diagnostic=diagnostic, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
       
-    ! determine verbosity
-    call NUOPC_CompAttributeGet(cplcomp, name="Verbosity", value=valueString, &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    verbosity = ESMF_UtilString2Int(valueString, &
-      specialStringList=(/"high", "max "/), &
-      specialValueList=(/131071, 131071/), &  ! all 16 lower bits set
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
     ! intro
-    if (btest(verbosity,0)) then
-      call ESMF_LogWrite(trim(name)//": "//rName//" intro.", ESMF_LOGMSG_INFO, &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,1)) then
-      call ESMF_VMLogMemInfo(trim(name)//": "//rName//" intro: ", rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,2)) then
-      call ESMF_VMLogCurrentGarbageInfo(trim(name)//": "//rName//" intro: ", &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    !--- intro done ---
+    call NUOPC_LogIntro(name, rName, verbosity, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
 
-    ! determine profiling
-    call NUOPC_CompAttributeGet(cplcomp, name="Profiling", value=valueString, &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    profiling = ESMF_UtilString2Int(valueString, &
-      specialStringList=(/"high", "max "/), specialValueList=(/65535, 65535/), &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+    ! handle diagnostic
+    if (diagnostic>0) then
+      call ESMF_ClockGet(clock, currTime=currTime, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+      call ESMF_TimePrint(currTime, unit=currTimeString, options="underscore", &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    if (btest(diagnostic,0)) then
+      call NUOPC_Write(importState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_enter_import_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    if (btest(diagnostic,1)) then
+      call NUOPC_Write(exportState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_enter_export_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
 
     ! prepare local pointer variables
     nullify(cplList)
@@ -2693,13 +2937,22 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
 
     ! main loop over all entries in the cplList
     do i=1, cplListSize
-!print *, "cplList(",i,")=", trim(cplList(i))
       call chopString(cplList(i), chopChar=":", chopStringList=chopStringList, &
         rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
       cplName = chopStringList(1) ! first part is the standard name of cpl field
       deallocate(chopStringList)
+      
+      if (btest(verbosity,11).or.btest(verbosity,12)) then
+        write (iString,'(I4)') i
+        write (msgString, '(A)') trim(name)//": handle "// &
+          "cplList("//trim(adjustl(iString))//"): "//trim(cplName)
+        call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+          return  ! bail out
+      endif
       
       ! find import and export side match
       foundFlag = .false. ! reset
@@ -2778,20 +3031,14 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
           .and.(trim(eTransferAction)=="accept")) then
           providerField = iField
           acceptorField = eField
+          transferDirection = "(import -> export)"
         elseif ((trim(eTransferAction)=="provide") &
           .and.(trim(iTransferAction)=="accept")) then
           providerField = eField
           acceptorField = iField
+          transferDirection = "(import <- export)"
         else  ! not a situation that needs handling here
           cycle ! continue with the next i
-        endif
-
-        if (btest(verbosity,11)) then
-          call ESMF_LogWrite(trim(name)//&
-            ": transferring the full Grid/Mesh/LocStream", &
-            ESMF_LOGMSG_INFO, rc=rc)
-          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-            line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
         endif
 
         ! transfer the underlying Grid/Mesh/LocStream from provider to acceptor
@@ -2799,6 +3046,13 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
         if (geomtype==ESMF_GEOMTYPE_GRID) then
+          if (btest(verbosity,11)) then
+            call ESMF_LogWrite(trim(name)//&
+              ": transferring the full Grid with coordinates "//&
+              trim(transferDirection), ESMF_LOGMSG_INFO, rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+          endif
           call ESMF_FieldGet(providerField, grid=providerGrid, &
             staggerloc=staggerloc, rc=rc)
           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -2820,7 +3074,21 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
             staggerloc=staggerloc, rc=rc)
           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
             line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+          if (btest(verbosity,11)) then
+            call ESMF_LogWrite(trim(name)//&
+              ": done transferring the full Grid with coordinates", &
+              ESMF_LOGMSG_INFO, rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+          endif
         elseif (geomtype==ESMF_GEOMTYPE_MESH) then
+          if (btest(verbosity,11)) then
+            call ESMF_LogWrite(trim(name)//&
+              ": transferring the full Mesh with coordinates "//&
+              trim(transferDirection), ESMF_LOGMSG_INFO, rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+          endif
           call ESMF_FieldGet(providerField, mesh=providerMesh, &
             meshloc=meshloc, rc=rc)
           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -2831,32 +3099,65 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
           call ESMF_FieldGet(acceptorField, mesh=acceptorMesh, rc=rc)
           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
             line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-          call ESMF_MeshGet(acceptorMesh, nodalDistgrid=nDistgrid, &
-            elementDistgrid=eDistgrid, rc=rc)
+          call ESMF_MeshGet(acceptorMesh, nodalDistgridIsPresent=isPresentNDG, &
+            elementDistgridIsPresent=isPresentEDG, rc=rc)
           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
             line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-          if (meshNoConnections) then
-            ! provider Mesh does not have connections
-            ! -> need both DistGrids on the acceptor side
-            !TODO: When Mesh implements a name, make sure to transfer it here!
+          if (isPresentNDG.and.isPresentEDG) then
+            ! get and use both DistGrids
+            call ESMF_MeshGet(acceptorMesh, nodalDistgrid=nDistgrid, &
+              elementDistgrid=eDistgrid, rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
             acceptorMesh = ESMF_MeshCreate(providerMesh, &
               nodalDistgrid=nDistgrid, elementDistgrid=eDistgrid, rc=rc)
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
               line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-          else
-            ! provider Mesh does have connections
-            ! -> only need one DistGrid on the acceptor side -> use eDistgrid
-            !TODO: When Mesh implements a name, make sure to transfer it here!
+          elseif (isPresentNDG.and. .not.isPresentEDG) then
+            ! only use Node DistGrids
+            call ESMF_MeshGet(acceptorMesh, nodalDistgrid=nDistgrid, rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+            acceptorMesh = ESMF_MeshCreate(providerMesh, &
+              nodalDistgrid=nDistgrid, rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+          elseif (isPresentEDG.and. .not.isPresentNDG) then
+            ! only use Element DistGrids
+            call ESMF_MeshGet(acceptorMesh, elementDistgrid=eDistgrid, rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
             acceptorMesh = ESMF_MeshCreate(providerMesh, &
               elementDistgrid=eDistgrid, rc=rc)
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
               line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+          else
+            ! cannot create Mesh without a DistGrid -> error out
+            call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
+              msg="Acceptor side must define nodal or element DistGrid.", &
+              line=__LINE__, file=trim(name)//":"//FILENAME, &
+              rcToReturn=rc)
+            return  ! bail out
           endif
           call ESMF_FieldEmptySet(acceptorField, mesh=acceptorMesh, &
             meshloc=meshloc, rc=rc)
           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
             line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+          if (btest(verbosity,11)) then
+            call ESMF_LogWrite(trim(name)//&
+              ": done transferring the full Mesh with coordinates", &
+              ESMF_LOGMSG_INFO, rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+          endif
         elseif (geomtype==ESMF_GEOMTYPE_LOCSTREAM) then
+          if (btest(verbosity,11)) then
+            call ESMF_LogWrite(trim(name)//&
+              ": transferring the full LocStream with coordinates "//&
+              trim(transferDirection), ESMF_LOGMSG_INFO, rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+          endif
           call ESMF_FieldGet(providerField, locstream=providerLocstream, rc=rc)
           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
             line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
@@ -2877,6 +3178,13 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
             rc=rc)
           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
             line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+          if (btest(verbosity,11)) then
+            call ESMF_LogWrite(trim(name)//&
+              ": done transferring the full LocStream with coordinates", &
+              ESMF_LOGMSG_INFO, rc=rc)
+            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+          endif
         else
           call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
             msg="Provided GeomType must be Grid, Mesh, or LocStream.", &
@@ -2885,14 +3193,6 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
           return  ! bail out
         endif
           
-        if (btest(verbosity,11)) then
-          call ESMF_LogWrite(trim(name)//&
-            ": done transferring the full Grid/Mesh/LocStream", &
-            ESMF_LOGMSG_INFO, rc=rc)
-          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-            line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-        endif
-        
         ! Need to reset the TransferOfferGeomObject and TransferActionGeomObject
         ! attributes on the acceptorField, just in case this Field interacts on
         ! multiple levels of a component hierarchy.
@@ -2922,25 +3222,30 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
     if (associated(exportNamespaceList)) deallocate(exportNamespaceList)
     if (associated(exportCplSetList)) deallocate(exportCplSetList)
 
-    !--- extro start ---
+    ! handle diagnostic
+    if (btest(diagnostic,2)) then
+      call NUOPC_Write(importState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_exit_import_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    if (btest(diagnostic,3)) then
+      call NUOPC_Write(exportState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_exit_export_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    
     ! extro
-    if (btest(verbosity,0)) then
-      call ESMF_LogWrite(trim(name)//": "//rName//" extro.", ESMF_LOGMSG_INFO, &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,1)) then
-      call ESMF_VMLogMemInfo(trim(name)//": "//rName//" extro: ", rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,2)) then
-      call ESMF_VMLogCurrentGarbageInfo(trim(name)//": "//rName//" extro: ", &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
+    call NUOPC_LogExtro(name, rName, verbosity, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
 
   end subroutine
 
@@ -2953,60 +3258,56 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
     integer, intent(out) :: rc
     
     ! local variables
-    character(*), parameter         :: rName="InitializeIPDv05p6a"
-    character(ESMF_MAXSTR)          :: name, valueString
-    integer                         :: profiling
-    integer                         :: verbosity
+    character(*), parameter   :: rName="InitializeIPDv05p6a"
+    character(ESMF_MAXSTR)    :: name
+    integer                   :: verbosity, profiling, diagnostic
+    type(ESMF_Time)           :: currTime
+    character(len=40)         :: currTimeString
 
     rc = ESMF_SUCCESS
 
-    ! query the Component for info
-    call ESMF_CplCompGet(cplcomp, name=name, rc=rc)
+    ! query the component for info
+    call NUOPC_CompGet(cplcomp, name=name, verbosity=verbosity, &
+      profiling=profiling, diagnostic=diagnostic, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
       
-    ! determine verbosity
-    call NUOPC_CompAttributeGet(cplcomp, name="Verbosity", value=valueString, &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    verbosity = ESMF_UtilString2Int(valueString, &
-      specialStringList=(/"high", "max "/), &
-      specialValueList=(/131071, 131071/), &  ! all 16 lower bits set
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
     ! intro
-    if (btest(verbosity,0)) then
-      call ESMF_LogWrite(trim(name)//": "//rName//" intro.", ESMF_LOGMSG_INFO, &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,1)) then
-      call ESMF_VMLogMemInfo(trim(name)//": "//rName//" intro: ", rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,2)) then
-      call ESMF_VMLogCurrentGarbageInfo(trim(name)//": "//rName//" intro: ", &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    !--- intro done ---
+    call NUOPC_LogIntro(name, rName, verbosity, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
 
-    ! determine profiling
-    call NUOPC_CompAttributeGet(cplcomp, name="Profiling", value=valueString, &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    profiling = ESMF_UtilString2Int(valueString, &
-      specialStringList=(/"high", "max "/), specialValueList=(/65535, 65535/), &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    
+    ! handle diagnostic
+    if (diagnostic>0) then
+      call ESMF_ClockGet(clock, currTime=currTime, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+      call ESMF_TimePrint(currTime, unit=currTimeString, options="underscore", &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    if (btest(diagnostic,0)) then
+      call NUOPC_Write(importState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_enter_import_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    if (btest(diagnostic,1)) then
+      call NUOPC_Write(exportState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_enter_export_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+
     ! re-reconcile the States because they may have changed
     ! (previous proxy objects are dropped before fresh reconcile)
     if (btest(profiling,1)) then    ! PROFILE
@@ -3022,25 +3323,30 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
       call ESMF_VMLogMemInfo("aftP5a Reconcile")
     endif
 
-    !--- extro start ---
+    ! handle diagnostic
+    if (btest(diagnostic,2)) then
+      call NUOPC_Write(importState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_exit_import_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    if (btest(diagnostic,3)) then
+      call NUOPC_Write(exportState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_exit_export_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    
     ! extro
-    if (btest(verbosity,0)) then
-      call ESMF_LogWrite(trim(name)//": "//rName//" extro.", ESMF_LOGMSG_INFO, &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,1)) then
-      call ESMF_VMLogMemInfo(trim(name)//": "//rName//" extro: ", rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,2)) then
-      call ESMF_VMLogCurrentGarbageInfo(trim(name)//": "//rName//" extro: ", &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
+    call NUOPC_LogExtro(name, rName, verbosity, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
 
   end subroutine
 
@@ -3083,52 +3389,60 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
     integer                         :: localrc
     logical                         :: existflag
     character(ESMF_MAXSTR)          :: connectionString
-    character(ESMF_MAXSTR)          :: name, valueString, iString
+    character(ESMF_MAXSTR)          :: name, iString
     character(len=160)              :: msgString
-    integer                         :: verbosity
     logical                         :: matchE, matchI
     integer                         :: count
     integer                         :: sIndex
     character(ESMF_MAXSTR)          :: iShareStatus, eShareStatus
     logical                         :: sharedFlag
+    integer                   :: verbosity, diagnostic
+    type(ESMF_Time)           :: currTime
+    character(len=40)         :: currTimeString
 
     rc = ESMF_SUCCESS
 
-    ! query the Component for info
-    call ESMF_CplCompGet(cplcomp, name=name, rc=rc)
+    ! query the component for info
+    call NUOPC_CompGet(cplcomp, name=name, verbosity=verbosity, &
+      diagnostic=diagnostic, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
     
-    ! determine verbosity
-    call NUOPC_CompAttributeGet(cplcomp, name="Verbosity", value=valueString, &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    verbosity = ESMF_UtilString2Int(valueString, &
-      specialStringList=(/"high", "max "/), &
-      specialValueList=(/131071, 131071/), &  ! all 16 lower bits set
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
     ! intro
-    if (btest(verbosity,0)) then
-      call ESMF_LogWrite(trim(name)//": "//rName//" intro.", ESMF_LOGMSG_INFO, &
+    call NUOPC_LogIntro(name, rName, verbosity, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+
+    ! handle diagnostic
+    if (diagnostic>0) then
+      call ESMF_ClockGet(clock, currTime=currTime, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+      call ESMF_TimePrint(currTime, unit=currTimeString, options="underscore", &
         rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
     endif
-    if (btest(verbosity,1)) then
-      call ESMF_VMLogMemInfo(trim(name)//": "//rName//" intro: ", rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,2)) then
-      call ESMF_VMLogCurrentGarbageInfo(trim(name)//": "//rName//" intro: ", &
+    if (btest(diagnostic,0)) then
+      call NUOPC_Write(importState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_enter_import_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
         rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
     endif
-    !--- intro done ---
+    if (btest(diagnostic,1)) then
+      call NUOPC_Write(exportState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_enter_export_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
 
     ! prepare local pointer variables
     nullify(cplList)
@@ -3243,10 +3557,10 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
       cplName = chopStringList(1) ! first part is the standard name of cpl field
       deallocate(chopStringList)
 
-      if (btest(verbosity,12)) then
+      if (btest(verbosity,11).or.btest(verbosity,12)) then
         write (iString,'(I4)') i
-        write (msgString,*) "loop over all entries in cplList: "// &
-          trim(adjustl(iString))//": "//trim(cplName)
+        write (msgString, '(A)') trim(name)//": handle "// &
+          "cplList("//trim(adjustl(iString))//"): "//trim(cplList(i))
         call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
@@ -3487,25 +3801,30 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
     if (associated(exportNamespaceList)) deallocate(exportNamespaceList)
     if (associated(exportCplSetList)) deallocate(exportCplSetList)
     
-    !--- extro start ---
+    ! handle diagnostic
+    if (btest(diagnostic,2)) then
+      call NUOPC_Write(importState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_exit_import_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    if (btest(diagnostic,3)) then
+      call NUOPC_Write(exportState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_exit_export_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    
     ! extro
-    if (btest(verbosity,0)) then
-      call ESMF_LogWrite(trim(name)//": "//rName//" extro.", ESMF_LOGMSG_INFO, &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,1)) then
-      call ESMF_VMLogMemInfo(trim(name)//": "//rName//" extro: ", rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,2)) then
-      call ESMF_VMLogCurrentGarbageInfo(trim(name)//": "//rName//" extro: ", &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
+    call NUOPC_LogExtro(name, rName, verbosity, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
 
   end subroutine
     
@@ -3521,46 +3840,19 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
     character(*), parameter               :: rName="InitializeIPDv00p2a"
     type(ESMF_Clock)                      :: internalClock
     character(ESMF_MAXSTR)                :: name
-    character(ESMF_MAXSTR)                :: valueString
     integer                               :: verbosity
 
     rc = ESMF_SUCCESS
 
-    ! query the Component for info
-    call ESMF_CplCompGet(cplcomp, name=name, rc=rc)
+    ! query the component for info
+    call NUOPC_CompGet(cplcomp, name=name, verbosity=verbosity, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
 
-    ! determine verbosity
-    call NUOPC_CompAttributeGet(cplcomp, name="Verbosity", value=valueString, &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    verbosity = ESMF_UtilString2Int(valueString, &
-      specialStringList=(/"high", "max "/), &
-      specialValueList=(/131071, 131071/), &  ! all 16 lower bits set
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
     ! intro
-    if (btest(verbosity,0)) then
-      call ESMF_LogWrite(trim(name)//": "//rName//" intro.", ESMF_LOGMSG_INFO, &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,1)) then
-      call ESMF_VMLogMemInfo(trim(name)//": "//rName//" intro: ", rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,2)) then
-      call ESMF_VMLogCurrentGarbageInfo(trim(name)//": "//rName//" intro: ", &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    !--- intro done ---
+    call NUOPC_LogIntro(name, rName, verbosity, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
 
     ! Simply the combination of IPDv05p3 + IPDv05p6a
     call InitializeIPDv05p3(cplcomp, importState, exportState, clock, rc)
@@ -3570,25 +3862,10 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
     
-    !--- extro start ---
     ! extro
-    if (btest(verbosity,0)) then
-      call ESMF_LogWrite(trim(name)//": "//rName//" extro.", ESMF_LOGMSG_INFO, &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,1)) then
-      call ESMF_VMLogMemInfo(trim(name)//": "//rName//" extro: ", rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,2)) then
-      call ESMF_VMLogCurrentGarbageInfo(trim(name)//": "//rName//" extro: ", &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
+    call NUOPC_LogExtro(name, rName, verbosity, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
 
   end subroutine
   
@@ -3604,71 +3881,29 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
     character(*), parameter               :: rName="InitializeIPDv00p2b"
     type(ESMF_Clock)                      :: internalClock
     character(ESMF_MAXSTR)                :: name
-    character(ESMF_MAXSTR)                :: valueString
     integer                               :: verbosity
 
     rc = ESMF_SUCCESS
 
-    ! query the Component for info
-    call ESMF_CplCompGet(cplcomp, name=name, rc=rc)
+    ! query the component for info
+    call NUOPC_CompGet(cplcomp, name=name, verbosity=verbosity, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
 
-    ! determine verbosity
-    call NUOPC_CompAttributeGet(cplcomp, name="Verbosity", value=valueString, &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    verbosity = ESMF_UtilString2Int(valueString, &
-      specialStringList=(/"high", "max "/), &
-      specialValueList=(/131071, 131071/), &  ! all 16 lower bits set
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
     ! intro
-    if (btest(verbosity,0)) then
-      call ESMF_LogWrite(trim(name)//": "//rName//" intro.", ESMF_LOGMSG_INFO, &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,1)) then
-      call ESMF_VMLogMemInfo(trim(name)//": "//rName//" intro: ", rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,2)) then
-      call ESMF_VMLogCurrentGarbageInfo(trim(name)//": "//rName//" intro: ", &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    !--- intro done ---
+    call NUOPC_LogIntro(name, rName, verbosity, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
 
     ! Simply same as IPDv05p6b
     call InitializeIPDv05p6b(cplcomp, importState, exportState, clock, rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
     
-    !--- extro start ---
     ! extro
-    if (btest(verbosity,0)) then
-      call ESMF_LogWrite(trim(name)//": "//rName//" extro.", ESMF_LOGMSG_INFO, &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,1)) then
-      call ESMF_VMLogMemInfo(trim(name)//": "//rName//" extro: ", rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,2)) then
-      call ESMF_VMLogCurrentGarbageInfo(trim(name)//": "//rName//" extro: ", &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
+    call NUOPC_LogExtro(name, rName, verbosity, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
 
   end subroutine
   
@@ -3686,14 +3921,16 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
     type(ESMF_VM)             :: vm
     integer                   :: localrc
     logical                   :: existflag
+    logical                   :: routeHandleIsCreated
     integer                   :: rootPet, rootVas, vas, petCount
-    character(ESMF_MAXSTR)    :: compName, valueString, pLabel
+    character(ESMF_MAXSTR)    :: compName, pLabel
     character(len=160)        :: msgString
     integer                   :: phase
-    integer                   :: verbosity
-    integer                   :: profiling
+    integer                   :: verbosity, profiling, diagnostic
     character(ESMF_MAXSTR)    :: name
     integer                   :: i
+    type(ESMF_Time)           :: currTime
+    character(len=40)         :: currTimeString
 
     real(ESMF_KIND_R8)        :: timeBase, time0, time
 
@@ -3703,50 +3940,14 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
     call ESMF_VMWtime(timeBase)
     time0=timeBase
 
-    ! query the Component for info
-    call ESMF_CplCompGet(cplcomp, name=name, rc=rc)
+    ! query the component for info
+    call NUOPC_CompGet(cplcomp, name=name, verbosity=verbosity, &
+      profiling=profiling, diagnostic=diagnostic, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
         
-    ! determine verbosity
-    call NUOPC_CompAttributeGet(cplcomp, name="Verbosity", value=valueString, &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    verbosity = ESMF_UtilString2Int(valueString, &
-      specialStringList=(/"high", "max "/), &
-      specialValueList=(/131071, 131071/), &  ! all 16 lower bits set
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
     ! intro
-    if (btest(verbosity,0)) then
-      call ESMF_LogWrite(trim(name)//": "//rName//" intro.", ESMF_LOGMSG_INFO, &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,1)) then
-      call ESMF_VMLogMemInfo(trim(name)//": "//rName//" intro: ", rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,2)) then
-      call ESMF_VMLogCurrentGarbageInfo(trim(name)//": "//rName//" intro: ", &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    !--- intro done ---
-
-    ! determine profiling
-    call NUOPC_CompAttributeGet(cplcomp, name="Profiling", value=valueString, &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    profiling = ESMF_UtilString2Int(valueString, &
-      specialStringList=(/"high", "max "/), specialValueList=(/65535, 65535/), &
-      rc=rc)
+    call NUOPC_LogIntro(name, rName, verbosity, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
 
@@ -3755,7 +3956,7 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
 
-    ! conditionally output diagnostic to Log file
+    ! handle verbosity
     if (btest(verbosity,13)) then
       call NUOPC_CompSearchRevPhaseMap(cplcomp, ESMF_METHOD_RUN, &
         phaseIndex=phase, phaseLabel=pLabel, rc=rc)
@@ -3769,7 +3970,39 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
         return  ! bail out
     endif
     
-    if (btest(profiling,0)) then    ! PROFILE
+    ! handle diagnostic
+    if (diagnostic>0) then
+      call ESMF_ClockGet(clock, currTime=currTime, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+      call ESMF_TimePrint(currTime, unit=currTimeString, options="underscore", &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    if (btest(diagnostic,4)) then
+      call NUOPC_Write(importState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_enter_import_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    if (btest(diagnostic,5)) then
+      call NUOPC_Write(exportState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_enter_export_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    
+    ! handle profiling
+    if (btest(profiling,0)) then
       call ESMF_VMWtime(time)
       write (msgString, *) trim(name)//": Profile 01 time=   ", &
         time-time0, time-timeBase
@@ -3783,8 +4016,7 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
       
-    if (btest(profiling,0)) then    ! PROFILE
-      ! PROFILE
+    if (btest(profiling,0)) then
       call ESMF_VMWtime(time)
       write (msgString, *) trim(name)//": Profile 02 time=   ", &
         time-time0, time-timeBase
@@ -3795,8 +4027,7 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
     !TODO: here may be the place to ensure incoming States are consistent
     !TODO: with the Fields held in the FieldBundle inside the internal State?
       
-    if (btest(profiling,0)) then    ! PROFILE
-      ! PROFILE
+    if (btest(profiling,0)) then
       call ESMF_VMWtime(time)
       write (msgString, *) trim(name)//": Profile 03 time=   ", &
         time-time0, time-timeBase
@@ -3813,8 +4044,8 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
       line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
       return  ! bail out
 
-    if (btest(profiling,0)) then    ! PROFILE
-      ! PROFILE
+    ! handle profiling
+    if (btest(profiling,0)) then
       call ESMF_VMWtime(time)
       write (msgString, *) trim(name)//": Profile 04 time=   ", &
         time-time0, time-timeBase
@@ -3827,7 +4058,7 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
       ! execute the regrid operation
       if (is%wrap%cplSetCount > 1) then
         do i=1, is%wrap%cplSetCount
-          call ESMF_FieldBundleRegrid(is%wrap%cplSet(i)%srcFields, &
+          call ESMF_FieldBundleSMM(is%wrap%cplSet(i)%srcFields, &
             is%wrap%cplSet(i)%dstFields, &
             routehandle=is%wrap%cplSet(i)%rh, &
             termorderflag=is%wrap%cplSet(i)%termOrders, rc=rc)
@@ -3835,8 +4066,11 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
             line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
         enddo
       else
-        if (ESMF_RouteHandleIsCreated(is%wrap%rh)) then !--- TEST
-          call ESMF_FieldBundleRegrid(is%wrap%srcFields, is%wrap%dstFields, &
+        routeHandleIsCreated = ESMF_RouteHandleIsCreated(is%wrap%rh, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+        if (routeHandleIsCreated) then
+          call ESMF_FieldBundleSMM(is%wrap%srcFields, is%wrap%dstFields, &
             routehandle=is%wrap%rh, termorderflag=is%wrap%termOrders, rc=rc)
           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
             line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
@@ -3859,8 +4093,8 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
       endif    
     endif
     
-    if (btest(profiling,0)) then    ! PROFILE
-      ! PROFILE
+    ! handle profiling
+    if (btest(profiling,0)) then
       call ESMF_VMWtime(time)
       write (msgString, *) trim(name)//": Profile 05 time=   ", &
         time-time0, time-timeBase
@@ -3875,8 +4109,8 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
     
-    if (btest(profiling,0)) then    ! PROFILE
-      ! PROFILE
+    ! handle profiling
+    if (btest(profiling,0)) then
       call ESMF_VMWtime(time)
       write (msgString, *) trim(name)//": Profile 06 time=   ", &
         time-time0, time-timeBase
@@ -3888,8 +4122,8 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
     
-    if (btest(profiling,0)) then    ! PROFILE
-      ! PROFILE
+    ! handle profiling
+    if (btest(profiling,0)) then
       call ESMF_VMWtime(time)
       write (msgString, *) trim(name)//": Profile 07 time=   ", &
         time-time0, time-timeBase
@@ -3904,8 +4138,8 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
       if (vas == rootVas) exit
     enddo
     
-    if (btest(profiling,0)) then    ! PROFILE
-      ! PROFILE
+    ! handle profiling
+    if (btest(profiling,0)) then
       call ESMF_VMWtime(time)
       write (msgString, *) trim(name)//": Profile 08 time=   ", &
         time-time0, time-timeBase
@@ -3920,8 +4154,8 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
 
-    if (btest(profiling,0)) then    ! PROFILE
-      ! PROFILE
+    ! handle profiling
+    if (btest(profiling,0)) then
       call ESMF_VMWtime(time)
       write (msgString, *) trim(name)//": Profile 09 time=   ", &
         time-time0, time-timeBase
@@ -3935,8 +4169,8 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
 
-    if (btest(profiling,0)) then    ! PROFILE
-      ! PROFILE
+    ! handle profiling
+    if (btest(profiling,0)) then
       call ESMF_VMWtime(time)
       write (msgString, *) trim(name)//": Profile 10 time=   ", &
         time-time0, time-timeBase
@@ -3944,7 +4178,27 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
       call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO)
     endif
 
-    ! conditionally output diagnostic to Log file
+    ! handle diagnostic
+    if (btest(diagnostic,6)) then
+      call NUOPC_Write(importState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_exit_import_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    if (btest(diagnostic,7)) then
+      call NUOPC_Write(exportState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_exit_export_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    
+    ! handle verbosity
     if (btest(verbosity,13)) then
       write (msgString,"(A)") "<<<"//trim(compName)//&
       " leaving Run (phase="//trim(adjustl(pLabel))//")"
@@ -3954,25 +4208,10 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
         return  ! bail out
     endif
     
-    !--- extro start ---
     ! extro
-    if (btest(verbosity,0)) then
-      call ESMF_LogWrite(trim(name)//": "//rName//" extro.", ESMF_LOGMSG_INFO, &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,1)) then
-      call ESMF_VMLogMemInfo(trim(name)//": "//rName//" extro: ", rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,2)) then
-      call ESMF_VMLogCurrentGarbageInfo(trim(name)//": "//rName//" extro: ", &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
+    call NUOPC_LogExtro(name, rName, verbosity, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
 
   end subroutine
   
@@ -3990,47 +4229,25 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
     type(type_InternalState)  :: is
     integer                   :: localrc
     logical                   :: existflag
-    character(ESMF_MAXSTR)    :: name, valueString
-    integer                   :: verbosity
+    logical                   :: routeHandleIsCreated
+    character(ESMF_MAXSTR)    :: name
+    integer                   :: verbosity, diagnostic
     integer                   :: i
+    type(ESMF_Time)           :: currTime
+    character(len=40)         :: currTimeString
 
     rc = ESMF_SUCCESS
 
-    ! query the Component for info
-    call ESMF_CplCompGet(cplcomp, name=name, rc=rc)
+    ! query the component for info
+    call NUOPC_CompGet(cplcomp, name=name, verbosity=verbosity, &
+      diagnostic=diagnostic, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
     
-    ! determine verbosity
-    call NUOPC_CompAttributeGet(cplcomp, name="Verbosity", value=valueString, &
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    verbosity = ESMF_UtilString2Int(valueString, &
-      specialStringList=(/"high", "max "/), &
-      specialValueList=(/131071, 131071/), &  ! all 16 lower bits set
-      rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
     ! intro
-    if (btest(verbosity,0)) then
-      call ESMF_LogWrite(trim(name)//": "//rName//" intro.", ESMF_LOGMSG_INFO, &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,1)) then
-      call ESMF_VMLogMemInfo(trim(name)//": "//rName//" intro: ", rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,2)) then
-      call ESMF_VMLogCurrentGarbageInfo(trim(name)//": "//rName//" intro: ", &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    !--- intro done ---
+    call NUOPC_LogIntro(name, rName, verbosity, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
 
     ! query Component for its internal State
     nullify(is%wrap)
@@ -4038,6 +4255,37 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
       
+    ! handle diagnostic
+    if (diagnostic>0) then
+      call ESMF_ClockGet(clock, currTime=currTime, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+      call ESMF_TimePrint(currTime, unit=currTimeString, options="underscore", &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    if (btest(diagnostic,8)) then
+      call NUOPC_Write(importState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_enter_import_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    if (btest(diagnostic,9)) then
+      call NUOPC_Write(exportState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_enter_export_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    
     ! SPECIALIZE by calling into attached method to release routehandle
     call ESMF_MethodExecute(cplcomp, label=label_ReleaseRouteHandle, &
       existflag=existflag, userRc=localrc, rc=rc)
@@ -4057,7 +4305,10 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
             line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
         enddo
       else
-        if (ESMF_RouteHandleIsCreated(is%wrap%rh)) then !--- TEST
+        routeHandleIsCreated = ESMF_RouteHandleIsCreated(is%wrap%rh, rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+        if (routeHandleIsCreated) then
           call ESMF_FieldBundleRegridRelease(is%wrap%rh, rc=rc)
           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
             line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
@@ -4164,25 +4415,30 @@ call ESMF_LogWrite("eShareStatus: "//trim(eShareStatus), ESMF_LOGMSG_INFO, rc=rc
       line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
       return  ! bail out
       
-    !--- extro start ---
+    ! handle diagnostic
+    if (btest(diagnostic,10)) then
+      call NUOPC_Write(importState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_exit_import_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    if (btest(diagnostic,11)) then
+      call NUOPC_Write(exportState, fileNamePrefix="diagnostic_"//&
+        trim(name)//"_"//trim(rName)//"_exit_export_"//trim(currTimeString)//&
+        "_", timeslice=1, status=ESMF_FILESTATUS_REPLACE, relaxedFlag=.true., &
+        rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+    endif
+    
     ! extro
-    if (btest(verbosity,0)) then
-      call ESMF_LogWrite(trim(name)//": "//rName//" extro.", ESMF_LOGMSG_INFO, &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,1)) then
-      call ESMF_VMLogMemInfo(trim(name)//": "//rName//" extro: ", rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
-    if (btest(verbosity,2)) then
-      call ESMF_VMLogCurrentGarbageInfo(trim(name)//": "//rName//" extro: ", &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    endif
+    call NUOPC_LogExtro(name, rName, verbosity, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
 
   end subroutine
   
@@ -4347,7 +4603,8 @@ print *, "found match:"// &
       allocate(uniqueList(0), stat=stat)
       if (ESMF_LogFoundAllocError(stat, msg="allocating uniqueList", &
         line=__LINE__, &
-        file=FILENAME)) &
+        file=FILENAME, &
+        rcToReturn=rc)) &
         return  ! bail out
       return
     endif
@@ -4364,7 +4621,8 @@ print *, "found match:"// &
     allocate(l_uniqueList(size(list)), stat=stat) ! temporary list
     if (ESMF_LogFoundAllocError(stat, msg="allocating l_uniqueList", &
       line=__LINE__, &
-      file=FILENAME)) &
+      file=FILENAME, &
+      rcToReturn=rc)) &
       return  ! bail out
 
     l_count = 0
@@ -4383,7 +4641,8 @@ print *, "found match:"// &
     allocate(uniqueList(l_count), stat=stat)
     if (ESMF_LogFoundAllocError(stat, msg="allocating uniqueList", &
       line=__LINE__, &
-      file=FILENAME)) &
+      file=FILENAME, &
+      rcToReturn=rc)) &
       return  ! bail out
 
     if (l_count > 0) then 
@@ -4393,7 +4652,8 @@ print *, "found match:"// &
     deallocate(l_uniqueList)
     if (ESMF_LogFoundDeallocError(stat, msg="deallocating l_uniqueList", &
       line=__LINE__, &
-      file=FILENAME)) &
+      file=FILENAME, &
+      rcToReturn=rc)) &
       return  ! bail out
 
   end subroutine
@@ -4473,7 +4733,10 @@ print *, "found match:"// &
 
   subroutine FieldBundleCplStore(srcFB, dstFB, cplList, rh, termOrders, name, &
     rc)
-    type(ESMF_FieldBundle),    intent(in)            :: srcFB
+    ! this method will destroy srcFB/dstFB, and replace with newly created FBs
+    ! order of fields in outgoing srcFB/dstFB may be different from incoming
+    ! order of elements in termOrders matches those in outgoing srcFB/dstFB
+    type(ESMF_FieldBundle),    intent(inout)         :: srcFB
     type(ESMF_FieldBundle),    intent(inout)         :: dstFB
     character(*)                                     :: cplList(:)
     type(ESMF_RouteHandle),    intent(inout)         :: rh
@@ -4482,8 +4745,11 @@ print *, "found match:"// &
     integer,                   intent(out), optional :: rc
     
     ! local variables
+    integer                         :: localrc
     integer                         :: i, j, k, count, stat, localDeCount
+    integer                         :: iRegrid, iRedist
     type(ESMF_Field), pointer       :: srcFields(:), dstFields(:)
+    type(ESMF_FieldBundle)          :: srcFBRedist, dstFBRedist
     integer                         :: rraShift, vectorLengthShift
     type(ESMF_RouteHandle)          :: rhh
     integer(ESMF_KIND_I4), pointer  :: factorIndexList(:,:)
@@ -4492,6 +4758,8 @@ print *, "found match:"// &
     character(ESMF_MAXSTR), pointer :: chopSubString(:), chopSubSubString(:)
     character(len=160)              :: msgString
     character(len=480)              :: tempString
+    type(ESMF_TermOrder_Flag)       :: termOrder
+    type(ESMF_TermOrder_Flag), pointer :: termOrdersRedist(:)
     logical                         :: redistflag
     type(ESMF_RegridMethod_Flag)    :: regridmethod
     type(ESMF_PoleMethod_Flag)      :: polemethod
@@ -4548,18 +4816,18 @@ call ESMF_VMLogCurrentGarbageInfo(trim(name)//": FieldBundleCplStore enter: ")
 
     ! consistency check counts
     count = size(cplList)
-    call ESMF_FieldBundleGet(srcFB, fieldCount=i, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+    call ESMF_FieldBundleGet(srcFB, fieldCount=i, rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
     if (i /= count) then
       call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
         msg="Counts must match!", &
         line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)
       return  ! bail out
     endif
-    call ESMF_FieldBundleGet(dstFB, fieldCount=i, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+    call ESMF_FieldBundleGet(dstFB, fieldCount=i, rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
     if (i /= count) then
       call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
         msg="Counts must match!", &
@@ -4583,6 +4851,12 @@ call ESMF_VMLogCurrentGarbageInfo(trim(name)//": FieldBundleCplStore enter: ")
       msg="Allocation of termOrders.", &
       line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
       return  ! bail out
+    ! prepare "termOrdersRedist" list
+    allocate(termOrdersRedist(count), stat=stat)
+    if (ESMF_LogFoundAllocError(statusToCheck=stat, &
+      msg="Allocation of termOrdersRedist.", &
+      line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+      return  ! bail out
     
     ! access the fields in the add order
     allocate(srcFields(count), dstFields(count), stat=stat)
@@ -4591,32 +4865,56 @@ call ESMF_VMLogCurrentGarbageInfo(trim(name)//": FieldBundleCplStore enter: ")
       line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
       return  ! bail out
     call ESMF_FieldBundleGet(srcFB, fieldList=srcFields, &
-      itemorderflag=ESMF_ITEMORDER_ADDORDER, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+      itemorderflag=ESMF_ITEMORDER_ADDORDER, rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
     call ESMF_FieldBundleGet(dstFB, fieldList=dstFields, &
-      itemorderflag=ESMF_ITEMORDER_ADDORDER, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+      itemorderflag=ESMF_ITEMORDER_ADDORDER, rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
     
+    ! destroy the incoming FieldBundles and create replacement FieldBundles
+    call ESMF_FieldBundleDestroy(srcFB, rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
+    srcFB = ESMF_FieldBundleCreate(rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
+    call ESMF_FieldBundleDestroy(dstFB, rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
+    dstFB = ESMF_FieldBundleCreate(rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
+
+    ! prepare temporary FieldBundles for Redist operation
+    srcFBRedist = ESMF_FieldBundleCreate(rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
+    dstFBRedist = ESMF_FieldBundleCreate(rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
+
     ! prepare Routehandle
-    rh = ESMF_RouteHandleCreate(rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    call ESMF_RouteHandlePrepXXE(rh, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-    
+    rh = ESMF_RouteHandleCreate(rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
+    call ESMF_RouteHandlePrepXXE(rh, rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
+
     ! prepare auxiliary variables
     rraShift = 0              ! reset
     vectorLengthShift = 0     ! reset
-    
+    iRegrid = 0               ! reset
+    iRedist = 0               ! reset
+
     ! prepare rhList linked list
     nullify(rhList)
-    
-    ! loop over all fields
+
+    ! loop over all field pairs
     do i=1, count
-    
+
       ! prepare pointer variables
       nullify(chopStringList)   ! reset
       nullify(chopSubString)    ! reset
@@ -4627,27 +4925,57 @@ call ESMF_VMLogCurrentGarbageInfo(trim(name)//": FieldBundleCplStore enter: ")
       nullify(dstMaskValues)    ! reset
 
       ! use a temporary string and convert the cplList(i) to lower characters
-      tempString = ESMF_UtilStringLowerCase(cplList(i), rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-      
+      tempString = ESMF_UtilStringLowerCase(cplList(i), rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
+
       ! chop the cplList entry
       call chopString(tempString, chopChar=":", chopStringList=chopStringList, &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+        rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
+
+      ! determine "termOrder" which will be used by Run() method
+      termOrder = ESMF_TERMORDER_FREE ! default
+      do j=2, size(chopStringList)
+        if (index(chopStringList(j),"termorder=")==1) then
+          call chopString(chopStringList(j), chopChar="=", &
+            chopStringList=chopSubString, rc=localrc)
+          if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
+          if (size(chopSubString)>=2) then
+            if (trim(chopSubString(2))=="srcseq") then
+              termOrder = ESMF_TERMORDER_SRCSEQ
+            else if (trim(chopSubString(2))=="srcpet") then
+              termOrder = ESMF_TERMORDER_SRCPET
+            else if (trim(chopSubString(2))=="free") then
+              termOrder = ESMF_TERMORDER_FREE
+            else
+              write (msgString,*) "Specified option '", &
+                trim(chopStringList(j)), &
+                "' is not a vailid choice. Defaulting to FREE for: '", &
+                trim(chopStringList(1)), "'"
+              call ESMF_LogWrite(trim(msgString), ESMF_LOGMSG_WARNING)
+            endif
+          endif
+          deallocate(chopSubString) ! local garbage collection
+          exit ! skip the rest of the loop after first hit
+        endif
+      enddo
       
       ! determine "srcMaskValues"
       allocate(srcMaskValues(0))  ! default
       do j=2, size(chopStringList)
         if (index(chopStringList(j),"srcmaskvalues=")==1) then
           call chopString(chopStringList(j), chopChar="=", &
-            chopStringList=chopSubString, rc=rc)
-          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-            line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+            chopStringList=chopSubString, rc=localrc)
+          if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
           if (size(chopSubString)>=2) then
             call chopString(chopSubString(2), chopChar=",", &
-              chopStringList=chopSubSubString, rc=rc)
+              chopStringList=chopSubSubString, rc=localrc)
+            if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
             if (size(chopSubSubString)>0) then
               deallocate(srcMaskValues)
               allocate(srcMaskValues(size(chopSubSubString)))
@@ -4667,12 +4995,14 @@ call ESMF_VMLogCurrentGarbageInfo(trim(name)//": FieldBundleCplStore enter: ")
       do j=2, size(chopStringList)
         if (index(chopStringList(j),"dstmaskvalues=")==1) then
           call chopString(chopStringList(j), chopChar="=", &
-            chopStringList=chopSubString, rc=rc)
-          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-            line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+            chopStringList=chopSubString, rc=localrc)
+          if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
           if (size(chopSubString)>=2) then
             call chopString(chopSubString(2), chopChar=",", &
-              chopStringList=chopSubSubString, rc=rc)
+              chopStringList=chopSubSubString, rc=localrc)
+            if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+              line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
             if (size(chopSubSubString)>0) then
               deallocate(dstMaskValues)
               allocate(dstMaskValues(size(chopSubSubString)))
@@ -4693,9 +5023,9 @@ call ESMF_VMLogCurrentGarbageInfo(trim(name)//": FieldBundleCplStore enter: ")
       do j=2, size(chopStringList)
         if (index(chopStringList(j),"remapmethod=")==1) then
           call chopString(chopStringList(j), chopChar="=", &
-            chopStringList=chopSubString, rc=rc)
-          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-            line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+            chopStringList=chopSubString, rc=localrc)
+          if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
           if (size(chopSubString)>=2) then
             if (trim(chopSubString(2))=="redist") then
               redistflag = .true.
@@ -4722,15 +5052,42 @@ call ESMF_VMLogCurrentGarbageInfo(trim(name)//": FieldBundleCplStore enter: ")
         endif
       enddo
       
+      ! decide whether this is a Redist field pair, or to proceed with Regrid
+      if (redistflag) then
+        call ESMF_FieldBundleAdd(srcFBRedist, (/srcFields(i)/), &
+          multiflag=.true., rc=localrc)
+        if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
+        call ESMF_FieldBundleAdd(dstFBRedist, (/dstFields(i)/), &
+          multiflag=.true., rc=localrc)
+        if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
+        iRedist = iRedist+1
+        termOrdersRedist(iRedist) = termOrder ! record in list to merge below
+        cycle ! advance to the next field pair, handle Redist further down
+      endif
+
+      ! only Regid field pairs will proceed here...
+      iRegrid = iRegrid+1
+      termOrders(iRegrid) = termOrder ! record in the list used by Run
+
+      ! add Regrid field pair to the beginning of replacement srcFB and dstFB
+      call ESMF_FieldBundleAdd(srcFB, (/srcFields(i)/), multiflag=.true., rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
+      call ESMF_FieldBundleAdd(dstFB, (/dstFields(i)/), multiflag=.true., rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
+
       ! determine "polemethod" and "regridPoleNPnts"
       polemethod = ESMF_POLEMETHOD_NONE ! default
       regridPoleNPnts = 1 ! default
       do j=2, size(chopStringList)
         if (index(chopStringList(j),"polemethod=")==1) then
           call chopString(chopStringList(j), chopChar="=", &
-            chopStringList=chopSubString, rc=rc)
-          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-            line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+            chopStringList=chopSubString, rc=localrc)
+          if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
           if (size(chopSubString)>=2) then
             if (trim(chopSubString(2))=="none") then
               polemethod = ESMF_POLEMETHOD_NONE
@@ -4761,9 +5118,9 @@ call ESMF_VMLogCurrentGarbageInfo(trim(name)//": FieldBundleCplStore enter: ")
       do j=2, size(chopStringList)
         if (index(chopStringList(j),"unmappedaction=")==1) then
           call chopString(chopStringList(j), chopChar="=", &
-            chopStringList=chopSubString, rc=rc)
-          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-            line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+            chopStringList=chopSubString, rc=localrc)
+          if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
           if (size(chopSubString)>=2) then
             if (trim(chopSubString(2))=="error") then
               unmappedaction = ESMF_UNMAPPEDACTION_ERROR
@@ -4787,9 +5144,9 @@ call ESMF_VMLogCurrentGarbageInfo(trim(name)//": FieldBundleCplStore enter: ")
       do j=2, size(chopStringList)
         if (index(chopStringList(j),"srctermprocessing=")==1) then
           call chopString(chopStringList(j), chopChar="=", &
-            chopStringList=chopSubString, rc=rc)
-          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-            line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+            chopStringList=chopSubString, rc=localrc)
+          if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
           if (size(chopSubString)>=2) then
             read(chopSubString(2), "(i10)") srcTermProcessing
           endif
@@ -4803,9 +5160,9 @@ call ESMF_VMLogCurrentGarbageInfo(trim(name)//": FieldBundleCplStore enter: ")
       do j=2, size(chopStringList)
         if (index(chopStringList(j),"pipelinedepth=")==1) then
           call chopString(chopStringList(j), chopChar="=", &
-            chopStringList=chopSubString, rc=rc)
-          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-            line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+            chopStringList=chopSubString, rc=localrc)
+          if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
           if (size(chopSubString)>=2) then
             read(chopSubString(2), "(i10)") pipelineDepth
           endif
@@ -4819,9 +5176,9 @@ call ESMF_VMLogCurrentGarbageInfo(trim(name)//": FieldBundleCplStore enter: ")
       do j=2, size(chopStringList)
         if (index(chopStringList(j),"dumpweights=")==1) then
           call chopString(chopStringList(j), chopChar="=", &
-            chopStringList=chopSubString, rc=rc)
-          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-            line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+            chopStringList=chopSubString, rc=localrc)
+          if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
           if (size(chopSubString)>=2) then
             if (trim(chopSubString(2))=="on") then
               dumpWeightsFlag = .true.
@@ -4850,12 +5207,12 @@ call ESMF_VMLogCurrentGarbageInfo(trim(name)//": FieldBundleCplStore enter: ")
 
       ! for now optimized reuse of RouteHandle is only implemented for Grids
       
-      call ESMF_FieldGet(srcFields(i), geomtype=srcGeomtype, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-      call ESMF_FieldGet(dstFields(i), geomtype=dstGeomtype, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+      call ESMF_FieldGet(srcFields(i), geomtype=srcGeomtype, rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
+      call ESMF_FieldGet(dstFields(i), geomtype=dstGeomtype, rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
 
       gridPair = (srcGeomtype==ESMF_GEOMTYPE_GRID)
       gridPair = gridPair .and. (dstGeomtype==ESMF_GEOMTYPE_GRID)
@@ -4865,44 +5222,46 @@ call ESMF_VMLogCurrentGarbageInfo(trim(name)//": FieldBundleCplStore enter: ")
       if (gridPair) then
         ! access the src and dst grid objects
         call ESMF_FieldGet(srcFields(i), arrayspec=srcArraySpec, grid=srcGrid, &
-          staggerLoc=srcStaggerLoc, dimCount=fieldDimCount, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-        call ESMF_GridGet(srcGrid, dimCount=gridDimCount, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+          staggerLoc=srcStaggerLoc, dimCount=fieldDimCount, rc=localrc)
+        if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
+        call ESMF_GridGet(srcGrid, dimCount=gridDimCount, rc=localrc)
+        if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
         allocate(srcGridToFieldMap(gridDimCount))
         allocate(srcUngriddedLBound(fieldDimCount-gridDimCount), &
           srcUngriddedUBound(fieldDimCount-gridDimCount))
         call ESMF_FieldGet(srcFields(i), gridToFieldMap=srcGridToFieldMap, &
           ungriddedLBound=srcUngriddedLBound, &
-          ungriddedUBound=srcUngriddedUBound,rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+          ungriddedUBound=srcUngriddedUBound,rc=localrc)
+        if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
         
         call ESMF_FieldGet(dstFields(i), arrayspec=dstArraySpec, grid=dstGrid, &
-          staggerLoc=dstStaggerLoc, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-        call ESMF_GridGet(dstGrid, dimCount=gridDimCount, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+          staggerLoc=dstStaggerLoc, rc=localrc)
+        if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
+        call ESMF_GridGet(dstGrid, dimCount=gridDimCount, rc=localrc)
+        if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
         allocate(dstGridToFieldMap(gridDimCount))
         allocate(dstUngriddedLBound(fieldDimCount-gridDimCount), &
           dstUngriddedUBound(fieldDimCount-gridDimCount))
         call ESMF_FieldGet(dstFields(i), gridToFieldMap=dstGridToFieldMap, &
           ungriddedLBound=dstUngriddedLBound, &
-          ungriddedUBound=dstUngriddedUBound,rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+          ungriddedUBound=dstUngriddedUBound,rc=localrc)
+        if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
 
         ! search for a match
         rhListE=>rhList
         do while (associated(rhListE))
           ! test src grid match
           rhListMatch = &
-            ESMF_GridMatch(rhListE%srcGrid, srcGrid, globalflag=.true.) &
+            ESMF_GridMatch(rhListE%srcGrid, srcGrid, globalflag=.true., rc=localrc) &
             >= ESMF_GRIDMATCH_EXACT
+          if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
 #if 0
 write (msgString,*) trim(name)//": srcGrid Match for i=", i, " is: ", &
   rhListMatch
@@ -4911,8 +5270,10 @@ call ESMF_LogWrite(trim(msgString), ESMF_LOGMSG_INFO)
           if (.not.rhListMatch) goto 123
           ! test dst grid match
           rhListMatch = &
-            ESMF_GridMatch(rhListE%dstGrid, dstGrid, globalflag=.true.) &
+            ESMF_GridMatch(rhListE%dstGrid, dstGrid, globalflag=.true., rc=localrc) &
             >= ESMF_GRIDMATCH_EXACT
+          if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
 #if 0
 write (msgString,*) trim(name)//": dstGrid Match for i=", i, " is: ", &
   rhListMatch
@@ -5032,16 +5393,21 @@ call ESMF_LogWrite(trim(name)//&
         endif
         ! precompute remapping
         if (redistflag) then
-          ! redist store call
-          call ESMF_FieldRedistStore(srcField=srcFields(i), &
-            dstField=dstFields(i), &
-!not yet implemented:          pipelineDepth=pipelineDepth, &
-            routehandle=rhh, &
-            rc=rc)
-          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-            line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+          ! redist handled via ESMF_FieldBundleRedistStore() outside pair loop
+          ! finding it here indicates that something went wrong
+          call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
+            msg="Bad internal error - should never get here!",&
+            line=__LINE__, file=trim(name)//":"//FILENAME, &
+            rcToReturn=rc)
+          return  ! bail out
         else      
           ! regrid store call
+          !TODO: leverage ESMF_FieldBundleRegridStore(), like for the Redist
+          !TODO: case, once ESMF_FieldBundleRegridStore() supports passing
+          !TODO: field pair specific arguments e.g. for polemethod,
+          !TODO: srcTermProcessing, etc. Until then must do each field
+          !TODO: individually here. Notice that most of the RH reuse
+          !TODO: optimization is already available on the ESMF side, too.
           call ESMF_FieldRegridStore(srcField=srcFields(i), &
             dstField=dstFields(i), &
             srcMaskValues=srcMaskValues, dstMaskValues=dstMaskValues, &
@@ -5051,9 +5417,9 @@ call ESMF_LogWrite(trim(name)//&
             srcTermProcessing=srcTermProcessing, pipelineDepth=pipelineDepth, &
             routehandle=rhh, &
             factorIndexList=factorIndexList, factorList=factorList, &
-            rc=rc)
-          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-            line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+            rc=localrc)
+          if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
         endif
         if (gridPair) then
           ! store info in the new rhList element
@@ -5100,18 +5466,18 @@ call ESMF_LogWrite(trim(name)//&
       ! append rhh to rh and clear rhh
       call ESMF_RouteHandleAppend(rh, appendRoutehandle=rhh, &
         rraShift=rraShift, vectorLengthShift=vectorLengthShift, &
-        transferflag=.not.rhListMatch, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+        transferflag=.not.rhListMatch, rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
       
       ! adjust rraShift and vectorLengthShift
-      call ESMF_FieldGet(srcFields(i), localDeCount=localDeCount, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+      call ESMF_FieldGet(srcFields(i), localDeCount=localDeCount, rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
       rraShift = rraShift + localDeCount
-      call ESMF_FieldGet(dstFields(i), localDeCount=localDeCount, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+      call ESMF_FieldGet(dstFields(i), localDeCount=localDeCount, rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
       rraShift = rraShift + localDeCount
       vectorLengthShift = vectorLengthShift + 1
       
@@ -5120,38 +5486,10 @@ call ESMF_LogWrite(trim(name)//&
         call NUOPC_Write(factorList=factorList, &
           factorIndexList=factorIndexList, &
           fileName="weightmatrix_"//trim(name)//"_"//trim(chopStringList(1))//".nc",&
-          rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+          rc=localrc)
+        if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
       endif
-      
-      ! determine "termOrders" list which will be used by Run() method
-      termOrders(i) = ESMF_TERMORDER_FREE ! default
-      do j=2, size(chopStringList)
-        if (index(chopStringList(j),"termorder=")==1) then
-          call chopString(chopStringList(j), chopChar="=", &
-            chopStringList=chopSubString, rc=rc)
-          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-            line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
-          if (size(chopSubString)>=2) then
-            if (trim(chopSubString(2))=="srcseq") then
-              termOrders(i) = ESMF_TERMORDER_SRCSEQ
-            else if (trim(chopSubString(2))=="srcpet") then
-              termOrders(i) = ESMF_TERMORDER_SRCPET
-            else if (trim(chopSubString(2))=="free") then
-              termOrders(i) = ESMF_TERMORDER_FREE
-            else
-              write (msgString,*) "Specified option '", &
-                trim(chopStringList(j)), &
-                "' is not a vailid choice. Defaulting to FREE for: '", &
-                trim(chopStringList(1)), "'"
-              call ESMF_LogWrite(trim(msgString), ESMF_LOGMSG_WARNING)
-            endif
-          endif
-          deallocate(chopSubString) ! local garbage collection
-          exit ! skip the rest of the loop after first hit
-        endif
-      enddo
       
       ! local garbage collection
       if (.not.gridPair) then
@@ -5161,15 +5499,15 @@ call ESMF_LogWrite(trim(name)//&
       endif
       if (associated(chopStringList)) deallocate(chopStringList)
 
-    enddo
-    
+    enddo ! loop over all field pairs
+
     ! take down rhList and destroy rh objects
     do while (associated(rhList))
       rhListE=>rhList
       rhList=>rhList%prev
-      call ESMF_RouteHandleDestroy(rhListE%rh, noGarbage=.true., rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+      call ESMF_RouteHandleDestroy(rhListE%rh, noGarbage=.true., rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
       if (associated(rhListE%factorIndexList)) deallocate(rhListE%factorIndexList)
       if (associated(rhListE%factorList)) deallocate(rhListE%factorList)
       deallocate(rhListE%srcGridToFieldMap, rhListE%dstGridToFieldMap)
@@ -5181,6 +5519,84 @@ call ESMF_LogWrite(trim(name)//&
 
     ! garbage collection
     deallocate(srcFields, dstFields)
+
+    ! now deal with the Redist field pairs
+    call ESMF_FieldBundleGet(srcFBRedist, fieldCount=count, rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
+    if (count /= iRedist) then
+      call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
+        msg="Counts must match!", &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)
+      return  ! bail out
+    endif
+    call ESMF_FieldBundleGet(dstFBRedist, fieldCount=i, rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
+    if (i /= count) then
+      call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
+        msg="Counts must match!", &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)
+      return  ! bail out
+    endif
+
+    if (count > 0) then
+#if 0
+write(msgString,*) "Redist FBs have elements: ", count
+call ESMF_LogWrite(msgString, ESMF_LOGMSG_INFO, rc=rc)
+#endif
+      ! call into ESMF for an optimized Redist pre-compute between FieldBundles
+      call ESMF_FieldBundleRedistStore(srcFBRedist, dstFBRedist, &
+        routehandle=rhh, rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
+
+      ! append rhh to rh and clear rhh
+      call ESMF_RouteHandleAppend(rh, appendRoutehandle=rhh, &
+        rraShift=rraShift, vectorLengthShift=vectorLengthShift, rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
+
+      ! obtain fields from srcFBRedist and dstFBRedist
+      allocate(srcFields(count), dstFields(count), stat=stat)
+      if (ESMF_LogFoundAllocError(statusToCheck=stat, &
+        msg="Allocation of srcFields and dstFields.", &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
+        return  ! bail out
+      call ESMF_FieldBundleGet(srcFBRedist, fieldList=srcFields, &
+        itemorderflag=ESMF_ITEMORDER_ADDORDER, rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
+      call ESMF_FieldBundleGet(dstFBRedist, fieldList=dstFields, &
+      itemorderflag=ESMF_ITEMORDER_ADDORDER, rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
+
+      ! add fields to srcFB and dstFB
+      call ESMF_FieldBundleAdd(srcFB, srcFields, rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
+      call ESMF_FieldBundleAdd(dstFB, dstFields, rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
+
+      ! append termOrdersRedist at the end of termOrders list
+      do i=1, count
+        termOrders(iRegrid+i) = termOrdersRedist(i)
+      enddo
+
+      ! local garbage collection
+      deallocate(srcFields, dstFields)
+    endif
+
+    ! garbage collection
+    deallocate(termOrdersRedist)
+    call ESMF_FieldBundleDestroy(srcFBRedist, noGarbage=.true., rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
+    call ESMF_FieldBundleDestroy(dstFBRedist, noGarbage=.true., rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
 
     ! return successfully
     if (present(rc)) rc = ESMF_SUCCESS
@@ -5210,11 +5626,48 @@ call ESMF_VMLogCurrentGarbageInfo(trim(name)//": FieldBundleCplStore leaving: ")
     type(ESMF_RouteHandle), intent(out), optional :: rh
     type(ESMF_State),       intent(out), optional :: state
     character(*),           intent(in),  optional :: CplSet
-    character(ESMF_MAXSTR), pointer, optional     :: cplSetList(:)
+    character(ESMF_MAXSTR), pointer,     optional :: cplSetList(:)
     integer,                intent(out), optional :: rc
 !
 ! !DESCRIPTION:
-! Get parameters from the {\tt connector} internal state.
+!   Get parameters from the {\tt connector} internal state.
+!
+!   The Connector keeps information about the connection that it implements 
+!   in its internal state. When customizing a Connector, it is often necessary
+!   to access and sometimes modify these data objects.
+!
+!   The arguments are:
+!   \begin{description}
+!   \item[connector]
+!     The Connector component.
+!   \item[{[srcFields]}]
+!     The FieldBundle under which the Connector keeps track of all connected
+!     source side fields. The order in which the fields are stored
+!     in {\tt srcFields} is significant, as it corresponds to the order of
+!     fields in {\tt dstFields}. Consequently, when accessing and modifying
+!     the fields inside of {\tt srcFields}, it is imporant to use the
+!     {\tt itemorderflag=ESMF\_ITEMORDER\_ADDORDER} option to
+!     {\tt ESMF\_FieldBundleGet()}.
+!   \item[{[dstFields]}]
+!     The FieldBundle under which the Connector keeps track of all connected
+!     destination side fields. The order in which the fields are stored
+!     in {\tt dstFields} is significant, as it corresponds to the order of
+!     fields in {\tt srcFields}. Consequently, when accessing and modifying
+!     the fields inside of {\tt dstFields}, it is imporant to use the
+!     {\tt itemorderflag=ESMF\_ITEMORDER\_ADDORDER} option to
+!     {\tt ESMF\_FieldBundleGet()}.
+!   \item[{[rh]}]
+!     The RouteHandle that the Connector uses to move data from {\tt srcFields}
+!     to {\tt dstFields}.
+!   \item[{[state]}]
+!     A State object that the Connector keeps to make customization of the 
+!     Connector more convenient. The generic Connector code handles creation
+!     and destruction of {\tt state}, but does {\em not} access it directly 
+!     for information.
+!   \item[{[rc]}]
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
+!
 !EOP
   !-----------------------------------------------------------------------------
     ! local variables
@@ -5222,13 +5675,14 @@ call ESMF_VMLogCurrentGarbageInfo(trim(name)//": FieldBundleCplStore leaving: ")
     type(type_InternalState)        :: is
     integer                         :: sIndex
     integer                         :: stat
+    integer                         :: localrc
 
     if (present(rc)) rc = ESMF_SUCCESS
 
-    ! query the Component for info
-    call ESMF_CplCompGet(connector, name=name, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+    ! query the component for info
+    call NUOPC_CompGet(connector, name=name, rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
     
     ! early exit if nothing to be done -> this allows calling the method even
     ! if the internal state does not (yet) exist - done for testing
@@ -5240,8 +5694,8 @@ call ESMF_VMLogCurrentGarbageInfo(trim(name)//": FieldBundleCplStore leaving: ")
     
     ! query Component for the internal State
     nullify(is%wrap)
-    call ESMF_UserCompGetInternalState(connector, label_InternalState, is, rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+    call ESMF_UserCompGetInternalState(connector, label_InternalState, is, localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
       return  ! bail out
     
@@ -5278,7 +5732,8 @@ call ESMF_VMLogCurrentGarbageInfo(trim(name)//": FieldBundleCplStore leaving: ")
         allocate(cplSetList(is%wrap%cplSetCount), stat=stat)
         if (ESMF_LogFoundAllocError(stat, msg="allocating cplSetList", &
           line=__LINE__, &
-          file=FILENAME)) &
+          file=FILENAME, &
+          rcToReturn=rc)) &
           return  ! bail out
         cplSetList=is%wrap%cplSetList
       endif
@@ -5304,20 +5759,58 @@ call ESMF_VMLogCurrentGarbageInfo(trim(name)//": FieldBundleCplStore leaving: ")
     integer,                intent(out), optional :: rc
 !
 ! !DESCRIPTION:
-! Set parameters in the {\tt connector} internal state.
+!   Set parameters in the {\tt connector} internal state.
+!
+!   The Connector keeps information about the connection that it implements 
+!   in its internal state. When customizing a Connector, it is often necessary
+!   to access and sometimes modify these data objects.
+!
+!   The arguments are:
+!   \begin{description}
+!   \item[connector]
+!     The Connector component.
+!   \item[{[srcFields]}]
+!     The FieldBundle under which the Connector keeps track of all connected
+!     source side fields. The order in which the fields are stored
+!     in {\tt srcFields} is significant, as it corresponds to the order of
+!     fields in {\tt dstFields}. Consequently, when setting {\tt srcFields}, it
+!     is important to add them in the same order as for {\tt dstFields}.
+!   \item[{[dstFields]}]
+!     The FieldBundle under which the Connector keeps track of all connected
+!     destination side fields. The order in which the fields are stored
+!     in {\tt dstFields} is significant, as it corresponds to the order of
+!     fields in {\tt srcFields}. Consequently, when setting {\tt dstFields}, it
+!     is important to add them in the same order as for {\tt srcFields}.
+!   \item[{[rh]}]
+!     The RouteHandle that the Connector uses to move data from {\tt srcFields}
+!     to {\tt dstFields}.
+!   \item[{[state]}]
+!     A State object that the Connector keeps to make customization of the 
+!     Connector more convenient. Only in very rare cases would the user want
+!     to replace the {\tt state} that is managed by the generic Connector
+!     implementation. If {\tt state} is set by this call, the user essentially
+!     claims ownership of the previous {\tt state} object, and becomes 
+!     responsible for its destruction. Ownership of the new {\tt state} is 
+!     transferred to the Connector and must not be explicitly destroyed by the
+!     user code.
+!   \item[{[rc]}]
+!     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
+!   \end{description}
+!
 !EOP
   !-----------------------------------------------------------------------------
     ! local variables
     character(ESMF_MAXSTR)          :: name
     type(type_InternalState)        :: is
     integer                         :: sIndex
+    integer                         :: localrc
 
     if (present(rc)) rc = ESMF_SUCCESS
 
-    ! query the Component for info
-    call ESMF_CplCompGet(connector, name=name, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=trim(name)//":"//FILENAME)) return  ! bail out
+    ! query the component for info
+    call NUOPC_CompGet(connector, name=name, rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) return  ! bail out
     
     ! early exit if nothing to be done -> this allows calling the method even
     ! if the internal state does not (yet) exist - done for testing
@@ -5328,8 +5821,8 @@ call ESMF_VMLogCurrentGarbageInfo(trim(name)//": FieldBundleCplStore leaving: ")
 
     ! query Component for the internal State
     nullify(is%wrap)
-    call ESMF_UserCompGetInternalState(connector, label_InternalState, is, rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+    call ESMF_UserCompGetInternalState(connector, label_InternalState, is, localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=trim(name)//":"//FILENAME, rcToReturn=rc)) &
       return  ! bail out
     

@@ -12,12 +12,12 @@ c **********************************************************************
 c **********************************************************************
 
 
-      character*256 dynrst, moistrst, bkgeta, topo, iaurst
+      character*256 dynrst, moistrst, topo, iaurst
 
       integer headr1(6)
       integer headr2(5)
       integer nymd,nhms
-      integer im,jm,lm,nt,iostat,rc
+      integer im,jm,lm,nt,rc
       real    undef, kappa, grav
 
 c restart variables and topography
@@ -52,7 +52,6 @@ c --------------------------------
       real*8                   logp
 
       real*4, allocatable ::  dum(:,:)
-      real*4, allocatable ::  zox(:,:)  ! Zonal Mean odd-ox
 
       real*8, allocatable :: dudti(:,:,:)
       real*8, allocatable :: dvdti(:,:,:)
@@ -72,7 +71,7 @@ c --------------------------------
       character*8    date
       character*2    hour,clm
       character*3    cim,cjm
-      integer n,nargs,iargc,i,j,L,nymd0,nhms0
+      integer n,nargs,iargc,i,j,L
 
 C **********************************************************************
 C ****                      Initialize Filenames                    ****
@@ -283,8 +282,8 @@ C **********************************************************************
 
 c Remap on Native Grid
 c --------------------
-      call remap  ( ps_out,dp_out,u_out,v_out,thv_out,q_out,phis,lm,
-     .              ps_in ,dp_in ,u_in ,v_in ,thv_in ,q_in ,phis,lm,
+      call remap  ( ps_out,dp_out,u_out,v_out,thv_out,q_out,lm,
+     .              ps_in ,u_in ,v_in ,thv_in ,q_in ,lm,
      .              im,jm,nt,ak_out,bk_out )
 
       ple_out(:,:,lm+1) = ps_out(:,:)
@@ -472,8 +471,8 @@ C **********************************************************************
       stop
       end
 
-      subroutine remap  ( ps1,dp1,u1,v1,thv1,q1,phis1,lm1,
-     .                    ps2,dp2,u2,v2,thv2,q2,phis2,lm2,im,jm,nt,ak,bk )
+      subroutine remap  ( ps1,dp1,u1,v1,thv1,q1,lm1,
+     .                    ps2,u2,v2,thv2,q2,lm2,im,jm,nt,ak,bk )
 
 c *******************************************************************************
 c *****                                                                     *****
@@ -497,35 +496,27 @@ c ----------------------
       real       q1(im,jm,lm1,nt)
       real      ps1(im,jm)
 
-      real   phis1(im,jm)
       real      ak(lm1+1)
       real      bk(lm1+1)
       real    sige(lm1+1)
 
 c Input Analysis variables
 c ------------------------
-      real     dp2(im,jm,lm2)
       real      u2(im,jm,lm2)
       real      v2(im,jm,lm2)
-      real      t2(im,jm,lm2)
       real    thv2(im,jm,lm2)
       real      q2(im,jm,lm2,nt)
       real     ps2(im,jm)
-      real   phis2(im,jm)
 
 c Local variables
 c ---------------
-      real    pz(im,jm)
-      real   pe0(im,jm,lm1+1)
       real   pe1(im,jm,lm1+1)
       real   pe2(im,jm,lm2+1)
-      real   pk (im,jm,lm2  )
-      real  pke0(im,jm,lm1+1)
       real  pke1(im,jm,lm1+1)
       real  pke2(im,jm,lm2+1)
 
-      real    kappa,cp,pl,dum
-      real    rgas,pref,ptop,psrf,tref,pkref,tstar,eps,rvap,grav
+      real    kappa,cp,dum
+      real    rgas,pref,ptop,psrf,eps,rvap,grav
       integer i,j,L
 
       if( lm1.ne.lm2 ) then
@@ -594,7 +585,7 @@ c Map target analysis onto grid defined by new surface pressure
 c -------------------------------------------------------------
       print *, 'Calling GMAP, LM_in : ',lm2
       print *, '              LM_out: ',lm1
-      call gmap ( im,jm,nt, kappa,
+      call gmap ( im,jm,nt, 
      .            lm2,  pke2,  pe2, u2,  v2,  thv2,  q2,
      .            lm1,  pke1,  pe1, u1,  v1,  thv1,  q1 )
 
@@ -606,7 +597,7 @@ c ------------------------------------------
       end
 
 c****6***0*********0*********0*********0*********0*********0**********72
-      subroutine gmap(im, jm, nq,  akap,
+      subroutine gmap(im, jm, nq,
      &         km,  pk3d_m,  pe3d_m, u_m,  v_m,  pt_m,  q_m,
      &         kn,  pk3d_n,  pe3d_n, u_n,  v_n,  pt_n,  q_n  )
 c****6***0*********0*********0*********0*********0*********0**********72
@@ -637,7 +628,7 @@ C New data (kn-level)
       real   pe3d_n(im,jm,kn+1)
 
 c local (private)
-      integer i, j, k, ic, n
+      integer i, j, k, n
 
       real pe1(im,km+1),pe2(im,kn+1)
       real pk1(im,km+1),pk2(im,kn+1)
@@ -647,9 +638,6 @@ c local (private)
       real  t1(im,km)  , t2(im,kn)
       real  q1(im,km)  , q2(im,kn)
 
-      real ptop
-      real akap
-      real ple,  pek, dak, bkh
       real undef
       real big
       parameter ( undef = 1.e15 )
@@ -691,7 +679,7 @@ c Copy original data to local 2D arrays.
 
 c map pt
 c ------
-      call mappm ( km, pk1, dp1, t1, kn, pk2, dp2, t2, im, 1, 7 )
+      call mappm ( km, pk1, dp1, t1, kn, pk2, t2, im, 1, 7 )
 
       do k=1,km
       do i=1,im
@@ -707,8 +695,8 @@ c ------
 
 c map u,v
 c -------
-      call mappm ( km, pe1, dp1, u1, kn, pe2, dp2, u2, im, -1, 7 )
-      call mappm ( km, pe1, dp1, v1, kn, pe2, dp2, v2, im, -1, 7 )
+      call mappm ( km, pe1, dp1, u1, kn, pe2, u2, im, -1, 7 )
+      call mappm ( km, pe1, dp1, v1, kn, pe2, v2, im, -1, 7 )
 
 c map q
 c -------
@@ -718,7 +706,7 @@ c -------
           q1(i,k) =  q_m(i,j,k,n)
          enddo
          enddo
-         call mappm ( km, pe1, dp1, q1, kn, pe2, dp2, q2, im,  0, 7 )
+         call mappm ( km, pe1, dp1, q1, kn, pe2, q2, im,  0, 7 )
          do k=1,kn
          do i=1,im
            q_n(i,j,k,n) = q2(i,k)
@@ -741,7 +729,7 @@ c -------
 
 
 C****6***0*********0*********0*********0*********0*********0**********72
-      subroutine mappm(km, pe1, dp1, q1, kn, pe2, dp2, q2, im, iv, kord)
+      subroutine mappm(km, pe1, dp1, q1, kn, pe2, q2, im, iv, kord)
 C****6***0*********0*********0*********0*********0*********0**********72
 C IV = 0: constituents
 C IV = 1: potential temp
@@ -757,7 +745,7 @@ C      in the new vertical coordinate
       parameter (kmax = 200)
       parameter (R3 = 1./3., R23 = 2./3.)
 
-      real dp1(im,km),   dp2(im,kn),
+      real dp1(im,km),
      &      q1(im,km),    q2(im,kn),
      &     pe1(im,km+1), pe2(im,kn+1)
       integer kord
@@ -872,10 +860,9 @@ c iv =-1: winds
 c local arrays.
       real dc(im,km),delq(im,km)
       real h2(im,km)
-      real a1, a2, a3, b2, c1, c2, c3, d1, d2, f1, f2, f3, f4
-      real s1, s2, s3, s4, ss3, s32, s34, s42, sc
+      real a1, a2, c1, c2, c3, d1, d2
       real qmax, qmin, cmax, cmin
-      real dm, qm, dq, tmp
+      real qm, dq, tmp
 
 C Local scalars:
       real qmp
@@ -2553,14 +2540,10 @@ C *********************************************************
       real    vb(im,jm,lm)
       real  pleb(im,jm,lm+1)
 
-      real     u(im,jm,lm)
-      real     v(im,jm,lm)
       real   dpa(im,jm,lm)
       real   dpb(im,jm,lm)
       real  diva(im,jm,lm)
       real  divb(im,jm,lm)
-
-      integer index(lm),ierror
 
       real, allocatable ::  uglo(:,:,:)
       real, allocatable ::  vglo(:,:,:)
@@ -2581,7 +2564,7 @@ C *********************************************************
       real, allocatable ::   psix(:,:)
       real, allocatable ::   psiy(:,:)
 
-      integer L, comm, myid, npes
+      integer L
       integer img, jmg
 
       img  = im
@@ -2750,9 +2733,8 @@ c ------------------------------------------------------------
       return
       end
 
-      subroutine minmax (q,qname,im,jm,qmin,qmax)
+      subroutine minmax (q,im,jm,qmin,qmax)
       real q(im,jm)
-      character*(*) qname
       do j=1,jm
       do i=1,im
       if( q(i,j).gt.qmax ) qmax = q(i,j)
@@ -3319,9 +3301,9 @@ C *********************************************************
       real DQDY(IM,JM)
       real acos(JM)
 
-      real cx1,cx2,cy1,cy2,uc,vc,us,vs
+      real cx1,cy1
       real dl,dp,a,pi,fjeq,phi
-      integer i,j,m,ip1,ip2,jpole,msgn
+      integer i,j,ip1
 
 C *********************************************************
 C ****               INITIALIZATION                    ****
@@ -3782,8 +3764,8 @@ C
       real*8 logps(im,jm)
       real*8 logpt(im,jm)
 
-      real*8  p,undef
-      real*8  logp,logpmin,logpmax,temp
+      real*8  undef
+      real*8  logp,temp
      
 c Initialize to UNDEFINED
 c -----------------------

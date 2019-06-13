@@ -493,7 +493,7 @@
       real,    allocatable :: pem(:,:,:), pkm(:,:,:) 
       real,    allocatable :: pe1(:,:), pe2(:,:),pk1(:,:),pk2(:,:)        
       integer i, j, k, im, jm, km, kn
-      real rair, rh2o, cpair, akap, pmax, pmin
+      real rair, rh2o, cpair, akap
 
       rair   = 287.04
       rh2o   = 4.61e2

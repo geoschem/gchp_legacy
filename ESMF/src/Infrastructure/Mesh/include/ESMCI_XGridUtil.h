@@ -1,6 +1,6 @@
 // $Id$
 // Earth System Modeling Framework
-// Copyright 2002-2018, University Corporation for Atmospheric Research, 
+// Copyright 2002-2019, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -14,8 +14,8 @@
 
 #include <vector>
 #include <Mesh/include/ESMCI_Mesh.h>
-#include <Mesh/include/ESMCI_Sintdnode.h>
-#include <Mesh/include/ESMCI_Interp.h>
+#include <Mesh/include/Legacy/ESMCI_Sintdnode.h>
+#include <Mesh/include/Regridding/ESMCI_Interp.h>
 #include <Mesh/include/ESMCI_MathUtil.h>
 
 namespace ESMCI {

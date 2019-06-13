@@ -1,10 +1,15 @@
-! $Id: arrayscatterRcvCnt.H,v 1.3 2013-01-17 14:54:55 atrayano Exp $
+! $Id$
 
 #ifdef NAME_
 #undef NAME_
 #endif
 
+#ifdef NAMESTR_
+#undef NAMESTR_
+#endif
+
 #define NAME_ ArrayScatterRcvCnt_
+#define NAMESTR_ ArrayScatterRcvCnt_
 
 #include "overload.macro"
 
@@ -32,7 +37,7 @@
     
 ! This version works only for 1D arrays! 
 
-    ASSERT_(RANK_ == 1)
+    _ASSERT(RANK_ == 1, 'only rank = 1 is supported')
 
     if(present(srcPe)) then
       srcDE = srcPe 
@@ -41,12 +46,12 @@
     end if
 
     call ESMF_VMGet(vm, localPet=deId, petCount=ndes, rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
-    ASSERT_(size(sendCounts) == nDEs)
+    _ASSERT(size(sendCounts) == nDEs, 'sendcounts must match nDEs')
 
     allocate (displs(0:nDEs), stat=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     displs(0) = 0
     do I = 1,nDEs
@@ -60,16 +65,19 @@
 
     call ESMF_VMScatterV(vm, global_array, sendcounts, displs, &
                          local_array, recvcount, srcDE, rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     deallocate(displs, stat=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
   end subroutine SUB_
 
 #undef NAME_
+#undef NAMESTR_
 
 #undef DIMENSIONS_
 #undef RANK_
+
+#undef RANKSTR_
 #undef VARTYPE_

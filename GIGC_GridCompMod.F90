@@ -189,7 +189,7 @@ contains
                                   __RC__ )
 
       CALL MAPL_TerminateImport    ( GC,                         &
-                                     SHORT_NAME = (/'TRACERS'/), &
+                                     SHORT_NAME = (/'TRADV'/), &
                                      CHILD = ADV,                &
                                      __RC__  )
 
@@ -280,7 +280,7 @@ contains
 
     ! AdvCore Tracers
     !----------------
-    call ESMF_StateGet( GIM(ADV), 'TRACERS', BUNDLE, RC=STATUS )
+    call ESMF_StateGet( GIM(ADV), 'TRADV', BUNDLE, RC=STATUS )
     VERIFY_(STATUS)
     
     call MAPL_GridCompGetFriendlies(GCS(CHEM), "DYNAMICS", BUNDLE, RC=STATUS )

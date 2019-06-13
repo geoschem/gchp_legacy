@@ -1,6 +1,7 @@
-import os, re
+from os import path
+from re import compile
 
-class Load:
+class ObsysRc(object):
 
     #.......................................................................
     def __init__(self, filename="obsys.rc"):
@@ -8,16 +9,16 @@ class Load:
         Initialize obsys.rc instance.
 
         Note:
-        self._obsinfo is a list of tuples with the following record format:
+        self.__obsinfo is a list of tuples with the following record format:
         (obsclass, recvals)
 
         where
         => obsclass: name of observation class
-        => recvals: dictionary, {"prolog":prolog, "outtmpl":outtmpl,
+        => recvals: dictionary, {"prolog":prolog, "stdname":stdname,
                                  "comments":comments, "rows":rows}
            where
            => prolog: list of blank and commented lines above obsclass table
-           => outtmpl: name template to use for retrieved data
+           => stdname: standard name template
            => comments: list of commented lines within obsclass table
            => rows: list of strings with the following format:
                 "startdate-stopdate interval path_template/name_template"
@@ -32,13 +33,15 @@ class Load:
         => %y4: 4-digit year
         => %y2: 2-digit year
         => %m2: 2-digit month
+        => %j3: 3-digit day-of-year
         => %d2: 2-digit day
         => %h2: 2-digit hour
+        => %c:  1-digit character
         """
-        if not os.path.isfile(filename):
+        if not path.isfile(filename):
             raise ValueError("File not found: {0}".format(filename))
-        self._filename = filename
-        self._obsinfo = []
+        self.__filename = filename
+        self.__obsinfo = []
         self.__read()
 
     #.......................................................................
@@ -46,19 +49,22 @@ class Load:
         """
         Read information from obsys.rc file.
         """
-        with open(self._filename, mode='r') as obsys_file:
+        with open(self.__filename, mode='r') as obsys_file:
 
             # create RE pattern objects
             #--------------------------
-            begin_string = r"^BEGIN\s+(\S+)\s*=>\s*(\S+)$"
-            begin_pattern = re.compile(begin_string)
+            begin_string_0 = r"^BEGIN\s+(\S+)\s*$"
+            begin_pattern_0 = compile(begin_string_0)
+
+            begin_string_1 = r"^BEGIN\s+(\S+)\s*=>\s*(\S+)$"
+            begin_pattern_1 = compile(begin_string_1)
 
             end_string = r"^\s*END\s*$"
-            end_pattern = re.compile(end_string)
+            end_pattern = compile(end_string)
 
             start_stop_string = r"(\d{8}_\d{2}z)-(\d{8}_\d{2}z)"
             row_string = start_stop_string + r"\s+(\d{6})\s+(\S+)\s*$"
-            row_pattern = re.compile(row_string)
+            row_pattern = compile(row_string)
 
             # loop through lines of file
             #---------------------------
@@ -88,15 +94,24 @@ class Load:
                 # look for beginning of obsclass table
                 #-------------------------------------
                 if not read_table:
-                    if begin_pattern.match(line):
-                        (obsclass, outtmpl) = begin_pattern.match(line).groups()
+                    begin_found = False
+                    if begin_pattern_1.match(line):
+                        (obsclass, stdname) = begin_pattern_1.match(line).groups()
+                        begin_found = True
 
+                    elif begin_pattern_0.match(line):
+                        (obsclass,) = begin_pattern_0.match(line).groups()
+                        stdname = ""
+                        begin_found = True
+
+                    if begin_found:
                         if count.has_key(obsclass):
                             msg = "Duplicate obsclass found: {0}"
                             raise ValueError(msg.format(obsclass))
                         else:
                             count[obsclass] = 1
                         read_table = True
+                        
                     continue
 
                 # read obsclass table info
@@ -109,13 +124,13 @@ class Load:
                 #-------------------------------
                 if end_pattern.match(line):
                     recvals= {}
-                    recvals["outtmpl"] = outtmpl
+                    recvals["stdname"] = stdname
                     recvals["comments"] = comments
                     recvals["prolog"] = prolog
                     recvals["rows"] = rows
 
                     record = (obsclass, recvals)
-                    self._obsinfo.append(record)
+                    self.__obsinfo.append(record)
 
                     comments = []
                     prolog = []
@@ -123,24 +138,24 @@ class Load:
                     read_table = False
 
     #.......................................................................
-    def filename(self):
+    def classlist(self):
         """
-        Return self._filename.
+        Return list of classes from the file
         """
-        return self._filename
+        return dict(self.__obsinfo).keys()
 
     #.......................................................................
     def has(self, obsclass):
         """
-        Return True if obsclass listed in self._obsinfo; otherwise False.
+        Return True if obsclass listed in self.__obsinfo; otherwise False.
         """
-        return dict(self._obsinfo).has_key(obsclass)
+        return dict(self.__obsinfo).has_key(obsclass)
 
     #.......................................................................
     def obsinfo(self):
         """
-        Return self._obsinfo records sequentially.
+        Return self.__obsinfo records sequentially.
         """
-        for record in self._obsinfo:
+        for record in self.__obsinfo:
             yield record
 

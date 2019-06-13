@@ -76,6 +76,7 @@
 # 2015.05.06 McCarty         Add entry for ISS-RapidScat
 # 2015.06.16 Wargn           Add entry for OMPS-LP
 # 2015.07.28 Sienkiewicz     End date for ncep_sptrmm_bufr 
+# 2017.07.06 RT/for/Sienkiewicz Add ncep_acftpfl_bufr  
 #
 #+BEGIN obclass data set description
 #+  upabufr_val:      NCEP Upper Air BUFR
@@ -141,6 +142,7 @@
 #+  ep_tomseff_nc:	Ozone from Earth-Probe TOMS in NetCDF ("tomseff")
 #+  rscat_bufr:	RapidScat sfc winds from instrument onboard ISS
 #+  ompslp_nc:	        Ozone from OMPS-Limb Profiler ("ompslp")
+#+  ncep_acftpfl_bufr:	Metadata for GSI Aircraft Bias Correction
 #+END
 #
 
@@ -559,7 +561,7 @@ BEGIN ncep_avcspm_bufr => gdas1.%y2%m2%d2.t%h2z.avcspm.tm00.bufr_d.ublk
   20120207_00z-21001231_18z 240000 /archive/input/dao_ops/ops/flk/ncep_NotUsed/bufr/AVCSPM/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.avcspm.tm00.bufr_d
 END
 BEGIN ncep_mls_bufr => gdas1.%y2%m2%d2.t%h2z.mls.tm00.bufr_d.ublk
-  20120502_00z-21001231_18z 240000 /archive/input/dao_ops/ops/flk/ncep_NotUsed/bufr/MLS/Y%y4/M%m2/gdas1.%y2%m2%d2.t%h2z.mls.tm00.bufr_d
+  20120502_00z-20170201_18z 240000 /archive/input/dao_ops/ops/flk/ncep_NotUsed/bufr/MLS/Y%y4/M%m2/gdas1.%y4%m2%d2.t%h2z.mls.tm00.bufr_d
 END
 BEGIN ncep_aura_omi_bufr => gdas1.%y4%m2%d2.t%h2z.omi.tm00.bufr_d.ublk
 # 20120201_00z-21001231_18z 240000 /discover/nobackup/dao_ops/intermediate/flk/stage/gdas1/omi/gdas1.%y2%m2%d2.t%h2z.omi.tm00.bufr_d
@@ -691,9 +693,11 @@ END
 # AURA MLS near real time
 BEGIN mls_nrt_nc => mlsnc.%y4%m2%d2.t%h2z.nc
 # 20140723_00z-20140815_18z 240000  /discover/nobackup/dao_ops/intermediate/flk/stage/mls_oz_nrt/MLSNRToz.%y4%m2%d2_%h2z.nc
-# 20140818_00z-21001231_18z 240000  /discover/nobackup/dao_ops/intermediate/flk/stage/mls_oz_nrt/MLSNRToz.%y4%m2%d2_%h2z.nc
+# 20140818_00z-20180331_18z 240000  /discover/nobackup/dao_ops/intermediate/flk/stage/mls_oz_nrt/MLSNRToz.%y4%m2%d2_%h2z.nc
+# 20180401_00z-21001231_18z 240000  /discover/nobackup/dao_ops/intermediate/flk/stage/mls_oz_nrt/MLSNRT-v4.2-oz.%y4%m2%d2_%h2z.nc
   20140723_00z-20140815_18z 240000  /archive/input/dao_ops/ops/flk/mls_oz_nrt/netcdf/mls_oz_nrt/Y%y4/M%m2/MLSNRToz.%y4%m2%d2_%h2z.nc
-  20140818_00z-21001231_18z 240000  /archive/input/dao_ops/ops/flk/mls_oz_nrt/netcdf/mls_oz_nrt/Y%y4/M%m2/MLSNRToz.%y4%m2%d2_%h2z.nc
+  20140818_00z-20180331_18z 240000  /archive/input/dao_ops/ops/flk/mls_oz_nrt/netcdf/mls_oz_nrt/Y%y4/M%m2/MLSNRToz.%y4%m2%d2_%h2z.nc
+  20180401_00z-21001231_18z 240000  /archive/input/dao_ops/ops/flk/mls_oz_nrt/netcdf/mls_oz_nrt/Y%y4/M%m2/MLSNRT-v4.2-oz.%y4%m2%d2_%h2z.nc
 END
 
 # TRMM TMI 1B11 brightness temperature
@@ -716,17 +720,23 @@ END
 #-------------------------
 BEGIN gmao_gmi_bufr => gmi.%y4%m2%d2.t%h2z.bufr
 # V03A
- 20140304_18z-21001231_18z 240000  /archive/u/jjin3/obs_data/gmi/gmi_bufr_data/V03/1CR/Y%y4/M%m2/gmi_L1CR.%y4%m2%d2.t%h2z.bufr
+# 20140304_18z-21001231_18z 240000  /archive/u/jjin3/obs_data/gmi/gmi_bufr_data/V03/1CR/Y%y4/M%m2/gmi_L1CR.%y4%m2%d2.t%h2z.bufr
+ 20140304_18z-21001231_18z 240000 /archive/input/dao_ops/ops/flk/gmi/bufr/gmi/Y%y4/M%m2/gmi_L1CR.%y4%m2%d2.t%h2z.bufr
 END 
 
 # RapidScat Scatterometer Surface Winds onboard ISS
 #-------------------------
 BEGIN rscat_bufr => rscat.%y4%m2%d2.t%h2z.bufr_d.ublk
-  20150501_00z-21001231_18z 240000 /discover/nobackup/dao_ops/intermediate/flk/stage/rapidscat/rscat.%y4%m2%d2.%h2z.bufr
+# 20150501_00z-21001231_18z 240000 /discover/nobackup/dao_ops/intermediate/flk/stage/rapidscat/rscat.%y4%m2%d2.%h2z.bufr
+  20150501_00z-20170501_12z 240000 /archive/input/dao_ops/ops/flk/rapidscat/bufr/rapidscat/Y%y4/M%m2/rscat.%y4%m2%d2.%h2z.bufr
 END
 
 # Suomi NPP OMPS-Limb Profiler near real time
 BEGIN ompslp_nc => ompslpnc.%y4%m2%d2.t%h2z.nc
-  20110101_18z-present  240000  /archive/u/kwargan/data/OMPS-LP/NetCDF_error_x_1.5/Y%y4/M%m2/OMPS-LPoz.%y4%m2%d2_%h2z.nc
+  20110101_18z-21001231_18z 240000  /archive/u/kwargan/data/OMPS-LP/NetCDF_error_x_1.5/Y%y4/M%m2/OMPS-LPoz.%y4%m2%d2_%h2z.nc
 END
 
+# Aircraft metadata for GSI temperature bias correction
+BEGIN ncep_acftpfl_bufr => gdas1.%y4%m2%d2.t%h2z.prepbufr.acft_profiles.ublk
+  20160511_00z-21001231_18z 240000  /archive/input/dao_ops/ops/flk/ncep_NotUsed/bufr/AIRCFT/Y%y4/M%m2/gdas1.%y4%m2%d2.t%h2z.prepbufr.acft_profiles
+END

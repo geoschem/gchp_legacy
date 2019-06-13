@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2018, University Corporation for Atmospheric Research,
+! Copyright 2002-2019, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -77,7 +77,7 @@ program ESMF_RedistUTest
         !EX_UTest_Multi_Proc_Only
         call test_redist_3dweak(rc)
         write(failMsg, *) ""
-        write(name, *) "FieldRedist basic test with weakly congruent Fields"
+        write(name, *) "FieldRedist basic test with compatible Fields"
         call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
 #endif
     call ESMF_TestEnd(ESMF_SRCLINE)

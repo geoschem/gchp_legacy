@@ -9,8 +9,8 @@ subroutine GetWeightsC2C( npx_in, npy_in, npx_out, npy_out, index, weight, &
  use ESMF
  implicit none
   integer, intent(in) :: npx_in, npy_in, npx_out, npy_out
-  integer, intent(out) :: index(:,:,:)
-  real(R8), intent(out) :: weight(:,:,:)
+  integer, intent(out) :: index(:,:,:,:)
+  real(R8), intent(out) :: weight(:,:,:,:)
   real(R8), dimension(:,:,:), intent(out) :: ee1, ee2, ff1, ff2
 ! Note that the shape of ee's and ff's is different
 

@@ -13,13 +13,8 @@ c **********************************************************************
       integer  im,jm,lm,nt
 
       integer  nymd  ,nhms
-      integer  nymd0 ,nhms0
       integer  nymdr ,nhmsr
       integer  nymdb ,nhmsb
-      integer  nymdb0,nhmsb0
-
-      integer  hour,day,month,year
-
 
 c Generic Model Variables
 c -----------------------
@@ -35,15 +30,10 @@ c -----------------------------
       character*256, pointer :: name2d(:), name3d(:)
       character*256, pointer :: titl2d(:), titl3d(:)
       character*256, pointer :: unit2d(:), unit3d(:)
-      character*256, pointer :: namesp (:)
-      character*256, pointer :: name2dp(:), name3dp(:)
-      character*256, pointer :: titl2dp(:), titl3dp(:)
-      character*256, pointer :: unit2dp(:), unit3dp(:)
       character*256  levunits
 
-      integer id,rc,fid,nhmsf,n2d,n3d
-      integer n2dp,n3dp,nvarsp
-      integer nvars,ngatts,ntime,ntimes,gfrc
+      integer id,rc,fid,n2d,n3d
+      integer nvars,ntime,ntimes,gfrc
 
       character*256, allocatable ::   arg(:)
       character*256, allocatable :: fname(:)
@@ -62,20 +52,19 @@ c -----------------------------
       character*256  phisname
       character*4    xdim,ydim,zdim
 
-      character*8    date,date0
+      character*8    date0
       character*4    time0
-      character*2    time,hour0,mins0
+      character*2    hour0,mins0
       character*1    char
 
-      integer n,m,nargs,iargc,L,nbeg,nfiles,npfiles,mlev
+      integer n,m,nargs,iargc,nfiles
 
       real    undef
-      integer i,j,ndt
+      integer ndt
       integer imout,jmout,lmout
       logical hdfcreate
       logical Ldtoa
 
-      character*8 cdate
 
       interface
                 subroutine read_eta_meta ( hdffile,im,jm,lm,n2d,n3d,lat,lon,lev,undef,id,
@@ -290,7 +279,7 @@ C **********************************************************************
 
               if( rc.eq.0 ) then
                   call convert ( q2d,q3d,name2d,titl2d,unit2d,name3d,titl3d,unit3d,n2d,n3d,undef,
-     .                           levunits,im,jm,lm,nt,lat,lon,lev,nymd,nhms,ndt,
+     .                           levunits,im,jm,lm,lat,lon,lev,nymd,nhms,ndt,
      .                           fid,hdfcreate,hdfile,imout,jmout,lmout,grid,
      .                           psname,dpname,uname2,vname2,tname2,qname,ozname,phisname,topo,Ldtoa)
 
@@ -325,7 +314,7 @@ C **********************************************************************
       real  q3d(im,jm,lm,n3d)
       real    u(im,jm,lm)
       real    v(im,jm,lm)
-      real    undef
+      real    undef,qmin,qmax
       character*256    name2d(n2d)
       character*256    name3d(n3d)
       character*256    grid
@@ -342,19 +331,24 @@ C **********************************************************************
 
 c Collect Eta Data
 c ----------------
+          print *, 'Reading nymd: ',nymd,' nhms: ',nhms
+          print *
           do n=1,n2d
           call gfio_getvar ( id,trim(name2d(n)),nymd,nhms,im,jm,0,1,q2d(1,1,n),rc )
           if( rc.ne.0 ) then
               rc = 1  ! No more time periods in file
               return
           endif
+          call minmax (q2d(1,1,n),im,jm,1,qmin,qmax,undef)
+          print *, trim(name2d(n)),' Min: ',qmin,' Max: ',qmax
           enddo
-          print *, 'Reading nymd: ',nymd,' nhms: ',nhms
 
           nundef = 0
           nvndef = 0
           do n=1,n3d
           call gfio_getvar ( id,trim(name3d(n)),nymd,nhms,im,jm,1,lm,q3d(1,1,1,n),rc )
+          call minmax (q3d(1,1,1,n),im,jm,lm,qmin,qmax,undef)
+          print *, trim(name3d(n)),' Min: ',qmin,' Max: ',qmax
 
              if( trim(name3d(n)).eq.trim(uname) ) then
                     nu = n
@@ -419,7 +413,7 @@ c ------------------------------------------------
       end subroutine read_eta_data
 
       subroutine convert ( q2d,q3d,name2d,titl2d,unit2d,name3d,titl3d,unit3d,n2d,n3d,undef,
-     .                     levunits,im,jm,lm,nt,lat,lon,lev,nymd,nhms,ninc,
+     .                     levunits,im,jm,lm,lat,lon,lev,nymd,nhms,ninc,
      .                     id,create,filename,imo,jmo,lmo,grid,
      .                     psname,dpname,uname,vname,tname,qname,ozname,phisname,topo,Ldtoa)
 
@@ -429,8 +423,7 @@ c ------------------------------------------------
 
 c Input Variables
 c ---------------
-      integer  im,jm,lm,nt,nymd,nhms,ninc,n2d,n3d
-      integer  nymd0,nhms0
+      integer  im,jm,lm,nymd,nhms,ninc,n2d,n3d
 
       real   q2d(im,jm,   n2d)
       real   q3d(im,jm,lm,n3d)
@@ -479,10 +472,10 @@ c ---------------
 
 c Local Variables
 c ---------------
-      integer i,j,k,L,n,m
+      integer i,j,L,n,m
       integer nu,nv,kdum
 
-      real    undef, pi,dx,dy
+      real    undef, pi,dx,dy, qmin, qmax
       real*8  ptop, rdum
       integer precision,id,timeinc,rc,nhmsf
 
@@ -537,10 +530,10 @@ C **********************************************************************
           write(6,100) imo,jmo
   100     format(1x,'Interpolating to Horizontal Resolution (',i4,' x ',i4,') ...')
           do n=1,n2d
-          call hinterp ( q2d(1,1,n),im,jm,z2d(1,1,n),imo,jmo,1,undef,1,3,.false. )
+          call hinterp ( q2d(1,1,n),im,jm,z2d(1,1,n),imo,jmo,1,undef)
           enddo
           do n=1,n3d
-          call hinterp ( q3d(1,1,1,n),im,jm,z3d(1,1,1,n),imo,jmo,lm,undef,1,3,.false. )
+          call hinterp ( q3d(1,1,1,n),im,jm,z3d(1,1,1,n),imo,jmo,lm,undef)
           enddo
       else
           z2d=q2d
@@ -586,20 +579,20 @@ C **********************************************************************
 C ****             Interpolate to New Output Levels                 ****
 C **********************************************************************
 
-      if( imo.ne.im .or. jmo.ne.jm .or. lmo.ne.lm ) then
+      do n=1,n2d
+         if( trim(name2d(n)).eq.trim(  psname) )   ps = z2d(:,:,n)
+         if( trim(name2d(n)).eq.trim(phisname) ) phis = z2d(:,:,n)
+      enddo
+      do n=1,n3d
+         if( trim(name3d(n)).eq.trim(  uname) )           u = z3d(:,:,:,n)
+         if( trim(name3d(n)).eq.trim(  vname) )           v = z3d(:,:,:,n)
+         if( trim(name3d(n)).eq.trim(  tname) )           t = z3d(:,:,:,n)
+         if( trim(name3d(n)).eq.trim( dpname) )          dp = z3d(:,:,:,n)
+         if( trim(name3d(n)).eq.trim(  qname) )  q(:,:,:,1) = z3d(:,:,:,n)
+         if( trim(name3d(n)).eq.trim( ozname) )  q(:,:,:,2) = z3d(:,:,:,n)
+      enddo
 
-          do n=1,n2d
-             if( trim(name2d(n)).eq.trim(  psname) )   ps = z2d(:,:,n)
-             if( trim(name2d(n)).eq.trim(phisname) ) phis = z2d(:,:,n)
-          enddo
-          do n=1,n3d
-             if( trim(name3d(n)).eq.trim(  uname) )           u = z3d(:,:,:,n)
-             if( trim(name3d(n)).eq.trim(  vname) )           v = z3d(:,:,:,n)
-             if( trim(name3d(n)).eq.trim(  tname) )           t = z3d(:,:,:,n)
-             if( trim(name3d(n)).eq.trim( dpname) )          dp = z3d(:,:,:,n)
-             if( trim(name3d(n)).eq.trim(  qname) )  q(:,:,:,1) = z3d(:,:,:,n)
-             if( trim(name3d(n)).eq.trim( ozname) )  q(:,:,:,2) = z3d(:,:,:,n)
-          enddo
+      if( imo.ne.im .or. jmo.ne.jm .or. lmo.ne.lm ) then
 
           if( imo.ne.im .or. jmo.ne.jm .or. trim(topo).ne.'NULL' ) then
               close(55)
@@ -644,7 +637,7 @@ C **********************************************************************
 
           print *, 'Calling REMAP ...'
           call remap  ( pso,dpo,uo,vo,to,qo,phiso,lmo,
-     .                  ps ,dp ,u ,v ,t ,q ,phis ,lm ,
+     .                  ps ,u ,v ,t ,q ,phis ,lm ,
      .                  imo,jmo,2 )
           print *, '        REMAP Finished'
 
@@ -659,6 +652,14 @@ C **********************************************************************
           deallocate( ak,bk,ple )
       else
           levs(1:lmo) = lev(1:lmo)
+          phiso = phis
+          pso   = ps
+          uo    = u
+          vo    = v
+          to    = t
+          dpo   = dp
+          qo(:,:,:,1) = q(:,:,:,1)
+          qo(:,:,:,2) = q(:,:,:,2)
       endif
 
 C **********************************************************************
@@ -726,7 +727,7 @@ C **********************************************************************
              else
                                                           dum2d = z2d(:,:,n)
              endif
-             call writit( dum2d, imo,jmo,1 ,id,name2d(n),nymd,nhms,undef )
+             call writit( dum2d, imo,jmo,1 ,id,name2d(n),nymd,nhms )
       enddo
       do n=1,n3d
              if(      trim(name3d(n)).eq.trim(  uname) ) then
@@ -755,7 +756,7 @@ C **********************************************************************
                    dum3d = z3d(:,:,:,n)
                endif
              endif
-         call writit( dum3d,imo,jmo,lmo,id,name3d(n),nymd,nhms,undef )
+         call writit( dum3d,imo,jmo,lmo,id,name3d(n),nymd,nhms )
       enddo
 
 C **********************************************************************
@@ -788,8 +789,7 @@ C **********************************************************************
       integer       id,im,jm,lm,n2d,n3d,nvars,nsecf,timeId,ncvid
       integer       ntime,ngatts,rc,timinc,nymdb,nhmsb,ndt
       real          undef
-      integer       i,j,L,m,n
-      character*256 name
+      integer       n
 
       character*256  title
       character*256  source
@@ -804,7 +804,6 @@ C **********************************************************************
       integer, allocatable :: yymmdd(:)
       integer, allocatable :: hhmmss(:)
       integer, allocatable ::  kmvar(:)
-      integer, allocatable ::    loc(:)
                                                                                                                      
 C **********************************************************************
 C ****                  Read HDF File for Meta Data                 ****
@@ -1042,16 +1041,17 @@ C***********************************************************************
       RETURN
       end function incymd
 
-      subroutine writit (q,im,jm,lm,id,name,nymd,nhms,undef)
-      integer im,jm,lm,L
+      subroutine writit (q,im,jm,lm,id,name,nymd,nhms)
+      integer im,jm,lm
       integer id,nymd,nhms,rc,lbeg
       character*256 name
       real    q (im,jm,lm)
-      real    undef
+      real    undef,qmin,qmax
                     lbeg = 1
       if( lm.eq.1 ) lbeg = 0
-      write(6,100) trim(name)
-  100 format(1x,'       Writing variable: ',a)
+      call minmax (q,im,jm,lm,qmin,qmax,undef)
+      write(6,100) trim(name),qmin,qmax
+  100 format(1x,'       Writing variable: ',a,' Min: ',g12.6,' Max: ',g12.6)
       call Gfio_putVar ( id,trim(name),nymd,nhms,im,jm,lbeg,lm,q,rc )
       return
       end subroutine writit
@@ -1085,15 +1085,15 @@ C***********************************************************************
       call exit(7)
       end subroutine usage
 
-      subroutine hinterp ( qin,iin,jin,qout,iout,jout,mlev,undef,msgn,norder,check )
+      subroutine hinterp ( qin,iin,jin,qout,iout,jout,mlev,undef )
       implicit   none
-      integer    iin,jin,       iout,jout, mlev,msgn,norder
+      integer    iin,jin,       iout,jout, mlev
       real   qin(iin,jin,mlev), qout(iout,jout,mlev)
       real undef,pi,dlin,dpin,dlout,dpout
       real dlam(iin), lons(iout*jout), lon
       real dphi(jin), lats(iout*jout), lat
       integer i,j,loc
-      logical check
+
 
       pi = 4.0*atan(1.0)
       dlin = 2*pi/iin
@@ -1174,13 +1174,9 @@ c ---------------
 
 c Local Variables
 c ---------------
-      integer  i,j,l,m,n
+      integer  i,j,l
       integer, allocatable       :: ip1(:), ip0(:), im1(:), im2(:)
       integer, allocatable       :: jp1(:), jp0(:), jm1(:), jm2(:)
-
-      integer ip1_for_jp1, ip0_for_jp1, im1_for_jp1, im2_for_jp1
-      integer ip1_for_jm2, ip0_for_jm2, im1_for_jm2, im2_for_jm2
-      integer jm2_for_jm2, jp1_for_jp1
 
 c Bi-Linear Weights
 c -----------------
@@ -1208,8 +1204,8 @@ c ----------------
       real, allocatable       ::    wc_im1jm2 (:)
       real, allocatable       ::    wc_im2jm2 (:)
 
-      real    ux, ap1, ap0, am1, am2
-      real    uy, bp1, bp0, bm1, bm2
+      real    ap1, ap0, am1, am2
+      real    bp1, bp0, bm1, bm2
 
       real, allocatable :: lon_cmp(:)
       real, allocatable :: lat_cmp(:)
@@ -1218,9 +1214,9 @@ c ----------------
       real    pi,d
       real    lam,lam_ip1,lam_ip0,lam_im1,lam_im2
       real    phi,phi_jp1,phi_jp0,phi_jm1,phi_jm2
-      real    dl,dp,phi_np,lam_0
-      real    lam_geo, lam_cmp
-      real    phi_geo, phi_cmp
+      real    dl,dp
+      real    lam_cmp
+      real    phi_cmp
       real    undef
       integer im1_cmp,icmp
       integer jm1_cmp,jcmp
@@ -2763,8 +2759,8 @@ C
       real  q   (im,jm,lm)
       real logpl(im,jm,lm)
 
-      real  p,undef
-      real  logp,logpmin,logpmax,temp
+      real  undef
+      real  logp,temp
 
 c Initialize to UNDEFINED
 c -----------------------
@@ -2811,11 +2807,11 @@ c -------------------------------------------
       end subroutine sigtopl
 
       subroutine remap  ( ps1,dp1,u1,v1,thv1,q1,phis1,lm1,
-     .                    ps2,dp2,u2,v2,thv2,q2,phis2,lm2,im,jm,nt )
+     .                    ps2,u2,v2,thv2,q2,phis2,lm2,im,jm,nt )
 
 c *******************************************************************************
 c *****                                                                     *****
-c *****   Program to remap Target analysis variables (ps2,dp2,u2,v2,t2,q2)  *****
+c *****   Program to remap Target analysis variables (ps2,u2,v2,t2,q2)  *****
 c *****   onto Model grid variables (ps1,dp1,u1,v1,thv1,q1).  Program       *****
 c *****   allows for different topographies between Analysis and Model.     *****
 c *****                                                                     *****
@@ -2839,10 +2835,8 @@ c ---------------
 
 c Target analysis variables
 c -------------------------
-      real     dp2(im,jm,lm2)
       real      u2(im,jm,lm2)
       real      v2(im,jm,lm2)
-      real      t2(im,jm,lm2)
       real    thv2(im,jm,lm2)
       real      q2(im,jm,lm2,nt)
       real     ps2(im,jm)
@@ -2850,20 +2844,17 @@ c -------------------------
 
 c Local variables
 c ---------------
-      real    pz(im,jm)
-      real   pe0(im,jm,lm1+1)
       real   pe1(im,jm,lm1+1)
       real   pe2(im,jm,lm2+1)
       real   pk (im,jm,lm2  )
-      real  pke0(im,jm,lm1+1)
       real  pke1(im,jm,lm1+1)
       real  pke2(im,jm,lm2+1)
       real  phi2(im,jm,lm2+1)
       real ptop1(im,jm)
 
       real*8  rdum
-      real    kappa,cp,pl,dum,dum1,dum2
-      real    rgas,pref,tref,pkref,tstar,eps,rvap,grav
+      real    kappa,cp,dum1,dum2
+      real    rgas,eps,rvap,grav
       integer i,j,L,kdum
 
       real*8, allocatable :: ak(:)
@@ -2965,7 +2956,7 @@ c Map target analysis onto grid defined by new surface pressure
 c -------------------------------------------------------------
       print *, 'Calling GMAP, LM_in : ',lm2
       print *, '              LM_out: ',lm1
-      call gmap ( im,jm,nt, kappa,
+      call gmap ( im,jm,nt,
      .            lm2,  pke2,  pe2, u2,  v2,  thv2,  q2,
      .            lm1,  pke1,  pe1, u1,  v1,  thv1,  q1 )
 
@@ -2974,7 +2965,7 @@ c -------------------------------------------------------------
       end
 
 c****6***0*********0*********0*********0*********0*********0**********72
-      subroutine gmap(im, jm, nq,  akap,
+      subroutine gmap(im, jm, nq,
      &         km,  pk3d_m,  pe3d_m, u_m,  v_m,  pt_m,  q_m,
      &         kn,  pk3d_n,  pe3d_n, u_n,  v_n,  pt_n,  q_n  )
 c****6***0*********0*********0*********0*********0*********0**********72
@@ -3005,7 +2996,7 @@ C New data (kn-level)
       real   pe3d_n(im,jm,kn+1)
 
 c local (private)
-      integer i, j, k, ic, n
+      integer i, j, k, n
 
       real pe1(im,km+1),pe2(im,kn+1)
       real pk1(im,km+1),pk2(im,kn+1)
@@ -3015,9 +3006,6 @@ c local (private)
       real  t1(im,km)  , t2(im,kn)
       real  q1(im,km)  , q2(im,kn)
 
-      real ptop
-      real akap
-      real ple,  pek, dak, bkh
       real undef
       real big
       parameter ( undef = 1.e15 )
@@ -3059,7 +3047,7 @@ c Copy original data to local 2D arrays.
 
 c map pt
 c ------
-      call mappm ( km, pk1, dp1, t1, kn, pk2, dp2, t2, im, 1, 7 )
+      call mappm ( km, pk1, dp1, t1, kn, pk2, t2, im, 1, 7 )
 
       do k=1,km
       do i=1,im
@@ -3075,8 +3063,8 @@ c ------
 
 c map u,v
 c -------
-      call mappm ( km, pe1, dp1, u1, kn, pe2, dp2, u2, im, -1, 7 )
-      call mappm ( km, pe1, dp1, v1, kn, pe2, dp2, v2, im, -1, 7 )
+      call mappm ( km, pe1, dp1, u1, kn, pe2, u2, im, -1, 7 )
+      call mappm ( km, pe1, dp1, v1, kn, pe2, v2, im, -1, 7 )
 
 c map q
 c -------
@@ -3086,7 +3074,7 @@ c -------
           q1(i,k) =  q_m(i,j,k,n)
          enddo
          enddo
-         call mappm ( km, pe1, dp1, q1, kn, pe2, dp2, q2, im,  0, 7 )
+         call mappm ( km, pe1, dp1, q1, kn, pe2, q2, im,  0, 7 )
          do k=1,kn
          do i=1,im
            q_n(i,j,k,n) = q2(i,k)
@@ -3109,7 +3097,7 @@ c -------
 
 
 C****6***0*********0*********0*********0*********0*********0**********72
-      subroutine mappm(km, pe1, dp1, q1, kn, pe2, dp2, q2, im, iv, kord)
+      subroutine mappm(km, pe1, dp1, q1, kn, pe2, q2, im, iv, kord)
 C****6***0*********0*********0*********0*********0*********0**********72
 C IV = 0: constituents
 C IV = 1: potential temp
@@ -3125,7 +3113,7 @@ C      in the new vertical coordinate
       parameter (kmax = 200)
       parameter (R3 = 1./3., R23 = 2./3.)
 
-      real dp1(im,km),   dp2(im,kn),
+      real dp1(im,km),
      &      q1(im,km),    q2(im,kn),
      &     pe1(im,km+1), pe2(im,kn+1)
       integer kord
@@ -3240,10 +3228,9 @@ c iv =-1: winds
 c local arrays.
       real dc(im,km),delq(im,km)
       real h2(im,km)
-      real a1, a2, a3, b2, c1, c2, c3, d1, d2, f1, f2, f3, f4
-      real s1, s2, s3, s4, ss3, s32, s34, s42, sc
+      real a1, a2, c1, c2, c3, d1, d2
       real qmax, qmin, cmax, cmin
-      real dm, qm, dq, tmp
+      real qm, dq, tmp
 
 C Local scalars:
       real qmp
@@ -3502,6 +3489,35 @@ c Positive definite constraint
          q(:,j,L) = dum(:)
       enddo
       enddo
+      return
+      end
+
+      subroutine minmax (q,im,jm,lm,qmin,qmax,undef)
+      real   q(im,jm,lm)
+
+      qmin = undef
+      qmax = undef
+      do L=1,lm
+      do j=1,jm
+      do i=1,im
+      if( q(i,j,L).ne.undef ) then
+          qmin = q(i,j,L)
+          qmax = q(i,j,L)
+          exit
+      endif
+      enddo
+      enddo
+      enddo
+
+      do L=1,lm
+      do j=1,jm
+      do i=1,im
+      if( q(i,j,L).ne.undef ) qmin = min( qmin,q(i,j,L) )
+      if( q(i,j,L).ne.undef ) qmax = max( qmax,q(i,j,L) )
+      enddo
+      enddo
+      enddo
+!     print *, 'L: ',L,' qmin: ',qmin,' qmax: ',qmax
       return
       end
 

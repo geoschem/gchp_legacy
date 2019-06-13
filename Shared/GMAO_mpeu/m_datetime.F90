@@ -1,3 +1,4 @@
+#include "unused_dummy.H"
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ! NASA/GSFC, Global Modeling and Assimilation Office, 900.3, GEOS/DAS  !
 !BOP -------------------------------------------------------------------
@@ -149,7 +150,6 @@ function valid_(date,time) ! -- validate (date,time)
   implicit none
   integer,optional,intent(in) :: date,time ! yyyymmdd,hhhhmmss
   logical :: valid_
-  integer :: d,t
   valid_=present(date) .or. present(time)
   if(valid_) then
     if(present(date)) valid_= validdate(date)
@@ -173,6 +173,7 @@ function validtimei_(hr,mi,sc) ! -- validate time in (h,m,s)
   implicit none
   integer,intent(in) :: hr,mi,sc
   logical :: validtimei_
+  _UNUSED_DUMMY(hr)
   validtimei_= abs(mi) <= 59 .and. abs(sc) <= 59 ! any hr is fine.
 end function validtimei_
 
@@ -193,7 +194,7 @@ subroutine normal_(date,time)
   integer,intent(inout) :: date ! in yyyymmdd
   integer,intent(inout) :: time ! in +-hhmmss
   integer :: jd
-  integer :: y,m,d,h,s
+  integer :: m,d,h,s
 
     ! Nothing can be done if (date,time) is invalid to begin with, such
     ! as, d=19993030 or t=016299.  When the situation occurs, date=-1 is

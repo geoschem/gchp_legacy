@@ -1,5 +1,6 @@
 module nwp_nudge_mod
 
+ use fv_arrays_mod,  only: REAL4, REAL8, FVPRC
  use fv_control_mod,    only: npx, npy
  use fv_grid_utils_mod, only: i_sst, j_sst, sst_ncep
  use fv_grid_utils_mod, only: vlon, vlat, sina_u, sina_v, da_min, great_circle_dist, ks, intp_great_circle
@@ -29,33 +30,33 @@ module nwp_nudge_mod
  integer im     ! Data x-dimension
  integer jm     ! Data y-dimension
  integer km     ! Data z-dimension
- real, allocatable:: ak0(:), bk0(:)
- real, allocatable:: lat(:), lon(:)
+ real(FVPRC), allocatable:: ak0(:), bk0(:)
+ real(FVPRC), allocatable:: lat(:), lon(:)
 
  logical :: module_is_initialized = .false.
  logical :: master
  logical :: no_obs
- real :: deg2rad, rad2deg
- real :: time_nudge = 0.
+ real(FVPRC) :: deg2rad, rad2deg
+ real(FVPRC) :: time_nudge = 0.
  integer :: time_interval = 6*3600   ! dataset time interval (seconds)
  integer, parameter :: nfile_max = 125
  integer :: nfile = 1
 
  integer :: k_breed = 0
  integer :: k_trop = 0
- real    :: p_trop = 300.E2
+ real(FVPRC)    :: p_trop = 300.E2
 
- real,    allocatable:: s2c(:,:,:)
+ real(FVPRC),    allocatable:: s2c(:,:,:)
  integer, allocatable:: id1(:,:), id2(:,:), jdc(:,:)
- real, allocatable :: ps_dat(:,:,:)
+ real(FVPRC), allocatable :: ps_dat(:,:,:)
  real*4, allocatable, dimension(:,:,:,:):: u_dat, v_dat, t_dat, q_dat
- real, allocatable:: gz0(:,:)
+ real(FVPRC), allocatable:: gz0(:,:)
 
 ! Namelist variables:
  character(len=128):: file_names(nfile_max)
  character(len=128):: track_file_name
  integer :: nfile_total = 0       ! =5 for 1-day (if datasets are 6-hr apart)
- real    :: p_wvp = 100.E2        ! cutoff level for specific humidity nudging 
+ real(FVPRC)    :: p_wvp = 100.E2        ! cutoff level for specific humidity nudging 
  integer :: kord_data = 8
 
  logical :: tc_mask = .false.
@@ -74,15 +75,15 @@ module nwp_nudge_mod
 
 ! Nudging time-scales (seconds): note, however, the effective time-scale is 2X smaller (stronger) due
 ! to the use of the time-varying weighting factor
- real :: tau_q      = 86400.       ! 1-day
- real :: tau_tpw    = 86400.       ! 1-day
- real :: tau_winds  = 21600.       !  6-hr
- real :: tau_t      = 86400.
- real :: tau_virt   = 86400. 
- real :: tau_hght   = 86400.
+ real(FVPRC) :: tau_q      = 86400.       ! 1-day
+ real(FVPRC) :: tau_tpw    = 86400.       ! 1-day
+ real(FVPRC) :: tau_winds  = 21600.       !  6-hr
+ real(FVPRC) :: tau_t      = 86400.
+ real(FVPRC) :: tau_virt   = 86400. 
+ real(FVPRC) :: tau_hght   = 86400.
 
- real :: q_min      = 1.E-8
- real :: q_rat
+ real(FVPRC) :: q_min      = 1.E-8
+ real(FVPRC) :: q_rat
 
  integer :: nf_uv = 0 
  integer :: nf_t  = 2 
@@ -100,12 +101,12 @@ module nwp_nudge_mod
 ! track dataset: 'INPUT/tropical_cyclones.txt'
 
   logical :: breed_vortex = .false.
-  real :: tau_vortex    = 600.
+  real(FVPRC) :: tau_vortex    = 600.
 
-  real :: slp_env = 101010.    ! storm environment pressure (pa)
-  real :: r_min = 200.E3
-  real :: r_inc =  25.E3
-  real, parameter:: del_r = 50.E3
+  real(FVPRC) :: slp_env = 101010.    ! storm environment pressure (pa)
+  real(FVPRC) :: r_min = 200.E3
+  real(FVPRC) :: r_inc =  25.E3
+  real(FVPRC), parameter:: del_r = 50.E3
   integer:: year_track_data
   integer, parameter:: max_storm = 140     ! max # of storms to process
   integer, parameter::  nobs_max = 125     ! Max # of observations per storm
@@ -136,31 +137,31 @@ module nwp_nudge_mod
   type(time_type), intent(in):: Time
   integer,         intent(in):: npz           ! vertical dimension
   integer,         intent(in):: nwat
-  real,            intent(in):: dt
-  real,            intent(in):: zvir
-  real, intent(in   ), dimension(npz+1):: ak, bk
-  real, intent(in   ), dimension(isd:ied,jsd:jed    ):: phis
-  real, intent(inout), dimension(isd:ied,jsd:jed,npz):: pt, ua, va, delp
-  real, intent(inout):: q(isd:ied,jsd:jed,npz,nwat)
-  real, intent(inout), dimension(isd:ied,jsd:jed):: ps
+  real(FVPRC),            intent(in):: dt
+  real(FVPRC),            intent(in):: zvir
+  real(FVPRC), intent(in   ), dimension(npz+1):: ak, bk
+  real(FVPRC), intent(in   ), dimension(isd:ied,jsd:jed    ):: phis
+  real(FVPRC), intent(inout), dimension(isd:ied,jsd:jed,npz):: pt, ua, va, delp
+  real(FVPRC), intent(inout):: q(isd:ied,jsd:jed,npz,nwat)
+  real(FVPRC), intent(inout), dimension(isd:ied,jsd:jed):: ps
 ! Accumulated tendencies
-  real, intent(inout), dimension(isd:ied,jsd:jed,npz):: u_dt, v_dt
-  real, intent(out):: t_dt(is:ie,js:je,npz)
-  real, intent(out):: q_dt(is:ie,js:je,npz)
-  real, intent(out), dimension(is:ie,js:je):: ps_dt, ts
+  real(FVPRC), intent(inout), dimension(isd:ied,jsd:jed,npz):: u_dt, v_dt
+  real(FVPRC), intent(out):: t_dt(is:ie,js:je,npz)
+  real(FVPRC), intent(out):: q_dt(is:ie,js:je,npz)
+  real(FVPRC), intent(out), dimension(is:ie,js:je):: ps_dt, ts
 ! local:
-  real:: tpw_dat(is:ie,js:je)
-  real:: tpw_mod(is:ie,js:je)
-  real::   mask(is:ie,js:je)
-  real:: gz_int(is:ie,js:je), gz(is:ie,npz+1), peln(is:ie,npz+1), pk(is:ie,npz+1)
-  real:: pe1(is:ie)
-  real:: pkz, ptmp
-  real, allocatable :: ps_obs(:,:)
-  real, allocatable, dimension(:,:,:):: u_obs, v_obs, t_obs, q_obs
+  real(FVPRC):: tpw_dat(is:ie,js:je)
+  real(FVPRC):: tpw_mod(is:ie,js:je)
+  real(FVPRC)::   mask(is:ie,js:je)
+  real(FVPRC):: gz_int(is:ie,js:je), gz(is:ie,npz+1), peln(is:ie,npz+1), pk(is:ie,npz+1)
+  real(FVPRC):: pe1(is:ie)
+  real(FVPRC):: pkz, ptmp
+  real(FVPRC), allocatable :: ps_obs(:,:)
+  real(FVPRC), allocatable, dimension(:,:,:):: u_obs, v_obs, t_obs, q_obs
   integer :: seconds, days
   integer :: i,j,k, iq, kht
-  real :: factor
-  real :: dbk, rdt, press(npz), profile(npz), prof_t(npz), prof_q(npz), du, dv
+  real(FVPRC) :: factor
+  real(FVPRC) :: dbk, rdt, press(npz), profile(npz), prof_t(npz), prof_q(npz), du, dv
 
 
   if ( .not. module_is_initialized ) then 
@@ -458,22 +459,22 @@ module nwp_nudge_mod
                     tpw_dat, phis, gz_int, npz)
   type(time_type), intent(in):: Time
   integer,         intent(in):: npz           ! vertical dimension
-  real,            intent(in):: zvir
-  real,            intent(in):: dt
-  real, intent(in), dimension(npz+1):: ak, bk
-  real, intent(in), dimension(isd:ied,jsd:jed):: phis
-  real, intent(in), dimension(isd:ied,jsd:jed,npz):: delp
-  real, intent(inout), dimension(isd:ied,jsd:jed):: ps
-  real, intent(out), dimension(is:ie,js:je):: ts, ps_obs
-  real, intent(out), dimension(is:ie,js:je,npz):: u_obs, v_obs, t_obs, q_obs
-  real, intent(out)::  gz_int(is:ie,js:je)
-  real, intent(out):: tpw_dat(is:ie,js:je)
+  real(FVPRC),            intent(in):: zvir
+  real(FVPRC),            intent(in):: dt
+  real(FVPRC), intent(in), dimension(npz+1):: ak, bk
+  real(FVPRC), intent(in), dimension(isd:ied,jsd:jed):: phis
+  real(FVPRC), intent(in), dimension(isd:ied,jsd:jed,npz):: delp
+  real(FVPRC), intent(inout), dimension(isd:ied,jsd:jed):: ps
+  real(FVPRC), intent(out), dimension(is:ie,js:je):: ts, ps_obs
+  real(FVPRC), intent(out), dimension(is:ie,js:je,npz):: u_obs, v_obs, t_obs, q_obs
+  real(FVPRC), intent(out)::  gz_int(is:ie,js:je)
+  real(FVPRC), intent(out):: tpw_dat(is:ie,js:je)
 ! local:
   real*4, allocatable:: ut(:,:,:), vt(:,:,:)
-  real, dimension(is:ie,js:je):: h1, h2
+  real(FVPRC), dimension(is:ie,js:je):: h1, h2
   integer :: seconds, days
   integer :: i,j,k
-  real :: alpha, beta
+  real(FVPRC) :: alpha, beta
 
   call get_time (time, seconds, days)
 
@@ -592,10 +593,10 @@ module nwp_nudge_mod
 
  subroutine nwp_nudge_init(npz, zvir, ak, bk, ts, phis)
   integer,  intent(in):: npz           ! vertical dimension 
-  real,     intent(in):: zvir
-  real, intent(in), dimension(isd:ied,jsd:jed):: phis
-  real, intent(in), dimension(npz+1):: ak, bk
-  real, intent(out), dimension(is:ie,js:je):: ts
+  real(FVPRC),     intent(in):: zvir
+  real(FVPRC), intent(in), dimension(isd:ied,jsd:jed):: phis
+  real(FVPRC), intent(in), dimension(npz+1):: ak, bk
+  real(FVPRC), intent(out), dimension(is:ie,js:je):: ts
   logical found
   integer tsize(4)
   integer :: i, j, unit, io, ierr, nt, k
@@ -721,16 +722,16 @@ module nwp_nudge_mod
 
 
  subroutine get_ncep_analysis ( ps, u, v, t, q, zvir, ts, nfile, fname )
-  real,     intent(in):: zvir
+  real(FVPRC),     intent(in):: zvir
   character(len=128), intent(in):: fname
   integer,  intent(inout):: nfile
 !
-  real, intent(out), dimension(is:ie,js:je):: ts
-  real, intent(out), dimension(is:ie,js:je):: ps
+  real(FVPRC), intent(out), dimension(is:ie,js:je):: ts
+  real(FVPRC), intent(out), dimension(is:ie,js:je):: ps
   real*4, intent(out), dimension(is:ie,js:je,km):: u, v, t, q
 ! local:
-  real, allocatable:: oro(:,:), wk2(:,:), wk3(:,:,:)
-  real tmean
+  real(FVPRC), allocatable:: oro(:,:), wk2(:,:), wk3(:,:,:)
+  real(FVPRC) tmean
   integer:: i, j, k, npt
   integer:: i1, i2, j1
   logical found
@@ -923,9 +924,9 @@ module nwp_nudge_mod
  subroutine remap_coef
 
 ! local:
-  real :: rdlon(im)
-  real :: rdlat(jm)
-  real:: a1, b1
+  real(FVPRC) :: rdlon(im)
+  real(FVPRC) :: rdlat(jm)
+  real(FVPRC):: a1, b1
   integer i,j, i1, i2, jc, i0, j0
 
   do i=1,im-1
@@ -994,14 +995,14 @@ module nwp_nudge_mod
 
 
  subroutine ncep2fms( sst )
-  real, intent(in):: sst(im,jm)
+  real(FVPRC), intent(in):: sst(im,jm)
 ! local:
-  real :: rdlon(im)
-  real :: rdlat(jm)
-  real:: a1, b1
-  real:: delx, dely
-  real:: xc, yc    ! "data" location
-  real:: c1, c2, c3, c4
+  real(FVPRC) :: rdlon(im)
+  real(FVPRC) :: rdlat(jm)
+  real(FVPRC):: a1, b1
+  real(FVPRC):: delx, dely
+  real(FVPRC):: xc, yc    ! "data" location
+  real(FVPRC):: c1, c2, c3, c4
   integer i,j, i1, i2, jc, i0, j0, it, jt
 
   do i=1,im-1
@@ -1081,14 +1082,14 @@ module nwp_nudge_mod
 
  subroutine get_int_hght(h_int, npz, ak, bk, ps, delp, ps0, tv)
   integer, intent(in):: npz
-  real,    intent(in):: ak(npz+1), bk(npz+1)
-  real,    intent(in), dimension(is:ie,js:je):: ps, ps0
-  real, intent(in), dimension(isd:ied,jsd:jed,npz):: delp
+  real(FVPRC),    intent(in):: ak(npz+1), bk(npz+1)
+  real(FVPRC),    intent(in), dimension(is:ie,js:je):: ps, ps0
+  real(FVPRC), intent(in), dimension(isd:ied,jsd:jed,npz):: delp
   real*4,  intent(in), dimension(is:ie,js:je,km):: tv
-  real,   intent(out), dimension(is:ie,js:je):: h_int  ! g*height
+  real(FVPRC),   intent(out), dimension(is:ie,js:je):: h_int  ! g*height
 ! local:
-  real, dimension(is:ie,km+1):: pn0, gz
-  real:: logp(is:ie)
+  real(FVPRC), dimension(is:ie,km+1):: pn0, gz
+  real(FVPRC):: logp(is:ie)
   integer i,j,k
 
   h_int(:,:) = 1.E25
@@ -1138,20 +1139,20 @@ module nwp_nudge_mod
  subroutine remap_tq( npz, ak,  bk,  ps, delp,  t,  q,  &
                       kmd, ps0, ta, qa, zvir)
   integer, intent(in):: npz, kmd
-  real,    intent(in):: zvir
-  real,    intent(in):: ak(npz+1), bk(npz+1)
-  real,    intent(in), dimension(is:ie,js:je):: ps0
-  real,    intent(inout), dimension(is:ie,js:je):: ps
-  real, intent(in), dimension(isd:ied,jsd:jed,npz):: delp
+  real(FVPRC),    intent(in):: zvir
+  real(FVPRC),    intent(in):: ak(npz+1), bk(npz+1)
+  real(FVPRC),    intent(in), dimension(is:ie,js:je):: ps0
+  real(FVPRC),    intent(inout), dimension(is:ie,js:je):: ps
+  real(FVPRC), intent(in), dimension(isd:ied,jsd:jed,npz):: delp
   real*4,    intent(in), dimension(is:ie,js:je,kmd):: ta
   real*4,    intent(in), dimension(is:ie,js:je,kmd):: qa
   real*4,    intent(out), dimension(is:ie,js:je,npz):: t
   real*4,    intent(out), dimension(is:ie,js:je,npz):: q
 ! local:
-  real, dimension(is:ie,kmd):: tp, qp
-  real, dimension(is:ie,kmd+1):: pe0, pn0
-  real, dimension(is:ie,npz):: qn1
-  real, dimension(is:ie,npz+1):: pe1, pn1
+  real(FVPRC), dimension(is:ie,kmd):: tp, qp
+  real(FVPRC), dimension(is:ie,kmd+1):: pe0, pn0
+  real(FVPRC), dimension(is:ie,npz):: qn1
+  real(FVPRC), dimension(is:ie,npz+1):: pe1, pn1
   integer i,j,k
 
 
@@ -1225,20 +1226,20 @@ module nwp_nudge_mod
 
  subroutine remap_uv(npz, ak, bk, ps, delp, u, v, kmd, ps0, u0, v0)
   integer, intent(in):: npz
-  real,    intent(in):: ak(npz+1), bk(npz+1)
-  real,    intent(inout):: ps(is:ie,js:je)
-  real, intent(in), dimension(isd:ied,jsd:jed,npz):: delp
+  real(FVPRC),    intent(in):: ak(npz+1), bk(npz+1)
+  real(FVPRC),    intent(inout):: ps(is:ie,js:je)
+  real(FVPRC), intent(in), dimension(isd:ied,jsd:jed,npz):: delp
   real*4,    intent(inout), dimension(is:ie,js:je,npz):: u, v
 !
   integer, intent(in):: kmd
-  real,    intent(in):: ps0(is:ie,js:je)
+  real(FVPRC),    intent(in):: ps0(is:ie,js:je)
   real*4,    intent(in), dimension(is:ie,js:je,kmd):: u0, v0
 !
 ! local:
-  real, dimension(is:ie,kmd+1):: pe0
-  real, dimension(is:ie,npz+1):: pe1
-  real, dimension(is:ie,kmd):: qt
-  real, dimension(is:ie,npz):: qn1
+  real(FVPRC), dimension(is:ie,kmd+1):: pe0
+  real(FVPRC), dimension(is:ie,npz+1):: pe1
+  real(FVPRC), dimension(is:ie,kmd):: qt
+  real(FVPRC), dimension(is:ie,npz):: qn1
   integer i,j,k
 
   do 5000 j=js,je
@@ -1325,15 +1326,15 @@ module nwp_nudge_mod
 
 
  subroutine get_tc_mask(time, mask)
-      real :: slp_mask = 100900.    ! crtical SLP to apply mask
+      real(FVPRC) :: slp_mask = 100900.    ! crtical SLP to apply mask
 ! Input
       type(time_type), intent(in):: time
-      real, intent(inout):: mask(is:ie,js:je)
+      real(FVPRC), intent(inout):: mask(is:ie,js:je)
 ! local
-      real:: pos(2)
-      real:: slp_o         ! sea-level pressure (Pa)
-      real:: r_vor, p_vor
-      real:: dist
+      real(FVPRC):: pos(2)
+      real(FVPRC):: slp_o         ! sea-level pressure (Pa)
+      real(FVPRC):: r_vor, p_vor
+      real(FVPRC):: dist
       integer n, i, j
 
     do 5000 n=1,nstorms      ! looop through all storms
@@ -1375,33 +1376,33 @@ module nwp_nudge_mod
 !------------------------------------------------------------------------------------------
 ! Input
       integer, intent(in):: nstep, npz, nwat
-      real, intent(in):: dt       ! (small) time step in seconds
-      real, intent(in):: zvir
-      real, intent(in), dimension(npz+1):: ak, bk
-      real, intent(in):: phis(isd:ied,jsd:jed)
+      real(FVPRC), intent(in):: dt       ! (small) time step in seconds
+      real(FVPRC), intent(in):: zvir
+      real(FVPRC), intent(in), dimension(npz+1):: ak, bk
+      real(FVPRC), intent(in):: phis(isd:ied,jsd:jed)
 ! Input/Output
-      real, intent(inout):: u(isd:ied,jsd:jed+1,npz)
-      real, intent(inout):: v(isd:ied+1,jsd:jed,npz)
-      real, intent(inout), dimension(isd:ied,jsd:jed,npz):: delp, pt
-      real, intent(inout)::q(isd:ied,jsd:jed,npz,*)
+      real(FVPRC), intent(inout):: u(isd:ied,jsd:jed+1,npz)
+      real(FVPRC), intent(inout):: v(isd:ied+1,jsd:jed,npz)
+      real(FVPRC), intent(inout), dimension(isd:ied,jsd:jed,npz):: delp, pt
+      real(FVPRC), intent(inout)::q(isd:ied,jsd:jed,npz,*)
 
-      real, intent(inout):: pk(is:ie,js:je, npz+1)          ! pe**kappa
-      real, intent(inout):: pe(is-1:ie+1, npz+1,js-1:je+1)  ! edge pressure (pascal)
-      real, intent(out):: peln(is:ie,npz+1,js:je)           ! ln(pe)
+      real(FVPRC), intent(inout):: pk(is:ie,js:je, npz+1)          ! pe**kappa
+      real(FVPRC), intent(inout):: pe(is-1:ie+1, npz+1,js-1:je+1)  ! edge pressure (pascal)
+      real(FVPRC), intent(out):: peln(is:ie,npz+1,js:je)           ! ln(pe)
 ! local
       type(time_type):: time
-      real:: ps(is:ie,js:je)
-      real:: dist(is:ie,js:je)
-      real::   tm(is:ie,js:je)
-      real::  slp(is:ie,js:je)
-      real:: pos(2)
-      real:: slp_o         ! sea-level pressure (Pa)
-      real:: p_env
-      real:: r_vor
-      real:: relx0, relx, f1, pbreed, pbtop, pkz
-      real:: p_obs, ratio, p_count, p_sum, mass_sink, delps
-      real:: p_lo, p_hi, tau_vt
-      real:: split_time, fac, pdep
+      real(FVPRC):: ps(is:ie,js:je)
+      real(FVPRC):: dist(is:ie,js:je)
+      real(FVPRC)::   tm(is:ie,js:je)
+      real(FVPRC)::  slp(is:ie,js:je)
+      real(FVPRC):: pos(2)
+      real(FVPRC):: slp_o         ! sea-level pressure (Pa)
+      real(FVPRC):: p_env
+      real(FVPRC):: r_vor
+      real(FVPRC):: relx0, relx, f1, pbreed, pbtop, pkz
+      real(FVPRC):: p_obs, ratio, p_count, p_sum, mass_sink, delps
+      real(FVPRC):: p_lo, p_hi, tau_vt
+      real(FVPRC):: split_time, fac, pdep
       integer year, month, day, hour, minute, second
       integer n, i, j, k, iq, k0
 
@@ -1746,25 +1747,25 @@ module nwp_nudge_mod
 ! Input
       type(time_type), intent(in):: time
       integer, intent(in):: npz, nwat
-      real, intent(in):: dt       ! time step in seconds
-      real, intent(in):: zvir
-      real, intent(in), dimension(npz+1):: ak, bk
-      real, intent(in):: phis(isd:ied,jsd:jed)
-      real, intent(in)::   ps(isd:ied,jsd:jed)
+      real(FVPRC), intent(in):: dt       ! time step in seconds
+      real(FVPRC), intent(in):: zvir
+      real(FVPRC), intent(in), dimension(npz+1):: ak, bk
+      real(FVPRC), intent(in):: phis(isd:ied,jsd:jed)
+      real(FVPRC), intent(in)::   ps(isd:ied,jsd:jed)
 ! Input/Output
-      real, intent(inout), dimension(isd:ied,jsd:jed,npz):: delp, pt, ua, va, u_dt, v_dt
-      real, intent(inout)::q(isd:ied,jsd:jed,npz,nwat)
+      real(FVPRC), intent(inout), dimension(isd:ied,jsd:jed,npz):: delp, pt, ua, va, u_dt, v_dt
+      real(FVPRC), intent(inout)::q(isd:ied,jsd:jed,npz,nwat)
 ! local
-      real:: dist(is:ie,js:je)
-      real::  slp(is:ie,js:je)
-      real:: p0(npz+1), p1(npz+1), dm(npz), tvir(npz)
-      real:: pos(2)
-      real:: slp_o         ! sea-level pressure (Pa)
-      real:: p_env
-      real:: r_vor
-      real:: relx0, relx, f1, rdt
-      real:: p_obs, ratio, p_count, p_sum, mass_sink, delps
-      real:: p_lo, p_hi
+      real(FVPRC):: dist(is:ie,js:je)
+      real(FVPRC)::  slp(is:ie,js:je)
+      real(FVPRC):: p0(npz+1), p1(npz+1), dm(npz), tvir(npz)
+      real(FVPRC):: pos(2)
+      real(FVPRC):: slp_o         ! sea-level pressure (Pa)
+      real(FVPRC):: p_env
+      real(FVPRC):: r_vor
+      real(FVPRC):: relx0, relx, f1, rdt
+      real(FVPRC):: p_obs, ratio, p_count, p_sum, mass_sink, delps
+      real(FVPRC):: p_lo, p_hi
       integer n, i, j, k, iq
 
     if ( nstorms==0 ) then
@@ -1972,16 +1973,16 @@ module nwp_nudge_mod
     real*4, intent(in)::  slp_out(nobs)        ! slp at r_out
     real*4, intent(in)::    r_out(nobs)        ! 
     real*4, intent(in):: time_obs(nobs)
-    real, optional, intent(in):: stime
-    real, optional, intent(out):: fact
+    real(FVPRC), optional, intent(in):: stime
+    real(FVPRC), optional, intent(out):: fact
 ! Output
-    real, intent(out):: x_o , y_o      ! position of the storm center 
-    real, intent(out):: slp_o          ! Observed sea-level-pressure (pa)
-    real, intent(out):: r_vor, p_vor
+    real(FVPRC), intent(out):: x_o , y_o      ! position of the storm center 
+    real(FVPRC), intent(out):: slp_o          ! Observed sea-level-pressure (pa)
+    real(FVPRC), intent(out):: r_vor, p_vor
 ! Internal:
-      real:: p1(2), p2(2)
-      real time_model
-      real fac
+      real(FVPRC):: p1(2), p2(2)
+      real(FVPRC) time_model
+      real(FVPRC) fac
       integer year, month, day, hour, minute, second, n
 
        slp_o = -100000.
@@ -2044,7 +2045,7 @@ module nwp_nudge_mod
   character(len=19):: comment
   integer:: mmddhh, yr, year, month, day, hour, MPH, islp
   integer:: it, i1, i2, p_ring, d_ring
-  real:: lon_deg, lat_deg, cald, slp, mps
+  real(FVPRC):: lon_deg, lat_deg, cald, slp, mps
 
   nobs_tc(:) = 0
   time_tc(:,:) = 0.
@@ -2164,14 +2165,14 @@ module nwp_nudge_mod
   end subroutine slp_obs_init
 
 
-  real function calday(year, month, day, hour, minute, sec)
+  real(FVPRC) function calday(year, month, day, hour, minute, sec)
 ! For time interpolation; Julian day (0 to 365 for non-leap year)
 ! input:
     integer, intent(in):: year, month, day, hour
     integer, intent(in):: minute, sec
 ! Local:
       integer n, m, ds, nday
-      real tsec
+      real(FVPRC) tsec
       integer days(12)
       data days /31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31/
 
@@ -2229,11 +2230,11 @@ module nwp_nudge_mod
       character*(*)  qname
       integer imax, jmax
       integer i, j
-      real a(imax,jmax)
+      real(FVPRC) a(imax,jmax)
 
-      real qmin(jmax), qmax(jmax)
-      real pmax, pmin
-      real fac                     ! multiplication factor
+      real(FVPRC) qmin(jmax), qmax(jmax)
+      real(FVPRC) pmax, pmin
+      real(FVPRC) fac                     ! multiplication factor
 
       do j=1,jmax
          pmax = a(1,j)
@@ -2264,11 +2265,11 @@ module nwp_nudge_mod
 ! This routine is for filtering the wind tendency
    integer, intent(in):: kmd
    integer, intent(in):: ntimes
-   real,    intent(in):: cd            ! cd = K * da_min;   0 < K < 0.25
-   real, intent(inout):: du(is:ie,js:je,kmd)
-   real, intent(inout):: dv(is:ie,js:je,kmd)
+   real(FVPRC),    intent(in):: cd            ! cd = K * da_min;   0 < K < 0.25
+   real(FVPRC), intent(inout):: du(is:ie,js:je,kmd)
+   real(FVPRC), intent(inout):: dv(is:ie,js:je,kmd)
 ! local:
-   real, dimension(is:ie,js:je,kmd):: v1, v2, v3
+   real(FVPRC), dimension(is:ie,js:je,kmd):: v1, v2, v3
    integer i,j,k
 
 ! transform to 3D Cartesian:
@@ -2303,13 +2304,13 @@ module nwp_nudge_mod
 ! This routine is for filtering the physics tendency
    integer, intent(in):: kmd
    integer, intent(in):: ntimes
-   real,    intent(in):: cd            ! cd = K * da_min;   0 < K < 0.25
-   real, intent(inout):: qdt(is:ie,js:je,kmd)
+   real(FVPRC),    intent(in):: cd            ! cd = K * da_min;   0 < K < 0.25
+   real(FVPRC), intent(inout):: qdt(is:ie,js:je,kmd)
 ! local:
-   real::  q(isd:ied,jsd:jed,kmd)
-   real:: fx(isd:ied+1,jsd:jed), fy(isd:ied,jsd:jed+1)
+   real(FVPRC)::  q(isd:ied,jsd:jed,kmd)
+   real(FVPRC):: fx(isd:ied+1,jsd:jed), fy(isd:ied,jsd:jed+1)
    integer i,j,k, n, nt
-   real :: damp
+   real(FVPRC) :: damp
 
    damp = cd * da_min
 

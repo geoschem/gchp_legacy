@@ -19,7 +19,7 @@
           REAL, PARAMETER :: ice_scale_factor    =  0.01
           
 ! netCDF ID for the file and data variable.
-          INTEGER :: ncid, varid1, varid2, varid3, varid4
+          INTEGER :: ncid, varid3
           REAL    :: FillValue
           REAL    :: offset
           REAL    :: scale_factor

@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2018, University Corporation for Atmospheric Research,
+! Copyright 2002-2019, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -170,12 +170,6 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !      aligned with the global index space, if a global index space is well
 !      defined by the associated Grid. See section \ref{const:indexflag}
 !      for a list of valid indexflag options.
-! \item [{[staggerloc]}]
-!       Stagger location of data in grid cells.  For valid
-!       predefined values see section \ref{const:staggerloc}.
-!       To create a custom stagger location see section
-!       \ref{sec:usage:staggerloc:adv}. The default
-!       value is {\tt ESMF\_STAGGERLOC\_CENTER}.
 ! \item [{[gridToFieldMap]}]
 !       List with number of elements equal to the
 !       {\tt grid}|s dimCount.  The list elements map each dimension
@@ -406,12 +400,6 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !      aligned with the global index space, if a global index space is well
 !      defined by the associated Grid. See section \ref{const:indexflag}
 !      for a list of valid indexflag options.
-! \item [{[staggerloc]}]
-!       Stagger location of data in grid cells.  For valid
-!       predefined values see section \ref{const:staggerloc}.
-!       To create a custom stagger location see section
-!       \ref{sec:usage:staggerloc:adv}. The default
-!       value is {\tt ESMF\_STAGGERLOC\_CENTER}.
 ! \item [{[gridToFieldMap]}]
 !       List with number of elements equal to the
 !       {\tt grid}|s dimCount.  The list elements map each dimension
@@ -3320,7 +3308,8 @@ subroutine ESMF_FieldEmptyCompGB##mrank##D##mtypekind(field, geombase, farray, &
   ! local variables @\
   mname (ESMF_KIND_##mtypekind), dimension(mdim), pointer :: fpointer @\
   integer                        :: localrc, i, j, count @\
-  integer                        :: memDimCount, fieldDimCount, fieldUngriddedDimCount @\
+  integer                        :: memDimCount, fieldUngriddedDimCount @\
+  integer                        :: fieldDimCount, localDeCount @\
   integer                        :: gridDimCount, gridDimCount_norep  @\
   integer                        :: grid_repdimcount @\
   integer                        :: elementCount  @\
@@ -3359,7 +3348,7 @@ subroutine ESMF_FieldEmptyCompGB##mrank##D##mtypekind(field, geombase, farray, &
   ! number of ungridded Field dimensions, @\
   ! and number of undistributed Field Dimensions @\
   call ESMF_GeomBaseGet(geombase, dimCount=gridDimCount, & @\
-        distgridToGridMap=distgridToGridMap, & @\
+        distgridToGridMap=distgridToGridMap, localDeCount=localDeCount, & @\
         distgrid=distgrid, indexflag=g_indexflag, rc=localrc) @\
   if (ESMF_LogFoundError(localrc, & @\
       ESMF_ERR_PASSTHRU, & @\
@@ -3372,11 +3361,16 @@ subroutine ESMF_FieldEmptyCompGB##mrank##D##mtypekind(field, geombase, farray, &
       return @\
   endif @\
 @\
-  call ESMF_DistGridGet(distgrid, localDe=0, elementCount=elementCount, & @\
-    rc=localrc) @\
-  if (ESMF_LogFoundError(localrc, & @\
+  elementCount = 0 ! default to assuming no elements @\
+  if (localDeCount==1) then @\
+    call ESMF_DistGridGet(distgrid, localDe=0, elementCount=elementCount, & @\
+      rc=localrc) @\
+    if (ESMF_LogFoundError(localrc, & @\
       ESMF_ERR_PASSTHRU, & @\
       ESMF_CONTEXT, rcToReturn=rc)) return @\
+  elseif (localDeCount>1) then @\
+    !TODO: error out because not supported @\
+  endif @\
 @\
   if (elementCount > 0) then @\
     ! The following use of fptr is a bit of trickery to get all F90 @\
@@ -3887,15 +3881,15 @@ subroutine ESMF_FieldEmptyCompGBPtr##mrank##D##mtypekind(field, geombase, farray
       ESMF_ERR_PASSTHRU, & @\
       ESMF_CONTEXT, rcToReturn=rc)) return @\
 @\
-  if (localDeCount == 0) then @\
-    ! no localDE -> cannot ask DistGrid -> set elementCount to zero directly @\
-    elementCount = 0 @\
-  else @\
+  elementCount = 0 ! default to assuming no elements @\
+  if (localDeCount==1) then @\
     call ESMF_DistGridGet(distgrid, localDe=0, elementCount=elementCount, & @\
       rc=localrc) @\
     if (ESMF_LogFoundError(localrc, & @\
       ESMF_ERR_PASSTHRU, & @\
       ESMF_CONTEXT, rcToReturn=rc)) return @\
+  elseif (localDeCount>1) then @\
+    !TODO: error out because not supported @\
   endif @\
 @\
   if (elementCount > 0) then @\

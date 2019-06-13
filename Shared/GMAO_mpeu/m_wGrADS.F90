@@ -1,3 +1,4 @@
+#include "unused_dummy.H"
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 !       NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
 !BOP -------------------------------------------------------------------
@@ -1000,6 +1001,9 @@ end subroutine write2d_
 
   logical :: no_buffer
   integer :: nx,ny
+
+  _UNUSED_DUMMY(nlon)
+  _UNUSED_DUMMY(nlat)
 
   no_buffer =	kind(dbuf)	== kind(vfld)	.and.	&
 		size(dbuf,1)	== size(vfld,1)	.and.	&

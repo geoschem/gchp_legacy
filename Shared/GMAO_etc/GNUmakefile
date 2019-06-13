@@ -20,7 +20,7 @@ endif
 # Make sure ESMADIR is defined
 # ----------------------------
 ifndef ESMADIR
-       ESMADIR := $(PWD)/../..
+       ESMADIR := $(PWD)/../../..
 endif
 
 # Compilation rules, flags, etc
@@ -77,7 +77,7 @@ ALLSRC = argopt.c rst_date.f
 ALLSRCX = fresolv.f90 gethdftinc.f mkdrstdate.f  \
           zeit_ci.f zeit_co.f zeit_pr.f
 
-OTHERBIN = Functions.csh pyrob
+OTHERBIN = Functions.csh pyrob RmShmKeys_sshmpi.csh rmshmkeyhere.sh
 
 ALLETC =  pesto.arc obsys*.rc *.tmpl \
           PUBLICTAG
@@ -239,7 +239,9 @@ perl:
 #                  User Defined Targets
 #                  --------------------
 
-FOPT = $(FOPT3)
+ifneq ("$(BOPT)","g")
+   FOPT = $(FOPT3)
+endif
 USER_FFLAGS = $(BIG_ENDIAN) $(M). $(M)$(INC_MPEU) $(I)$(INC_SDF)
 
 argopt: argopt.c

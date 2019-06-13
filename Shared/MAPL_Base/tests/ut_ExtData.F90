@@ -154,7 +154,7 @@ CONTAINS
 !   All done
 !   --------
 
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
 
   END SUBROUTINE SetServices
 
@@ -221,7 +221,7 @@ CONTAINS
 
 !  All done
 !  --------
-   RETURN_(ESMF_SUCCESS)
+   _RETURN(ESMF_SUCCESS)
 
    END SUBROUTINE Initialize_
 
@@ -282,7 +282,7 @@ CONTAINS
 
 !  All done
 !  --------
-   RETURN_(ESMF_SUCCESS)
+   _RETURN(ESMF_SUCCESS)
 
    END SUBROUTINE Run_
 
@@ -340,7 +340,7 @@ CONTAINS
 
 !  All done
 !  --------
-   RETURN_(ESMF_SUCCESS)
+   _RETURN(ESMF_SUCCESS)
 
  end SUBROUTINE Finalize_
 

@@ -2,19 +2,17 @@
 
 #include "MAPL_Generic.h"
 
-#define DynCore_GridCompMod FVdycoreCubed_GridComp
-
 !#define SCALAR_WINDS
 !#define INC_WINDS
 
 !-----------------------------------------------------------------------
 !              ESMA - Earth System Modeling Applications
 !-----------------------------------------------------------------------
-   Module DynCore_GridCompMod
+   Module FVdycoreCubed_GridComp
 
 !BOP
 !
-! !MODULE: DynCore_GridCompMod --- Dynamical Core Grid Component
+! !MODULE: FVdycoreCubed_GridComp --- Dynamical Core Grid Component
 !
 
 ! !USES:
@@ -22,14 +20,14 @@
    use ESMF                ! ESMF base class
    use MAPL_Mod            ! GEOS base class
    use m_set_eta,       only: set_eta
-   use m_chars,         only: uppercase
 
 ! FV Specific Module
-   use fv_arrays_mod,  only: REAL4, REAL8
+   use fv_arrays_mod,  only: REAL4, REAL8, FVPRC
    use fv_control_mod, only: comm_timer, dyn_timer
-   use fv_mp_mod,      only: gid
-   use fv_grid_tools_mod, only: grid_type
-   use FV_StateMod, only : DynTracers      => T_TRACERS,             &
+   !use fv_grid_tools_mod, only: grid_type
+   use FV_StateMod, only : FV_Atm,                                   &
+                           FV_To_State, State_To_FV, DEBUG_FV_STATE, &
+                           DynTracers      => T_TRACERS,             &
                            DynVars         => T_FVDYCORE_VARS,       &
                            DynGrid         => T_FVDYCORE_GRID,       &
                            DynState        => T_FVDYCORE_STATE,      &
@@ -55,8 +53,11 @@
                            DYN_DEBUG       => DEBUG,                 &
                            HYDROSTATIC     => FV_HYDROSTATIC,        &
                            ADIABATIC, SW_DYNAMICS, AdvCore_Advection
-   use FV_Mapz_Mod, only : ana_remap
    use m_topo_remap, only: dyn_topo_remap
+   use MAPL_GridManagerMod
+   use MAPL_RegridderManagerMod
+   use MAPL_AbstractRegridderMod
+   use MAPL_RegridderSpecMod
 
 ! !PUBLIC MEMBER FUNCTIONS:
 
@@ -84,7 +85,7 @@
 !   \begin{itemize}
 !     \item {\tt U}:    U winds on the native grid  (m/s)
 !     \item {\tt V}:    V winds on the native grid (m/s)
-!     \item {\tt PT}:   Scaled Virtual Potential Temperature (T$_v$/PKZ)
+!     \item {\tt PT}:   Dry Potential Temperature (T/PKZ)
 !     \item {\tt PE}:   Edge pressures
 !     \item {\tt Q}:    Tracers
 !     \item {\tt PKZ}:  Consistent mean for p$^\kappa$
@@ -109,6 +110,7 @@
 !     \item {\tt DTDT}:    Delta-pressure-weighted temperature tendency
 !     \item {\tt DPEDT}:   Edge pressure tendency
 !     \item {\tt PHIS}:    Surface Geopotential Heights
+!     \item {\tt DWDT}:    V wind tendency on a A-grid (m/s)
 !   \end{itemize}
 !
 ! These are by definition on an A-grid and have an XY
@@ -134,6 +136,7 @@
 !     \item {\tt ZLE}:       Edge Heights (m)
 !     \item {\tt PLE}:       Edge pressures (Pa)
 !     \item {\tt PLK}:       P$^\kappa$ at Mid-Layers
+!     \item {\tt PKE}:       P$^\kappa$ at Edges
 !     \item {\tt OMEGA}:     Vertical pressure velocity (pa/s)
 !     \item {\tt PV}:        Ertel's Potential Vorticity (m$^2$ / kg*s)
 !     \item {\tt DUDT}:      U-wind Tendency (m/s/s)
@@ -341,28 +344,28 @@ contains
 !-----------------------------------------
     call ESMF_GridCompGet( GC, CONFIG = CF, RC=STATUS )
     call ESMF_GridCompGet( GC, name=COMP_NAME, RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     Iam = trim(COMP_NAME) // "SetServices"
 
 
     call ESMF_VMGetCurrent(VM, rc=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_MemUtilsWrite(VM, trim(IAm)//': Begin', RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
 ! Allocate this instance of the internal state and put it in wrapper.
 ! -------------------------------------------------------------------
 
     allocate( dyn_internal_state, stat=status )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     wrap%dyn_state => dyn_internal_state
  
 ! Save pointer to the wrapped internal state in the GC
 ! ----------------------------------------------------
 
     call ESMF_UserCompSetInternalState ( GC,'DYNstate',wrap,status )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
 
 !BOS
@@ -374,7 +377,7 @@ contains
          DIMS       = MAPL_DimsHorzVert,                           &
          FIELD_TYPE = MAPL_VectorField,                            &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_AddImportSpec ( gc,                             &
          SHORT_NAME = 'DVDT',                                      &
@@ -383,7 +386,16 @@ contains
          DIMS       = MAPL_DimsHorzVert,                           &
          FIELD_TYPE = MAPL_VectorField,                            &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
+
+    call MAPL_AddImportSpec ( gc,                             &
+         SHORT_NAME = 'DWDT',                                      &
+         LONG_NAME  = 'vertical_velocity_tendency',                &
+         UNITS      = 'm s-2',                                     &
+         DIMS       = MAPL_DimsHorzVert,                           &
+         FIELD_TYPE = MAPL_VectorField,                            &
+         VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
+    _VERIFY(STATUS)
 
     call MAPL_AddImportSpec ( gc,                             &
          SHORT_NAME = 'DTDT',                                      &
@@ -391,7 +403,7 @@ contains
          UNITS      = 'Pa K s-1',                                  &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_AddImportSpec ( gc,                             &
          SHORT_NAME = 'DQVANA',                                    &
@@ -399,7 +411,7 @@ contains
          UNITS      = 'kg kg-1',                                   &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_AddImportSpec ( gc,                             &
          SHORT_NAME = 'DQLANA',                                    &
@@ -407,7 +419,7 @@ contains
          UNITS      = 'kg kg-1',                                   &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_AddImportSpec ( gc,                             &
          SHORT_NAME = 'DQIANA',                                    &
@@ -415,7 +427,31 @@ contains
          UNITS      = 'kg kg-1',                                   &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
+
+    call MAPL_AddImportSpec ( gc,                             &
+         SHORT_NAME = 'DQRANA',                                    &
+         LONG_NAME  = 'specific_humidity_rain_increment_from_analysis', &
+         UNITS      = 'kg kg-1',                                   &
+         DIMS       = MAPL_DimsHorzVert,                           &
+         VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
+    _VERIFY(STATUS)
+
+    call MAPL_AddImportSpec ( gc,                             &
+         SHORT_NAME = 'DQSANA',                                    &
+         LONG_NAME  = 'specific_humidity_snow_increment_from_analysis', &
+         UNITS      = 'kg kg-1',                                   &
+         DIMS       = MAPL_DimsHorzVert,                           &
+         VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
+    _VERIFY(STATUS)
+
+    call MAPL_AddImportSpec ( gc,                             &
+         SHORT_NAME = 'DQGANA',                                    &
+         LONG_NAME  = 'specific_humidity_graupel_increment_from_analysis', &
+         UNITS      = 'kg kg-1',                                   &
+         DIMS       = MAPL_DimsHorzVert,                           &
+         VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
+    _VERIFY(STATUS)
 
     call MAPL_AddImportSpec ( gc,                             &
          SHORT_NAME = 'DOXANA',                                    &
@@ -423,7 +459,7 @@ contains
          UNITS      = 'kg kg-1',                                   &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_AddImportSpec ( gc,                             &
          SHORT_NAME = 'DPEDT',                                     &
@@ -431,7 +467,7 @@ contains
          UNITS      = 'Pa s-1',                                    &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationEdge,               RC=STATUS  )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_AddImportSpec ( gc,                             &
          SHORT_NAME = 'PHIS',                                      &
@@ -439,7 +475,7 @@ contains
          UNITS      = 'm+2 s-2',                                 &
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_AddImportSpec( gc,                              &
         SHORT_NAME = 'TRADV',                                        &
@@ -447,7 +483,7 @@ contains
         UNITS      = 'unknown',                                    &
         DATATYPE   = MAPL_BundleItem,               &
         RC=STATUS  )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
 ! !EXPORT STATE:
 
@@ -457,7 +493,7 @@ contains
          UNITS            = 'J m-2'  ,                                    &
          DIMS             = MAPL_DimsHorzOnly,                            &
          VLOCATION        = MAPL_VLocationNone,                RC=STATUS  )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                           &
          SHORT_NAME = 'TAVE',                                                               &
@@ -465,7 +501,7 @@ contains
          UNITS      = 'K',                                                                  &
          DIMS       = MAPL_DimsHorzOnly,                                                    &
          VLOCATION  = MAPL_VLocationNone,                                        RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                           &
          SHORT_NAME = 'UAVE',                                                               &
@@ -474,7 +510,7 @@ contains
          DIMS       = MAPL_DimsHorzOnly,                                                    &
          FIELD_TYPE = MAPL_VectorField,                                                     &
          VLOCATION  = MAPL_VLocationNone,                                        RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                           &
          SHORT_NAME = 'KEPHY',                                                              &
@@ -482,7 +518,7 @@ contains
          UNITS      = 'W m-2',                                                              &
          DIMS       = MAPL_DimsHorzOnly,                                                    &
          VLOCATION  = MAPL_VLocationNone,                                        RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                &
        SHORT_NAME   = 'PEPHY',                                                   &
@@ -490,7 +526,7 @@ contains
        UNITS        = 'W m-2',                                                   &
        DIMS         = MAPL_DimsHorzOnly,                                         &
        VLOCATION    = MAPL_VLocationNone,                              RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                &
        SHORT_NAME   = 'TEPHY',                                                   &
@@ -498,7 +534,7 @@ contains
        UNITS        = 'W m-2',                                                   &
        DIMS         = MAPL_DimsHorzOnly,                                         &
        VLOCATION    = MAPL_VLocationNone,                              RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                &
        SHORT_NAME         = 'KEANA',                                             &
@@ -506,7 +542,7 @@ contains
        UNITS              = 'W m-2',                                             &
        DIMS               = MAPL_DimsHorzOnly,                                   &
        VLOCATION          = MAPL_VLocationNone,                        RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                &
        SHORT_NAME         = 'PEANA',                                             &
@@ -514,7 +550,7 @@ contains
        UNITS              = 'W m-2',                                             &
        DIMS               = MAPL_DimsHorzOnly,                                   &
        VLOCATION          = MAPL_VLocationNone,                        RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                &
        SHORT_NAME         = 'TEANA',                                             &
@@ -522,7 +558,7 @@ contains
        UNITS              = 'W m-2',                                             &
        DIMS               = MAPL_DimsHorzOnly,                                   &
        VLOCATION          = MAPL_VLocationNone,                        RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                             &
          SHORT_NAME = 'KEHOT',                                                                &
@@ -530,7 +566,7 @@ contains
          UNITS      = 'W m-2',                                                                &
          DIMS       = MAPL_DimsHorzOnly,                                                      &
          VLOCATION  = MAPL_VLocationNone,                                          RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                             &
          SHORT_NAME = 'KEDP',                                                                 &
@@ -538,7 +574,7 @@ contains
          UNITS      = 'W m-2',                                                                &
          DIMS       = MAPL_DimsHorzOnly,                                                      &
          VLOCATION  = MAPL_VLocationNone,                                          RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                             &
          SHORT_NAME = 'KEADV',                                                                &
@@ -546,7 +582,7 @@ contains
          UNITS      = 'W m-2',                                                                &
          DIMS       = MAPL_DimsHorzOnly,                                                      &
          VLOCATION  = MAPL_VLocationNone,                                          RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                             &
          SHORT_NAME = 'KEPG',                                                                 &
@@ -554,7 +590,7 @@ contains
          UNITS      = 'W m-2',                                                                &
          DIMS       = MAPL_DimsHorzOnly,                                                      &
          VLOCATION  = MAPL_VLocationNone,                                          RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                           &
          SHORT_NAME = 'KEDYN',                                                              &
@@ -562,7 +598,7 @@ contains
          UNITS      = 'W m-2',                                                              &
          DIMS       = MAPL_DimsHorzOnly,                                                    &
          VLOCATION  = MAPL_VLocationNone,                                        RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                           &
          SHORT_NAME = 'PEDYN',                                                              &
@@ -570,7 +606,7 @@ contains
          UNITS      = 'W m-2',                                                              &
          DIMS       = MAPL_DimsHorzOnly,                                                    &
          VLOCATION  = MAPL_VLocationNone,                                        RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                           &
          SHORT_NAME = 'TEDYN',                                                              &
@@ -578,7 +614,7 @@ contains
          UNITS      = 'W m-2',                                                              &
          DIMS       = MAPL_DimsHorzOnly,                                                    &
          VLOCATION  = MAPL_VLocationNone,                                        RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                           &
          SHORT_NAME = 'KECDCOR',                                                            &
@@ -586,7 +622,7 @@ contains
          UNITS      = 'W m-2',                                                              &
          DIMS       = MAPL_DimsHorzOnly,                                                    &
          VLOCATION  = MAPL_VLocationNone,                                        RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                           &
          SHORT_NAME = 'PECDCOR',                                                            &
@@ -594,7 +630,7 @@ contains
          UNITS      = 'W m-2',                                                              &
          DIMS       = MAPL_DimsHorzOnly,                                                    &
          VLOCATION  = MAPL_VLocationNone,                                        RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                           &
          SHORT_NAME = 'TECDCOR',                                                            &
@@ -602,7 +638,7 @@ contains
          UNITS      = 'W m-2',                                                              &
          DIMS       = MAPL_DimsHorzOnly,                                                    &
          VLOCATION  = MAPL_VLocationNone,                                        RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                           &
          SHORT_NAME = 'QFIXER',                                                             &
@@ -610,7 +646,7 @@ contains
          UNITS      = 'W m-2',                                                              &
          DIMS       = MAPL_DimsHorzOnly,                                                    &
          VLOCATION  = MAPL_VLocationNone,                                        RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                           &
          SHORT_NAME = 'KEREMAP',                                                            &
@@ -618,7 +654,7 @@ contains
          UNITS      = 'W m-2',                                                              &
          DIMS       = MAPL_DimsHorzOnly,                                                    &
          VLOCATION  = MAPL_VLocationNone,                                        RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                           &
          SHORT_NAME = 'PEREMAP',                                                            &
@@ -626,7 +662,7 @@ contains
          UNITS      = 'W m-2',                                                              &
          DIMS       = MAPL_DimsHorzOnly,                                                    &
          VLOCATION  = MAPL_VLocationNone,                                        RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                           &
          SHORT_NAME = 'TEREMAP',                                                            &
@@ -634,7 +670,7 @@ contains
          UNITS      = 'W m-2',                                                              &
          DIMS       = MAPL_DimsHorzOnly,                                                    &
          VLOCATION  = MAPL_VLocationNone,                                        RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                           &
          SHORT_NAME = 'KEGEN',                                                              &
@@ -642,7 +678,7 @@ contains
          UNITS      = 'W m-2',                                                              &
          DIMS       = MAPL_DimsHorzOnly,                                                    &
          VLOCATION  = MAPL_VLocationNone,                                        RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                           &
          SHORT_NAME = 'DKERESIN',                                                           &
@@ -650,7 +686,7 @@ contains
          UNITS      = 'W m-2',                                                              &
          DIMS       = MAPL_DimsHorzOnly,                                                    &
          VLOCATION  = MAPL_VLocationNone,                                        RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                           &
          SHORT_NAME = 'DKERESPG',                                                           &
@@ -658,7 +694,7 @@ contains
          UNITS      = 'W m-2',                                                              &
          DIMS       = MAPL_DimsHorzOnly,                                                    &
          VLOCATION  = MAPL_VLocationNone,                                        RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                           &
          SHORT_NAME = 'DMDTANA',                                                            &
@@ -666,7 +702,7 @@ contains
          UNITS      = 'kg m-2 s-1',                                                         &
          DIMS       = MAPL_DimsHorzOnly,                                                    &
          VLOCATION  = MAPL_VLocationNone,                                        RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                           &
          SHORT_NAME = 'DOXDTANAINT',                                                        &
@@ -674,7 +710,7 @@ contains
          UNITS      = 'kg m-2 s-1',                                                         &
          DIMS       = MAPL_DimsHorzOnly,                                                    &
          VLOCATION  = MAPL_VLocationNone,                                        RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                           &
          SHORT_NAME = 'DQVDTANAINT',                                                        &
@@ -682,7 +718,7 @@ contains
          UNITS      = 'kg m-2 s-1',                                                         &
          DIMS       = MAPL_DimsHorzOnly,                                                    &
          VLOCATION  = MAPL_VLocationNone,                                        RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                           &
          SHORT_NAME = 'DQLDTANAINT',                                                        &
@@ -690,7 +726,7 @@ contains
          UNITS      = 'kg m-2 s-1',                                                         &
          DIMS       = MAPL_DimsHorzOnly,                                                    &
          VLOCATION  = MAPL_VLocationNone,                                        RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                           &
          SHORT_NAME = 'DQIDTANAINT',                                                        &
@@ -698,7 +734,7 @@ contains
          UNITS      = 'kg m-2 s-1',                                                         &
          DIMS       = MAPL_DimsHorzOnly,                                                    &
          VLOCATION  = MAPL_VLocationNone,                                        RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                           &
          SHORT_NAME = 'DMDTDYN',                                                            &
@@ -706,7 +742,7 @@ contains
          UNITS      = 'kg m-2 s-1',                                                         &
          DIMS       = MAPL_DimsHorzOnly,                                                    &
          VLOCATION  = MAPL_VLocationNone,                                        RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                           &
          SHORT_NAME = 'DOXDTDYNINT',                                                        &
@@ -714,7 +750,7 @@ contains
          UNITS      = 'kg m-2 s-1',                                                         &
          DIMS       = MAPL_DimsHorzOnly,                                                    &
          VLOCATION  = MAPL_VLocationNone,                                        RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                           &
          SHORT_NAME = 'DTHVDTDYNINT',                                                       &
@@ -722,7 +758,7 @@ contains
          UNITS      = 'K kg m-2 s-1',                                                       &
          DIMS       = MAPL_DimsHorzOnly,                                                    &
          VLOCATION  = MAPL_VLocationNone,                                        RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                           &
          SHORT_NAME = 'DTHVDTREMAP',                                                        &
@@ -730,7 +766,7 @@ contains
          UNITS      = 'K kg m-2 s-1',                                                       &
          DIMS       = MAPL_DimsHorzOnly,                                                    &
          VLOCATION  = MAPL_VLocationNone,                                        RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                           &
          SHORT_NAME = 'DTHVDTCONSV',                                                        &
@@ -738,7 +774,7 @@ contains
          UNITS      = 'K kg m-2 s-1',                                                       &
          DIMS       = MAPL_DimsHorzOnly,                                                    &
          VLOCATION  = MAPL_VLocationNone,                                        RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                           &
          SHORT_NAME = 'DTHVDTPHYINT',                                                       &
@@ -746,7 +782,7 @@ contains
          UNITS      = 'K kg m-2 s-1',                                                       &
          DIMS       = MAPL_DimsHorzOnly,                                                    &
          VLOCATION  = MAPL_VLocationNone,                                        RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                           &
          SHORT_NAME = 'DTHVDTANAINT',                                                       &
@@ -754,7 +790,7 @@ contains
          UNITS      = 'K kg m-2 s-1',                                                       &
          DIMS       = MAPL_DimsHorzOnly,                                                    &
          VLOCATION  = MAPL_VLocationNone,                                        RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                           &
          SHORT_NAME = 'DQVDTDYNINT',                                                        &
@@ -762,7 +798,7 @@ contains
          UNITS      = 'kg m-2 s-1',                                                         &
          DIMS       = MAPL_DimsHorzOnly,                                                    &
          VLOCATION  = MAPL_VLocationNone,                                        RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                           &
          SHORT_NAME = 'DQLDTDYNINT',                                                        &
@@ -770,7 +806,7 @@ contains
          UNITS      = 'kg m-2 s-1',                                                         &
          DIMS       = MAPL_DimsHorzOnly,                                                    &
          VLOCATION  = MAPL_VLocationNone,                                        RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                           &
          SHORT_NAME = 'DQIDTDYNINT',                                                        &
@@ -778,7 +814,7 @@ contains
          UNITS      = 'kg m-2 s-1',                                                         &
          DIMS       = MAPL_DimsHorzOnly,                                                    &
          VLOCATION  = MAPL_VLocationNone,                                        RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                    &
          SHORT_NAME = 'CONVKE',                                                      &
@@ -786,7 +822,7 @@ contains
          UNITS      = 'W m-2',                                                       &
          DIMS       = MAPL_DimsHorzOnly,                                             &
          VLOCATION  = MAPL_VLocationCenter,                               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                    &
          SHORT_NAME = 'CONVTHV',                                                     &
@@ -794,7 +830,7 @@ contains
          UNITS      = 'W m-2',                                                       &
          DIMS       = MAPL_DimsHorzOnly,                                             &
          VLOCATION  = MAPL_VLocationCenter,                               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                    &
          SHORT_NAME = 'CONVCPT',                                                     &
@@ -802,7 +838,7 @@ contains
          UNITS      = 'W m-2',                                                       &
          DIMS       = MAPL_DimsHorzOnly,                                             &
          VLOCATION  = MAPL_VLocationCenter,                               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                    &
          SHORT_NAME = 'CONVPHI',                                                     &
@@ -810,7 +846,7 @@ contains
          UNITS      = 'W m-2',                                                       &
          DIMS       = MAPL_DimsHorzOnly,                                             &
          VLOCATION  = MAPL_VLocationCenter,                               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'U',                                         &
@@ -819,7 +855,7 @@ contains
          DIMS       = MAPL_DimsHorzVert,                           &
          FIELD_TYPE = MAPL_VectorField,                            &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'V',                                         &
@@ -828,7 +864,7 @@ contains
          DIMS       = MAPL_DimsHorzVert,                           &
          FIELD_TYPE = MAPL_VectorField,                            &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'T',                                         &
@@ -836,7 +872,7 @@ contains
          UNITS      = 'K',                                         &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'PL',                                        &
@@ -844,7 +880,7 @@ contains
          UNITS      = 'Pa',                                        &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'ZLE',                                       &
@@ -852,7 +888,7 @@ contains
          UNITS      = 'm',                                         &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationEdge,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'ZL',                                        &
@@ -860,7 +896,7 @@ contains
          UNITS      = 'm',                                         &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'S',                                         &
@@ -868,7 +904,7 @@ contains
          UNITS      = 'm',                                         &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'PLE',                                       &
@@ -876,7 +912,7 @@ contains
          UNITS      = 'Pa',                                        &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationEdge,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'TH',                                        &
@@ -884,7 +920,7 @@ contains
          UNITS      = 'K',                                         &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'PLK',                                       &
@@ -892,7 +928,15 @@ contains
          UNITS      = 'Pa$^\kappa$',                                  &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
+
+    call MAPL_AddExportSpec ( gc,                                  &
+         SHORT_NAME = 'PKE',                                       &
+         LONG_NAME  = 'edge_p$^\kappa$',                         &
+         UNITS      = 'Pa$^\kappa$',                                  &
+         DIMS       = MAPL_DimsHorzVert,                           &
+         VLOCATION  = MAPL_VLocationEdge,             RC=STATUS  )
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'W',                                         &
@@ -900,7 +944,7 @@ contains
          UNITS      = 'm s-1',                                   &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'OMEGA',                                     &
@@ -908,7 +952,7 @@ contains
          UNITS      = 'Pa s-1',                                  &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'CX',                                        &
@@ -917,7 +961,7 @@ contains
          PRECISION  = ESMF_KIND_R8,                                &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'CY',                                        &
@@ -926,7 +970,7 @@ contains
          PRECISION  = ESMF_KIND_R8,                                &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'CU',                                        &
@@ -934,7 +978,7 @@ contains
          UNITS      = '',                                          &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'CV',                                        &
@@ -942,7 +986,7 @@ contains
          UNITS      = '',                                          &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'MX',                                       &
@@ -950,7 +994,7 @@ contains
          UNITS      = 'Pa m+2 s-1',                                &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'MY',                                       &
@@ -958,7 +1002,7 @@ contains
          UNITS      = 'Pa m+2 s-1',                                &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'MFX',                                       &
@@ -967,7 +1011,7 @@ contains
          PRECISION  = ESMF_KIND_R8,                                &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'MFY',                                       &
@@ -976,7 +1020,7 @@ contains
          PRECISION  = ESMF_KIND_R8,                                &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'MFZ',                                       &
@@ -985,7 +1029,7 @@ contains
          PRECISION  = ESMF_KIND_R8,                                &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationEdge,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'PV',                                        &
@@ -993,7 +1037,7 @@ contains
          UNITS      = 'm+2 kg-1 s-1',                            &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'EPV',                                       &
@@ -1001,7 +1045,7 @@ contains
          UNITS      = 'K m+2 kg-1 s-1',                          &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'Q',                                         &
@@ -1009,7 +1053,7 @@ contains
          UNITS      = '1',                                         &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'QC',                                        &
@@ -1017,7 +1061,7 @@ contains
          UNITS      = '1',                                         &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                       &
          SHORT_NAME = 'DUDTANA',                                        &
@@ -1026,7 +1070,7 @@ contains
          DIMS       = MAPL_DimsHorzVert,                                &
          FIELD_TYPE = MAPL_VectorField,                                 &
          VLOCATION  = MAPL_VLocationCenter,                  RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                       &
          SHORT_NAME = 'DVDTANA',                                        &
@@ -1035,7 +1079,7 @@ contains
          DIMS       = MAPL_DimsHorzVert,                                &
          FIELD_TYPE = MAPL_VectorField,                                 &
          VLOCATION  = MAPL_VLocationCenter,                  RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                       &
          SHORT_NAME = 'DTDTANA',                                        &
@@ -1043,7 +1087,7 @@ contains
          UNITS      = 'K s-1',                                        &
          DIMS       = MAPL_DimsHorzVert,                                &
          VLOCATION  = MAPL_VLocationCenter,                RC=STATUS    )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                       &
          SHORT_NAME = 'DDELPDTANA',                                     &
@@ -1051,7 +1095,7 @@ contains
          UNITS      = 'K s-1',                                        &
          DIMS       = MAPL_DimsHorzVert,                                &
          VLOCATION  = MAPL_VLocationCenter,                RC=STATUS    )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'DUDTDYN',                                   &
@@ -1059,7 +1103,7 @@ contains
          UNITS      = 'm/s/s',                                 &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'DVDTDYN',                                   &
@@ -1067,7 +1111,7 @@ contains
          UNITS      = 'm/s/s',                                 &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                    &
          SHORT_NAME = 'DTDTDYN',                                     &
@@ -1075,7 +1119,7 @@ contains
          UNITS      = 'K s-1',                                     &
          DIMS       = MAPL_DimsHorzVert,                             &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS    )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                      &
          SHORT_NAME = 'DQVDTDYN',                                      &
@@ -1083,7 +1127,7 @@ contains
          UNITS      = 'kg/kg/s',                                     &
          DIMS       = MAPL_DimsHorzVert,                               &
          VLOCATION  = MAPL_VLocationCenter,                 RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                      &
          SHORT_NAME = 'DQIDTDYN',                                      &
@@ -1091,7 +1135,7 @@ contains
          UNITS      = 'kg/kg/s',                                     &
          DIMS       = MAPL_DimsHorzVert,                               &
          VLOCATION  = MAPL_VLocationCenter,                 RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                      &
          SHORT_NAME = 'DQLDTDYN',                                      &
@@ -1099,7 +1143,7 @@ contains
          UNITS      = 'kg/kg/s',                                     &
          DIMS       = MAPL_DimsHorzVert,                               &
          VLOCATION  = MAPL_VLocationCenter,                 RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                      &
          SHORT_NAME = 'DOXDTDYN',                                      &
@@ -1107,7 +1151,7 @@ contains
          UNITS      = 'mol mol-1 s-1',                                 &
          DIMS       = MAPL_DimsHorzVert,                               &
          VLOCATION  = MAPL_VLocationCenter,                 RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'PREF',                                      &
@@ -1115,7 +1159,7 @@ contains
          UNITS      = 'Pa',                                        &
          DIMS       = MAPL_DimsVertOnly,                           &
          VLOCATION  = MAPL_VLocationEdge,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'AK',                                        &
@@ -1123,7 +1167,7 @@ contains
          UNITS      = '1',                                         &
          DIMS       = MAPL_DimsVertOnly,                           &
          VLOCATION  = MAPL_VLocationEdge,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'BK',                                        &
@@ -1131,7 +1175,7 @@ contains
          UNITS      = '1',                                         &
          DIMS       = MAPL_DimsVertOnly,                           &
          VLOCATION  = MAPL_VLocationEdge,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
        SHORT_NAME         = 'PHIS',                                &
@@ -1139,7 +1183,7 @@ contains
        UNITS              = 'm',                                   &
        DIMS               = MAPL_DimsHorzOnly,                     &
        VLOCATION          = MAPL_VLocationNone,          RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
        SHORT_NAME         = 'PS',                                  &
@@ -1147,7 +1191,7 @@ contains
        UNITS              = 'Pa',                                  &
        DIMS               = MAPL_DimsHorzOnly,                     &
        VLOCATION          = MAPL_VLocationNone,          RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
        SHORT_NAME         = 'TA',                                  &
@@ -1155,7 +1199,7 @@ contains
        UNITS              = 'K',                                   &
        DIMS               = MAPL_DimsHorzOnly,                     &
        VLOCATION          = MAPL_VLocationNone,          RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
        SHORT_NAME         = 'QA',                                  &
@@ -1163,7 +1207,7 @@ contains
        UNITS              = '1',                                   &
        DIMS               = MAPL_DimsHorzOnly,                     &
        VLOCATION          = MAPL_VLocationNone,          RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
        SHORT_NAME         = 'US',                                  &
@@ -1172,7 +1216,7 @@ contains
        DIMS               = MAPL_DimsHorzOnly,                     &
        FIELD_TYPE         = MAPL_VectorField,                      &
        VLOCATION          = MAPL_VLocationNone,          RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
        SHORT_NAME         = 'VS',                                  &
@@ -1181,7 +1225,7 @@ contains
        DIMS               = MAPL_DimsHorzOnly,                     &
        FIELD_TYPE         = MAPL_VectorField,                      &
        VLOCATION          = MAPL_VLocationNone,          RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
        SHORT_NAME         = 'SPEED',                               &
@@ -1189,7 +1233,7 @@ contains
        UNITS              = 'm s-1',                               &
        DIMS               = MAPL_DimsHorzOnly,                     &
        VLOCATION          = MAPL_VLocationNone,          RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
        SHORT_NAME         = 'DZ',                                  &
@@ -1197,7 +1241,7 @@ contains
        UNITS              = 'm',                                   &
        DIMS               = MAPL_DimsHorzOnly,                     &
        VLOCATION          = MAPL_VLocationNone,          RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
        SHORT_NAME         = 'SLP',                                 &
@@ -1205,7 +1249,7 @@ contains
        UNITS              = 'Pa',                                  &
        DIMS               = MAPL_DimsHorzOnly,                     &
        VLOCATION          = MAPL_VLocationNone,          RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
        SHORT_NAME         = 'H1000',                               &
@@ -1213,7 +1257,7 @@ contains
        UNITS              = 'm',                                   &
        DIMS               = MAPL_DimsHorzOnly,                     &
        VLOCATION          = MAPL_VLocationNone,          RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                        &
        SHORT_NAME         = 'TROPP_EPV',                                                 &
@@ -1221,7 +1265,7 @@ contains
        UNITS              = 'Pa',                                                        &
        DIMS               = MAPL_DimsHorzOnly,                                           &
        VLOCATION          = MAPL_VLocationNone,                                RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                        &
        SHORT_NAME         = 'TROPP_THERMAL',                                             &
@@ -1229,7 +1273,7 @@ contains
        UNITS              = 'Pa',                                                        &
        DIMS               = MAPL_DimsHorzOnly,                                           &
        VLOCATION          = MAPL_VLocationNone,                                RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                        &
        SHORT_NAME         = 'TROPP_BLENDED',                                             &
@@ -1237,7 +1281,7 @@ contains
        UNITS              = 'Pa',                                                        &
        DIMS               = MAPL_DimsHorzOnly,                                           &
        VLOCATION          = MAPL_VLocationNone,                                RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                        &
        SHORT_NAME         = 'TROPT',                                                     &
@@ -1245,7 +1289,7 @@ contains
        UNITS              = 'K',                                                         &
        DIMS               = MAPL_DimsHorzOnly,                                           &
        VLOCATION          = MAPL_VLocationNone,                                RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                                        &
        SHORT_NAME         = 'TROPQ',                                                     &
@@ -1253,7 +1297,7 @@ contains
        UNITS              = 'kg/kg',                                                     &
        DIMS               = MAPL_DimsHorzOnly,                                           &
        VLOCATION          = MAPL_VLocationNone,                                RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'PLE0',                                      &
@@ -1262,7 +1306,7 @@ contains
          PRECISION  = ESMF_KIND_R8,                                &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationEdge,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'PLE1',                                      &
@@ -1271,7 +1315,7 @@ contains
          PRECISION  = ESMF_KIND_R8,                                &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationEdge,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'DELP',                                      &
@@ -1279,7 +1323,7 @@ contains
          UNITS      = 'Pa',                                        &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'DELPTOP',                                      &
@@ -1287,7 +1331,7 @@ contains
          UNITS      = 'Pa',                                        &
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'U_AGRID',                                   &
@@ -1295,7 +1339,7 @@ contains
          UNITS      = 'm s-1',                                     &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'V_AGRID',                                   &
@@ -1303,7 +1347,7 @@ contains
          UNITS      = 'm s-1',                                     &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
 
     call MAPL_AddExportSpec ( gc,                                  &
@@ -1312,7 +1356,7 @@ contains
          UNITS      = 'm s-1',                                     &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'V_CGRID',                                   &
@@ -1320,7 +1364,7 @@ contains
          UNITS      = 'm s-1',                                     &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'U_DGRID',                                   &
@@ -1328,7 +1372,7 @@ contains
          UNITS      = 'm s-1',                                     &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'V_DGRID',                                   &
@@ -1336,7 +1380,7 @@ contains
          UNITS      = 'm s-1',                                     &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'TV',                                        &
@@ -1344,7 +1388,7 @@ contains
          UNITS      = 'K',                                         &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'THV',                                       &
@@ -1352,7 +1396,15 @@ contains
          UNITS      = 'K/Pa$^\kappa$',                               &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
+
+    call MAPL_AddExportSpec ( gc,                                       &
+         SHORT_NAME = 'DPLEDTDYN',                                       &
+         LONG_NAME  = 'tendency_of_edge_pressure_due_to_dynamics', &
+         UNITS      = 'Pa s-1',                                       &
+         DIMS       = MAPL_DimsHorzVert,                                &
+         VLOCATION  = MAPL_VLocationCenter,                RC=STATUS    )
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                       &
          SHORT_NAME = 'DDELPDTDYN',                                     &
@@ -1360,7 +1412,7 @@ contains
          UNITS      = 'Pa s-1',                                       &
          DIMS       = MAPL_DimsHorzVert,                                &
          VLOCATION  = MAPL_VLocationCenter,                RC=STATUS    )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                       &
          SHORT_NAME = 'UKE',                                            &
@@ -1369,7 +1421,7 @@ contains
          DIMS       = MAPL_DimsHorzOnly,                                &
          FIELD_TYPE = MAPL_VectorField,                                 &
          VLOCATION  = MAPL_VLocationNone,                    RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                       &
          SHORT_NAME = 'VKE',                                            &
@@ -1378,7 +1430,7 @@ contains
          DIMS       = MAPL_DimsHorzOnly,                                &
          FIELD_TYPE = MAPL_VectorField,                                 &
          VLOCATION  = MAPL_VLocationNone,                    RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'UCPT',                                      &
@@ -1387,7 +1439,7 @@ contains
          DIMS       = MAPL_DimsHorzOnly,                           &
          FIELD_TYPE = MAPL_VectorField,                            &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'VCPT',                                      &
@@ -1396,7 +1448,7 @@ contains
          DIMS       = MAPL_DimsHorzOnly,                           &
          FIELD_TYPE = MAPL_VectorField,                            &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                       &
          SHORT_NAME = 'UPHI',                                           &
@@ -1405,7 +1457,7 @@ contains
          DIMS       = MAPL_DimsHorzOnly,                                &
          FIELD_TYPE = MAPL_VectorField,                                 &
          VLOCATION  = MAPL_VLocationNone,                    RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                       &
          SHORT_NAME = 'VPHI',                                           &
@@ -1414,7 +1466,7 @@ contains
          DIMS       = MAPL_DimsHorzOnly,                                &
          FIELD_TYPE = MAPL_VectorField,                                 &
          VLOCATION  = MAPL_VLocationNone,                    RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'UQV',                                       &
@@ -1423,7 +1475,7 @@ contains
          DIMS       = MAPL_DimsHorzOnly,                           &
          FIELD_TYPE = MAPL_VectorField,                            &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'VQV',                                       &
@@ -1432,7 +1484,7 @@ contains
          DIMS       = MAPL_DimsHorzOnly,                           &
          FIELD_TYPE = MAPL_VectorField,                            &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'UQL',                                       &
@@ -1441,7 +1493,7 @@ contains
          DIMS       = MAPL_DimsHorzOnly,                           &
          FIELD_TYPE = MAPL_VectorField,                            &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'VQL',                                       &
@@ -1450,7 +1502,7 @@ contains
          DIMS       = MAPL_DimsHorzOnly,                           &
          FIELD_TYPE = MAPL_VectorField,                            &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'UQI',                                       &
@@ -1459,7 +1511,7 @@ contains
          DIMS       = MAPL_DimsHorzOnly,                           &
          FIELD_TYPE = MAPL_VectorField,                            &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'VQI',                                       &
@@ -1468,7 +1520,7 @@ contains
          DIMS       = MAPL_DimsHorzOnly,                           &
          FIELD_TYPE = MAPL_VectorField,                            &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
 
     call MAPL_AddExportSpec ( gc,                                  &
@@ -1477,7 +1529,7 @@ contains
          UNITS      = 'W m-2',                                     &
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'DCPT',                                      &
@@ -1485,7 +1537,7 @@ contains
          UNITS      = 'W m-2',                                     &
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'DPET',                                      &
@@ -1493,7 +1545,7 @@ contains
          UNITS      = 'W m-2',                                     &
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'WRKT',                                      &
@@ -1501,7 +1553,7 @@ contains
          UNITS      = 'W m-2',                                     &
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'DQV',                                       &
@@ -1509,7 +1561,7 @@ contains
          UNITS      = 'kg m-2 s-1',                                &
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'DQL',                                       &
@@ -1517,7 +1569,7 @@ contains
          UNITS      = 'kg m-2 s-1',                                &
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'DQI',                                       &
@@ -1525,7 +1577,7 @@ contains
          UNITS      = 'kg m-2 s-1',                                &
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'CNV',                                       &
@@ -1533,7 +1585,7 @@ contains
          UNITS      = 'W m-2',                                     &
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
      do ntracer=1,ntracers
         do nlev=1,nlevs
@@ -1544,7 +1596,7 @@ contains
                 UNITS      = '1',                                         &
                 DIMS       = MAPL_DimsHorzOnly,                           &
                 VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-           VERIFY_(STATUS)
+           _VERIFY(STATUS)
         enddo
         write(myTracer, "('Q',i1.1)") ntracer-1
         call MAPL_AddExportSpec ( gc,                             &
@@ -1553,7 +1605,7 @@ contains
              UNITS      = '1',                                    &
              DIMS       = MAPL_DimsHorzVert,                      &
              VLOCATION  = MAPL_VLocationCenter,               RC=STATUS  )
-        VERIFY_(STATUS)
+        _VERIFY(STATUS)
      enddo         
 
     call MAPL_AddExportSpec ( gc,                                  &
@@ -1562,7 +1614,7 @@ contains
          UNITS      = 's-1',                                       &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'VORT850',                                   &
@@ -1570,7 +1622,7 @@ contains
          UNITS      = 's-1',                                       &
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'VORT700',                                   &
@@ -1578,7 +1630,15 @@ contains
          UNITS      = 's-1',                                       &
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
+
+    call MAPL_AddExportSpec ( gc,                             &
+         SHORT_NAME = 'VORT500',                                   &
+         LONG_NAME  = 'vorticity_at_500_hPa',                      &
+         UNITS      = 's-1',                                       &
+         DIMS       = MAPL_DimsHorzOnly,                           &
+         VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'VORT200',                                   &
@@ -1586,7 +1646,7 @@ contains
          UNITS      = 's-1',                                       &
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'DIVG',                                      &
@@ -1594,7 +1654,7 @@ contains
          UNITS      = 's-1',                                       &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'DIVG850',                                   &
@@ -1602,7 +1662,7 @@ contains
          UNITS      = 's-1',                                       &
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'DIVG700',                                   &
@@ -1610,7 +1670,15 @@ contains
          UNITS      = 's-1',                                       &
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
+
+    call MAPL_AddExportSpec ( gc,                             &
+         SHORT_NAME = 'DIVG500',                                   &
+         LONG_NAME  = 'divergence_at_500_hPa',                     &
+         UNITS      = 's-1',                                       &
+         DIMS       = MAPL_DimsHorzOnly,                           &
+         VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'DIVG200',                                   &
@@ -1618,7 +1686,7 @@ contains
          UNITS      = 's-1',                                       &
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'U850',                                      &
@@ -1627,7 +1695,7 @@ contains
          DIMS       = MAPL_DimsHorzOnly,                           &
          FIELD_TYPE = MAPL_VectorField,                            &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &     
          SHORT_NAME = 'U700',                                      &
@@ -1636,7 +1704,7 @@ contains
          DIMS       = MAPL_DimsHorzOnly,                           &
          FIELD_TYPE = MAPL_VectorField,                            &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)         
+     _VERIFY(STATUS)         
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'U500',                                      &
@@ -1645,7 +1713,7 @@ contains
          DIMS       = MAPL_DimsHorzOnly,                           &
          FIELD_TYPE = MAPL_VectorField,                            &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'U250',                                      &
@@ -1654,7 +1722,7 @@ contains
          DIMS       = MAPL_DimsHorzOnly,                           &
          FIELD_TYPE = MAPL_VectorField,                            &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'U200',                                      &
@@ -1663,7 +1731,7 @@ contains
          DIMS       = MAPL_DimsHorzOnly,                           &
          FIELD_TYPE = MAPL_VectorField,                            &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'UTOP',                                      &
@@ -1672,7 +1740,7 @@ contains
          DIMS       = MAPL_DimsHorzOnly,                           &
          FIELD_TYPE = MAPL_VectorField,                            &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'V850',                                      &
@@ -1682,7 +1750,7 @@ contains
          FIELD_TYPE = MAPL_VectorField,                            &
          VLOCATION  = MAPL_VLocationNone,              &
          RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'V700',                                      &
@@ -1692,7 +1760,7 @@ contains
          FIELD_TYPE = MAPL_VectorField,                            &
          VLOCATION  = MAPL_VLocationNone,              &
          RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'V500',                                      &
@@ -1701,7 +1769,7 @@ contains
          DIMS       = MAPL_DimsHorzOnly,                           &
          FIELD_TYPE = MAPL_VectorField,                            &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'V250',                                      &
@@ -1710,7 +1778,7 @@ contains
          DIMS       = MAPL_DimsHorzOnly,                           &
          FIELD_TYPE = MAPL_VectorField,                            &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'V200',                                      &
@@ -1719,7 +1787,7 @@ contains
          DIMS       = MAPL_DimsHorzOnly,                           &
          FIELD_TYPE = MAPL_VectorField,                            &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'VTOP',                                      &
@@ -1728,7 +1796,7 @@ contains
          DIMS       = MAPL_DimsHorzOnly,                           &
          FIELD_TYPE = MAPL_VectorField,                            &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'T850',                                      &
@@ -1736,7 +1804,7 @@ contains
          UNITS      = 'K',                                         &
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'T700',                                      &
@@ -1744,7 +1812,7 @@ contains
          UNITS      = 'K',                                         &
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'T500',                                      &
@@ -1752,7 +1820,7 @@ contains
          UNITS      = 'K',                                         &
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'T300',                                      &
@@ -1761,7 +1829,7 @@ contains
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,              &
          RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'T250',                                      &
@@ -1770,7 +1838,7 @@ contains
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,              &
          RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'TTOP',                                      &
@@ -1779,7 +1847,7 @@ contains
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,              &
          RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'Q850',                                      &
@@ -1787,7 +1855,7 @@ contains
          UNITS      = 'kg kg-1',                                   &
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'Q500',                                      &
@@ -1795,7 +1863,7 @@ contains
          UNITS      = 'kg kg-1',                                   &
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'Q250',                                      &
@@ -1803,7 +1871,7 @@ contains
          UNITS      = 'kg kg-1',                                   &
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'Z700',                                      &
@@ -1812,7 +1880,7 @@ contains
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,              &
          RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'Z500',                                      &
@@ -1821,7 +1889,7 @@ contains
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,              &
          RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'Z300',                                      &
@@ -1830,7 +1898,7 @@ contains
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,              &
          RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'H850',                                      &
@@ -1839,7 +1907,7 @@ contains
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,              &
          RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'H700',                                      &
@@ -1848,7 +1916,7 @@ contains
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,              &
          RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'H500',                                      &
@@ -1857,7 +1925,7 @@ contains
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,              &
          RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'H300',                                      &
@@ -1866,7 +1934,7 @@ contains
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,              &
          RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'H250',                                      &
@@ -1874,7 +1942,7 @@ contains
          UNITS      = 'm',                                         &
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'OMEGA850',                                  &
@@ -1882,7 +1950,15 @@ contains
          UNITS      = 'Pa s-1',                                    &
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
+
+    call MAPL_AddExportSpec ( gc,                             &
+         SHORT_NAME = 'OMEGA700',                                  &
+         LONG_NAME  = 'omega_at_700_hPa',                          &
+         UNITS      = 'Pa s-1',                                    &
+         DIMS       = MAPL_DimsHorzOnly,                           &
+         VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'OMEGA500',                                  &
@@ -1890,7 +1966,7 @@ contains
          UNITS      = 'Pa s-1',                                    &
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'OMEGA200',                                  &
@@ -1898,7 +1974,7 @@ contains
          UNITS      = 'Pa s-1',                                    &
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'OMEGA10',                                   &
@@ -1906,7 +1982,7 @@ contains
          UNITS      = 'Pa s-1',                                    &
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'W850',                                      &
@@ -1914,7 +1990,7 @@ contains
          UNITS      = 'm s-1',                                     &
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'W500',                                      &
@@ -1922,7 +1998,7 @@ contains
          UNITS      = 'm s-1',                                     &
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'W200',                                      &
@@ -1930,7 +2006,7 @@ contains
          UNITS      = 'm s-1',                                     & 
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                             &
          SHORT_NAME = 'W10',                                       &
@@ -1938,7 +2014,7 @@ contains
          UNITS      = 'm s-1',                                     & 
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
 
     call MAPL_AddExportSpec ( gc,                                  &
@@ -1948,7 +2024,7 @@ contains
          DIMS       = MAPL_DimsHorzOnly,                           &
          FIELD_TYPE = MAPL_VectorField,                            &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'V50M',                                      &
@@ -1957,7 +2033,7 @@ contains
          DIMS       = MAPL_DimsHorzOnly,                           &
          FIELD_TYPE = MAPL_VectorField,                            &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'DXC',                                       &
@@ -1965,7 +2041,7 @@ contains
          UNITS      = 'm'  ,                                       &
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'DYC',                                       &
@@ -1973,7 +2049,7 @@ contains
          UNITS      = 'm'  ,                                       &
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'AREA',                                      &
@@ -1981,7 +2057,7 @@ contains
          UNITS      = 'm+2'  ,                                     &
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                &
          SHORT_NAME = 'PT',                                        &
@@ -1989,7 +2065,7 @@ contains
          UNITS      = 'K Pa$^{-\kappa}$',                          &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                &
          SHORT_NAME = 'PE',                                        &
@@ -1997,7 +2073,7 @@ contains
          UNITS      = 'Pa',                                        &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationEdge,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'LONS',                                      &
@@ -2005,7 +2081,7 @@ contains
          UNITS      = 'radians',                                   &
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
          SHORT_NAME = 'LATS',                                      &
@@ -2013,7 +2089,7 @@ contains
          UNITS      = 'radians',                                   &
          DIMS       = MAPL_DimsHorzOnly,                           &
          VLOCATION  = MAPL_VLocationNone,               RC=STATUS  )
-     VERIFY_(STATUS)      
+     _VERIFY(STATUS)      
 
     call MAPL_AddExportSpec ( gc,                                  &
        SHORT_NAME         = 'DYNTIMER',                            &
@@ -2021,7 +2097,7 @@ contains
        UNITS              = 'seconds',                             &
        DIMS               = MAPL_DimsHorzOnly,                     &
        VLOCATION          = MAPL_VLocationNone,          RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
        SHORT_NAME         = 'COMMTIMER',                           &
@@ -2029,7 +2105,7 @@ contains
        UNITS              = 'seconds',                             &
        DIMS               = MAPL_DimsHorzOnly,                     &
        VLOCATION          = MAPL_VLocationNone,          RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_AddExportSpec ( gc,                                  &
        SHORT_NAME         = 'PID',                                 &
@@ -2037,7 +2113,47 @@ contains
        UNITS              = '',                                    &
        DIMS               = MAPL_DimsHorzOnly,                     &
        VLOCATION          = MAPL_VLocationNone,          RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
+
+    call MAPL_AddExportSpec ( gc,                                 &
+         SHORT_NAME = 'QV_DYN_IN',                                 &
+         LONG_NAME  = 'spec_humidity_at_begin_of_time_step',       &
+         UNITS      = 'kg kg-1',                                   &
+         DIMS       = MAPL_DimsHorzVert,                           &
+         VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
+    _VERIFY(STATUS)
+
+    call MAPL_AddExportSpec ( gc,                                 &
+         SHORT_NAME = 'T_DYN_IN',                                 &
+         LONG_NAME  = 'temperature_at_begin_of_time_step',       &
+         UNITS      = 'K',                                   &
+         DIMS       = MAPL_DimsHorzVert,                           &
+         VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
+    _VERIFY(STATUS)
+
+    call MAPL_AddExportSpec ( gc,                                 &
+         SHORT_NAME = 'U_DYN_IN',                                 &
+         LONG_NAME  = 'u_wind_at_begin_of_time_step',       &
+         UNITS      = 'm s-1',                                   &
+         DIMS       = MAPL_DimsHorzVert,                           &
+         VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
+    _VERIFY(STATUS)
+
+    call MAPL_AddExportSpec ( gc,                                 &
+         SHORT_NAME = 'V_DYN_IN',                                 &
+         LONG_NAME  = 'v_wind_at_begin_of_time_step',       &
+         UNITS      = 'm s-1',                                   &
+         DIMS       = MAPL_DimsHorzVert,                           &
+         VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
+    _VERIFY(STATUS)
+
+    call MAPL_AddExportSpec ( gc,                                 &
+         SHORT_NAME = 'PLE_DYN_IN',                                 &
+         LONG_NAME  = 'edge_pressure_at_begin_of_time_step',       &
+         UNITS      = 'Pa',                                   &
+         DIMS       = MAPL_DimsHorzVert,                           &
+         VLOCATION  = MAPL_VLocationEdge,             RC=STATUS  )
+    _VERIFY(STATUS)
 
 ! !INTERNAL STATE:
 
@@ -2053,7 +2169,7 @@ contains
          DIMS       = MAPL_DimsVertOnly,                           &
          RESTART    = MAPL_RestartRequired,                        &
          VLOCATION  = MAPL_VLocationEdge,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddInternalSpec ( gc,                                &
          SHORT_NAME = 'BK',                                        &
@@ -2063,7 +2179,7 @@ contains
          DIMS       = MAPL_DimsVertOnly,                           &
          RESTART    = MAPL_RestartRequired,                        &
          VLOCATION  = MAPL_VLocationEdge,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddInternalSpec ( gc,                                &
          SHORT_NAME = 'U',                                         &
@@ -2073,7 +2189,7 @@ contains
          DIMS       = MAPL_DimsHorzVert,                           &
          RESTART    = MAPL_RestartRequired,                        &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddInternalSpec ( gc,                                &
          SHORT_NAME = 'V',                                         &
@@ -2083,7 +2199,7 @@ contains
          DIMS       = MAPL_DimsHorzVert,                           &
          RESTART    = MAPL_RestartRequired,                        &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddInternalSpec ( gc,                                &
          SHORT_NAME = 'PT',                                        &
@@ -2093,7 +2209,7 @@ contains
          DIMS       = MAPL_DimsHorzVert,                           &
          RESTART    = MAPL_RestartRequired,                        &
          VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddInternalSpec ( gc,                                &
          SHORT_NAME = 'PE',                                        &
@@ -2103,7 +2219,7 @@ contains
          DIMS       = MAPL_DimsHorzVert,                           &
          RESTART    = MAPL_RestartRequired,                        &
          VLOCATION  = MAPL_VLocationEdge,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     call MAPL_AddInternalSpec ( gc,                                &
          SHORT_NAME = 'PKZ',                                       &
@@ -2136,60 +2252,68 @@ contains
 ! ------------------------
 
     call MAPL_TimerAdd(GC,    name="INITIALIZE"  ,RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call MAPL_TimerAdd(GC,    name="RUN"         ,RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call MAPL_TimerAdd(GC,    name="RUN2"        ,RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call MAPL_TimerAdd(GC,    name="-DYN_INIT"    ,RC=STATUS)       
-    VERIFY_(STATUS)          
+    _VERIFY(STATUS)          
     call MAPL_TimerAdd(GC,    name="--FMS_INIT"  ,RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call MAPL_TimerAdd(GC,    name="--FV_INIT"  ,RC=STATUS)
-    VERIFY_(STATUS)
-    call MAPL_TimerAdd(GC,    name="-DYN_CORE"     ,RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
+    call MAPL_TimerAdd(GC,    name="-DYN_CORE"   ,RC=STATUS)
+    _VERIFY(STATUS)
+    call MAPL_TimerAdd(GC,    name="--FV_DYNAMICS",RC=STATUS)
+    _VERIFY(STATUS)
+    call MAPL_TimerAdd(GC,    name="--MASS_FIX"  ,RC=STATUS)
+    _VERIFY(STATUS)
     call MAPL_TimerAdd(GC,    name="FINALIZE"    ,RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
 ! Register services for this component
 ! ------------------------------------
 
     call MAPL_GridCompSetEntryPoint ( gc, ESMF_METHOD_INITIALIZE,  Initialize, rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call MAPL_GridCompSetEntryPoint ( gc, ESMF_METHOD_RUN,   Run, rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call MAPL_GridCompSetEntryPoint ( gc, ESMF_METHOD_RUN,   RunAddIncs, rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call MAPL_GridCompSetEntryPoint ( gc, ESMF_METHOD_FINALIZE, Finalize, rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
  !  call MAPL_GridCompSetEntryPoint ( gc, ESMF_SETREADRESTART, Coldstart, rc=status)
- !  VERIFY_(STATUS)
+ !  _VERIFY(STATUS)
 
 ! Setup FMS/FV3
 !--------------
     call MAPL_GetObjectFromGC (GC, MAPL,  RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call MAPL_GetResource ( MAPL, LAYOUT_FILE, 'LAYOUT:', default='fvcore_layout.rc', rc=status )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call DynSetup(GC, LAYOUT_FILE)
+
+! Register prototype of cubed sphere grid and associated regridders
+!------------------------------------------------------------------
+    call register_grid_and_regridders()
 
 ! At this point check if FV is standalone and init the grid
 !------------------------------------------------------
     call ESMF_ConfigGetAttribute ( CF, FV3_STANDALONE, Label="FV3_STANDALONE:", default=0, RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if (FV3_STANDALONE /=0) then
         call MAPL_GridCreate(GC, rc=status) 
-        VERIFY_(STATUS)
+        _VERIFY(STATUS)
     endif
- 
+
 ! Generic SetServices
 !--------------------
 
     call MAPL_GenericSetServices( GC, RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
 
   end subroutine SetServices
 
@@ -2262,20 +2386,20 @@ contains
 
     Iam = "Initialize"
     call ESMF_GridCompGet( GC, name=COMP_NAME, CONFIG=CF, RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     Iam = trim(COMP_NAME) // Iam
 
 ! Call Generic Initialize
 !------------------------
 
     call MAPL_GenericInitialize ( GC, IMPORT, EXPORT, CLOCK,  RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
 ! Retrieve the pointer to the state
 ! ---------------------------------
 
     call MAPL_GetObjectFromGC (GC, MAPL,  RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
 ! Start the timers
 !-----------------
@@ -2287,7 +2411,7 @@ contains
 !-------------------------------
 
     call ESMF_UserCompGetInternalState(gc, 'DYNstate', wrap, status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     state => wrap%dyn_state
 
     DycoreGrid  => state%grid   ! direct handle to grid
@@ -2299,66 +2423,66 @@ contains
 ! !RESOURCE_ITEM: none :: name of layout file
     call MAPL_GetResource ( MAPL, layout_file, 'LAYOUT:', default='fvcore_layout.rc', rc=status )
 !EOR
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
 ! Check for ColdStart from the configuration 
 !--------------------------------------
     call MAPL_GetResource ( MAPL, ColdRestart, 'COLDSTART:', default=0, rc=status )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if (ColdRestart /=0 ) then
       call Coldstart( gc, import, export, clock, rc=STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
     endif
 
 ! Set Private Internal State from Restart File
 ! --------------------------------------------
 
     call MAPL_Get ( MAPL, INTERNAL_ESMF_STATE=INTERNAL, RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_TimerOn(MAPL,"-DYN_INIT")
     call DynInit ( STATE, CLOCK, INTERNAL, IMPORT, GC, status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call MAPL_TimerOff(MAPL,"-DYN_INIT")
 
 ! Create PLE and PREF EXPORT Coupling (Needs to be done only once per run)
 ! ------------------------------------------------------------------------
 
     call MAPL_GetPointer(EXPORT,PREF,'PREF',ALLOC=.true.,RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call MAPL_GetPointer(EXPORT,AK4 ,'AK'  ,ALLOC=.true.,RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call MAPL_GetPointer(EXPORT,BK4 ,'BK'  ,ALLOC=.true.,RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_GetPointer(INTERNAL, AK, 'AK', RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call MAPL_GetPointer(INTERNAL, BK, 'BK', RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
      AK4 = AK
      BK4 = BK
     PREF = AK + BK * P00
 
     call MAPL_GetPointer(INTERNAL,UD,'U'  ,RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call MAPL_GetPointer(INTERNAL,VD,'V'  ,RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call MAPL_GetPointer(INTERNAL,PE,'PE' ,RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call MAPL_GetPointer(INTERNAL,PT,'PT' ,RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call MAPL_GetPointer(INTERNAL,PK,'PKZ',RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_GetPointer(EXPORT,PLE,'PLE',ALLOC=.true.,RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call MAPL_GetPointer(EXPORT,U,  'U',  ALLOC=.true.,RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call MAPL_GetPointer(EXPORT,V,  'V',  ALLOC=.true.,RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call MAPL_GetPointer(EXPORT,T,  'T',  ALLOC=.true.,RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
 ! Create A-Grid Winds
 ! -------------------
@@ -2385,15 +2509,15 @@ contains
 ! -----------------------------
 
     call MAPL_GetPointer(export, temp2d, 'DXC', ALLOC=.true., rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     temp2d = DycoreGrid%dxc
 
     call MAPL_GetPointer(export, temp2d, 'DYC', ALLOC=.true., rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     temp2d = DycoreGrid%dyc
 
     call MAPL_GetPointer(export, temp2d, 'AREA', ALLOC=.true., rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     temp2d = DycoreGrid%area
 
 ! ======================================================================
@@ -2405,29 +2529,29 @@ contains
 !     eliminate this section alltogether
 ! ======================================================================
     call ESMF_StateGet(EXPORT, 'PREF', FIELD, RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call MAPL_AttributeSet(field, NAME="MAPL_InitStatus", VALUE=MAPL_InitialRestart, RC=STATUS)
-    VERIFY_(STATUS)      
+    _VERIFY(STATUS)      
 
     call ESMF_StateGet(EXPORT, 'PLE', FIELD, RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call MAPL_AttributeSet(field, NAME="MAPL_InitStatus", VALUE=MAPL_InitialRestart, RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call ESMF_StateGet(EXPORT, 'U', FIELD, RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call MAPL_AttributeSet(field, NAME="MAPL_InitStatus", VALUE=MAPL_InitialRestart, RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call ESMF_StateGet(EXPORT, 'V', FIELD, RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call MAPL_AttributeSet(field, NAME="MAPL_InitStatus", VALUE=MAPL_InitialRestart, RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call ESMF_StateGet(EXPORT, 'T', FIELD, RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call MAPL_AttributeSet(field, NAME="MAPL_InitStatus", VALUE=MAPL_InitialRestart, RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
 !=====Begin intemittent replay=======================
 
@@ -2438,20 +2562,20 @@ contains
 ! or not.
 
     call MAPL_GetResource(MAPL, ReplayMode, 'REPLAY_MODE:', default="NoReplay", RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     if(adjustl(ReplayMode)=="Intermittent") then
        call MAPL_GetResource(MAPL, DNS_INTERVAL,'REPLAY_INTERVAL:', default=21600., RC=STATUS )
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
        call ESMF_TimeIntervalSet(Intv, S=nint(DNS_INTERVAL), RC=STATUS)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
 
        ALARM = ESMF_AlarmCreate(name='INTERMITTENT', clock=CLOCK,      &
                                 ringInterval=Intv, sticky=.false.,    &
                                                             RC=STATUS )
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
        call ESMF_AlarmRingerOn(ALARM, rc=status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     end if
 
 !========End intermittent replay========================
@@ -2459,7 +2583,7 @@ contains
     call MAPL_TimerOff(MAPL,"INITIALIZE")
     call MAPL_TimerOff(MAPL,"TOTAL")
 
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
   end subroutine Initialize
   
 
@@ -2512,8 +2636,8 @@ subroutine Run(gc, import, export, clock, rc)
     type (ESMF_Grid)                                 :: ANAgrid
     type (ESMF_Time)                                 :: currentTime
     type (ESMF_Time)                                 :: RefTime
-    type (MAPL_HorzTransform)                        :: L2C
-    type (MAPL_HorzTransform)                        :: C2L
+    class (AbstractRegridder), pointer :: L2C
+    class (AbstractRegridder), pointer :: C2L
 
     type (MAPL_MetaComp), pointer :: mapl 
 
@@ -2549,22 +2673,30 @@ subroutine Run(gc, import, export, clock, rc)
     real(r8), allocatable ::     qv(:,:,:) ! temporary array
     real(r8), allocatable ::     ql(:,:,:) ! temporary array
     real(r8), allocatable ::     qi(:,:,:) ! temporary array
+    real(r8), allocatable ::     qr(:,:,:) ! temporary array
+    real(r8), allocatable ::     qs(:,:,:) ! temporary array
+    real(r8), allocatable ::     qg(:,:,:) ! temporary array
     real(r8), allocatable ::  qdnew(:,:,:) ! temporary array
     real(r8), allocatable ::  qdold(:,:,:) ! temporary array
     real(r8), allocatable ::  qvold(:,:,:) ! temporary array
     real(r8), allocatable ::  qlold(:,:,:) ! temporary array
     real(r8), allocatable ::  qiold(:,:,:) ! temporary array
+    real(r8), allocatable ::  qrold(:,:,:) ! temporary array
+    real(r8), allocatable ::  qsold(:,:,:) ! temporary array
+    real(r8), allocatable ::  qgold(:,:,:) ! temporary array
     real(r8), allocatable ::     ox(:,:,:) ! temporary array
     real(r8), allocatable ::     zl(:,:,:) ! temporary array
     real(r8), allocatable ::    zle(:,:,:) ! temporary array
     real(r8), allocatable ::   delp(:,:,:) ! temporary array
+    real(r8), allocatable ::delpold(:,:,:) ! temporary array
     real(r8), allocatable ::   dudt(:,:,:) ! temporary array
     real(r8), allocatable ::   dvdt(:,:,:) ! temporary array
     real(r8), allocatable ::   dtdt(:,:,:) ! temporary array
     real(r8), allocatable ::   dqdt(:,:,:) ! temporary array
     real(r8), allocatable ::  dthdt(:,:,:) ! temporary array
     real(r8), allocatable ::  ddpdt(:,:,:) ! temporary array
-    real(r8), allocatable :: tmp3d (:,:,:) ! temporary array
+    real(r8), allocatable ::  dpedt(:,:,:) ! temporary array
+    real(FVPRC), allocatable :: tmp3d (:,:,:) ! temporary array
     real(r8), allocatable ::     dmdt(:,:) ! temporary array
     real(r8), allocatable ::   tmp2d (:,:) ! temporary array
     real(r8), allocatable ::    gze(:,:,:) ! temporary array
@@ -2573,7 +2705,7 @@ subroutine Run(gc, import, export, clock, rc)
     real(r8), allocatable, target :: cpt   (:,:,:) ! Internal   Energy
     real(r8), allocatable, target :: phi   (:,:,:) ! Potential  Energy
     real(r8), allocatable :: qsum1 (:,:)   ! Vertically Integrated Variable
-    real(r8), allocatable :: qsum2 (:,:)   ! Vertically Integrated Variable
+    real(r4), allocatable :: qsum2 (:,:)   ! Vertically Integrated Variable
 
     real(r8), allocatable :: phi00 (:,:)   ! Vertically Integrated phi
 
@@ -2643,7 +2775,7 @@ subroutine Run(gc, import, export, clock, rc)
     real(r8), allocatable :: mfyxyz(:,:,:) ! Accumulated northward mass flux
     real(r8), allocatable :: mfzxyz(:,:,:) ! Accumulated vertical mass flux
 
-    real(r8)              :: dt            ! Dynamics time step
+    real(FVPRC)              :: dt            ! Dynamics time step
     real(r8), allocatable :: trsum1(:)     ! Global Sum of Tracers before Add_Incs
     real(r8), allocatable :: trsum2(:)     ! Global Sum of Tracers after  Add_Incs
 
@@ -2658,9 +2790,13 @@ subroutine Run(gc, import, export, clock, rc)
     real(kind=4), pointer ::      dqvana (:,:,:)
     real(kind=4), pointer ::      dqlana (:,:,:)
     real(kind=4), pointer ::      dqiana (:,:,:)
+    real(kind=4), pointer ::      dqrana (:,:,:)
+    real(kind=4), pointer ::      dqsana (:,:,:)
+    real(kind=4), pointer ::      dqgana (:,:,:)
     real(kind=4), pointer ::      doxana (:,:,:)
     real(kind=4), pointer ::       temp3d(:,:,:)
     real(kind=4), pointer ::       vtmp3d(:,:,:)
+    real(kind=4), pointer ::         area(:,:)
     real(kind=4), pointer ::       temp2d(:,:)
     real(kind=4), pointer ::       tempu (:,:)
     real(kind=4), pointer ::       tempv (:,:)
@@ -2673,7 +2809,7 @@ subroutine Run(gc, import, export, clock, rc)
     real(r8),     allocatable ::   vdtmp(:,:,:)
 
     character(len=ESMF_MAXSTR), ALLOCATABLE       :: NAMES (:)
-    character(len=ESMF_MAXSTR), ALLOCATABLE, save :: NAMES0(:)
+    character(len=ESMF_MAXSTR), ALLOCATABLE       :: NAMES0(:)
     character(len=ESMF_MAXSTR) :: IAm
     character(len=ESMF_MAXSTR) :: COMP_NAME
     character(len=ESMF_MAXSTR) :: STRING
@@ -2703,38 +2839,56 @@ subroutine Run(gc, import, export, clock, rc)
     integer  CONSV,  FILL
     integer nx_ana, ny_ana
 
+    type(ESMF_FieldBundle), save        :: bundleAdv
+    logical, save                       :: firstime=.true.
+    integer, save                       :: nq_saved = 0
+    logical                             :: adjustTracers
+    type(ESMF_Alarm)                    :: predictorAlarm
+    type(ESMF_Grid)                     :: bgrid
+    integer                             :: j
+    integer                             :: nqt
+    logical                             :: tend
+    logical                             :: found
+    character(len=ESMF_MAXSTR)          :: tmpstring
+    character(len=ESMF_MAXSTR)          :: fieldname
+    character(len=ESMF_MAXSTR)          :: adjustTracerMode
+    character(len=ESMF_MAXSTR), allocatable :: xlist(:)
+    character(len=ESMF_MAXSTR), allocatable :: biggerlist(:)
+    integer, parameter                  :: XLIST_MAX = 32
+    logical                             :: isPresent
+    
   Iam = "Run"
   call ESMF_GridCompGet( GC, name=COMP_NAME, CONFIG=CF, grid=ESMFGRID, RC=STATUS )
-  VERIFY_(STATUS)
+  _VERIFY(STATUS)
   Iam = trim(COMP_NAME) // trim(Iam)
 
   call ESMF_GridValidate(ESMFGRID,RC=STATUS)
-  VERIFY_(STATUS)
+  _VERIFY(STATUS)
 
 ! Retrieve the pointer to the generic state
 ! -----------------------------------------
 
   call MAPL_GetObjectFromGC (GC, MAPL,  RC=STATUS )
-  VERIFY_(STATUS)
+  _VERIFY(STATUS)
 
   call MAPL_TimerOn(MAPL,"TOTAL")
   call MAPL_TimerOn(MAPL,"RUN")
 
   call MAPL_Get( MAPL, LONS=LONS, LATS=LATS, RC=STATUS )
-  VERIFY_(STATUS)
+  _VERIFY(STATUS)
 
   call MAPL_GetPointer(EXPORT, temp2d, 'LONS', RC=STATUS)
-  VERIFY_(STATUS)
+  _VERIFY(STATUS)
   if( associated(temp2D) ) temp2d = LONS
   call MAPL_GetPointer(EXPORT, temp2d, 'LATS', RC=STATUS)
-  VERIFY_(STATUS)
+  _VERIFY(STATUS)
   if( associated(temp2D) ) temp2d = LATS
 
 ! Retrieve the pointer to the internal state
 ! ------------------------------------------
 
   call ESMF_UserCompGetInternalState(gc, 'DYNstate', wrap, status)
-  VERIFY_(STATUS)
+  _VERIFY(STATUS)
   state => wrap%dyn_state
 
   vars  => state%vars   ! direct handle to control variables
@@ -2750,7 +2904,7 @@ subroutine Run(gc, import, export, clock, rc)
   jm       = grid%npy
   km       = grid%npz
 
-  is_ringing = ESMF_AlarmIsRinging( STATE%ALARMS(TIME_TO_RUN),rc=status); VERIFY_(status) 
+  is_ringing = ESMF_AlarmIsRinging( STATE%ALARMS(TIME_TO_RUN),rc=status); _VERIFY(status) 
   if (.not. is_ringing) return
 
 
@@ -2758,12 +2912,14 @@ subroutine Run(gc, import, export, clock, rc)
 ! ---------------
       ALLOCATE(  dummy(ifirstxy:ilastxy,jfirstxy:jlastxy,km) )
       ALLOCATE(   delp(ifirstxy:ilastxy,jfirstxy:jlastxy,km) )
+      ALLOCATE(delpold(ifirstxy:ilastxy,jfirstxy:jlastxy,km) )
       ALLOCATE(   dudt(ifirstxy:ilastxy,jfirstxy:jlastxy,km) )
       ALLOCATE(   dvdt(ifirstxy:ilastxy,jfirstxy:jlastxy,km) )
       ALLOCATE(   dtdt(ifirstxy:ilastxy,jfirstxy:jlastxy,km) )
       ALLOCATE(   dqdt(ifirstxy:ilastxy,jfirstxy:jlastxy,km) )
       ALLOCATE(  dthdt(ifirstxy:ilastxy,jfirstxy:jlastxy,km) )
       ALLOCATE(  ddpdt(ifirstxy:ilastxy,jfirstxy:jlastxy,km) )
+      ALLOCATE(  dpedt(ifirstxy:ilastxy,jfirstxy:jlastxy,km+1) )
       ALLOCATE( tempxy(ifirstxy:ilastxy,jfirstxy:jlastxy,km) )
       ALLOCATE(    pe0(ifirstxy:ilastxy,jfirstxy:jlastxy,km+1) )
       ALLOCATE(    pe1(ifirstxy:ilastxy,jfirstxy:jlastxy,km+1) )
@@ -2777,11 +2933,17 @@ subroutine Run(gc, import, export, clock, rc)
       ALLOCATE(     qv(ifirstxy:ilastxy,jfirstxy:jlastxy,km) )
       ALLOCATE(     ql(ifirstxy:ilastxy,jfirstxy:jlastxy,km) )
       ALLOCATE(     qi(ifirstxy:ilastxy,jfirstxy:jlastxy,km) )
+      ALLOCATE(     qr(ifirstxy:ilastxy,jfirstxy:jlastxy,km) )
+      ALLOCATE(     qs(ifirstxy:ilastxy,jfirstxy:jlastxy,km) )
+      ALLOCATE(     qg(ifirstxy:ilastxy,jfirstxy:jlastxy,km) )
       ALLOCATE(  qdnew(ifirstxy:ilastxy,jfirstxy:jlastxy,km) )
       ALLOCATE(  qdold(ifirstxy:ilastxy,jfirstxy:jlastxy,km) )
       ALLOCATE(  qvold(ifirstxy:ilastxy,jfirstxy:jlastxy,km) )
       ALLOCATE(  qlold(ifirstxy:ilastxy,jfirstxy:jlastxy,km) )
       ALLOCATE(  qiold(ifirstxy:ilastxy,jfirstxy:jlastxy,km) )
+      ALLOCATE(  qrold(ifirstxy:ilastxy,jfirstxy:jlastxy,km) )
+      ALLOCATE(  qsold(ifirstxy:ilastxy,jfirstxy:jlastxy,km) )
+      ALLOCATE(  qgold(ifirstxy:ilastxy,jfirstxy:jlastxy,km) )
       ALLOCATE(     ox(ifirstxy:ilastxy,jfirstxy:jlastxy,km) )
 
       ALLOCATE(     ke(ifirstxy:ilastxy,jfirstxy:jlastxy,km) )
@@ -2869,31 +3031,136 @@ subroutine Run(gc, import, export, clock, rc)
 !---------------------------
 
       call ESMF_StateGet ( IMPORT, 'TRADV' , BUNDLE,   RC=STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
+
+      !-------------------------------------------------------------------
+      ! ALT: this section attempts to limit the amount of advected tracers
+      !-------------------------------------------------------------------
+      adjustTracers = .false.
+      call MAPL_GetResource ( MAPL, adjustTracerMode, &
+           'EXCLUDE_ADVECTION_TRACERS:', &
+           default='PREDICTOR', rc=status )
+      _VERIFY(STATUS)
+      if (adjustTracerMode == 'ALWAYS') then
+         adjustTracers = .true.
+      else if (adjustTracerMode == 'PREDICTOR') then
+         !get PredictorAlarm from clock
+         call ESMF_ClockGetAlarm(clock, alarmName='PredictorAlarm', &
+              alarm=PredictorAlarm, rc=status)
+         if (status == ESMF_SUCCESS) then
+            !check if ringing
+            if (ESMF_AlarmIsRinging(predictorAlarm)) then
+               adjustTracers = .true.
+            end if
+         end if
+      else
+         call WRITE_PARALLEL('Invalid option, ignored')
+         adjustTracers = .false.
+      end if
+      if (adjustTracers) then
+         if (firstime) then
+            firstime=.false.
+            ! get the list of excluded tracers from resource
+            n = 0
+            call ESMF_ConfigFindLabel ( CF,'EXCLUDE_ADVECTION_TRACERS_LIST:',isPresent=isPresent,rc=STATUS )
+            _VERIFY(STATUS)
+            if(isPresent) then
+
+               tend  = .false.
+               allocate(xlist(XLIST_MAX), stat=status)
+               _VERIFY(STATUS)
+               do while (.not.tend)
+                  call ESMF_ConfigGetAttribute (CF,value=tmpstring,default='',rc=STATUS) !ALT: we don't check return status!!!
+                  if (tmpstring /= '')  then
+                     n = n + 1
+                     if (n > size(xlist)) then
+                        allocate( biggerlist(2*n), stat=status )
+                        _VERIFY(STATUS)
+                        biggerlist(1:n-1)=xlist
+                        call move_alloc(from=biggerlist, to=xlist)
+                     end if
+                     xlist(n) = tmpstring
+                  end if
+                  call ESMF_ConfigNextLine(CF,tableEnd=tend,rc=STATUS )
+                  _VERIFY(STATUS)
+               enddo
+            end if
+
+            ! Count the number of tracers
+            !---------------------
+            call ESMF_FieldBundleGet(BUNDLE, grid=bgrid,fieldCount=nqt,  RC=STATUS)
+            _VERIFY(STATUS)
+            BundleAdv = ESMF_FieldBundleCreate ( name='xTRADV', rc=STATUS )
+            _VERIFY(STATUS)
+            call ESMF_FieldBundleSet ( BundleAdv, grid=bgrid, rc=STATUS )
+            _VERIFY(STATUS)
+            !loop over NQ in TRADV
+            do i = 1, nqt
+               !get field from TRADV and its name
+               call ESMF_FieldBundleGet(bundle, fieldIndex=i, field=field, rc=status)
+               _VERIFY(STATUS)
+               call ESMF_FieldGet(FIELD, name=fieldname, RC=STATUS)
+               _VERIFY(STATUS)
+               
+               found = .false.
+               !loop over exclude_list
+               do j = 1, n
+                  if (fieldname == xlist(j)) then
+                     found = .true.
+                     exit
+                  end if
+               end do
+               if (.not. found) then
+                  call MAPL_FieldBundleAdd(BundleAdv, FIELD, RC=STATUS)
+                  _VERIFY(STATUS)
+               end if
+            end do
+
+            if (allocated(xlist)) then
+               ! Just in case xlist was allocated, but nothing was in it, could have garbage
+               if (n > 0) then
+                  call ESMF_FieldBundleRemove(BUNDLE, fieldNameList=xlist, &
+                     relaxedFlag=.true., rc=status)
+                  _VERIFY(STATUS)
+               end if
+               deallocate(xlist)
+            end if
+
+         end if ! firstime
+!         BUNDLE = bundleAdv
+      end if ! adjustTracers
+
+
       call ESMF_FieldBundleGet ( BUNDLE, fieldCount=NQ, RC=STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
+
+
 
     if (NQ > 0) then
       allocate( NAMES(NQ),STAT=STATUS )
-      VERIFY_(STATUS)
-      call ESMF_FieldBundleGet ( BUNDLE, fieldNameList=NAMES, rc=STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
+      call ESMF_FieldBundleGet ( BUNDLE, itemorderflag=ESMF_ITEMORDER_ADDORDER, fieldNameList=NAMES, rc=STATUS )
+      _VERIFY(STATUS)
+
+      if (NQ /= NQ_SAVED) then
+         NQ_SAVED = NQ
+         write(STRING,'(A,I5,A)') "Advecting the following ", nq, " tracers in FV:"
+         call WRITE_PARALLEL( trim(STRING)   )
+         do k=1,nq
+            call WRITE_PARALLEL( trim(NAMES(K)) )
+         end do
+      end if
 
       if( .not.allocated( names0 ) ) then
            allocate( NAMES0(NQ),STAT=STATUS )
-           VERIFY_(STATUS)
-           write(STRING,'(A,I5,A)') "Advecting the following ", nq, " tracers in FV:"
-              call WRITE_PARALLEL( trim(STRING)   )
-           do k=1,nq
-              call WRITE_PARALLEL( trim(NAMES(K)) )
-           end do
+           _VERIFY(STATUS)
            NAMES0 = NAMES
       endif
 
      !if( size(names0).ne.size(names) ) then
      !     deallocate( NAMES0 )
      !       allocate( NAMES0(NQ),STAT=STATUS )
-     !     VERIFY_(STATUS)
+     !     _VERIFY(STATUS)
      !     write(STRING,'(A,I,A)') "Advecting the following ", nq, " tracers in FV:"
      !        call WRITE_PARALLEL( trim(STRING)   )
      !     do k=1,nq
@@ -2907,7 +3174,7 @@ subroutine Run(gc, import, export, clock, rc)
 !---------------------------------------
 
       call MAPL_GetPointer ( IMPORT, PHIS, 'PHIS', RC=STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       phisxy = real(phis,kind=r8)
 
@@ -2915,6 +3182,14 @@ subroutine Run(gc, import, export, clock, rc)
 !---------------------------------------------------------------------
 
       call PULL_Q ( STATE, IMPORT, qqq, NXQ, RC=rc )
+!      if (adjustTracers) then
+!         call PULL_Q ( STATE, IMPORT, qqq, NXQ, bAdv=bundleAdv, RC=rc )
+!      else
+!         call PULL_Q ( STATE, IMPORT, qqq, NXQ, RC=rc )
+!      end if
+      !-----------------------------
+      ! end of fewer_tracers-section
+      !-----------------------------
 
       do k=1,size(names)
          if    (names(k)=='OX') then
@@ -2928,7 +3203,7 @@ subroutine Run(gc, import, export, clock, rc)
 !-------------------------------------
 
       call MAPL_GetResource(MAPL, ReplayMode, 'REPLAY_MODE:', default="NoReplay", RC=STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       REPLAYING: if(adjustl(ReplayMode)=="Intermittent") then
 
@@ -2936,12 +3211,12 @@ subroutine Run(gc, import, export, clock, rc)
 !---------------------------------------------------
 
          call ESMF_ClockGetAlarm(Clock,'INTERMITTENT',Alarm,rc=Status)
-         VERIFY_(status) 
+         _VERIFY(status) 
          call ESMF_ClockGet(Clock, CurrTime=currentTIME, rc=status)
-         VERIFY_(status)
+         _VERIFY(status)
 
          is_ringing = ESMF_AlarmIsRinging( Alarm,rc=status )
-         VERIFY_(status) 
+         _VERIFY(status) 
 
          RefTime = currentTime
 
@@ -2953,46 +3228,46 @@ subroutine Run(gc, import, export, clock, rc)
 !           Read in file name of field to replay to and all other relavant resources
 !           ------------------------------------------------------------------------
             call MAPL_GetResource ( MAPL,ReplayFile,'REPLAY_FILE:', RC=STATUS )
-            VERIFY_(status)
+            _VERIFY(status)
             call MAPL_GetResource ( MAPL,ReplayType,'REPLAY_TYPE:', Default="FULL", RC=STATUS )
-            VERIFY_(status)
+            _VERIFY(status)
    
             call MAPL_GetResource ( MAPL, im_replay, Label="REPLAY_IM:", RC=status )
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
             call MAPL_GetResource ( MAPL, jm_replay, Label="REPLAY_JM:", RC=status )
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
 
             call MAPL_GetResource ( MAPL, psname, Label="REPLAY_PSNAME:", Default="NULL",  RC=status )
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
             call MAPL_GetResource ( MAPL, dpname, Label="REPLAY_DPNAME:", Default="delp",  RC=status )
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
             call MAPL_GetResource ( MAPL,  uname, Label="REPLAY_UNAME:", Default="uwnd",   RC=status )
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
             call MAPL_GetResource ( MAPL,  vname, Label="REPLAY_VNAME:", Default="vwnd",   RC=status )
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
             call MAPL_GetResource ( MAPL,  tname, Label="REPLAY_TNAME:", Default="theta",  RC=status )
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
             call MAPL_GetResource ( MAPL,  qname, Label="REPLAY_QNAME:", Default="sphu",   RC=status )
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
             call MAPL_GetResource ( MAPL, o3name, Label="REPLAY_O3NAME:", Default="ozone", RC=status )
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
 
             call MAPL_GetResource ( MAPL,  rgrid, Label="REPLAY_GRID:", Default="D-GRID", RC=status )
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
             call MAPL_GetResource ( MAPL,   tvar, Label="REPLAY_TVAR:", Default="THETAV", RC=status )
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
 
             call MAPL_GetResource ( MAPL, CREMAP, LABEL="REPLAY_REMAP:", default="no", RC=status )
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
             call MAPL_GetResource ( MAPL, TREMAP, LABEL="REPLAY_REMAP_ALL_TRACERS:", default="yes", RC=status )
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
 
             call MAPL_GetResource ( MAPL, rc_blend,         'REPLAY_BLEND:', default=  0  , RC=STATUS )
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
             call MAPL_GetResource ( MAPL, rc_blend_p_above, 'REPLAY_BLEND_P_ABOVE:', default= 10.0, RC=STATUS )
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
             call MAPL_GetResource ( MAPL, rc_blend_p_below, 'REPLAY_BLEND_P_BELOW:', default=100.0, RC=STATUS )
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
 
             call MAPL_GetResource ( MAPL, sclinc, label ='SCLINC:', default=1.0, RC=STATUS )
 
@@ -3001,31 +3276,31 @@ subroutine Run(gc, import, export, clock, rc)
            !------------------------------------------
 
             call ESMF_ConfigGetAttribute( CF, nx_ana, label ='NX:', rc = STATUS )
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
             call ESMF_ConfigGetAttribute( CF, ny_ana, label ='NY:', rc = STATUS )
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
 
-            ! create lat-lon grid to hold input-replay field before L2C
-            ANAgrid = MAPL_LatLonGridCreate (Name='ANAgrid',      &
-                                             Nx = nx_ana, Ny = ny_ana, &
-                                             IM_World = IM_REPLAY,&
-                                             JM_World = JM_REPLAY,&
-                                             LM_World = km,       &
-                                             RC=STATUS )
-            VERIFY_(STATUS)
+            block
+              use MAPL_LatLonGridFactoryMod
+
+              ANAgrid = grid_manager%make_grid( &
+                   & LatLonGridFactory(im_world=IM_REPLAY, jm_world=JM_REPLAY, lm=km, &
+                   & nx=nx_ana, ny=ny_ana, rc=status))
+              _VERIFY(STATUS)
+            end block
 
             ANA_Bundle = ESMF_FieldBundleCreate( RC=STATUS)
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
             call ESMF_FieldBundleSet(ANA_Bundle, grid=ANAGRID, RC=STATUS)
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
 
             call MAPL_CFIORead(ReplayFile, RefTime, ANA_Bundle, RC=STATUS)
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
 
 !           Create transform from lat-lon to cubed
 !           --------------------------------------
-            call MAPL_HorzTransformCreate(L2C, ANAGrid, ESMFGRID, RC=STATUS )
-            VERIFY_(STATUS)
+            l2c => regridder_manager%make_regridder(ANAGrid, ESMFGRID, REGRID_METHOD_BILINEAR, RC=STATUS)
+            _VERIFY(STATUS)
 
 !           Fill the state variables from the bundle only if
 !           the corresponding fields are there
@@ -3048,21 +3323,18 @@ subroutine Run(gc, import, export, clock, rc)
 !           Done with replay; clean-up
 !           --------------------------
 
-            call MAPL_HorzTransformDestroy(L2C, RC=STATUS )
-            VERIFY_(STATUS)
-
             call ESMF_FieldBundleGet(ANA_Bundle , FieldCount=NUMVARS,      RC=STATUS)
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
 
             do k=1,NUMVARS
                call ESMF_FieldBundleGet (ANA_Bundle, k, ANA_FIELD,    RC=STATUS)
-               VERIFY_(STATUS)
+               _VERIFY(STATUS)
                call MAPL_FieldDestroy   (ANA_Field,                   RC=STATUS)
-               VERIFY_(STATUS)
+               _VERIFY(STATUS)
             end do
 
             call ESMF_FieldBundleDestroy(ANA_Bundle,                       RC=STATUS)
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
 
 
             end if TIME_TO_REPLAY
@@ -3093,12 +3365,12 @@ subroutine Run(gc, import, export, clock, rc)
              if ( (qqq%is_r4) .and. associated(qqq%content_r4) ) then
                 if (size(qv)==size(qqq%content_r4)) then
                    qv = qqq%content_r4
-                   ASSERT_(all(qv >= 0.0))
+                   _ASSERT(all(qv >= 0.0),'needs informative message')
                 endif
              elseif (associated(qqq%content)) then
                 if (size(qv)==size(qqq%content)) then
                    qv = qqq%content
-                   ASSERT_(all(qv >= 0.0))
+                   _ASSERT(all(qv >= 0.0),'needs informative message')
                 endif
              endif
          endif
@@ -3110,16 +3382,25 @@ subroutine Run(gc, import, export, clock, rc)
 !-------------------------------------------------
 
       call MAPL_GetPointer ( IMPORT, dqvana, 'DQVANA', RC=STATUS )   ! Get QV Increment from Analysis
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       call MAPL_GetPointer ( IMPORT, dqlana, 'DQLANA', RC=STATUS )   ! Get QL Increment from Analysis
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       call MAPL_GetPointer ( IMPORT, dqiana, 'DQIANA', RC=STATUS )   ! Get QI Increment from Analysis
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
+      call MAPL_GetPointer ( IMPORT, dqrana, 'DQRANA', RC=STATUS )   ! Get QR Increment from Analysis
+      _VERIFY(STATUS)
+      call MAPL_GetPointer ( IMPORT, dqsana, 'DQSANA', RC=STATUS )   ! Get QS Increment from Analysis
+      _VERIFY(STATUS)
+      call MAPL_GetPointer ( IMPORT, dqgana, 'DQGANA', RC=STATUS )   ! Get QG Increment from Analysis
+      _VERIFY(STATUS)
       call MAPL_GetPointer ( IMPORT, doxana, 'DOXANA', RC=STATUS )   ! Get OX Increment from Analysis
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       QL = 0.0
       QI = 0.0
+      QR = 0.0
+      QS = 0.0
+      QG = 0.0
       do N = 1,size(names)
            if( trim(names(N)).eq.'QLCN' .or. &
                trim(names(N)).eq.'QLLS' ) then
@@ -3137,17 +3418,37 @@ subroutine Run(gc, import, export, clock, rc)
                      QI = QI + state%vars%tracer(N)%content
                  endif
            endif
+           if( trim(names(N)).eq.'QRAIN' ) then
+                 if( state%vars%tracer(N)%is_r4 ) then
+                     QR = state%vars%tracer(N)%content_r4
+                 else
+                     QR = state%vars%tracer(N)%content
+                 endif
+           endif
+           if( trim(names(N)).eq.'QSNOW' ) then
+                 if( state%vars%tracer(N)%is_r4 ) then
+                     QS = state%vars%tracer(N)%content_r4
+                 else
+                     QS = state%vars%tracer(N)%content
+                 endif
+           endif
+           if( trim(names(N)).eq.'QGRAUPEL' ) then
+                 if( state%vars%tracer(N)%is_r4 ) then
+                     QG = state%vars%tracer(N)%content_r4
+                 else
+                     QG = state%vars%tracer(N)%content
+                 endif
+           endif
       enddo
       QVOLD = QV-DQVANA
       QLOLD = QL-DQLANA
       QIOLD = QI-DQIANA
+      QROLD = QR-DQRANA
+      QSOLD = QS-DQSANA
+      QGOLD = QG-DQGANA
 
-      QDOLD = 1.0 - (QVOLD+QLOLD+QIOLD)
-      QDNEW = 1.0 - (QV   +QL   +QI   )
-
-! Get A-grid winds
-! ----------------
-
+!! Get A-grid winds
+!! ----------------
       call getAgridWinds(vars%u, vars%v, ua, va, rotate=.true.)
 
       delp   = vars%pe(:,:,2:)  -vars%pe(:,:,:km)   ! Pressure Thickness
@@ -3159,31 +3460,31 @@ subroutine Run(gc, import, export, clock, rc)
 ! DUDTANA
 ! -------
       call MAPL_GetPointer ( export, dudtana, 'DUDTANA', rc=status )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if( associated(dudtana) ) dudtana = ua
 
 ! DVDTANA
 ! -------
       call MAPL_GetPointer ( export, dvdtana, 'DVDTANA', rc=status )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if( associated(dvdtana) ) dvdtana = va
 
 ! DTDTANA
 ! -------
       call MAPL_GetPointer ( export, dtdtana, 'DTDTANA', rc=status )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if( associated(dtdtana) ) dtdtana = vars%pt * vars%pkz
 
 ! DDELPDTANA
 ! ----------
       call MAPL_GetPointer ( export, ddpdtana, 'DDELPDTANA', rc=status )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if( associated(ddpdtana) ) ddpdtana = delp
 
 ! DTHVDTANAINT
 ! ------------
       call MAPL_GetPointer ( export, temp2D, 'DTHVDTANAINT', rc=status )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if( associated(temp2D) ) then
           tempxy       = vars%pt*(1+eps*(qv-dqvana))   ! Set tempxy = TH*QVold (Before Analysis Update)
           dthdtanaint1 = 0.0
@@ -3195,7 +3496,7 @@ subroutine Run(gc, import, export, clock, rc)
 ! DQVDTANAINT
 ! -----------
       call MAPL_GetPointer ( export, temp2D, 'DQVDTANAINT', rc=status )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if( associated(temp2D) ) then
           tempxy       = qv-dqvana   ! Set tempxy = QVold (Before Analysis Update)
           dqvdtanaint1 = 0.0
@@ -3207,7 +3508,7 @@ subroutine Run(gc, import, export, clock, rc)
 ! DQLDTANAINT
 ! -----------
       call MAPL_GetPointer ( export, temp2D, 'DQLDTANAINT', rc=status )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if( associated(temp2D) ) then
           dqldtanaint1 = 0.0
           do N = 1,size(names)
@@ -3230,7 +3531,7 @@ subroutine Run(gc, import, export, clock, rc)
 ! DQIDTANAINT
 ! -----------
       call MAPL_GetPointer ( export, temp2D, 'DQIDTANAINT', rc=status )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if( associated(temp2D) ) then
           dqidtanaint1 = 0.0
           do N = 1,size(names)
@@ -3253,7 +3554,7 @@ subroutine Run(gc, import, export, clock, rc)
 ! DOXDTANAINT
 ! -----------
       call MAPL_GetPointer ( export, temp2D, 'DOXDTANAINT', rc=status )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if( associated(temp2D) ) then
           tempxy       = OX-doxana   ! Set tempxy = OXold (Before Analysis Update)
           doxdtanaint1 = 0.0
@@ -3265,27 +3566,67 @@ subroutine Run(gc, import, export, clock, rc)
 ! Add Diabatic Forcing from Analysis to State Variables
 ! -----------------------------------------------------
 
-      call MAPL_GetPointer(export, temp2d, 'AREA', rc=status)
-      VERIFY_(STATUS)
+      if (vars%nwat == 6) then
+        QDOLD = 1.0 - (QVOLD+QLOLD+QIOLD+QROLD+QSOLD+QGOLD)
+        QDNEW = 1.0 - (QV   +QL   +QI   +QR   +QS   +QG   )
+      else
+        QDOLD = 1.0 - (QVOLD+QLOLD+QIOLD)
+        QDNEW = 1.0 - (QV   +QL   +QI   )
+      endif
+      call MAPL_GetPointer(export, area, 'AREA', rc=status)
+      _VERIFY(STATUS)
 
       allocate( trsum1(nq) )
       allocate( trsum2(nq) )
 
-      ! Compute Global Mass of Aerosol Constituents Before ANA Updates
-      ! --------------------------------------------------------------
-      call glosum   ( STATE,TEMP2D,ESMFGRID,NQ,TRSUM1 )
-
-      call MAPL_GetResource(MAPL, ANA_IS_WEIGHTED, Label="ANA_IS_WEIGHTED:", default='YES', RC=STATUS)
-      VERIFY_(STATUS)
-           ANA_IS_WEIGHTED = uppercase(ANA_IS_WEIGHTED)
+      call MAPL_GetResource(MAPL, ANA_IS_WEIGHTED, Label="ANA_IS_WEIGHTED:", default='NO', RC=STATUS)
+      _VERIFY(STATUS)
+           ANA_IS_WEIGHTED = ESMF_UtilStringUpperCase(ANA_IS_WEIGHTED)
                IS_WEIGHTED =   adjustl(ANA_IS_WEIGHTED)=="YES" .or. adjustl(ANA_IS_WEIGHTED)=="NO"
-      ASSERT_( IS_WEIGHTED )
+      _ASSERT( IS_WEIGHTED ,'needs informative message')
                IS_WEIGHTED =   adjustl(ANA_IS_WEIGHTED)=="YES"
+
+      ! Add Analysis Tendencies
+      ! -----------------------
+      delpold = delp                            ! Old Pressure Thickness
 
       call ADD_INCS ( STATE,IMPORT,DT,IS_WEIGHTED=IS_WEIGHTED )
 
+      if (DYN_DEBUG) call DEBUG_FV_STATE('ANA ADD_INCS',STATE)
+
+      delp = vars%pe(:,:,2:)-vars%pe(:,:,:km)   ! Updated Pressure Thickness
+
+      ! Compute Old Global Sums of Tracers over Locations where Mass has changed
+      ! ------------------------------------------------------------------------
+      if ((.not. ADIABATIC)) then
+      do n=1,NQ
+             qsum1(:,:) = 0.0_r8
+         if( STATE%VARS%TRACER(N)%IS_R4 ) then
+             do k=1,km
+             where( delp(:,:,k).ne.delpold(:,:,k) )
+                   qsum1(:,:) = qsum1(:,:) + state%vars%tracer(n)%content_r4(:,:,k)*delpold(:,:,k)
+             end where
+             enddo
+         else
+             do k=1,km
+             where( delp(:,:,k).ne.delpold(:,:,k) )
+                   qsum1(:,:) = qsum1(:,:) + state%vars%tracer(n)%content   (:,:,k)*delpold(:,:,k)
+             end where
+             enddo
+         endif
+         where( qsum1.ne.0.0_r8 )
+                qsum2 = qsum1
+         elsewhere
+                qsum2 = MAPL_UNDEF
+         end where
+         call MAPL_AreaMean( TRSUM1(n), qsum2, area, esmfgrid, rc=STATUS )
+         _VERIFY(STATUS)
+      enddo
+      endif
+
       ! Update Specific Mass of Aerosol Constituents Keeping Mixing_Ratio Constant WRT_Dry_Air After ANA Updates
       ! --------------------------------------------------------------------------------------------------------
+      if ((.not. ADIABATIC)) then
       do n=1,NQ
       if( (trim(names(n)).ne.'Q'   ) .and. &
           (trim(names(n)).ne.'QLLS') .and. &
@@ -3293,7 +3634,10 @@ subroutine Run(gc, import, export, clock, rc)
           (trim(names(n)).ne.'QILS') .and. &
           (trim(names(n)).ne.'QICN') .and. &
           (trim(names(n)).ne.'CLLS') .and. &
-          (trim(names(n)).ne.'CLCN')       ) then
+          (trim(names(n)).ne.'CLCN') .and. &
+          (trim(names(n)).ne.'QRAIN') .and. &
+          (trim(names(n)).ne.'QSNOW') .and. &
+          (trim(names(n)).ne.'QGRAUPEL') ) then
            if( STATE%VARS%TRACER(N)%IS_R4 ) then
                state%vars%tracer(n)%content_r4 = state%vars%tracer(n)%content_r4 * ( QDNEW/QDOLD )
            else
@@ -3301,13 +3645,39 @@ subroutine Run(gc, import, export, clock, rc)
            endif
       endif
       enddo
+      endif
 
-      ! Compute Global Mass of Aerosol Constituents After ANA Updates
-      ! -------------------------------------------------------------
-      call glosum   ( STATE,TEMP2D,ESMFGRID,NQ,TRSUM2 )
+      ! Compute New Global Sums of Tracers over Locations where Mass has changed
+      ! ------------------------------------------------------------------------
+      if ((.not. ADIABATIC)) then
+      do n=1,NQ
+             qsum1(:,:) = 0.0_r8
+         if( STATE%VARS%TRACER(N)%IS_R4 ) then
+             do k=1,km
+             where( delp(:,:,k).ne.delpold(:,:,k) )
+                   qsum1(:,:) = qsum1(:,:) + state%vars%tracer(n)%content_r4(:,:,k)*delp(:,:,k)
+             end where
+             enddo
+         else
+             do k=1,km
+             where( delp(:,:,k).ne.delpold(:,:,k) )
+                   qsum1(:,:) = qsum1(:,:) + state%vars%tracer(n)%content   (:,:,k)*delp(:,:,k)
+             end where
+             enddo
+         endif
+         where( qsum1.ne.0.0_r8 )
+                qsum2 = qsum1
+         elsewhere
+                qsum2 = MAPL_UNDEF
+         end where
+         call MAPL_AreaMean( TRSUM2(n), qsum2, area, esmfgrid, rc=STATUS )
+         _VERIFY(STATUS)
+      enddo
+      endif
 
       ! Ensure Conservation of Global Mass of Aerosol Constituents After ANA Updates
       ! ----------------------------------------------------------------------------
+      if ((.not. ADIABATIC)) then
       do n=1,NQ
       if( (trim(names(n)).ne.'Q'   ) .and. &
           (trim(names(n)).ne.'QLLS') .and. &
@@ -3315,22 +3685,35 @@ subroutine Run(gc, import, export, clock, rc)
           (trim(names(n)).ne.'QILS') .and. &
           (trim(names(n)).ne.'QICN') .and. &
           (trim(names(n)).ne.'CLLS') .and. &
-          (trim(names(n)).ne.'CLCN')       ) then
+          (trim(names(n)).ne.'CLCN') .and. &
+          (trim(names(n)).ne.'QRAIN') .and. &
+          (trim(names(n)).ne.'QSNOW') .and. &
+          (trim(names(n)).ne.'QGRAUPEL')       ) then
 
-           if( trsum2(n).ne.0.0d0 ) then
-               trsum2(n) = trsum1(n)/trsum2(n)
+           if( real(trsum1(n),kind=4).ne.MAPL_UNDEF .and. &
+               real(trsum2(n),kind=4).ne.MAPL_UNDEF       ) then
+                    trsum2(n) = real( trsum1(n)/trsum2(n),kind=4)
            else
-               trsum2(n) = 1.0d0
+                    trsum2(n) = 1.0d0
            endif
-          !IF (MAPL_AM_I_ROOT()) print *, trim(names(n)),' ratio is: ',trsum2(n)
+         ! IF (MAPL_AM_I_ROOT()) print *, trim(names(n)),' ratio is: ',trsum2(n)
 
            if( STATE%VARS%TRACER(N)%IS_R4 ) then
-               state%vars%tracer(n)%content_r4 = state%vars%tracer(n)%content_r4 * trsum2(n)
+               do k=1,km
+                  where( delp(:,:,k).ne.delpold(:,:,k) )
+                         state%vars%tracer(n)%content_r4(:,:,k) = state%vars%tracer(n)%content_r4(:,:,k) * trsum2(n)
+                  end where
+               enddo
            else
-               state%vars%tracer(n)%content    = state%vars%tracer(n)%content    * trsum2(n)
+               do k=1,km
+                  where( delp(:,:,k).ne.delpold(:,:,k) )
+                         state%vars%tracer(n)%content   (:,:,k) = state%vars%tracer(n)%content   (:,:,k) * trsum2(n)
+                  end where
+               enddo
            endif
       endif
       enddo
+      endif
 
       deallocate( trsum1 )
       deallocate( trsum2 )
@@ -3359,18 +3742,17 @@ subroutine Run(gc, import, export, clock, rc)
 !------------------------------------------------
 
       call MAPL_GetPointer ( export, temp2D, 'DMDTANA', rc=status )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if( associated(temp2D) ) temp2D = ( (vars%pe(:,:,km+1)-vars%pe(:,:,1)) - dmdt )/(grav*dt)
 
       call getAgridWinds(vars%u, vars%v, ua, va, rotate=.true.)
 
-      delp = vars%pe(:,:,2:)  -vars%pe(:,:,:km)   ! Pressure Thickness
       dmdt = vars%pe(:,:,km+1)-vars%pe(:,:,1)     ! Psurf-Ptop
 
 ! DUDTANA
 ! -------
       call MAPL_GetPointer ( export, dudtana, 'DUDTANA', rc=status )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if( associated(dudtana) ) then
                      dummy   =  ua
                      dudtana = (dummy-dudtana)/dt
@@ -3379,7 +3761,7 @@ subroutine Run(gc, import, export, clock, rc)
 ! DVDTANA
 ! -------
       call MAPL_GetPointer ( export, dvdtana, 'DVDTANA', rc=status )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if( associated(dvdtana) ) then
                      dummy   =  va
                      dvdtana = (dummy-dvdtana)/dt
@@ -3388,7 +3770,7 @@ subroutine Run(gc, import, export, clock, rc)
 ! DTDTANA
 ! -------
       call MAPL_GetPointer ( export, dtdtana, 'DTDTANA', rc=status )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if( associated(dtdtana) ) then
                      dummy   =  vars%pt*vars%pkz
                      dtdtana = (dummy-dtdtana)/dt
@@ -3397,7 +3779,7 @@ subroutine Run(gc, import, export, clock, rc)
 ! DDELPDTANA
 ! ----------
       call MAPL_GetPointer ( export, ddpdtana, 'DDELPDTANA', rc=status )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if( associated(ddpdtana) ) then
                      dummy    =  delp
                      ddpdtana = (dummy-ddpdtana)/dt
@@ -3406,7 +3788,7 @@ subroutine Run(gc, import, export, clock, rc)
 ! DTHVDTANAINT
 ! ------------
       call MAPL_GetPointer ( export, temp2D, 'DTHVDTANAINT', rc=status )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if( associated(temp2D) ) then
           tempxy       = vars%pt*(1+eps*qv)   ! Set tempxy = TH*QVnew (After Analysis Update)
           dthdtanaint2 = 0.0
@@ -3419,7 +3801,7 @@ subroutine Run(gc, import, export, clock, rc)
 ! DQVDTANAINT
 ! -----------
       call MAPL_GetPointer ( export, temp2D, 'DQVDTANAINT', rc=status )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if( associated(temp2D) ) then
           tempxy       = qv         ! Set tempxy = QNEW (After Analysis Update)
           dqvdtanaint2 = 0.0
@@ -3432,7 +3814,7 @@ subroutine Run(gc, import, export, clock, rc)
 ! DQLDTANAINT
 ! -----------
       call MAPL_GetPointer ( export, temp2D, 'DQLDTANAINT', rc=status )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if( associated(temp2D) ) then
           dqldtanaint2 = 0.0
           do N = 1,size(names)
@@ -3453,7 +3835,7 @@ subroutine Run(gc, import, export, clock, rc)
 ! DQIDTANAINT
 ! -----------
       call MAPL_GetPointer ( export, temp2D, 'DQIDTANAINT', rc=status )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if( associated(temp2D) ) then
           dqidtanaint2 = 0.0
           do N = 1,size(names)
@@ -3474,7 +3856,7 @@ subroutine Run(gc, import, export, clock, rc)
 ! DOXDTANAINT
 ! -----------
       call MAPL_GetPointer ( export, temp2D, 'DOXDTANAINT', rc=status )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if( associated(temp2D) ) then
           tempxy       = ox         ! Set tempxy = OXnew (After Analysis Update)
           doxdtanaint2 = 0.0
@@ -3492,22 +3874,29 @@ subroutine Run(gc, import, export, clock, rc)
 ! Initialize Diagnostic Dynamics Tendencies
 ! -----------------------------------------
 
-      ddpdt  =   delp       ! Pressure Thickness Tendency
+      dpedt  = vars%pe      ! Edge Pressure      Tendency
+      ddpdt  =    delp      ! Pressure Thickness Tendency
       dudt   =     ua       ! U-Wind on A-Grid   Tendency
       dvdt   =     va       ! V-Wind on A-Grid   Tendency
       dtdt   = tempxy       ! Dry Temperature    Tendency
       dqdt   =     qv       ! Specific Humidity  Tendency
       dthdt  = vars%pt*(1.0+eps*qv)*delp
 
+      call FILLOUT3 (export,  'QV_DYN_IN',      qv, rc=status); _VERIFY(STATUS)
+      call FILLOUT3 (export,   'T_DYN_IN',  tempxy, rc=status); _VERIFY(STATUS)
+      call FILLOUT3 (export,   'U_DYN_IN',      ua, rc=status); _VERIFY(STATUS)
+      call FILLOUT3 (export,   'V_DYN_IN',      va, rc=status); _VERIFY(STATUS)
+      call FILLOUT3 (export, 'PLE_DYN_IN', vars%pe, rc=status); _VERIFY(STATUS)
+
 ! Initialize 3-D Tracer Dynamics Tendencies
 ! -----------------------------------------
 
       call MAPL_GetPointer( export,dqldt,'DQLDTDYN', rc=status )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       call MAPL_GetPointer( export,dqidt,'DQIDTDYN', rc=status )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       call MAPL_GetPointer( export,doxdt,'DOXDTDYN', rc=status )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
      if (allocated(names)) then
 
@@ -3563,7 +3952,7 @@ subroutine Run(gc, import, export, clock, rc)
 ! ---------------------------------------------------------------
 
       call MAPL_GetPointer ( export, temp2D, 'DQVDTDYNINT', rc=status )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if( associated(temp2D) ) then
           temp2d = 0.0
           do k=1,km
@@ -3572,7 +3961,7 @@ subroutine Run(gc, import, export, clock, rc)
       endif
 
       call MAPL_GetPointer ( export, temp2D, 'DQLDTDYNINT', rc=status )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if( associated(temp2D) ) then
           temp2d = 0.0
           do N = 1,size(names)
@@ -3592,7 +3981,7 @@ subroutine Run(gc, import, export, clock, rc)
       endif
 
       call MAPL_GetPointer ( export, temp2D, 'DQIDTDYNINT', rc=status )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if( associated(temp2D) ) then
           temp2d = 0.0
           do N = 1,size(names)
@@ -3612,7 +4001,7 @@ subroutine Run(gc, import, export, clock, rc)
       endif
 
       call MAPL_GetPointer ( export, temp2D, 'DOXDTDYNINT', rc=status )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if( associated(temp2D) ) then
           temp2d = 0.0
           do N = 1,size(names)
@@ -3642,9 +4031,9 @@ subroutine Run(gc, import, export, clock, rc)
     penrg = (penrg0-penrg)/DT
     tenrg = (tenrg0-tenrg)/DT
 
-    call FILLOUT2 (export, 'KEANA', kenrg, rc=status); VERIFY_(STATUS)
-    call FILLOUT2 (export, 'PEANA', penrg, rc=status); VERIFY_(STATUS)
-    call FILLOUT2 (export, 'TEANA', tenrg, rc=status); VERIFY_(STATUS)
+    call FILLOUT2 (export, 'KEANA', kenrg, rc=status); _VERIFY(STATUS)
+    call FILLOUT2 (export, 'PEANA', penrg, rc=status); _VERIFY(STATUS)
+    call FILLOUT2 (export, 'TEANA', tenrg, rc=status); _VERIFY(STATUS)
 
 ! Add Passive Tracers for KE, CPT, and PHI
 ! ----------------------------------------
@@ -3665,13 +4054,13 @@ subroutine Run(gc, import, export, clock, rc)
 
           deallocate( NAMES )
             allocate( NAMES(NQ),STAT=STATUS )
-          VERIFY_(STATUS)
+          _VERIFY(STATUS)
           NAMES(1:NQ-NXQ) = NAMES0
           NAMES(NQ-1) = 'KE'
           NAMES(NQ  ) = 'PHI'
           deallocate( NAMES0 )
             allocate( NAMES0(NQ),STAT=STATUS )
-          VERIFY_(STATUS)
+          _VERIFY(STATUS)
           NAMES0 = NAMES
     else
       NKE  = -1
@@ -3681,9 +4070,9 @@ subroutine Run(gc, import, export, clock, rc)
 ! Call Wrapper (DynRun) for FVDycore
 ! ----------------------------------
       call MAPL_GetResource( MAPL, CONSV, 'CONSV:', default=1, RC=STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       call MAPL_GetResource( MAPL,  FILL,  'FILL:', default=0, RC=STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       LCONSV = CONSV.eq.1
       LFILL  =  FILL.eq.1
@@ -3692,12 +4081,12 @@ subroutine Run(gc, import, export, clock, rc)
 !-------------------------------------------------------
       call getAgridWinds(vars%u, vars%v, ua, va, uc0, vc0)
       pe0=vars%pe
-      call FILLOUT3r8 (export, 'PLE0', pe0, rc=status); VERIFY_(STATUS)
+      call FILLOUT3r8 (export, 'PLE0', pe0, rc=status); _VERIFY(STATUS)
 !-------------------------------------------------------
 
       call MAPL_TimerOn(MAPL,"-DYN_CORE")
-      call DynRun (STATE, CLOCK, RC=STATUS)
-      VERIFY_(STATUS)
+      call DynRun (STATE, CLOCK, GC, RC=STATUS)
+      _VERIFY(STATUS)
       call MAPL_TimerOff(MAPL,"-DYN_CORE")
 
 !#define DEBUG_WINDS
@@ -3712,24 +4101,24 @@ subroutine Run(gc, import, export, clock, rc)
     if (SW_DYNAMICS) then
 
       call MAPL_GetPointer(export,temp2d,'PHIS', rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) temp2d = phisxy
 
       call MAPL_GetPointer(export,temp2d,'PS',  rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) temp2d =  vars%pe(:,:,km+1)/GRAV
 
       call getAgridWinds(vars%u, vars%v, ua, va, uc, vc)
-      call FILLOUT3 (export, 'U_DGRID', vars%u  , rc=status); VERIFY_(STATUS)
-      call FILLOUT3 (export, 'V_DGRID', vars%v  , rc=status); VERIFY_(STATUS)
-      call FILLOUT3 (export, 'U_CGRID', uc      , rc=status); VERIFY_(STATUS)
-      call FILLOUT3 (export, 'V_CGRID', vc      , rc=status); VERIFY_(STATUS)
-      call FILLOUT3 (export, 'U_AGRID', ua      , rc=status); VERIFY_(STATUS)
-      call FILLOUT3 (export, 'V_AGRID', va      , rc=status); VERIFY_(STATUS)
+      call FILLOUT3 (export, 'U_DGRID', vars%u  , rc=status); _VERIFY(STATUS)
+      call FILLOUT3 (export, 'V_DGRID', vars%v  , rc=status); _VERIFY(STATUS)
+      call FILLOUT3 (export, 'U_CGRID', uc      , rc=status); _VERIFY(STATUS)
+      call FILLOUT3 (export, 'V_CGRID', vc      , rc=status); _VERIFY(STATUS)
+      call FILLOUT3 (export, 'U_AGRID', ua      , rc=status); _VERIFY(STATUS)
+      call FILLOUT3 (export, 'V_AGRID', va      , rc=status); _VERIFY(STATUS)
 
       call getAgridWinds(vars%u, vars%v, ua, va, rotate=.true.)
-      call FILLOUT3 (export, 'U'      , ua      , rc=status); VERIFY_(STATUS)
-      call FILLOUT3 (export, 'V'      , va      , rc=status); VERIFY_(STATUS)
+      call FILLOUT3 (export, 'U'      , ua      , rc=status); _VERIFY(STATUS)
+      call FILLOUT3 (export, 'V'      , va      , rc=status); _VERIFY(STATUS)
 
     else               ! .not. SW_DYNAMICS
 
@@ -3752,7 +4141,7 @@ subroutine Run(gc, import, export, clock, rc)
       dthdt = ( vars%pt*(1.0+eps*qv)*delp-dthdt )/dt
 
       call MAPL_GetPointer(export,temp2d,'DTHVDTDYNINT', rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) then
          qsum1 = 0.0
       do k=1,km
@@ -3775,9 +4164,9 @@ subroutine Run(gc, import, export, clock, rc)
 ! Compute absolute vorticity on the D grid
 ! -------------------------------------------------
       call getVorticity(vars%u, vars%v, tmp3d)
-      call getEPV(vars%pt,tmp3d,epvxyz)
+      call getEPV(vars%pt,tmp3d,ua,va,epvxyz)
       call MAPL_GetPointer(export, temp3D, 'EPV', rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp3d)) temp3d = epvxyz*(p00**kappa)
 
 ! Compute Tropopause Pressure, Temperature, and Moisture
@@ -3792,34 +4181,34 @@ subroutine Run(gc, import, export, clock, rc)
                           tropp1,tropp2,tropp3,tropt,tropq          )
 
       call MAPL_GetPointer(export,temp2D,'TROPP_THERMAL',rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2D)) temp2D = tropp1
 
       call MAPL_GetPointer(export,temp2D,'TROPP_EPV',rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2D)) temp2D = tropp2
 
       call MAPL_GetPointer(export,temp2D,'TROPP_BLENDED',rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2D)) temp2D = tropp3
 
       call MAPL_GetPointer(export,temp2D,'TROPT',rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2D)) temp2D = tropt
 
       call MAPL_GetPointer(export,temp2D,'TROPQ',rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2D)) temp2D = tropq
 
 ! Get Cubed-Sphere Wind Exports
 ! -----------------------------
       call getAgridWinds(vars%u, vars%v, ua, va, uc, vc)
-      call FILLOUT3 (export, 'U_DGRID', vars%u  , rc=status); VERIFY_(STATUS)
-      call FILLOUT3 (export, 'V_DGRID', vars%v  , rc=status); VERIFY_(STATUS)
-      call FILLOUT3 (export, 'U_CGRID', uc      , rc=status); VERIFY_(STATUS)
-      call FILLOUT3 (export, 'V_CGRID', vc      , rc=status); VERIFY_(STATUS)
-      call FILLOUT3 (export, 'U_AGRID', ua      , rc=status); VERIFY_(STATUS)
-      call FILLOUT3 (export, 'V_AGRID', va      , rc=status); VERIFY_(STATUS)
+      call FILLOUT3 (export, 'U_DGRID', vars%u  , rc=status); _VERIFY(STATUS)
+      call FILLOUT3 (export, 'V_DGRID', vars%v  , rc=status); _VERIFY(STATUS)
+      call FILLOUT3 (export, 'U_CGRID', uc      , rc=status); _VERIFY(STATUS)
+      call FILLOUT3 (export, 'V_CGRID', vc      , rc=status); _VERIFY(STATUS)
+      call FILLOUT3 (export, 'U_AGRID', ua      , rc=status); _VERIFY(STATUS)
+      call FILLOUT3 (export, 'V_AGRID', va      , rc=status); _VERIFY(STATUS)
 
 ! Compute A-Grid Winds
 ! --------------------
@@ -3833,21 +4222,23 @@ subroutine Run(gc, import, export, clock, rc)
 
       dudt = (    ua-dudt )/dt
       dvdt = (    va-dvdt )/dt
-      dtdt = (tempxy-dtdt )/dt
-      dqdt = (    qv-dqdt )/dt
+      dtdt = (  tempxy-dtdt )/dt
+      dqdt = (      qv-dqdt )/dt
 
+      dpedt = ( vars%pe - dpedt )/dt
       ddpdt = ( delp - ddpdt )/dt ! Pressure Thickness Tendency
 
 
-      call FILLOUT3 (export, 'DELP'      ,delp , rc=status); VERIFY_(STATUS)
-      call FILLOUT3 (export, 'DUDTDYN'   ,dudt , rc=status); VERIFY_(STATUS)
-      call FILLOUT3 (export, 'DVDTDYN'   ,dvdt , rc=status); VERIFY_(STATUS)
-      call FILLOUT3 (export, 'DTDTDYN'   ,dtdt , rc=status); VERIFY_(STATUS)
-      call FILLOUT3 (export, 'DQVDTDYN'  ,dqdt , rc=status); VERIFY_(STATUS)
-      call FILLOUT3 (export, 'DDELPDTDYN',ddpdt, rc=status); VERIFY_(STATUS)
+      call FILLOUT3 (export, 'DELP'      ,delp , rc=status); _VERIFY(STATUS)
+      call FILLOUT3 (export, 'DUDTDYN'   ,dudt , rc=status); _VERIFY(STATUS)
+      call FILLOUT3 (export, 'DVDTDYN'   ,dvdt , rc=status); _VERIFY(STATUS)
+      call FILLOUT3 (export, 'DTDTDYN'   ,dtdt , rc=status); _VERIFY(STATUS)
+      call FILLOUT3 (export, 'DQVDTDYN'  ,dqdt , rc=status); _VERIFY(STATUS)
+      call FILLOUT3 (export, 'DDELPDTDYN',ddpdt, rc=status); _VERIFY(STATUS)
+      call FILLOUT3 (export, 'DPLEDTDYN' ,dpedt, rc=status); _VERIFY(STATUS)
 
       pe1=vars%pe
-      call FILLOUT3r8 (export, 'PLE1', pe1    , rc=status); VERIFY_(STATUS)
+      call FILLOUT3r8 (export, 'PLE1', pe1    , rc=status); _VERIFY(STATUS)
 
       if (AdvCore_Advection==2) then
       ! Compute time-centered C-Grid Courant Numbers and Mass Fluxes on Cubed Orientation
@@ -3869,43 +4260,44 @@ subroutine Run(gc, import, export, clock, rc)
        ! truncate precision to R4 and back to R8
 
         call computeMassFluxes(uc0, vc0, gze, mfxxyz, mfyxyz, cxxyz, cyxyz, dt)
-        call FILLOUT3r8 (export, 'CX'  , cxxyz  , rc=status); VERIFY_(STATUS)
-        call FILLOUT3r8 (export, 'CY'  , cyxyz  , rc=status); VERIFY_(STATUS)
-        call FILLOUT3r8 (export, 'MFX' , mfxxyz , rc=status); VERIFY_(STATUS)
-        call FILLOUT3r8 (export, 'MFY' , mfyxyz , rc=status); VERIFY_(STATUS)
+        call FILLOUT3r8 (export, 'CX'  , cxxyz  , rc=status); _VERIFY(STATUS)
+        call FILLOUT3r8 (export, 'CY'  , cyxyz  , rc=status); _VERIFY(STATUS)
+        call FILLOUT3r8 (export, 'MFX' , mfxxyz , rc=status); _VERIFY(STATUS)
+        call FILLOUT3r8 (export, 'MFY' , mfyxyz , rc=status); _VERIFY(STATUS)
       else
       ! Fill Advection C-Grid Courant Numbers and Mass Fluxes on Cubed Orientation from FV3 DynCore
         call fillMassFluxes(mfxxyz, mfyxyz, cxxyz, cyxyz)
-        call FILLOUT3r8 (export, 'CX'  , cxxyz  , rc=status); VERIFY_(STATUS)
-        call FILLOUT3r8 (export, 'CY'  , cyxyz  , rc=status); VERIFY_(STATUS)
-        call FILLOUT3r8 (export, 'MFX' , mfxxyz , rc=status); VERIFY_(STATUS)
-        call FILLOUT3r8 (export, 'MFY' , mfyxyz , rc=status); VERIFY_(STATUS)
+        call FILLOUT3r8 (export, 'CX'  , cxxyz  , rc=status); _VERIFY(STATUS)
+        call FILLOUT3r8 (export, 'CY'  , cyxyz  , rc=status); _VERIFY(STATUS)
+        call FILLOUT3r8 (export, 'MFX' , mfxxyz , rc=status); _VERIFY(STATUS)
+        call FILLOUT3r8 (export, 'MFY' , mfyxyz , rc=status); _VERIFY(STATUS)
       endif
 
-      call FILLOUT3 (export, 'CU' ,  cxxyz , rc=status); VERIFY_(STATUS)
-      call FILLOUT3 (export, 'CV' ,  cyxyz , rc=status); VERIFY_(STATUS)
-      call FILLOUT3 (export, 'MX' , mfxxyz , rc=status); VERIFY_(STATUS)
-      call FILLOUT3 (export, 'MY' , mfyxyz , rc=status); VERIFY_(STATUS)
+      call FILLOUT3 (export, 'CU' ,  cxxyz , rc=status); _VERIFY(STATUS)
+      call FILLOUT3 (export, 'CV' ,  cyxyz , rc=status); _VERIFY(STATUS)
+      call FILLOUT3 (export, 'MX' , mfxxyz , rc=status); _VERIFY(STATUS)
+      call FILLOUT3 (export, 'MY' , mfyxyz , rc=status); _VERIFY(STATUS)
 
 ! Compute and return the vertical mass flux
       call getVerticalMassFlux(mfxxyz, mfyxyz, mfzxyz, dt)
-      call FILLOUT3r8 (export, 'MFZ' , mfzxyz , rc=status); VERIFY_(STATUS)
+      call FILLOUT3r8 (export, 'MFZ' , mfzxyz , rc=status); _VERIFY(STATUS)
 
-      call FILLOUT3 (export, 'U'      , ua      , rc=status); VERIFY_(STATUS)
-      call FILLOUT3 (export, 'V'      , va      , rc=status); VERIFY_(STATUS)
-      call FILLOUT3 (export, 'T'      , tempxy  , rc=status); VERIFY_(STATUS)
-      call FILLOUT3 (export, 'Q'      , qv      , rc=status); VERIFY_(STATUS)
-      call FILLOUT3 (export, 'PL'     , pl      , rc=status); VERIFY_(STATUS)
-      call FILLOUT3 (export, 'PLE'    , vars%pe , rc=status); VERIFY_(STATUS)
-      call FILLOUT3 (export, 'PLK'    , vars%pkz, rc=status); VERIFY_(STATUS)
-      call FILLOUT3 (export, 'PT'     , vars%pt , rc=status); VERIFY_(STATUS)
-      call FILLOUT3 (export, 'PE'     , vars%pe , rc=status); VERIFY_(STATUS)
+      call FILLOUT3 (export, 'U'      , ua      , rc=status); _VERIFY(STATUS)
+      call FILLOUT3 (export, 'V'      , va      , rc=status); _VERIFY(STATUS)
+      call FILLOUT3 (export, 'T'      , tempxy  , rc=status); _VERIFY(STATUS)
+      call FILLOUT3 (export, 'Q'      , qv      , rc=status); _VERIFY(STATUS)
+      call FILLOUT3 (export, 'PL'     , pl      , rc=status); _VERIFY(STATUS)
+      call FILLOUT3 (export, 'PLE'    , vars%pe , rc=status); _VERIFY(STATUS)
+      call FILLOUT3 (export, 'PLK'    , vars%pkz, rc=status); _VERIFY(STATUS)
+      call FILLOUT3 (export, 'PKE'    , pkxy    , rc=status); _VERIFY(STATUS)
+      call FILLOUT3 (export, 'PT'     , vars%pt , rc=status); _VERIFY(STATUS)
+      call FILLOUT3 (export, 'PE'     , vars%pe , rc=status); _VERIFY(STATUS)
 
 
       do ntracer=1,ntracers
          write(myTracer, "('Q',i1.1)") ntracer-1
          call MAPL_GetPointer(export, temp3D, TRIM(myTracer), rc=status)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
          if((associated(temp3d)) .and. (NQ>=ntracer)) then
             if (state%vars%tracer(ntracer)%is_r4) then
                temp3d = state%vars%tracer(ntracer)%content_r4
@@ -3916,19 +4308,20 @@ subroutine Run(gc, import, export, clock, rc)
       enddo
 
       call MAPL_GetPointer(export, temp3D, 'PV', rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp3d)) temp3d = epvxyz/vars%pt
  
       call MAPL_GetPointer(export, temp3D, 'S', rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp3d)) temp3d = tempxy*cp
 
       call MAPL_GetPointer(export, temp3d, 'TH',rc=status)
-      VERIFY_(STATUS)
-      if(associated(temp3d)) temp3d = vars%pt*(p00**kappa)
+      _VERIFY(STATUS)
+  !   if(associated(temp3d)) temp3d = vars%pt*(p00**kappa)
+      if(associated(temp3d)) temp3d = (tempxy)*(p00/(0.5*(vars%pe(:,:,1:km)+vars%pe(:,:,2:km+1))))**kappa
 
       call MAPL_GetPointer(export, temp2d, 'DMDTDYN',rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) temp2d = dmdt
 
 
@@ -3936,7 +4329,7 @@ subroutine Run(gc, import, export, clock, rc)
 ! --------------------------------------
 
       call MAPL_GetPointer(export,qctmp,'QC'      , rc=status )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       if( associated(qctmp) ) then
           qctmp = 0.0
@@ -4002,7 +4395,7 @@ subroutine Run(gc, import, export, clock, rc)
 ! ------------------------------------------------------------
 
       call MAPL_GetPointer ( export, temp2D, 'DQVDTDYNINT', rc=status )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if( associated(temp2D) ) then
           do k=1,km
           temp2d = temp2d + qv(:,:,k)*delp(:,:,k)
@@ -4011,7 +4404,7 @@ subroutine Run(gc, import, export, clock, rc)
       endif
 
       call MAPL_GetPointer ( export, temp2D, 'DQLDTDYNINT', rc=status )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if( associated(temp2D) ) then
           do N = 1,size(names)
              if( trim(names(N)).eq.'QLCN' .or. &
@@ -4031,7 +4424,7 @@ subroutine Run(gc, import, export, clock, rc)
       endif
 
       call MAPL_GetPointer ( export, temp2D, 'DQIDTDYNINT', rc=status )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if( associated(temp2D) ) then
           do N = 1,size(names)
              if( trim(names(N)).eq.'QICN' .or. &
@@ -4051,7 +4444,7 @@ subroutine Run(gc, import, export, clock, rc)
       endif
 
       call MAPL_GetPointer ( export, temp2D, 'DOXDTDYNINT', rc=status )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if( associated(temp2D) ) then
           do N = 1,size(names)
              if( trim(names(N)).eq.'OX' ) then
@@ -4073,27 +4466,27 @@ subroutine Run(gc, import, export, clock, rc)
 ! ---------------------------------------
 
       call MAPL_GetPointer(export,temp2d,'PS',  rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) temp2d =  vars%pe(:,:,km+1)    
 
       call MAPL_GetPointer(export,temp2d,'US',  rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) temp2d =       ua(:,:,km)      
 
       call MAPL_GetPointer(export,temp2d,'VS'   ,rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) temp2d =       va(:,:,km)      
 
       call MAPL_GetPointer(export,temp2d,'TA'   ,rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) temp2d =   tempxy(:,:,km)      
 
       call MAPL_GetPointer(export,temp2d,'QA'   ,rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) temp2d =       qv(:,:,km)      
 
       call MAPL_GetPointer(export,temp2d,'SPEED',rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) temp2d = sqrt( ua(:,:,km)**2 + va(:,:,km)**2 ) 
 
 
@@ -4103,13 +4496,13 @@ subroutine Run(gc, import, export, clock, rc)
       tempxy =  tempxy*(1.0+eps*qv)
 
       call MAPL_GetPointer(export,temp3D,'TV'   ,rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp3D)) temp3D = tempxy
 
 ! Fluxes: UCPT & VCPT
 !--------------------
       call MAPL_GetPointer(export,temp2d,'UCPT',rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) then
          temp2d = 0.0
          do k=1,km
@@ -4119,7 +4512,7 @@ subroutine Run(gc, import, export, clock, rc)
       end if
 
       call MAPL_GetPointer(export,temp2d,'VCPT',rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) then
          temp2d = 0.0
          do k=1,km
@@ -4134,7 +4527,7 @@ subroutine Run(gc, import, export, clock, rc)
       tempxy = vars%pt*(1.0+eps*qv)  ! Convert TH to THV
 
       call MAPL_GetPointer(export,temp3d,'THV',rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp3d)) temp3d = tempxy
 
       call Energetics (ua,va,tempxy,vars%pe,delp,vars%pkz,phisxy,kenrg,penrg,tenrg)
@@ -4144,15 +4537,15 @@ subroutine Run(gc, import, export, clock, rc)
       tedyn   = (tenrg -tenrg0)/DT
 
       call MAPL_GetPointer(export,temp2d,'KEDYN',rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) temp2d = kedyn
 
       call MAPL_GetPointer(export,temp2d,'PEDYN',rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) temp2d = pedyn
 
       call MAPL_GetPointer(export,temp2d,'TEDYN',rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) temp2d = tedyn
 
 ! Compute/Get Omega
@@ -4166,8 +4559,8 @@ subroutine Run(gc, import, export, clock, rc)
 
 ! Fluxes: UKE & VKE
 ! -----------------
-      call MAPL_GetPointer(export,tempu,'UKE',rc=status); VERIFY_(STATUS)
-      call MAPL_GetPointer(export,tempv,'VKE',rc=status); VERIFY_(STATUS)
+      call MAPL_GetPointer(export,tempu,'UKE',rc=status); _VERIFY(STATUS)
+      call MAPL_GetPointer(export,tempv,'VKE',rc=status); _VERIFY(STATUS)
 
       if(associated(tempu) .or. associated(tempv)) then
          ke = 0.5*(ua**2 + va**2)
@@ -4192,7 +4585,7 @@ subroutine Run(gc, import, export, clock, rc)
 ! Fluxes: UQV & VQV
 ! -----------------
       call MAPL_GetPointer(export,temp2d,'UQV',rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) then
          temp2d = 0.0
          do k=1,km
@@ -4202,7 +4595,7 @@ subroutine Run(gc, import, export, clock, rc)
       end if
 
       call MAPL_GetPointer(export,temp2d,'VQV',rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) then
          temp2d = 0.0
          do k=1,km
@@ -4214,7 +4607,7 @@ subroutine Run(gc, import, export, clock, rc)
 ! Fluxes: UQL & VQL
 ! -----------------
       call MAPL_GetPointer(export,temp2d,'UQL',rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) then
          temp2d = 0.0
           do N = 1,size(names)
@@ -4233,7 +4626,7 @@ subroutine Run(gc, import, export, clock, rc)
       end if
 
       call MAPL_GetPointer(export,temp2d,'VQL',rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) then
          temp2d = 0.0
           do N = 1,size(names)
@@ -4254,7 +4647,7 @@ subroutine Run(gc, import, export, clock, rc)
 ! Fluxes: UQI & VQI
 ! -----------------
       call MAPL_GetPointer(export,temp2d,'UQI',rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) then
          temp2d = 0.0
           do N = 1,size(names)
@@ -4273,7 +4666,7 @@ subroutine Run(gc, import, export, clock, rc)
       end if
 
       call MAPL_GetPointer(export,temp2d,'VQI',rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) then
          temp2d = 0.0
           do N = 1,size(names)
@@ -4300,25 +4693,25 @@ subroutine Run(gc, import, export, clock, rc)
       zle = zle/grav
 
       call MAPL_GetPointer(export,temp3d,'ZLE',rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp3d)) temp3d = zle
 
       call MAPL_GetPointer(export,temp2d,'DZ', rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) temp2d = 0.5*( zle(:,:,km)-zle(:,:,km+1) )
 
       call MAPL_GetPointer(export,temp3d,'ZL' ,rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp3d)) temp3d = 0.5*( zle(:,:,:km)+zle(:,:,2:) )
 
       call MAPL_GetPointer(export,temp3d,'S'  ,rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp3d)) temp3d = temp3d + grav*(0.5*( zle(:,:,:km)+zle(:,:,2:) ))
 
 ! Fluxes: UPHI & VPHI
 ! -------------------
-      call MAPL_GetPointer(export,tempu,'UPHI',rc=status); VERIFY_(STATUS)
-      call MAPL_GetPointer(export,tempv,'VPHI',rc=status); VERIFY_(STATUS)
+      call MAPL_GetPointer(export,tempu,'UPHI',rc=status); _VERIFY(STATUS)
+      call MAPL_GetPointer(export,tempv,'VPHI',rc=status); _VERIFY(STATUS)
 
       if( associated(tempu).or.associated(tempv) ) zl = 0.5*( zle(:,:,:km)+zle(:,:,2:) )
 
@@ -4343,28 +4736,35 @@ subroutine Run(gc, import, export, clock, rc)
       call getDivergence(uc, vc, tmp3d)
 
       call MAPL_GetPointer(export,temp3d,'DIVG',  rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp3d)) temp3d = tmp3d
 
       call MAPL_GetPointer(export,temp2d,'DIVG200',  rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) then
-         call VertInterp(temp2d,tmp3d,zle,log(20000.)  ,  status)
-         VERIFY_(STATUS)
+         call VertInterp(temp2d,dble(tmp3d),zle,log(20000.)  ,  status)
+         _VERIFY(STATUS)
+      end if
+
+      call MAPL_GetPointer(export,temp2d,'DIVG500',  rc=status)
+      _VERIFY(STATUS)
+      if(associated(temp2d)) then
+         call VertInterp(temp2d,dble(tmp3d),zle,log(50000.)  ,  status)
+         _VERIFY(STATUS)
       end if
 
       call MAPL_GetPointer(export,temp2d,'DIVG700',  rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) then
-         call VertInterp(temp2d,tmp3d,zle,log(70000.)  ,  status)
-         VERIFY_(STATUS)
+         call VertInterp(temp2d,dble(tmp3d),zle,log(70000.)  ,  status)
+         _VERIFY(STATUS)
       end if
 
       call MAPL_GetPointer(export,temp2d,'DIVG850',  rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) then
-         call VertInterp(temp2d,tmp3d,zle,log(85000.)  ,  status)
-         VERIFY_(STATUS)
+         call VertInterp(temp2d,dble(tmp3d),zle,log(85000.)  ,  status)
+         _VERIFY(STATUS)
        end if
 
 ! Vorticity Exports
@@ -4372,93 +4772,107 @@ subroutine Run(gc, import, export, clock, rc)
       call getVorticity(vars%u, vars%v, tmp3d)
   
       call MAPL_GetPointer(export,temp3d,'VORT',  rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp3d)) temp3d = tmp3d
   
       call MAPL_GetPointer(export,temp2d,'VORT200',  rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) then
-         call VertInterp(temp2d,tmp3d,zle,log(20000.)  ,  status)
-         VERIFY_(STATUS)
+         call VertInterp(temp2d,dble(tmp3d),zle,log(20000.)  ,  status)
+         _VERIFY(STATUS)
+      end if
+
+      call MAPL_GetPointer(export,temp2d,'VORT500',  rc=status)
+      _VERIFY(STATUS)
+      if(associated(temp2d)) then
+         call VertInterp(temp2d,dble(tmp3d),zle,log(50000.)  ,  status)
+         _VERIFY(STATUS)
       end if
  
       call MAPL_GetPointer(export,temp2d,'VORT700',  rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) then
-         call VertInterp(temp2d,tmp3d,zle,log(70000.)  ,  status)
-         VERIFY_(STATUS)
+         call VertInterp(temp2d,dble(tmp3d),zle,log(70000.)  ,  status)
+         _VERIFY(STATUS)
       end if
 
       call MAPL_GetPointer(export,temp2d,'VORT850',  rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) then
-         call VertInterp(temp2d,tmp3d,zle,log(85000.)  ,  status)
-         VERIFY_(STATUS)
+         call VertInterp(temp2d,dble(tmp3d),zle,log(85000.)  ,  status)
+         _VERIFY(STATUS)
        end if
 
 ! Vertical Velocity Exports
 
       call FILLOUT3 (export, 'OMEGA'  , omaxyz     , rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       call MAPL_GetPointer(export,temp2d,'OMEGA850', rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) then
          call VertInterp(temp2d,omaxyz,zle,log(85000.)  , status)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
+      end if
+
+      call MAPL_GetPointer(export,temp2d,'OMEGA700', rc=status)
+      _VERIFY(STATUS)
+      if(associated(temp2d)) then
+         call VertInterp(temp2d,omaxyz,zle,log(70000.)  , status)
+         _VERIFY(STATUS)
       end if
 
       call MAPL_GetPointer(export,temp2d,'OMEGA500', rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) then
          call VertInterp(temp2d,omaxyz,zle,log(50000.)  , status)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
       end if
 
       call MAPL_GetPointer(export,temp2d,'OMEGA200', rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) then
          call VertInterp(temp2d,omaxyz,zle,log(20000.)  , status)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
       end if
 
       call MAPL_GetPointer(export,temp2d,'OMEGA10', rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) then
          call VertInterp(temp2d,omaxyz,zle,log(1000.)  , status)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
       end if
 
       if (.not. HYDROSTATIC) then
       call FILLOUT3 (export, 'W'  , vars%w(ifirstxy:ilastxy,jfirstxy:jlastxy,:)     , rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       call MAPL_GetPointer(export,temp2d,'W850', rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) then
          call VertInterp(temp2d,vars%w(ifirstxy:ilastxy,jfirstxy:jlastxy,:),zle,log(85000.)  , status)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
       end if
 
       call MAPL_GetPointer(export,temp2d,'W500', rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) then
          call VertInterp(temp2d,vars%w(ifirstxy:ilastxy,jfirstxy:jlastxy,:),zle,log(50000.)  , status)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
       end if
 
       call MAPL_GetPointer(export,temp2d,'W200', rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) then
          call VertInterp(temp2d,vars%w(ifirstxy:ilastxy,jfirstxy:jlastxy,:),zle,log(20000.)  , status)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
       end if
 
       call MAPL_GetPointer(export,temp2d,'W10', rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if(associated(temp2d)) then
          call VertInterp(temp2d,vars%w(ifirstxy:ilastxy,jfirstxy:jlastxy,:),zle,log(1000.)  , status)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
       end if
       endif
 
@@ -4557,22 +4971,31 @@ subroutine Run(gc, import, export, clock, rc)
       DEALLOCATE( qv     )
       DEALLOCATE( ql     )
       DEALLOCATE( qi     )
+      DEALLOCATE( qr     )
+      DEALLOCATE( qs     )
+      DEALLOCATE( qg     )
       DEALLOCATE( qdnew  )
       DEALLOCATE( qdold  )
       DEALLOCATE( qvold  )
       DEALLOCATE( qlold  )
       DEALLOCATE( qiold  )
+      DEALLOCATE( qrold  )
+      DEALLOCATE( qsold  )
+      DEALLOCATE( qgold  )
       DEALLOCATE( ox     )
       DEALLOCATE( delp   )
+      DEALLOCATE( delpold)
       DEALLOCATE( dmdt   )
       DEALLOCATE( dudt   )
       DEALLOCATE( dvdt   )
       DEALLOCATE( dtdt   )
       DEALLOCATE( dqdt   )
       DEALLOCATE( dthdt  )
+      DEALLOCATE( dpedt  )
       DEALLOCATE( ddpdt  )
       DEALLOCATE( phisxy )
       if (allocated(names)) DEALLOCATE( names  )
+      if (allocated(names0)) DEALLOCATE( names0  )
       DEALLOCATE( phi00  )
 
       call freeTracers(state)
@@ -4585,67 +5008,9 @@ subroutine Run(gc, import, export, clock, rc)
  !   call RunAddIncs(gc, import, export, clock, rc)
  !endif
 
-  RETURN_(ESMF_SUCCESS)
+  _RETURN(ESMF_SUCCESS)
 
 contains
-
-subroutine glosum (STATE,AREA,GRID,NQ,QG)
-
-      type(DynState),  intent(IN)    :: STATE
-      real, pointer,   intent(IN)    :: AREA(:,:)
-      integer,         intent(IN)    :: NQ
-      real(r8),        intent(OUT)   :: QG(NQ)
-      type(ESMF_Grid), intent(INOUT) :: GRID 
-
-      character(len=ESMF_MAXSTR) :: IAm
-      integer   :: im,jm,km
-      integer   :: k,n
-      integer   :: RC,STATUS
-
-      real (r8), allocatable ::    dp(:,:,:)
-      real (r8), allocatable :: qsum1(:,:)
-      real     , allocatable :: qsum2(:,:)
-
-      im = size( state%vars%pe,1 )
-      jm = size( state%vars%pe,2 )
-      km = size( state%vars%pe,3 )-1
-
-      allocate(    dp(im,jm,km) )
-      allocate( qsum1(im,jm)    )
-      allocate( qsum2(im,jm)    )
-
-! Compute Pressure Thickness
-! --------------------------
-      do k=1,km
-         dp(:,:,k) = state%vars%pe(:,:,k+1)-state%vars%pe(:,:,k)
-      enddo
-
-! Loop over Tracers
-! -----------------
-  do n=1,NQ
-         qsum1(:,:) = 0.0_r8
-     if( STATE%VARS%TRACER(N)%IS_R4 ) then
-         do k=1,km
-         qsum1(:,:) = qsum1(:,:) + state%vars%tracer(n)%content_r4(:,:,k)*dp(:,:,k)
-         enddo
-     else
-         do k=1,km
-         qsum1(:,:) = qsum1(:,:) + state%vars%tracer(n)%content   (:,:,k)*dp(:,:,k)
-         enddo
-     endif
-     qsum2 = qsum1
-     call MAPL_AreaMean( qg(n), qsum2, area, grid, rc=STATUS )
-     VERIFY_(STATUS)
-    !IF (MAPL_AM_I_ROOT()) then
-    !    print *, 'The global sum for Tracer ',n,' is: ',qg(n)
-    !ENDIF
-  enddo
-
-  deallocate( dp )
-  deallocate( qsum1 )
-  deallocate( qsum2 )
-
-end subroutine glosum
 
 subroutine check_replay_time_(lring)
 
@@ -4677,7 +5042,7 @@ subroutine check_replay_time_(lring)
                                 DD =  REF_TIME(3), &
                                 H  =  REF_TIME(4), &
                                 M  =  REF_TIME(5), &
-                                S  =  REF_TIME(6), rc=status ); VERIFY_(STATUS)
+                                S  =  REF_TIME(6), rc=status ); _VERIFY(STATUS)
   if (REPLAY_REF_TGAP>0) then
       REF_TGAP    = 0
       REF_TGAP(4) =     REPLAY_REF_TGAP/10000
@@ -4690,7 +5055,7 @@ subroutine check_replay_time_(lring)
                                             M = REF_TGAP(5), &
                                             S = REF_TGAP(6), &
                                     startTime = currentTime, &
-                                                rc = STATUS  ); VERIFY_(STATUS)
+                                                rc = STATUS  ); _VERIFY(STATUS)
 
       RefTime = RefTime - RefTGap 
   endif
@@ -4758,13 +5123,13 @@ subroutine dump_n_splash_
     iwind=0
     if( trim(uname).ne.'NULL' ) then
       call ESMFL_BundleGetPointertoData(ANA_Bundle,trim(uname),XTMP3d, RC=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       iwind=iwind+1
     endif
 ! V
     if( trim(vname).ne.'NULL' ) then
        call ESMFL_BundleGetPointertoData(ANA_Bundle,trim(vname),YTMP3D, RC=STATUS)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
        iwind=iwind+1
     endif
 
@@ -4775,7 +5140,7 @@ subroutine dump_n_splash_
     else if(iwind==1) then
       status=1
       call WRITE_PARALLEL('cannot handle single wind component')
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
     else if (iwind==2) then
 #ifdef INC_WINDS
        if (iapproach==1) then
@@ -4784,14 +5149,13 @@ subroutine dump_n_splash_
           allocate(cubeVTMP3D(grid%is:grid%ie,grid%js:grid%je,km) )
 #ifdef SCALAR_WINDS
           call WRITE_PARALLEL('Replaying winds as scalars')
-          call MAPL_HorzTransformRun (L2C, XTMP3d, cubeTEMP3D, RC=STATUS )
-          VERIFY_(STATUS)
-          call MAPL_HorzTransformRun (L2C, YTMP3D, cubeVTMP3D, RC=STATUS )
-          VERIFY_(STATUS)
+          call l2c%regrid(XTMP3d, cubeTEMP3D, RC=STATUS )
+          _VERIFY(STATUS)
+          call l2c%regrid(YTMP3d, cubeVTMP3D, RC=STATUS )
+          _VERIFY(STATUS)
 #else
           call WRITE_PARALLEL('Replaying winds')
-          call MAPL_HorzTransformRun(L2C,     XTMP3d,     YTMP3d, &
-                                          cubeTEMP3d, cubeVTMP3d, rotate=.false., RC=STATUS)
+          call l2c%regrid(XTMP3d, YTMP3d, cubeTEMP3d, cubeVTMP3d, rc=status)
 #endif /* SCALAR_WINDS */
           allocate( UAtmp(grid%is:grid%ie  ,grid%js:grid%je  ,km) )
           allocate( VAtmp(grid%is:grid%ie  ,grid%js:grid%je  ,km) )
@@ -4815,22 +5179,18 @@ subroutine dump_n_splash_
           ! get background A-grid winds 
           call getAgridWinds (vars%u,vars%v,ana_u,ana_v,rotate=.true.)
           ! transform background A-grid winds to lat-lon
-          call MAPL_HorzTransformCreate(C2L, ESMFGRID, ANAGrid, RC=STATUS )
-          VERIFY_(STATUS)
+          call regridder_manager%make_regridder(ESMFGRID, ANAGrid, REGRID_METHOD_BILINEAR, RC=STATUS)
+          _VERIFY(STATUS)
           cubeTEMP3d = ana_u(grid%is:grid%ie,grid%js:grid%je,1:km) ! copy to satisfy interface below
           cubeVTMP3d = ana_v(grid%is:grid%ie,grid%js:grid%je,1:km) ! copy to satisfy interface below
-          call MAPL_HorzTransformRun(C2L, cubeTEMP3d, cubeVTMP3d, &
-                                             UAtmpR4,    VAtmpR4, rotate=.false., RC=STATUS)
-          VERIFY_(STATUS)
-          call MAPL_HorzTransformDestroy(C2L, RC=STATUS )
-          VERIFY_(STATUS) 
+          call c2l%regrid(cubeTEMP3d, cubeVTMP3d, UAtmpR4,    VAtmpR4, RC=STATUS)
+          _VERIFY(STATUS)
           ! calculate unrotated analysis increments of lat-lon U/V-A-grid winds
           UAtmpR4 = XTMP3d-UAtmpR4
           UAtmpR4 = VTMP3d-VAtmpR4
           ! convert the lat-lon A-grid wind increment back to the cubed
           call WRITE_PARALLEL('Replaying winds')
-          call MAPL_HorzTransformRun(L2C,   UAtmpR4,    VAtmpR4, &
-                                         cubeTEMP3d, cubeVTMP3d, rotate=.false., RC=STATUS)
+          call l2c%regrid(UAtmpR4,    VAtmpR4, cubeTEMP3d, cubeVTMP3d, RC=STATUS)
           ! convert cubed wind increment to D-grid
           allocate( UDtmp(grid%is:grid%ie  ,grid%js:grid%je+1,km) )
           allocate( VDtmp(grid%is:grid%ie+1,grid%js:grid%je  ,km) )
@@ -4860,12 +5220,12 @@ subroutine dump_n_splash_
 ! PE or PS
     if( trim(dpname).ne.'NULL' ) then
        call ESMFL_BundleGetPointertoData(ANA_Bundle,trim(dpname),XTMP3d, RC=STATUS)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
        call WRITE_PARALLEL('Replaying '//trim(dpname))
        if ( iapproach == 1 ) then ! convert lat-lon delp to cubed and proceed
           allocate(cubeTEMP3D(size(vars%pe,1),size(vars%pe,2),km))
-          call MAPL_HorzTransformRun (L2C, XTMP3d, cubeTEMP3D, RC=STATUS )
-          VERIFY_(STATUS)
+          call l2c%regrid(XTMP3d, cubeTEMP3D, RC=STATUS )
+          _VERIFY(STATUS)
           ana_dp=cubeTEMP3D
           deallocate(cubeTEMP3D)
        else ! just because pressure is such delicate beast: convert cubed delp
@@ -4876,16 +5236,14 @@ subroutine dump_n_splash_
             ! delp on the cube
             cubeTEMP3D(:,:,:) = vars%pe(:,:,2:)-vars%pe(:,:,:km)
             ! transform cubed delp
-            call MAPL_HorzTransformCreate(C2L, ESMFGRID, ANAGrid, RC=STATUS )
-            VERIFY_(STATUS)
-            call MAPL_HorzTransformRun (C2L, cubeTEMP3D, aux3d, RC=STATUS )
-            VERIFY_(STATUS)
-            call MAPL_HorzTransformDestroy(C2L, RC=STATUS )
-            VERIFY_(STATUS) 
+            c2l => regridder_manager%make_regridder(ESMFGRID, ANAGrid, REGRID_METHOD_BILINEAR, RC=STATUS )
+            _VERIFY(STATUS)
+            call c2l%regrid(cubeTEMP3D, aux3d, RC=STATUS )
+            _VERIFY(STATUS)
             ! calculate delp increment on lat-lon and transform it to cubed
             aux3d = XTMP3d - aux3d
-            call MAPL_HorzTransformRun (L2C, aux3d, cubeTEMP3D, RC=STATUS )
-            VERIFY_(STATUS)
+            call l2c%regrid(aux3d, cubeTEMP3D, RC=STATUS )
+            _VERIFY(STATUS)
             ! delp analysis on the cube (careful since want to preserve
             ! precision in delp to the best extent possible)
             ana_dp = vars%pe(:,:,2:)-vars%pe(:,:,:km) + cubeTEMP3D
@@ -4904,27 +5262,25 @@ subroutine dump_n_splash_
     else
        if( trim(psname).ne.'NULL' ) then
           call ESMFL_BundleGetPointertoData(ANA_Bundle,trim(psname),XTMP2D, RC=STATUS)
-          VERIFY_(STATUS)
+          _VERIFY(STATUS)
           call WRITE_PARALLEL('Replaying '//trim(psname))
           allocate(cubeTEMP3D(size(vars%pe,1),size(vars%pe,2),1))
           allocate(     aux3D(size(XTMP2d ,1),size(XTMP2d ,2),1))
           if ( iapproach == 1 ) then ! convert lat-lon delp to cubed and proceed
              aux3d(:,:,1)=XTMP2D ! rank-2 interface to HorzT does not work
-             call MAPL_HorzTransformRun (L2C, aux3d, cubeTEMP3D, RC=STATUS )
-             VERIFY_(STATUS)
+             call l2c%regrid(aux3d, cubeTEMP3D, RC=STATUS )
+             _VERIFY(STATUS)
           else ! operate on increment to ps
              ! transform cubed delp
              cubeTEMP3D(:,:,1) = vars%pe(:,:,km+1) ! cubed ps
-             call MAPL_HorzTransformCreate(C2L, ESMFGRID, ANAGrid, RC=STATUS )
-             VERIFY_(STATUS)
-             call MAPL_HorzTransformRun (C2L, cubeTEMP3D, aux3d, RC=STATUS )
-             VERIFY_(STATUS)
-             call MAPL_HorzTransformDestroy(C2L, RC=STATUS )
-             VERIFY_(STATUS) 
+             c2l => regridder_manager%make_regridder(ESMFGRID, ANAGrid, REGRID_METHOD_BILINEAR, RC=STATUS )
+             _VERIFY(STATUS)
+             call c2l%regrid(cubeTEMP3D, aux3d, RC=STATUS )
+             _VERIFY(STATUS)
              ! increment to ps on the lat-lon
              aux3d(:,:,1) = XTMP2D - aux3d(:,:,1)
              ! lat-lon increment to ps converted to the cube
-             call MAPL_HorzTransformRun (L2C, aux3d, cubeTEMP3D, RC=STATUS )
+             call l2c%regrid(aux3d, cubeTEMP3D, RC=STATUS )
              ! ps update on the cube
              cubeTEMP3d(:,:,1) = vars%pe(:,:,km+1) + cubeTEMP3D(:,:,1)
           endif
@@ -4950,23 +5306,23 @@ subroutine dump_n_splash_
 ! O3
     if( trim(o3name).ne.'NULL' ) then
        call ESMFL_BundleGetPointertoData(ANA_Bundle,trim(o3name),XTMP3d, RC=STATUS)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
        allocate(cubeTEMP3D(size(vars%pe,1),size(vars%pe,2),km))
-       call MAPL_HorzTransformRun (L2C, XTMP3d, cubeTEMP3D, RC=STATUS )
-       VERIFY_(STATUS)
+       call l2c%regrid(XTMP3d, cubeTEMP3D, RC=STATUS )
+       _VERIFY(STATUS)
 
 !      Ozone needs to be adjusted to OX
 !      --------------------------------
        call WRITE_PARALLEL('Replaying '//trim(o3name))
     
        call MAPL_Get(MAPL, LONS=LONS, LATS=LATS, ORBIT=ORBIT, RC=STATUS )
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
 
        allocate( ZTH( size(LONS,1),size(LONS,2) ) )
        allocate( SLR( size(LONS,1),size(LONS,2) ) )
 
        call MAPL_SunGetInsolation( LONS,LATS,ORBIT,ZTH,SLR, CLOCK=CLOCK,RC=STATUS  )
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
 
        pl = ( vars%pe(:,:,2:) + vars%pe(:,:,:km) ) * 0.5
 
@@ -4992,10 +5348,10 @@ subroutine dump_n_splash_
 ! QV
     if( trim(qname).ne.'NULL' ) then
        call ESMFL_BundleGetPointertoData(ANA_Bundle,trim(qname),XTMP3d, RC=STATUS)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
        allocate(cubeTEMP3D(size(vars%pe,1),size(vars%pe,2),km))
-       call MAPL_HorzTransformRun (L2C, XTMP3d, cubeTEMP3D, RC=STATUS )
-       VERIFY_(STATUS)
+       call l2c%regrid(XTMP3d, cubeTEMP3D, RC=STATUS )
+       _VERIFY(STATUS)
        call WRITE_PARALLEL('Replaying '//trim(qname))
        if( qqq%is_r4 ) then
            qqq%content_r4 = max(0.,cubeTEMP3D)
@@ -5013,10 +5369,10 @@ subroutine dump_n_splash_
 ! PT
     if( trim(tname).ne.'NULL' ) then
        call ESMFL_BundleGetPointertoData(ANA_Bundle,trim(tname),XTMP3d, RC=STATUS)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
        allocate(cubeTEMP3D(size(ana_thv,1),size(ana_thv,2),km))
-       call MAPL_HorzTransformRun (L2C, XTMP3d, cubeTEMP3D, RC=STATUS )
-       VERIFY_(STATUS)
+       call l2c%regrid(XTMP3d, cubeTEMP3D, RC=STATUS )
+       _VERIFY(STATUS)
        call WRITE_PARALLEL('Replaying '//trim(tname)// '; treated as '//trim(tvar))
        if( trim(tvar).eq.'THETAV' ) ana_thv = cubeTEMP3D
        if( trim(tvar).eq.'TV'     ) ana_thv = cubeTEMP3D/ana_pkz
@@ -5095,7 +5451,7 @@ subroutine incremental_
     if(.not.allhere) then
        call WRITE_PARALLEL('Not all varibles needed for replay are available')
        status = 999
-       VERIFY_(status)
+       _VERIFY(status)
     endif
     call WRITE_PARALLEL('Starting incremental replay')
 
@@ -5103,13 +5459,13 @@ subroutine incremental_
     iwind=0
     if( trim(uname).ne.'NULL' ) then
        call ESMFL_BundleGetPointertoData(ANA_Bundle,trim(uname),TEMP3D, RC=STATUS)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
        iwind=iwind+1
     endif
 ! V
     if( trim(vname).ne.'NULL' ) then
        call ESMFL_BundleGetPointertoData(ANA_Bundle,trim(vname),VTMP3D, RC=STATUS)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
        iwind=iwind+1
     endif
 
@@ -5117,20 +5473,19 @@ subroutine incremental_
     if(iwind==1) then
       status=1
       print *, 'cannot handle single wind component'
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
     else if (iwind==2) then
        allocate(cubeTEMP3D(grid%is:grid%ie,grid%js:grid%je,km) )
        allocate(cubeVTMP3D(grid%is:grid%ie,grid%js:grid%je,km) )
 #ifdef SCALAR_WINDS
        call WRITE_PARALLEL('Replaying increment of winds as scalars')
-       call MAPL_HorzTransformRun (L2C, TEMP3D, cubeTEMP3D, RC=STATUS )
-       VERIFY_(STATUS)
-       call MAPL_HorzTransformRun (L2C, VTMP3D, cubeVTMP3D, RC=STATUS )
-       VERIFY_(STATUS)
+       call l2c%regrid(TEMP3D, cubeTEMP3D, RC=STATUS )
+       _VERIFY(STATUS)
+       call l2c%regrid(VTMP3D, cubeVTMP3D, RC=STATUS )
+       _VERIFY(STATUS)
 #else
        call WRITE_PARALLEL('Replaying increment of winds')
-       call MAPL_HorzTransformRun(L2C,     TEMP3d,     VTMP3d, &
-                                       cubeTEMP3d, cubeVTMP3d, rotate=.false., RC=STATUS)
+       call l2c%regrid(TEMP3d,     VTMP3d, cubeTEMP3d, cubeVTMP3d, RC=STATUS)
 #endif /* SCALAR_WINDS */
        allocate( UAtmp(grid%is:grid%ie  ,grid%js:grid%je  ,km) )
        allocate( VAtmp(grid%is:grid%ie  ,grid%js:grid%je  ,km) )
@@ -5145,11 +5500,11 @@ subroutine incremental_
 ! DELP
     if( trim(psname)=='NULL' .and. trim(dpname).ne.'NULL' ) then
        call ESMFL_BundleGetPointertoData(ANA_Bundle,trim(dpname),TEMP3D, RC=STATUS)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
        call WRITE_PARALLEL('Replaying increment of '//trim(dpname))
        allocate(cubeTEMP3D(size(vars%pe,1),size(vars%pe,2),km))
-       call MAPL_HorzTransformRun (L2C, TEMP3D, cubeTEMP3D, RC=STATUS )
-       VERIFY_(STATUS)
+       call l2c%regrid(TEMP3D, cubeTEMP3D, RC=STATUS )
+       _VERIFY(STATUS)
        dpe(:,:,1) = 0.0
        do k=2,km+1
           dpe(:,:,k) = dpe(:,:,k-1) + cubeTEMP3D(:,:,k-1)
@@ -5172,13 +5527,13 @@ subroutine incremental_
 ! PS
     if( trim(psname)/='NULL' .and. trim(dpname)=='NULL' ) then
        call ESMFL_BundleGetPointertoData(ANA_Bundle,trim(psname),TEMP2D, RC=STATUS)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
        call WRITE_PARALLEL('Replaying increment of '//trim(psname))
        allocate(cubeTEMP3D(size(vars%pe,1),size(vars%pe,2),1))
        allocate(     aux3D(size( TEMP2D,1),size( TEMP2D,2),1))
        aux3d(:,:,1) = TEMP2D ! same trick of putting in rank-3 array for transforms
-       call MAPL_HorzTransformRun (L2C, aux3d, cubeTEMP3D, RC=STATUS )
-       VERIFY_(STATUS)
+       call l2c%regrid(aux3d, cubeTEMP3D, RC=STATUS )
+       _VERIFY(STATUS)
        do k=2,km+1
           dpe(:,:,k-1) =  grid%ak(k) - grid%ak(k-1) + cubeTEMP3d(:,:,1)*(grid%bk(k)-grid%bk(k-1))
        enddo
@@ -5201,23 +5556,23 @@ subroutine incremental_
 ! O3
     if( trim(o3name).ne.'NULL' ) then
        call ESMFL_BundleGetPointertoData(ANA_Bundle,trim(o3name),TEMP3D, RC=STATUS)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
        allocate(cubeTEMP3D(size(vars%pe,1),size(vars%pe,2),km))
-       call MAPL_HorzTransformRun (L2C, TEMP3D, cubeTEMP3D, RC=STATUS )
-       VERIFY_(STATUS)
+       call l2c%regrid(TEMP3D, cubeTEMP3D, RC=STATUS )
+       _VERIFY(STATUS)
 
 !      Ozone needs to be adjusted to OX
 !      --------------------------------
        call WRITE_PARALLEL('Replaying increment of '//trim(o3name))
     
        call MAPL_Get(MAPL, LONS=LONS, LATS=LATS, ORBIT=ORBIT, RC=STATUS )
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
 
        allocate( ZTH( size(LONS,1),size(LONS,2) ) )
        allocate( SLR( size(LONS,1),size(LONS,2) ) )
 
        call MAPL_SunGetInsolation( LONS,LATS,ORBIT,ZTH,SLR, CLOCK=CLOCK,RC=STATUS  )
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
 
        pl = ( vars%pe(:,:,2:) + vars%pe(:,:,:km) ) * 0.5
 
@@ -5233,10 +5588,10 @@ subroutine incremental_
 ! QV
     if( trim(qname).ne.'NULL' ) then
        call ESMFL_BundleGetPointertoData(ANA_Bundle,trim(qname),TEMP3D, RC=STATUS)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
        allocate(cubeTEMP3D(size(vars%pe,1),size(vars%pe,2),km))
-       call MAPL_HorzTransformRun (L2C, TEMP3D, cubeTEMP3D, RC=STATUS )
-       VERIFY_(STATUS)
+       call l2c%regrid(TEMP3D, cubeTEMP3D, RC=STATUS )
+       _VERIFY(STATUS)
        call WRITE_PARALLEL('Replaying increment of '//trim(qname))
        dqqv = cubeTEMP3D
        deallocate(cubeTEMP3D)
@@ -5247,18 +5602,18 @@ subroutine incremental_
        if(trim(tvar).ne.'TV') then
           call WRITE_PARALLEL('Error: Cannot Replay TVAR '//trim(tvar))
           STATUS=99
-          VERIFY_(STATUS)
+          _VERIFY(STATUS)
        endif
        if(trim(tname).ne.'tv') then
           call WRITE_PARALLEL('Error: Cannot Replay TNAME '//trim(tname))
           STATUS=99
-          VERIFY_(STATUS)
+          _VERIFY(STATUS)
        endif
        call ESMFL_BundleGetPointertoData(ANA_Bundle,trim(tname),TEMP3D, RC=STATUS)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
        allocate(cubeTEMP3D(size(vars%pe,1),size(vars%pe,2),km))
-       call MAPL_HorzTransformRun (L2C, TEMP3D, cubeTEMP3D, RC=STATUS )
-       VERIFY_(STATUS)
+       call l2c%regrid(TEMP3D, cubeTEMP3D, RC=STATUS )
+       _VERIFY(STATUS)
        call WRITE_PARALLEL('Replaying increment of '//trim(tname))
        ! have an incremental change to virtual temperature; 
        ! want an incremental change to dry potential temperature
@@ -5343,7 +5698,7 @@ subroutine state_remap_
     if (nq3d<2) then
        call WRITE_PARALLEL('state_remap: invalid number of tracers')
        status=999
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     endif
 
     iib = lbound(vars%pe,1)
@@ -5364,12 +5719,12 @@ subroutine state_remap_
     call WRITE_PARALLEL('Replay start remapping')
 !
     call ESMFL_BundleGetPointertoData(ANA_Bundle,'phis',XTMP2D, RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     allocate(cubeTEMP3D(size(vars%pe,1),size(vars%pe,2),1))
     allocate(     aux3D(size(XTMP2D ,1),size(XTMP2D ,2),1))
     aux3d(:,:,1)=XTMP2D ! this is a trick since the 2d interface to the transform has not worked for me (RT)
-    call MAPL_HorzTransformRun (L2C, aux3D, cubeTEMP3D, RC=STATUS )
-    VERIFY_(STATUS)
+    call l2c%regrid(aux3D, cubeTEMP3D, RC=STATUS )
+    _VERIFY(STATUS)
     ana_phis=cubeTEMP3D(:,:,1)
     deallocate(     aux3D)
     deallocate(cubeTEMP3D)
@@ -5385,7 +5740,7 @@ subroutine state_remap_
              if (icnt>nq3d) then
                  call WRITE_PARALLEL('state_remap: number of tracers exceeds known value')
                  status=999
-                 VERIFY_(STATUS)
+                 _VERIFY(STATUS)
              endif
              call ESMFL_BundleGetPointerToData(BUNDLE, NAME, ptr3dr4, RC=STATUS )
              ana_qq(:,:,:,icnt) = ptr3dr4
@@ -5394,7 +5749,7 @@ subroutine state_remap_
        if (icnt/=nq3d) then
           call WRITE_PARALLEL('state_remap: inconsitent number of tracers')
           status=999
-          VERIFY_(STATUS)
+          _VERIFY(STATUS)
        endif
     else
        if( qqq%is_r4 ) then
@@ -5474,13 +5829,14 @@ end subroutine RUN
 
 !-----------------------------------------------------------------------
 
-  subroutine PULL_Q(STATE, IMPORT, QQQ, iNXQ, InFieldName, RC)
+  subroutine PULL_Q(STATE, IMPORT, QQQ, iNXQ, InFieldName, BADV, RC)
 
     type (DynState)        :: STATE
     type (ESMF_State)              :: IMPORT
     type (DynTracers)               :: QQQ       ! Specific Humidity
     integer,           intent(IN)  :: iNXQ
     character(len=*), optional, intent(IN) :: InFieldName
+    type(ESMF_FieldBundle), optional, intent(IN) :: BADV
     integer, optional, intent(OUT) :: RC
 
     integer                          :: STATUS
@@ -5507,14 +5863,18 @@ end subroutine RUN
     jm = state%grid%npy
     km = state%grid%npz
 
-    call ESMF_StateGet(IMPORT, 'TRADV' , BUNDLE,   RC=STATUS)
-    VERIFY_(STATUS)
+    if (present(BADV)) then
+       BUNDLE = BADV
+    else
+       call ESMF_StateGet(IMPORT, 'TRADV' , BUNDLE,   RC=STATUS)
+       _VERIFY(STATUS)
+    end if
 
 ! Count the friendlies
 !---------------------
 
     call ESMF_FieldBundleGet(BUNDLE, fieldCount=NQ, RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
                NQ = NQ + iNXQ
     STATE%GRID%NQ = NQ       ! GRID%NQ is now the "official" NQ
@@ -5522,16 +5882,20 @@ end subroutine RUN
 !
 ! Tracer pointer array
 !
+    IF( ASSOCIATED( STATE%VARS%tracer ) ) then
+        call freeTracers(state)
+    ENDIF
+
     ALLOCATE(STATE%VARS%tracer(nq), STAT=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     DO n = 1, NQ-iNXQ
        call ESMF_FieldBundleGet(bundle, fieldIndex=n, field=field, rc=status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
        call ESMF_FieldGet(FIELD, Array=Array, name=fieldname, RC=STATUS)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
        call ESMF_ArrayGet(array,typekind=kind,rc=status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
 
        STATE%VARS%TRACER(N)%IS_R4  = (kind == ESMF_TYPEKIND_R4)   ! Is real*4?
 
@@ -5539,7 +5903,7 @@ end subroutine RUN
 
        if ( STATE%VARS%TRACER(N)%IS_R4 ) then
           call ESMF_ArrayGet(array, localDE=0, farrayptr=ptr_r4, rc=status)
-          VERIFY_(STATUS)
+          _VERIFY(STATUS)
           state%vars%tracer(n)%content_r4 => MAPL_RemapBounds(PTR_R4, i1,in,j1,jn, &
                                                               1, km)
           if (fieldname == QFieldName) then
@@ -5550,7 +5914,7 @@ end subroutine RUN
        else
 
             call ESMF_ArrayGet(array, localDE=0, farrayptr=ptr_r8, rc=status)
-            VERIFY_(STATUS)
+            _VERIFY(STATUS)
 
             state%vars%tracer(n)%content => PTR_R8
             if (fieldname == QFieldName) then 
@@ -5623,6 +5987,7 @@ end subroutine RUN
     real(r8), allocatable ::  tmp2d(:,:)
     real(r8), allocatable ::  tmp3d(:,:,:)
     real(r8), allocatable ::    pke(:,:,:)
+    real(r8), allocatable ::   pkxy(:,:,:) ! pe**kappa
     real(r8), allocatable ::     pl(:,:,:)
     real(r8), allocatable ::     ua(:,:,:)
     real(r8), allocatable ::     va(:,:,:)
@@ -5638,7 +6003,7 @@ end subroutine RUN
     real(r8), allocatable ::  logpe(:,:,:)
     real(r8), allocatable ::  logps(:,:)
 
-    real(r8)              :: dt
+    real(FVPRC)              :: dt
 
     real(r4), pointer     :: QOLD(:,:,:)
     real(r4), pointer     :: temp3d(:,:,:)
@@ -5660,14 +6025,14 @@ end subroutine RUN
 
     Iam = "RunAddIncs"
     call ESMF_GridCompGet( GC, name=COMP_NAME, RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     Iam = trim(COMP_NAME) // trim(Iam)
 
 ! Retrieve the pointer to the generic state
 ! -----------------------------------------
 
     call MAPL_GetObjectFromGC (GC, GENSTATE,  RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_TimerOn(GENSTATE,"TOTAL")
     call MAPL_TimerOn(GENSTATE,"RUN2")
@@ -5676,7 +6041,7 @@ end subroutine RUN
 ! ------------------------------------------
 
     call ESMF_UserCompGetInternalState(gc, 'DYNstate', wrap, status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     state => wrap%dyn_state
 
     vars  => state%vars   ! direct handle to control variables
@@ -5727,7 +6092,7 @@ end subroutine RUN
 
 
     call MAPL_GetPointer ( IMPORT, PHIS, 'PHIS', RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     phisxy = real(phis,kind=r8)
 
@@ -5770,7 +6135,7 @@ end subroutine RUN
 ! DTHVDTPHYINT
 ! ------------
       call MAPL_GetPointer ( export, temp2D, 'DTHVDTPHYINT', rc=status )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if( associated(temp2D) ) then
           dthdtphyint1 = 0.0
           do k=1,km
@@ -5781,6 +6146,8 @@ end subroutine RUN
 ! Add Diabatic Forcing to State Variables
 ! ---------------------------------------
     call ADD_INCS ( STATE,IMPORT,DT )
+
+    if (DYN_DEBUG) call DEBUG_FV_STATE('PHYSICS ADD_INCS',STATE)
 
 ! Update Mid-Layer Pressure and Pressure Thickness
 ! ------------------------------------------------
@@ -5795,12 +6162,12 @@ end subroutine RUN
 ! Get Cubed-Sphere Wind Exports
 ! -----------------------------
     call getAgridWinds(vars%u, vars%v, ua, va, uc, vc)
-    call FILLOUT3 (export, 'U_DGRID', vars%u  , rc=status); VERIFY_(STATUS)
-    call FILLOUT3 (export, 'V_DGRID', vars%v  , rc=status); VERIFY_(STATUS)
-    call FILLOUT3 (export, 'U_CGRID', uc      , rc=status); VERIFY_(STATUS)
-    call FILLOUT3 (export, 'V_CGRID', vc      , rc=status); VERIFY_(STATUS)
-    call FILLOUT3 (export, 'U_AGRID', ua      , rc=status); VERIFY_(STATUS)
-    call FILLOUT3 (export, 'V_AGRID', va      , rc=status); VERIFY_(STATUS)
+    call FILLOUT3 (export, 'U_DGRID', vars%u  , rc=status); _VERIFY(STATUS)
+    call FILLOUT3 (export, 'V_DGRID', vars%v  , rc=status); _VERIFY(STATUS)
+    call FILLOUT3 (export, 'U_CGRID', uc      , rc=status); _VERIFY(STATUS)
+    call FILLOUT3 (export, 'V_CGRID', vc      , rc=status); _VERIFY(STATUS)
+    call FILLOUT3 (export, 'U_AGRID', ua      , rc=status); _VERIFY(STATUS)
+    call FILLOUT3 (export, 'V_AGRID', va      , rc=status); _VERIFY(STATUS)
  
 ! Create A-Grid Winds
 ! -------------------
@@ -5818,21 +6185,21 @@ end subroutine RUN
     call Energetics (ua,va,thv,vars%pe,dp,vars%pkz,phisxy,kenrg,penrg,tenrg)
 
     call MAPL_GetPointer(export,temp2d,'KE',  rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) temp2d = kenrg
 
     kenrg = (kenrg-kenrg0)/DT
     penrg = (penrg-penrg0)/DT
     tenrg = (tenrg-tenrg0)/DT
 
-    call FILLOUT2 (export, 'KEPHY', kenrg, rc=status); VERIFY_(STATUS)
-    call FILLOUT2 (export, 'PEPHY', penrg, rc=status); VERIFY_(STATUS)
-    call FILLOUT2 (export, 'TEPHY', tenrg, rc=status); VERIFY_(STATUS)
+    call FILLOUT2 (export, 'KEPHY', kenrg, rc=status); _VERIFY(STATUS)
+    call FILLOUT2 (export, 'PEPHY', penrg, rc=status); _VERIFY(STATUS)
+    call FILLOUT2 (export, 'TEPHY', tenrg, rc=status); _VERIFY(STATUS)
 
 ! DTHVDTPHYINT
 ! ------------
       call MAPL_GetPointer ( export, temp2D, 'DTHVDTPHYINT', rc=status )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       if( associated(temp2D) ) then
           dthdtphyint2 = 0.0
           do k=1,km
@@ -5841,32 +6208,35 @@ end subroutine RUN
           temp2D       = (dthdtphyint2-dthdtphyint1) * MAPL_P00**MAPL_KAPPA / (MAPL_GRAV*DT)
       endif
 
+    call getPK ( pke )
+
     tempxy = vars%pt * vars%pkz   ! Dry Temperature
 
 #if defined(DEBUG_T)         
   call Write_Profile(grid, tempxy, 'T')
 #endif
 
-    call FILLOUT3 (export, 'DELP'   , dp      , rc=status); VERIFY_(STATUS)
-    call FILLOUT3 (export, 'U'      , ua      , rc=status); VERIFY_(STATUS)
-    call FILLOUT3 (export, 'V'      , va      , rc=status); VERIFY_(STATUS)
-    call FILLOUT3 (export, 'T'      , tempxy  , rc=status); VERIFY_(STATUS)
-    call FILLOUT3 (export, 'Q'      , qv      , rc=status); VERIFY_(STATUS)
-    call FILLOUT3 (export, 'PL'     , pl      , rc=status); VERIFY_(STATUS)
-    call FILLOUT3 (export, 'PLE'    , vars%pe , rc=status); VERIFY_(STATUS)
-    call FILLOUT3 (export, 'PLK'    , vars%pkz, rc=status); VERIFY_(STATUS)
-    call FILLOUT3 (export, 'THV'    , thv     , rc=status); VERIFY_(STATUS)
-    call FILLOUT3 (export, 'PT'     , vars%pt , rc=status); VERIFY_(STATUS)
-    call FILLOUT3 (export, 'PE'     , vars%pe , rc=status); VERIFY_(STATUS)
+    call FILLOUT3 (export, 'DELP'   , dp      , rc=status); _VERIFY(STATUS)
+    call FILLOUT3 (export, 'U'      , ua      , rc=status); _VERIFY(STATUS)
+    call FILLOUT3 (export, 'V'      , va      , rc=status); _VERIFY(STATUS)
+    call FILLOUT3 (export, 'T'      , tempxy  , rc=status); _VERIFY(STATUS)
+    call FILLOUT3 (export, 'Q'      , qv      , rc=status); _VERIFY(STATUS)
+    call FILLOUT3 (export, 'PL'     , pl      , rc=status); _VERIFY(STATUS)
+    call FILLOUT3 (export, 'PLE'    , vars%pe , rc=status); _VERIFY(STATUS)
+    call FILLOUT3 (export, 'PLK'    , vars%pkz, rc=status); _VERIFY(STATUS)
+    call FILLOUT3 (export, 'PKE'    , pke     , rc=status); _VERIFY(STATUS)
+    call FILLOUT3 (export, 'THV'    , thv     , rc=status); _VERIFY(STATUS)
+    call FILLOUT3 (export, 'PT'     , vars%pt , rc=status); _VERIFY(STATUS)
+    call FILLOUT3 (export, 'PE'     , vars%pe , rc=status); _VERIFY(STATUS)
 
     call MAPL_GetPointer(export,temp3d,'TH',rc=status)
-    VERIFY_(STATUS)
-    if(associated(temp3d)) temp3d = vars%pt*(p00**kappa)
+    _VERIFY(STATUS)
+    if(associated(temp3d)) temp3d = (tempxy)*(p00/(0.5*(vars%pe(:,:,1:km)+vars%pe(:,:,2:km+1))))**kappa
 
       do ntracer=1,ntracers
          write(myTracer, "('Q',i1.1)") ntracer-1
          call MAPL_GetPointer(export, temp3D, TRIM(myTracer), rc=status)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
          if((associated(temp3d)) .and. (STATE%GRID%NQ>=ntracer)) then
             if (state%vars%tracer(ntracer)%is_r4) then
                temp3d = state%vars%tracer(ntracer)%content_r4
@@ -5879,20 +6249,19 @@ end subroutine RUN
 ! Compute Edge Heights
 ! --------------------
 
-    pke           = vars%pe**kappa
     zle(:,:,km+1) = phisxy(:,:)
     do k=km,1,-1
        zle(:,:,k) = zle(:,:,k+1) + cp*thv(:,:,k)*( pke(:,:,k+1)-pke(:,:,k) )
     enddo
        zle(:,:,:) = zle(:,:,:)/grav
 
-    call FILLOUT3 (export, 'ZLE', zle, rc=status); VERIFY_(STATUS)
+    call FILLOUT3 (export, 'ZLE', zle, rc=status); _VERIFY(STATUS)
 
 ! Compute Mid-Layer Heights
 ! -------------------------
 
     call MAPL_GetPointer(export,temp3d,'ZL',  rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp3d)) temp3d = 0.5*( zle(:,:,2:) + zle(:,:,:km) )
 
     pke = log(vars%pe)
@@ -5901,210 +6270,210 @@ end subroutine RUN
 ! ---------------------------
  
     call MAPL_GetPointer(export,temp2d,'U200',  rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) then
        call VertInterp(temp2d,ua,pke,log(20000.)  ,  status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     end if
  
     call MAPL_GetPointer(export,temp2d,'U250',  rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) then
        call VertInterp(temp2d,ua,pke,log(25000.)  ,  status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     end if
 
     call MAPL_GetPointer(export,temp2d,'U500',  rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) then
        call VertInterp(temp2d,ua,pke,log(50000.)  ,  status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     end if
 
     call MAPL_GetPointer(export,temp2d,'U700',  rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) then
        call VertInterp(temp2d,ua,pke,log(70000.)  ,  status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     end if
 
     call MAPL_GetPointer(export,temp2d,'U850',  rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) then
        call VertInterp(temp2d,ua,pke,log(85000.)  ,  status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     end if
 
     call MAPL_GetPointer(export,temp2d,'V200',  rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) then
        call VertInterp(temp2d,va,pke,log(20000.)  ,  status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     end if
 
     call MAPL_GetPointer(export,temp2d,'V250',  rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) then
        call VertInterp(temp2d,va,pke,log(25000.)  ,  status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     end if
 
     call MAPL_GetPointer(export,temp2d,'V500',  rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) then
        call VertInterp(temp2d,va,pke,log(50000.)  ,  status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     end if
 
     call MAPL_GetPointer(export,temp2d,'V700',  rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) then
        call VertInterp(temp2d,va,pke,log(70000.)  ,  status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     end if
 
     call MAPL_GetPointer(export,temp2d,'V850',  rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) then
        call VertInterp(temp2d,va,pke,log(85000.)  ,  status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     end if
 
     call MAPL_GetPointer(export,temp2d,'T250',  rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) then
        call VertInterp(temp2d,tempxy,pke,log(25000.)  , status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     end if
 
     call MAPL_GetPointer(export,temp2d,'T300',  rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) then
        call VertInterp(temp2d,tempxy,pke,log(30000.)  , status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     end if
 
     call MAPL_GetPointer(export,temp2d,'T500',  rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) then
        call VertInterp(temp2d,tempxy,pke,log(50000.)  ,  status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     end if
 
     call MAPL_GetPointer(export,temp2d,'T700',  rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) then
        call VertInterp(temp2d,tempxy,pke,log(70000.)  ,  status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     end if
 
     call MAPL_GetPointer(export,temp2d,'T850',  rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) then
        call VertInterp(temp2d,tempxy,pke,log(85000.)  ,  status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     end if
 
     call MAPL_GetPointer(export,temp2d,'Q250',  rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) then
        call VertInterp(temp2d,qv,pke,log(25000.)  ,  status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     end if
 
     call MAPL_GetPointer(export,temp2d,'Q500',  rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) then
        call VertInterp(temp2d,qv,pke,log(50000.)  ,  status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     end if
 
     call MAPL_GetPointer(export,temp2d,'Q850',  rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) then
        call VertInterp(temp2d,qv,pke,log(85000.)  ,  status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     end if
 
     call MAPL_GetPointer(export,temp2d,'Z700',  rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) then
        call VertInterp(temp2d,zle*grav,pke,log(70000.)  , status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     end if
 
     call MAPL_GetPointer(export,temp2d,'Z500',  rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) then
        call VertInterp(temp2d,zle*grav,pke,log(50000.)  , status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     end if
 
     call MAPL_GetPointer(export,temp2d,'Z300',  rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) then
        call VertInterp(temp2d,zle*grav,pke,log(30000.)  , status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     end if
 
     call MAPL_GetPointer(export,temp2d,'H250',  rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) then
        call VertInterp(temp2d,zle,pke,log(25000.)  , status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     end if
 
     call MAPL_GetPointer(export,temp2d,'H300',  rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) then
        call VertInterp(temp2d,zle,pke,log(30000.)  , status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     end if
 
     call MAPL_GetPointer(export,temp2d,'H500',  rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) then
        call VertInterp(temp2d,zle,pke,log(50000.)  , status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     end if
 
     call MAPL_GetPointer(export,temp2d,'H700',  rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) then
        call VertInterp(temp2d,zle,pke,log(70000.)  , status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     end if
 
     call MAPL_GetPointer(export,temp2d,'H850',  rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) then
        call VertInterp(temp2d,zle,pke,log(85000.)  , status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     end if
 
     call MAPL_GetPointer(export,temp2d,'H1000',  rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) then
        call VertInterp(temp2d,zle,pke,log(100000.)  , status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     end if
 
 ! Fill Model Top Level Variables
 ! ---------------------------------------
     call MAPL_GetPointer(export,temp2d,'UTOP', rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) temp2d = ua(:,:,1)
 
     call MAPL_GetPointer(export,temp2d,'VTOP', rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) temp2d = va(:,:,1)
 
     call MAPL_GetPointer(export,temp2d,'TTOP', rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) temp2d = tempxy(:,:,1)
 
     call MAPL_GetPointer(export,temp2d,'DELPTOP', rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) temp2d = dp(:,:,1)
 
 ! Compute Heights Above Surface
@@ -6114,30 +6483,30 @@ end subroutine RUN
     enddo
     
     call MAPL_GetPointer(export,temp2d,'U50M',  rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) then
        call VertInterp(temp2d,ua,-zle,-50., status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     end if
 
     call MAPL_GetPointer(export,temp2d,'V50M',  rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) then
        call VertInterp(temp2d,va,-zle,-50., status)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     end if
 
 ! Compute Surface Pressure
 ! ------------------------
 
     call MAPL_GetPointer(export,temp2d,'PS',  rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) temp2d=vars%pe(:,:,km+1)
 
 ! Compute Vertically Averaged T,U
 ! -------------------------------
     call MAPL_GetPointer(export,temp2d,'TAVE',  rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) then
        temp2d = 0.0
        do k=1,km
@@ -6147,7 +6516,7 @@ end subroutine RUN
     endif
 
     call MAPL_GetPointer(export,temp2d,'UAVE',  rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) then
        temp2d = 0.0
        do k=1,km
@@ -6162,19 +6531,19 @@ end subroutine RUN
     tempxy = tempxy*(1.0+eps*qv)
 
     call MAPL_GetPointer(export,temp3d,'TV',  rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp3d)) temp3d=tempxy
 
 ! Compute Sea-Level Pressure
 ! --------------------------
     call MAPL_GetPointer(export,temp2d,'SLP'  ,rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call MAPL_GetPointer(export,Ztemp1,'H1000',rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call MAPL_GetPointer(export,Ztemp2,'H850' ,rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call MAPL_GetPointer(export,Ztemp3,'H500' ,rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     if(associated(temp2d) .or. associated(ztemp1) &
                           .or. associated(ztemp2) &
@@ -6208,16 +6577,16 @@ end subroutine RUN
 ! Computational diagnostics
 ! --------------------------
     call MAPL_GetPointer(export,temp2d,'DYNTIMER',rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) temp2d = dyn_timer
 
     call MAPL_GetPointer(export,temp2d,'COMMTIMER',rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     if(associated(temp2d)) temp2d = comm_timer
 
     call MAPL_GetPointer(export,temp2d,'PID',rc=status)
-    VERIFY_(STATUS)
-    if(associated(temp2d)) temp2d = gid
+    _VERIFY(STATUS)
+    if(associated(temp2d)) temp2d = 0 !WMP need to get from MAPL gid
 
 ! Deallocate Memory
 ! -----------------
@@ -6250,27 +6619,30 @@ end subroutine RUN
     DEALLOCATE(    zle )
     DEALLOCATE( dthdtphyint1 )
     DEALLOCATE( dthdtphyint2 )
-    DEALLOCATE( STATE%VARS%tracer, STAT=STATUS )   ! Allocated by call to PULL_Q
+
+    call freeTracers(state)
 
     end if ! .not. SW_DYNAMICS
 
     call MAPL_TimerOff(GENSTATE,"RUN2")
     call MAPL_TimerOff(GENSTATE,"TOTAL")
 
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
 end subroutine RunAddIncs
 
 !-----------------------------------------------------------------------
   subroutine ADD_INCS ( STATE,IMPORT,DT,IS_WEIGHTED,RC )
 
+   use fms_mod, only: set_domain, nullify_domain
    use fv_diagnostics_mod, only: prt_maxmin
-
+   use time_manager_mod,   only: time_type
+   use fv_update_phys_mod, only: fv_update_phys 
 !
 ! !INPUT PARAMETERS:
 
-   type(DynState), intent(INOUT)  :: STATE
+   type(DynState), pointer                :: STATE
    type(ESMF_State),       intent(INOUT)  :: IMPORT
-   real(r8),               intent(IN   )  :: DT
+   real(FVPRC),            intent(IN   )  :: DT
    integer,  optional,     intent(OUT  )  :: RC
    logical,  optional,     intent(IN   )  :: is_weighted
 
@@ -6284,18 +6656,30 @@ end subroutine RunAddIncs
     integer               :: status
     logical               :: is_weighted_
 
-    integer               :: is,ie, js,je, km
+    integer               :: is ,ie , js ,je , km
+    integer               :: isd,ied, jsd,jed
     real(r4), allocatable :: fvQOLD(:,:,:), QTEND(:,:,:)
-    real(r8), allocatable :: DUM(:,:,:)
     real(r8), allocatable :: DPNEW(:,:,:),DPOLD(:,:,:)
-    real(r8), allocatable :: tend_ua(:,:,:), tend_va(:,:,:)
-    real(r8), allocatable :: tend_un(:,:,:), tend_vn(:,:,:)
+
+    real(REAL8), allocatable :: tend_ua(:,:,:), tend_va(:,:,:)
+    real(REAL8), allocatable :: tend_un(:,:,:), tend_vn(:,:,:)
+
+    real(FVPRC), allocatable :: u_dt(:,:,:), v_dt(:,:,:), t_dt(:,:,:)
+
     real(kind=4), pointer :: tend(:,:,:)
 
     type(DynTracers)      :: qqq       ! Specific Humidity
-    real(r8), allocatable :: Q(:,:,:)
+    real(FVPRC), allocatable :: Q(:,:,:,:), CVM(:,:,:)
+    integer :: n, nwat_tracers, nwat, sphum, liq_wat, ice_wat, rainwat, snowwat, graupel
+    real, parameter:: c_ice = 1972.            !< heat capacity of ice at -15.C
+    real, parameter:: c_liq = 4.1855e+3        !< GFS: heat capacity of water at 0C
+    real, parameter:: c_vap = MAPL_CPVAP       !< 1846.
+    real, parameter:: c_air = MAPL_CP
 
     character(len=ESMF_MAXSTR)         :: IAm="ADD_INCS"
+    real(FVPRC) :: fac
+
+    type (time_type) :: Time_Nudge
 
     if(present(is_weighted)) then
        is_weighted_ = is_weighted
@@ -6309,32 +6693,137 @@ end subroutine RunAddIncs
     je = state%grid%je
     km = state%grid%npz
 
+    isd = state%grid%isd
+    ied = state%grid%ied
+    jsd = state%grid%jsd
+    jed = state%grid%jed
 
 ! **********************************************************************
 ! ****  Use QV from FV3 init when coldstarting idealized cases      ****
 ! **********************************************************************
 
-    ALLOCATE( Q(is:ie,js:je,1:km) )
+   ! Determine how many water species we have
+    nwat = 0
+    nwat_tracers = 0
+    if (.not. ADIABATIC) then
+       do n=1,STATE%GRID%NQ
+         if (TRIM(state%vars%tracer(n)%tname) == 'Q'       ) nwat_tracers = nwat_tracers + 1
+         if (TRIM(state%vars%tracer(n)%tname) == 'QLCN'    ) nwat_tracers = nwat_tracers + 1
+         if (TRIM(state%vars%tracer(n)%tname) == 'QLLS'    ) nwat_tracers = nwat_tracers + 1
+         if (TRIM(state%vars%tracer(n)%tname) == 'QICN'    ) nwat_tracers = nwat_tracers + 1
+         if (TRIM(state%vars%tracer(n)%tname) == 'QILS'    ) nwat_tracers = nwat_tracers + 1
+       enddo
+      ! We must have these first 5 at a minimum
+       _ASSERT(nwat_tracers == 5, 'needs informative message')
+      ! Check for QRAIN, QSNOW, QGRAUPEL
+       do n=1,STATE%GRID%NQ
+         if (TRIM(state%vars%tracer(n)%tname) == 'QRAIN'   ) nwat_tracers = nwat_tracers + 1
+         if (TRIM(state%vars%tracer(n)%tname) == 'QSNOW'   ) nwat_tracers = nwat_tracers + 1
+         if (TRIM(state%vars%tracer(n)%tname) == 'QGRAUPEL') nwat_tracers = nwat_tracers + 1
+       enddo
+       if (nwat_tracers >= 5) nwat = 1 ! STATE has QV only
+! WMP  if (nwat_tracers >= 5) nwat = 3 ! STATE has QV, QLIQ, QICE
+       if (nwat_tracers == 8) nwat = 6 ! STATE has QV, QLIQ, QICE, QRAIN, QSNOW, QGRAUPEL
+    endif
+    if (nwat >= 1) then
+    ALLOCATE(   Q(is:ie,js:je,1:km,nwat) )
+    ALLOCATE( CVM(is:ie,js:je,1:km) )
     call PULL_Q ( STATE, IMPORT, qqq, NXQ, InFieldName='Q', RC=rc )
-    if (DYN_COLDSTART .and. overwrite_Q) then
+    if (DYN_COLDSTART .and. overwrite_Q .and. (.not. ADIABATIC)) then
       ! USE Q computed by FV3
-       call getQ(Q, 'Q')
+       call getQ(Q(:,:,:,1), 'Q')
        overwrite_Q=.false.
        call WRITE_PARALLEL("Using QV from FV3 Initial Conditions")
-       call prt_maxmin('AI Q', Q,  is, ie, js, je, 0, km, 1.d00, MAPL_AM_I_ROOT())
+       fac = 1.0
+       call prt_maxmin('AI Q', Q(:,:,:,1),  is, ie, js, je, 0, km, fac)
        if ( (qqq%is_r4) .and. (associated(qqq%content_r4)) ) then
-          if (size(Q)==size(qqq%content_r4)) qqq%content_r4 = Q
+          if (size(Q(:,:,:,1))==size(qqq%content_r4)) qqq%content_r4 = Q(:,:,:,1)
        elseif (associated(qqq%content)) then
-          if (size(Q)==size(qqq%content)) qqq%content = Q
+          if (size(Q(:,:,:,1))==size(qqq%content)) qqq%content = Q(:,:,:,1)
        endif
     else
-      ! Just grab Q from imports
+      ! Grab QV from imports
        if ( (qqq%is_r4) .and. (associated(qqq%content_r4)) ) then
-          if (size(Q)==size(qqq%content_r4)) Q = qqq%content_r4
+          if (size(Q(:,:,:,1))==size(qqq%content_r4)) Q(:,:,:,1) = qqq%content_r4
        elseif (associated(qqq%content)) then
-          if (size(Q)==size(qqq%content)) Q = qqq%content
+          if (size(Q(:,:,:,1))==size(qqq%content)) Q(:,:,:,1) = qqq%content
        endif
     endif
+    endif
+    if (nwat >= 3) then
+    ! Grab QLIQ from imports
+    call PULL_Q ( STATE, IMPORT, qqq, NXQ, InFieldName='QLLS', RC=rc )
+    if ( (qqq%is_r4) .and. (associated(qqq%content_r4)) ) then
+       if (size(Q(:,:,:,2))==size(qqq%content_r4)) Q(:,:,:,2) = qqq%content_r4
+    elseif (associated(qqq%content)) then
+       if (size(Q(:,:,:,2))==size(qqq%content)) Q(:,:,:,2) = qqq%content
+    endif
+    call PULL_Q ( STATE, IMPORT, qqq, NXQ, InFieldName='QLCN', RC=rc )
+    if ( (qqq%is_r4) .and. (associated(qqq%content_r4)) ) then
+       if (size(Q(:,:,:,2))==size(qqq%content_r4)) Q(:,:,:,2) = Q(:,:,:,2) + qqq%content_r4
+    elseif (associated(qqq%content)) then
+       if (size(Q(:,:,:,2))==size(qqq%content)) Q(:,:,:,2) = Q(:,:,:,2) + qqq%content
+    endif
+    ! Grab QICE from imports
+    call PULL_Q ( STATE, IMPORT, qqq, NXQ, InFieldName='QILS', RC=rc )
+    if ( (qqq%is_r4) .and. (associated(qqq%content_r4)) ) then
+       if (size(Q(:,:,:,3))==size(qqq%content_r4)) Q(:,:,:,3) = qqq%content_r4
+    elseif (associated(qqq%content)) then
+       if (size(Q(:,:,:,3))==size(qqq%content)) Q(:,:,:,3) = qqq%content
+    endif
+    call PULL_Q ( STATE, IMPORT, qqq, NXQ, InFieldName='QICN', RC=rc )
+    if ( (qqq%is_r4) .and. (associated(qqq%content_r4)) ) then
+       if (size(Q(:,:,:,3))==size(qqq%content_r4)) Q(:,:,:,3) = Q(:,:,:,3) + qqq%content_r4
+    elseif (associated(qqq%content)) then
+       if (size(Q(:,:,:,3))==size(qqq%content)) Q(:,:,:,3) = Q(:,:,:,3) + qqq%content
+    endif
+    endif
+    if (nwat >= 6) then
+    ! Grab RAIN from imports
+    call PULL_Q ( STATE, IMPORT, qqq, NXQ, InFieldName='RAIN', RC=rc )
+    if ( (qqq%is_r4) .and. (associated(qqq%content_r4)) ) then
+       if (size(Q(:,:,:,4))==size(qqq%content_r4)) Q(:,:,:,4) = qqq%content_r4
+    elseif (associated(qqq%content)) then
+       if (size(Q(:,:,:,4))==size(qqq%content)) Q(:,:,:,4) = qqq%content
+    endif
+    ! Grab SNOW from imports
+    call PULL_Q ( STATE, IMPORT, qqq, NXQ, InFieldName='SNOW', RC=rc )
+    if ( (qqq%is_r4) .and. (associated(qqq%content_r4)) ) then
+       if (size(Q(:,:,:,5))==size(qqq%content_r4)) Q(:,:,:,5) = qqq%content_r4
+    elseif (associated(qqq%content)) then
+       if (size(Q(:,:,:,5))==size(qqq%content)) Q(:,:,:,5) = qqq%content
+    endif
+    ! Grab GRAUPEL from imports
+    call PULL_Q ( STATE, IMPORT, qqq, NXQ, InFieldName='GRAUPEL', RC=rc )
+    if ( (qqq%is_r4) .and. (associated(qqq%content_r4)) ) then
+       if (size(Q(:,:,:,6))==size(qqq%content_r4)) Q(:,:,:,6) = qqq%content_r4
+    elseif (associated(qqq%content)) then
+       if (size(Q(:,:,:,6))==size(qqq%content)) Q(:,:,:,6) = qqq%content
+    endif
+    endif
+    select case(nwat)
+    case(1)
+        sphum   = 1
+        liq_wat = -1
+        ice_wat = -1
+        rainwat = -1
+        snowwat = -1
+        graupel = -1
+    case(3)
+        sphum   = 1
+        liq_wat = 2
+        ice_wat = 3
+        rainwat = -1
+        snowwat = -1
+        graupel = -1
+    case(6)
+        sphum   = 1
+        liq_wat = 2
+        ice_wat = 3
+        rainwat = 4
+        snowwat = 5
+        graupel = 6
+    end select
 
     if (.not. ADIABATIC) then
 
@@ -6351,14 +6840,20 @@ end subroutine RunAddIncs
        ALLOCATE( tend_vn(is:ie+1,js:je  ,km) )
 
        call ESMFL_StateGetPointerToData ( IMPORT,TEND,'DUDT',RC=STATUS )
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
 
        tend_ua(is:ie,js:je,1:km) = tend
 
        call ESMFL_StateGetPointerToData ( IMPORT,TEND,'DVDT',RC=STATUS )
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
 
        tend_va(is:ie,js:je,1:km) = tend
+
+      !if (.not. HYDROSTATIC ) then
+      !  call ESMFL_StateGetPointerToData ( IMPORT,TEND,'DWDT',RC=STATUS )
+      !  _VERIFY(STATUS)
+      !  STATE%VARS%W = STATE%VARS%W + DT*TEND(is:ie,js:je,1:km)
+      !endif
 
        ! Put the wind tendencies on the Native Dynamics grid
        ! ---------------------------------------------------
@@ -6393,7 +6888,7 @@ end subroutine RunAddIncs
        ! **********************************************************************
 
        call ESMFL_StateGetPointerToData ( IMPORT,TEND,'DPEDT',RC=STATUS )
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
 
        STATE%VARS%PE = STATE%VARS%PE + DT*TEND
 
@@ -6420,14 +6915,29 @@ end subroutine RunAddIncs
        ! *********************************************************************
 
        call ESMFL_StateGetPointerToData ( IMPORT,TEND,'DTDT',RC=STATUS )
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
 
        !if (DYN_DEBUG) then
        !   call prt_maxmin('AI PT1', STATE%VARS%PT ,  is, ie, js, je, 0, km, 1.d00, MAPL_AM_I_ROOT())
        !endif
 
-       ! Make previous PT into just T
+       select case (nwat)
+       case (6)
+           CVM = (1.-( Q(:,:,:,  sphum)+Q(:,:,:,liq_wat)+Q(:,:,:,rainwat)+Q(:,:,:,ice_wat)+&
+                       Q(:,:,:,snowwat)+Q(:,:,:,graupel) )               )*c_air + &
+                      (Q(:,:,:,  sphum)                                  )*c_vap + &
+                      (Q(:,:,:,liq_wat)+Q(:,:,:,rainwat)                 )*c_liq + &
+                      (Q(:,:,:,ice_wat)+Q(:,:,:,snowwat)+Q(:,:,:,graupel))*c_ice
+       case (3)
+           CVM = (1.-( Q(:,:,:,  sphum)+Q(:,:,:,liq_wat)+Q(:,:,:,ice_wat) ) )*c_air + &
+                      (Q(:,:,:,  sphum)                                     )*c_vap + &
+                      (Q(:,:,:,liq_wat)                                     )*c_liq + &
+                      (Q(:,:,:,ice_wat)                                     )*c_ice
+       case default
+           CVM = MAPL_CP
+       end select
 
+       ! Make previous PT into just T
        STATE%VARS%PT = STATE%VARS%PT*STATE%VARS%PKZ
 
        if (.not. HYDROSTATIC ) then
@@ -6435,24 +6945,23 @@ end subroutine RunAddIncs
           STATE%VARS%DZ = STATE%VARS%DZ / STATE%VARS%PT
 
           ! Update T
-          STATE%VARS%PT =  STATE%VARS%PT           *DPOLD
-          STATE%VARS%PT = (STATE%VARS%PT + DT*TEND)/DPNEW 
+          STATE%VARS%PT =  STATE%VARS%PT                         *DPOLD
+          STATE%VARS%PT = (STATE%VARS%PT + DT*TEND*(MAPL_CP/CVM))/DPNEW 
 
           ! update DZ with new T
           STATE%VARS%DZ = STATE%VARS%DZ * STATE%VARS%PT
        else
           ! Update T
-          STATE%VARS%PT =  STATE%VARS%PT           *DPOLD
-          STATE%VARS%PT = (STATE%VARS%PT + DT*TEND)/DPNEW 
+          STATE%VARS%PT =  STATE%VARS%PT                         *DPOLD
+          STATE%VARS%PT = (STATE%VARS%PT + DT*TEND*(MAPL_CP/CVM))/DPNEW 
        endif
 
-       ! Update PKZ from pressures
-       !           (if non-hydrostatic, include new TA[stored in PT], Q & DZ )
-
+       ! Update PKZ from hydrostatic pressures
+       !  This isn't entirely necessary, FV3 overwrites this in fv_dynamics
+       !  but we have to get back to PT here
        call getPKZ(STATE%VARS%PKZ,STATE%VARS%PT,Q,STATE%VARS%PE,STATE%VARS%DZ,HYDROSTATIC)
 
        ! Make T back into PT
-
        STATE%VARS%PT = STATE%VARS%PT/STATE%VARS%PKZ
 
        !if (DYN_DEBUG) then
@@ -6463,114 +6972,17 @@ end subroutine RunAddIncs
        DEALLOCATE (DPOLD)
     endif ! .not. Adiabatic
 
-    DEALLOCATE( Q )
+
+
+
+    if (ALLOCATED(Q  )) DEALLOCATE( Q   )
+    if (ALLOCATED(CVM)) DEALLOCATE( CVM )
 
    return
 
  end subroutine ADD_INCS
 
-  subroutine del2_diffusion(ptend, pe, w, is, ie, js, je, km)
-   use         fv_mp_mod, only: domain
-   use   mpp_domains_mod, only: mpp_update_domains
-   use fv_grid_utils_mod, only: sina_u, sina_v, da_min, sin_sg
-   use fv_grid_tools_mod, only: dx, dy, rdxc, rdyc, rarea
-   use    fv_control_mod, only: npx, npy
-! This routine is for 2nd order filtering the physics tendencies
-   integer , intent(in   ):: is, ie, js, je, km
-   real(r8), intent(in   )::    pe(is:ie,js:je,km+1)
-   real(r8), intent(in   )::     w(is:ie,js:je,km)
-   real(r4), intent(inout):: ptend(is:ie,js:je,km)
-!
-   integer, parameter :: ngc=3
-   real(r8) :: delp(is:ie,js:je,km)
-   real(r8) :: q(is-ngc:ie+ngc,js-ngc:je+ngc,km)
-   real(r8) :: fx(is:ie+1,js:je), fy(is:ie,js:je+1)
-   real(r8) :: mask(is:ie+1,js:je+1)
-   real(r8) :: f1(is:ie+1), f2(js:je+1)
-   real(r8) :: damp
-   logical  :: updraft(is:ie,js:je)
-   integer i,j,k
 
-!  Compute DELP & find strong updrafts > 1 m/s
-   updraft(:,:) = .false.
-   do k=1,km
-      delp(:,:,k) = 1.0/( pe(:,:,k+1)-pe(:,:,k) )
-      do j=js,je
-         do i=is,ie
-            if (w(i,j,k) > 1.0) updraft(i,j) = .true.
-         enddo
-      enddo
-   enddo
-
-! Applying mask to the damping coefficient?
-   damp = 0.25 * 0.2 * da_min
-
-! Mask defined at corners
-
-!$omp parallel do default(shared)
-   do i=is,ie+1
-      f1(i) = (1. - sin(real(i-1)/real(npx-1)*pi))**2
-   enddo
-
-!$omp parallel do default(shared)
-   do j=js,je+1
-      f2(j) = (1. - sin(real(j-1)/real(npy-1)*pi))**2
-      do i=is,ie+1
-         mask(i,j) = damp * (f1(i) + f2(j))
-      enddo
-   enddo
-
-! mass weighted tendency from physics is filtered
-
-!$omp parallel do default(shared)
-   do k=1,km
-      do j=js,je
-         do i=is,ie
-            q(i,j,k) = ptend(i,j,k)*delp(i,j,k)
-         enddo
-      enddo
-   enddo
-   call mpp_update_domains(q, domain, complete=.true.)
-
-!$omp parallel do default(shared) private(fx, fy)
-   do k=1,km
-      do j=js,je
-         do i=is,ie+1
-            fx(i,j) = &
-                 (mask(i,j)+mask(i,j+1))*dy(i,j)*sina_u(i,j)* &
-                 (q(i-1,j,k)-q(i,j,k))*rdxc(i,j)
-         enddo
-         if (is == 1)   fx(i,j) = &
-              (mask(is,j)+mask(is,j+1))*dy(is,j)*(q(is-1,j,k)-q(is,j,k))*rdxc(is,j)* &
-            0.5*(sin_sg(1,j,1) + sin_sg(0,j,3))
-         if (ie+1==npx) fx(i,j) = &
-              (mask(ie+1,j)+mask(ie+1,j+1))*dy(ie+1,j)*(q(ie,j,k)-q(ie+1,j,k))*rdxc(ie+1,j)* & 
-            0.5*(sin_sg(npx,j,1) + sin_sg(npx-1,j,3))
-      enddo
-      do j=js,je+1
-         if (j == 1 .OR. j == npy) then
-            do i=is,ie
-               fy(i,j) = (mask(i,j)+mask(i+1,j))*dx(i,j)*&
-                    (q(i,j-1,k)-q(i,j,k))*rdyc(i,j) &
-                    *0.5*(sin_sg(i,j,2) + sin_sg(i,j-1,4) )
-            enddo
-         else
-            do i=is,ie
-               fy(i,j) = (mask(i,j)+mask(i+1,j))*dx(i,j)*sina_v(i,j)*&
-                    (q(i,j-1,k)-q(i,j,k))*rdyc(i,j)
-            enddo
-         end if
-      enddo
-      do j=js,je
-         do i=is,ie
-            if (updraft(i,j)) then
-               ptend(i,j,k) = ptend(i,j,k) + rarea(i,j)*(fx(i,j)-fx(i+1,j)+fy(i,j)-fy(i,j+1))/delp(i,j,k)
-            endif
-         enddo
-      enddo
-   enddo
-
-  end subroutine del2_diffusion
 
 
 
@@ -6585,7 +6997,7 @@ end subroutine RunAddIncs
      character(len=ESMF_MAXSTR) :: IAm="Fillout3r8"
 
      call MAPL_GetPointer(export, cpl, name, RC=STATUS)
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
      if(associated(cpl)) cpl=v
 
    end subroutine FILLOUT3r8
@@ -6601,7 +7013,7 @@ end subroutine RunAddIncs
      character(len=ESMF_MAXSTR) :: IAm="Fillout3"
 
      call MAPL_GetPointer(export, cpl, name, RC=STATUS)
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
      if(associated(cpl)) cpl=v
 
    end subroutine FILLOUT3
@@ -6619,7 +7031,7 @@ end subroutine RunAddIncs
      character(len=ESMF_MAXSTR) :: IAm="Fillout2"
 
      call MAPL_GetPointer(export, cpl, name, RC=STATUS)
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
      if(associated(cpl)) cpl=v
 
      return
@@ -6736,14 +7148,14 @@ subroutine Finalize(gc, import, export, clock, rc)
 
     Iam = "Finalize"
     call ESMF_GridCompGet( GC, name=COMP_NAME, config=cf, RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     Iam = trim(COMP_NAME) // Iam
 
 ! Retrieve the pointer to the state
 ! ---------------------------------
 
     call MAPL_GetObjectFromGC (GC, MAPL,  RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_TimerOn(MAPL,"TOTAL")
     call MAPL_TimerOn(MAPL,"FINALIZE")
@@ -6752,7 +7164,7 @@ subroutine Finalize(gc, import, export, clock, rc)
 !----------------------------------
 
     call ESMF_UserCompGetInternalState(gc, 'DYNstate', wrap, status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
   
     state => wrap%dyn_state
  
@@ -6765,9 +7177,9 @@ subroutine Finalize(gc, import, export, clock, rc)
     call MAPL_TimerOff(MAPL,"TOTAL")
 
     call MAPL_GenericFinalize ( GC, IMPORT, EXPORT, CLOCK,  RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
-  RETURN_(ESMF_SUCCESS)
+  _RETURN(ESMF_SUCCESS)
  
   contains
 
@@ -6858,7 +7270,7 @@ end subroutine FINALIZE
     km   = size(ple,3)-1
     edge = size(v3,3)==km+1
 
-    ASSERT_(edge .or. size(v3,3)==km)
+    _ASSERT(edge .or. size(v3,3)==km,'needs informative message')
 
     v2   = MAPL_UNDEF
 
@@ -6891,7 +7303,7 @@ end subroutine FINALIZE
           end where
     end if
 
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
   end subroutine VertInterp
 
 
@@ -6945,12 +7357,12 @@ subroutine Coldstart(gc, import, export, clock, rc)
     real                              :: T0
     integer                           :: L
     type(ESMF_Config)                 :: CF
-    integer                           :: i,j,k
+    integer                           :: i,j,k,n
     integer                           :: IS,IE, JS,JE, KS,KE, IM,JM,KM, LS
 
     integer                     :: case_id
     integer                     :: case_rotation
-    character(len=ESMF_MAXSTR)  :: case_tracers
+    integer                     :: case_tracers
 
     real(REAL8) :: dummy_1, dummy_2, dummy_3, dummy_4, dummy_5, dummy_6
     real(REAL8) :: dz, ztop, height, pressure
@@ -6967,6 +7379,8 @@ subroutine Coldstart(gc, import, export, clock, rc)
     type (DynState), pointer :: STATE
     type (DynGrid),  pointer :: GRID
 
+    logical :: isPresent
+
 ! Tracer Stuff
     real(r4), pointer                :: TRACER(:,:,:)
     real(REAL8), allocatable            :: Q5(:,:,:)
@@ -6981,33 +7395,33 @@ subroutine Coldstart(gc, import, export, clock, rc)
 ! Begin
 
     call ESMF_GridCompGet( GC, name=COMP_NAME, CONFIG=CF, RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     Iam = trim(COMP_NAME) // trim(Iam)
 
 ! Retrieve the pointer to the state
 ! ---------------------------------
 
     call MAPL_GetObjectFromGC (GC, MAPL,  RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call ESMF_UserCompGetInternalState(GC, 'DYNstate', wrap, status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     state => wrap%dyn_state
     grid  => state%grid   ! direct handle to grid
 
 !BOR    
 ! !RESOURCE_ITEM: K :: Value of isothermal temperature on coldstart
     call MAPL_GetResource ( MAPL, T0, 'T0:', default=273., RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 !EOR
     call MAPL_Get ( MAPL,                &
            INTERNAL_ESMF_STATE=INTERNAL, &
            lats = LATS,                  &
            lons = LONS,                  &
                                RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
-   if (grid_type == 4) then
+   if (FV_Atm(1)%flagstruct%grid_type == 4) then
     ! Doubly-Period setup based on first LAT/LON coordinate
      LONS(:,:) =  0.0
      LATS(:,:) = 15.0*PI/180.0
@@ -7015,26 +7429,26 @@ subroutine Coldstart(gc, import, export, clock, rc)
 
 ! A-Grid U Wind
         call MAPL_GetPointer(Internal,U,'U'  ,rc=STATUS)
-        VERIFY_(STATUS)
+        _VERIFY(STATUS)
 ! A-Grid V Wind
         call MAPL_GetPointer(Internal,V,'V'  ,rc=STATUS)
 ! Surface Geopotential
         call MAPL_GetPointer ( IMPORT, phis, 'PHIS', RC=STATUS )
-        VERIFY_(STATUS)
+        _VERIFY(STATUS)
 ! Potential-Temperature
         call MAPL_GetPointer(Internal,PT,'PT',rc=STATUS)
-        VERIFY_(STATUS)
+        _VERIFY(STATUS)
 ! Edge Pressures
         call MAPL_GetPointer(Internal,PE  ,'PE',rc=STATUS)
-        VERIFY_(STATUS)
+        _VERIFY(STATUS)
 ! Presssure ^ kappa at mid-layers
         call MAPL_GetPointer(Internal,PKZ ,'PKZ',rc=STATUS)
-        VERIFY_(STATUS)
+        _VERIFY(STATUS)
 ! AK and BK for vertical coordinate
         call MAPL_GetPointer(Internal,ak  ,'AK' ,rc=STATUS)
-        VERIFY_(STATUS)
+        _VERIFY(STATUS)
         call MAPL_GetPointer(Internal,bk  ,'BK' ,rc=STATUS)
-        VERIFY_(STATUS)
+        _VERIFY(STATUS)
 
 
     U = 0.0
@@ -7074,23 +7488,25 @@ subroutine Coldstart(gc, import, export, clock, rc)
     U(IS:IE,JS:JE,KE) = .001*abs(lats(:,:))
     V = 0.0
 
-    call ESMF_ConfigFindLabel( cf, 'AK:', rc = status )
-    if (STATUS == 0) then
+    call ESMF_ConfigFindLabel( cf, 'AK:', isPresent=isPresent, rc = status )
+    _VERIFY(STATUS)
+    if (isPresent) then
        do L = 0, SIZE(AK)-1
           call ESMF_ConfigNextLine  ( CF, rc=STATUS )
           call ESMF_ConfigGetAttribute( cf, AK(L), rc = status )
-          VERIFY_(STATUS)
+          _VERIFY(STATUS)
        enddo
     else
        ak_is_missing = .true.
     endif
 
-    call ESMF_ConfigFindLabel( cf, 'BK:', rc = status )
-    if (STATUS == 0) then
+    call ESMF_ConfigFindLabel( cf, 'BK:', isPresent=isPresent, rc = status )
+    _VERIFY(STATUS)
+    if (isPresent) then
        do L = 0, SIZE(bk)-1
           call ESMF_ConfigNextLine  ( CF, rc=STATUS )
           call ESMF_ConfigGetAttribute( cf, BK(L), rc = status )
-          VERIFY_(STATUS)
+          _VERIFY(STATUS)
        enddo
     else
        bk_is_missing = .true.
@@ -7098,7 +7514,7 @@ subroutine Coldstart(gc, import, export, clock, rc)
 
     if (ak_is_missing .or. bk_is_missing) call set_eta(km, ls, ptop, pint, AK, BK)
 
-    ASSERT_(ANY(AK /= 0.0) .or. ANY(BK /= 0.0))
+    _ASSERT(ANY(AK /= 0.0) .or. ANY(BK /= 0.0),'needs informative message')
     do L=lbound(PE,3),ubound(PE,3)
        PE(:,:,L) = AK(L) + BK(L)*MAPL_P00
     enddo
@@ -7111,13 +7527,13 @@ subroutine Coldstart(gc, import, export, clock, rc)
 
 ! Check if running standalone model
     call ESMF_ConfigGetAttribute ( CF, FV3_STANDALONE, Label="FV3_STANDALONE:", default=0, RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
 ! 3D Baroclinic Test Cases
 
     call ESMF_ConfigGetAttribute( cf, case_id      , label='CASE_ID:'      , default=0 , rc = rc )
     call ESMF_ConfigGetAttribute( cf, case_rotation, label='CASE_ROTATION:', default=0 , rc = rc )
-    call ESMF_ConfigGetAttribute( cf, case_tracers , label='CASE_TRACERS:' , default='', rc = rc )
+    call ESMF_ConfigGetAttribute( cf, case_tracers , label='CASE_TRACERS:' , default=1234, rc = rc )
     DYN_CASE = case_id
 
     write(STRING,'(A,I5,A)') "Initializing CASE_ID ", case_id, " in FVcubed:"
@@ -7188,9 +7604,9 @@ subroutine Coldstart(gc, import, export, clock, rc)
      !PURE_ADVECTION = .true.
 
       allocate( Q5(IS:IE, JS:JE, 0:KM-1), STAT=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       allocate( Q6(IS:IE, JS:JE, 0:KM-1), STAT=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       ztop = 12000.0
       dz   = ztop/KM
@@ -7370,24 +7786,31 @@ subroutine Coldstart(gc, import, export, clock, rc)
 !--------------------
    if (FV3_STANDALONE /= 0) then
       call ESMF_StateGet(IMPORT, 'TRADV' , TRADV_BUNDLE,   RC=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       call ESMF_GridCompGet(gc, grid=esmfGRID, rc=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       allocate( TRACER(IS:IE, JS:JE, 1:KM), STAT=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       TRACER(:,:,:)  = 0.0
       FIELDNAME = 'Q'
       call addTracer(STATE, TRADV_BUNDLE, TRACER, esmfGRID, FIELDNAME)
 
-    if (case_tracers(1:1) /= '0') then
+    if (case_tracers /= 1234) then
+
+      do n=1,case_tracers
+        TRACER(:,:,:)  = 0.0
+        write(FIELDNAME, "('Q',i3.3)") n
+        call addTracer(STATE, TRADV_BUNDLE, TRACER, esmfGRID, FIELDNAME)
+      enddo
+
+    else
+
 !-----------------------------------------------------------------------
 !     tracer q1
 !-----------------------------------------------------------------------
-      if (case_tracers(1:1) == '1' .or. case_tracers(2:2) == '1' .or. case_tracers(3:3) == '1' .or. &
-          case_tracers(4:4) == '1' .or. case_tracers(5:5) == '1') then
       TRACER(:,:,:) = 0.0
       do k=KS,KE
          eta = 0.5*( (ak(k-1)+ak(k))/1.e5 + bk(k-1)+bk(k) )
@@ -7402,13 +7825,10 @@ subroutine Coldstart(gc, import, export, clock, rc)
       enddo
       FIELDNAME = 'Q1'
       call addTracer(STATE, TRADV_BUNDLE, TRACER, esmfGRID, FIELDNAME)
-      endif
 
 !-----------------------------------------------------------------------
 !     tracer q2
 !-----------------------------------------------------------------------
-      if (case_tracers(1:1) == '2' .or. case_tracers(2:2) == '2' .or. case_tracers(3:3) == '2' .or. &
-          case_tracers(4:4) == '2' .or. case_tracers(5:5) == '2') then
       do k=KS,KE
          eta = 0.5*( (ak(k-1)+ak(k))/1.e5 + bk(k-1)+bk(k) )
          do j=JS,JE
@@ -7422,13 +7842,10 @@ subroutine Coldstart(gc, import, export, clock, rc)
       enddo
       FIELDNAME = 'Q2'
       call addTracer(STATE, TRADV_BUNDLE, TRACER, esmfGRID, FIELDNAME)
-      endif
 
 !-----------------------------------------------------------------------
 !     tracer q3
 !-----------------------------------------------------------------------
-      if (case_tracers(1:1) == '3' .or. case_tracers(2:2) == '3' .or. case_tracers(3:3) == '3' .or. &
-          case_tracers(4:4) == '3' .or. case_tracers(5:5) == '3') then
       do k=KS,KE
          eta = 0.5*( (ak(k-1)+ak(k))/1.e5 + bk(k-1)+bk(k) )
          do j=JS,JE
@@ -7442,18 +7859,14 @@ subroutine Coldstart(gc, import, export, clock, rc)
       enddo
       FIELDNAME = 'Q3'
       call addTracer(STATE, TRADV_BUNDLE, TRACER, esmfGRID, FIELDNAME)
-      endif
 
 !-----------------------------------------------------------------------
 !     tracer q4
 !-----------------------------------------------------------------------
-      if (case_tracers(1:1) == '4' .or. case_tracers(2:2) == '4' .or. case_tracers(3:3) == '4' .or. &
-          case_tracers(4:4) == '4' .or. case_tracers(5:5) == '4') then
       TRACER(:,:,:)  = 1.0_r4
       FIELDNAME = 'Q4'
       call addTracer(STATE, TRADV_BUNDLE, TRACER, esmfGRID, FIELDNAME)
-      VERIFY_(STATUS)
-      endif
+      _VERIFY(STATUS)
 
 !-----------------------------------------------------------------------
 !     tracer q5
@@ -7462,9 +7875,9 @@ subroutine Coldstart(gc, import, export, clock, rc)
       TRACER(:,:,:)  = Q5(:,:,:)
       FIELDNAME = 'Q5'
       call addTracer(STATE, TRADV_BUNDLE, TRACER, esmfGRID, FIELDNAME)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       deallocate( Q5, STAT=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       endif
 
 !-----------------------------------------------------------------------
@@ -7474,15 +7887,15 @@ subroutine Coldstart(gc, import, export, clock, rc)
       TRACER(:,:,:)  = Q6(:,:,:)
       FIELDNAME = 'Q6'
       call addTracer(STATE, TRADV_BUNDLE, TRACER, esmfGRID, FIELDNAME)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       deallocate( Q6, STAT=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       endif
 
     endif
 
       deallocate( TRACER, STAT=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
     endif
     endif
@@ -7491,7 +7904,7 @@ subroutine Coldstart(gc, import, export, clock, rc)
 
     DYN_COLDSTART=.true.
 
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
   end subroutine COLDSTART
 
 #ifdef MY_SET_ETA
@@ -7772,7 +8185,7 @@ subroutine Coldstart(gc, import, export, clock, rc)
 
      CASE DEFAULT
 
-        print*, 'Bad KM in DynCore_GridCompMod:set_eta', km
+        print*, 'Bad KM in FVdycoreCubed_GridComp:set_eta', km
 
      END SELECT
 
@@ -7796,23 +8209,23 @@ subroutine addTracer_r8(state, bundle, var, grid, fieldname)
   real(r8),              pointer   :: ptr(:,:,:)
 
       call ESMF_GridGet (GRID,  distGrid=distgrid,       RC=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       call ESMF_FieldBundleGet(BUNDLE, fieldCount=NQ, RC=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       NQ = NQ + 1
 
       field = ESMF_FieldCreate(GRID, var, datacopyflag=ESMF_DATACOPY_VALUE, name=fieldname, RC=STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       call MAPL_FieldBundleAdd ( bundle, field, rc=STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       if (NQ == 1) then
          ALLOCATE(STATE%VARS%tracer(nq), STAT=STATUS)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
          call ESMF_FieldGet(field, localDE=0, farrayptr=ptr, rc=status)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
          state%vars%tracer(nq)%content => ptr
          state%vars%tracer(nq  )%is_r4 = .false.
       else
@@ -7821,7 +8234,7 @@ subroutine addTracer_r8(state, bundle, var, grid, fieldname)
          deallocate(state%vars%tracer)
          state%vars%tracer => t
          call ESMF_FieldGet(field, localDE=0, farrayptr=ptr, rc=status)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
          state%vars%tracer(nq)%content => ptr
          state%vars%tracer(nq  )%is_r4 = .false.
       endif
@@ -7848,23 +8261,23 @@ subroutine addTracer_r4(state, bundle, var, grid, fieldname)
   real(r4),              pointer   :: ptr(:,:,:)
          
       call ESMF_GridGet (GRID,  distGrid=distgrid,       RC=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       call ESMF_FieldBundleGet(BUNDLE, fieldCount=NQ, RC=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       NQ = NQ + 1 
                
       field = ESMF_FieldCreate(GRID, var, datacopyflag=ESMF_DATACOPY_VALUE, name=fieldname, RC=STATUS ) 
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       call MAPL_FieldBundleAdd ( bundle, field, rc=STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       if (NQ == 1) then
          ALLOCATE(STATE%VARS%tracer(nq), STAT=STATUS)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
          call ESMF_FieldGet(field, localDE=0, farrayptr=ptr, rc=status)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
          state%vars%tracer(nq)%content_r4 => ptr
          state%vars%tracer(nq  )%is_r4 = .true.
       else
@@ -7873,7 +8286,7 @@ subroutine addTracer_r4(state, bundle, var, grid, fieldname)
          deallocate(state%vars%tracer)
          state%vars%tracer => t
          call ESMF_FieldGet(field, localDE=0, farrayptr=ptr, rc=status)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
          state%vars%tracer(nq)%content_r4 => ptr
          state%vars%tracer(nq  )%is_r4 = .true.
       endif
@@ -7888,6 +8301,7 @@ subroutine freeTracers(state)
 
   if (associated(STATE%VARS%tracer)) then
      DEALLOCATE( STATE%VARS%tracer)   ! Comment out to output tracer to checkpoint file
+        NULLIFY( STATE%VARS%tracer)
   end if
 
   return
@@ -8118,5 +8532,29 @@ end subroutine freeTracers
         enddo
   end function
 
+  subroutine register_grid_and_regridders()
+    use MAPL_GridManagerMod, only: grid_manager
+    use CubedSphereGridFactoryMod, only: CubedSphereGridFactory
+    use MAPL_RegridderManagerMod, only: regridder_manager
+    use MAPL_RegridderSpecMod, only: REGRID_METHOD_BILINEAR
+    use LatLonToCubeRegridderMod
+    use CubeToLatLonRegridderMod
+    use CubeToCubeRegridderMod
 
-end module DynCore_GridCompMod
+    type (CubedSphereGridFactory) :: factory
+
+    type (CubeToLatLonRegridder) :: cube_to_latlon_prototype
+    type (LatLonToCubeRegridder) :: latlon_to_cube_prototype
+    type (CubeToCubeRegridder) :: cube_to_cube_prototype
+
+    call grid_manager%add_prototype('Cubed-Sphere',factory)
+    associate (method => REGRID_METHOD_BILINEAR, mgr => regridder_manager)
+      call mgr%add_prototype('Cubed-Sphere', 'LatLon', method, cube_to_latlon_prototype)
+      call mgr%add_prototype('LatLon', 'Cubed-Sphere', method, latlon_to_cube_prototype)
+      call mgr%add_prototype('Cubed-Sphere', 'Cubed-Sphere', method, cube_to_cube_prototype)
+    end associate
+
+  end subroutine register_grid_and_regridders
+
+
+end module FVdycoreCubed_GridComp

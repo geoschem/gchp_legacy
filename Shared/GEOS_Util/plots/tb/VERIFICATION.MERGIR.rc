@@ -1,0 +1,8 @@
+
+OBSNAM: MERGIR
+OBSDSC: GPM_MERGIR(Feb_2000-Jun_2018)
+
+        filename:   'VERIFICATION/GPM_MERGIR/xdf.tabl'
+        filetype:   'HDF'
+        fields:     'TBISCCP'  , 'SATSIM' , 'TB' , 1
+                    ::

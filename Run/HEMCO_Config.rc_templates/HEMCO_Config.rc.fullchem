@@ -110,7 +110,7 @@ Warnings:                    1
     --> ORDONEZ_IODOCARB       :       true
     --> NEI2011_HOURLY         :       false
     --> NEI2011_MONMEAN        :       true
-    --> RETRO                  :       true 
+    --> RETRO                  :       false
     --> MIX                    :       true
     --> STREETS                :       false
     --> DICE_Africa            :       true 
@@ -810,8 +810,8 @@ Warnings:                    1
 # --- 2010 Global fossil fuel and biofuel emissions of C2H6 (Tzompa-Sosa et al. (2017) ---
 #==============================================================================
 (((C2H6_2010 
-0 C2H6_2010_oilgas   $ROOT/C2H6_2010/v2017-05/C2H6_global_anth_biof.2010$MM.nc ANTHR_C2H6   2010/1-12/1/0 C xy kgC/m2/s C2H6 - 1 100
-0 C2H6_2010_biofuel  $ROOT/C2H6_2010/v2017-05/C2H6_global_anth_biof.2010$MM.nc BIOFUEL_C2H6 2010/1-12/1/0 C xy kgC/m2/s C2H6 - 2 100
+0 C2H6_2010_oilgas   $ROOT/C2H6_2010/v2019-06/C2H6_global_anth_biof.2010$MM.nc ANTHR_C2H6   2010/1-12/1/0 C xy kgC/m2/s C2H6 - 1 100
+0 C2H6_2010_biofuel  $ROOT/C2H6_2010/v2019-06/C2H6_global_anth_biof.2010$MM.nc BIOFUEL_C2H6 2010/1-12/1/0 C xy kgC/m2/s C2H6 - 2 100
 )))C2H6_2010 
 
 #==============================================================================
@@ -2366,14 +2366,14 @@ Warnings:                    1
 #==============================================================================
 # --- dust emissions using DEAD model (Extension 105) ---
 #==============================================================================
-105 DEAD_EF_GEO     $ROOT/DUST_DEAD/v2014-07/dst_tibds.geos.4x5.nc                  EF_GEO   1985/1/1/0    C xy factor   *    -    1 1
-105 DEAD_LF_DRY     $ROOT/DUST_DEAD/v2014-07/dst_tibds.geos.4x5.nc                  LF_DRY   1985/1/1/0    C xy factor   *    -    1 1
-105 DEAD_MF_CACO3   $ROOT/DUST_DEAD/v2014-07/dst_tibds.geos.4x5.nc                  MF_CaCO3 1985/1/1/0    C xy fraction *    -    1 1
-105 DEAD_MF_CLY     $ROOT/DUST_DEAD/v2014-07/dst_tibds.geos.4x5.nc                  MF_CLY   1985/1/1/0    C xy fraction *    -    1 1
-105 DEAD_MF_SND     $ROOT/DUST_DEAD/v2014-07/dst_tibds.geos.4x5.nc                  MF_SND   1985/1/1/0    C xy fraction *    -    1 1
-105 DEAD_SFC_TYP    $ROOT/DUST_DEAD/v2014-07/dst_tibds.geos.4x5.nc                  SFC_TYP  1985/1/1/0    C xy unitless *    -    1 1
-105 DEAD_GOC_SRC    $ROOT/DUST_DEAD/v2014-07/GOCART_src_fn.geos.4x5.nc              GOC_SRC  1985/1/1/0    C xy unitless *    -    1 1
-105 DEAD_VAI        $ROOT/DUST_DEAD/v2014-07/dst_tvbds.geos.4x5.nc                  VAI      1985/1-12/1/0 C xy unitless *    -    1 1
+105 DEAD_EF_GEO     $ROOT/DUST_DEAD/v2019-06/dst_tibds.geos.4x5.nc                  EF_GEO   1985/1/1/0    C xy factor   *    -    1 1
+105 DEAD_LF_DRY     $ROOT/DUST_DEAD/v2019-06/dst_tibds.geos.4x5.nc                  LF_DRY   1985/1/1/0    C xy factor   *    -    1 1
+105 DEAD_MF_CACO3   $ROOT/DUST_DEAD/v2019-06/dst_tibds.geos.4x5.nc                  MF_CaCO3 1985/1/1/0    C xy fraction *    -    1 1
+105 DEAD_MF_CLY     $ROOT/DUST_DEAD/v2019-06/dst_tibds.geos.4x5.nc                  MF_CLY   1985/1/1/0    C xy fraction *    -    1 1
+105 DEAD_MF_SND     $ROOT/DUST_DEAD/v2019-06/dst_tibds.geos.4x5.nc                  MF_SND   1985/1/1/0    C xy fraction *    -    1 1
+105 DEAD_SFC_TYP    $ROOT/DUST_DEAD/v2019-06/dst_tibds.geos.4x5.nc                  SFC_TYP  1985/1/1/0    C xy unitless *    -    1 1
+105 DEAD_GOC_SRC    $ROOT/DUST_DEAD/v2019-06/GOCART_src_fn.geos.4x5.nc              GOC_SRC  1985/1/1/0    C xy unitless *    -    1 1
+105 DEAD_VAI        $ROOT/DUST_DEAD/v2019-06/dst_tvbds.geos.4x5.nc                  VAI      1985/1-12/1/0 C xy unitless *    -    1 1
 105 DEAD_PM25FINE_1 $ROOT/DUST_DEAD/v2018-04/PM25FINE_ECLIPSE_2015.geos.2x25.nc     PM25FINE 2015/1-12/1/0 C xy kg/m2/s  DST1 -    1 1
 105 DEAD_PM25FINE_2 $ROOT/DUST_DEAD/v2018-04/PM25FINE_MEIC_2012.generic.025x025.nc  PM25FINE 2012/1-12/1/0 C xy kg/m2/s  DST1 1009 1 2
 105 DEAD_PM25FINE_3 $ROOT/DUST_DEAD/v2018-04/PM25FINE_IITB_2013.generic.025x025.nc  PM25FINE 2013/1-12/1/0 C xy kg/m2/s  DST1 1010 1 3
@@ -2503,14 +2503,14 @@ Warnings:                    1
 # --- UV albedo, for photolysis (cf Hermann & Celarier, 1997) ---
 #==============================================================================
 (((+UValbedo+
-* UV_ALBEDO $ROOT/UVALBEDO/v2015-03/uvalbedo.geos.2x25.nc UVALBD 1985/1-12/1/0 C xy percent * - 1 1
+* UV_ALBEDO $ROOT/UVALBEDO/v2019-06/uvalbedo.geos.2x25.nc UVALBD 1985/1-12/1/0 C xy percent * - 1 1
 )))+UValbedo+
 
 #==============================================================================
 # --- TOMS/SBUV overhead ozone colums, for photolysis ---
 #==============================================================================
 (((+TOMS_SBUV_O3+
-* TOMS_O3_COL   $ROOT/TOMS_SBUV/v2016-11/TOMS_O3col_$YYYY.a.geos.1x1.nc TOMS   1971-2010/1-12/1/0 CY xy dobsons     * - 1 1
+* TOMS_O3_COL   $ROOT/TOMS_SBUV/v2019-06/TOMS_O3col_$YYYY.a.geos.1x1.nc TOMS   1971-2010/1-12/1/0 CY xy dobsons     * - 1 1
 * TOMS1_O3_COL  -                                                       TOMS1  -                  -  -  dobsons/day * - 1 1
 * TOMS2_O3_COL  -                                                       TOMS2  -                  -  -  dobsons/day * - 1 1
 * DTOMS1_O3_COL -                                                       DTOMS1 -                  -  -  dobsons/day * - 1 1 
@@ -3182,7 +3182,7 @@ Warnings:                    1
 1007 CONUS_MASK  $ROOT/MASKS/v2018-09/CONUS_Mask.01x01.nc                      MASK     2000/1/1/0 C xy 1 1 -140/20/-50/60
 1008 AFRICA_MASK $ROOT/MASKS/v2018-09/AF_LANDMASK.geos.05x0666.global.nc       LANDMASK 1985/1/1/0 C xy 1 1 -20/-37/54/40
 1009 CHINA_MASK  $ROOT/MASKS/v2018-09/China_mask.generic.1x1.nc                MASK     2000/1/1/0 C xy 1 1  70/10/150/60
-1010 INDIA_MASK  $ROOT/MASKS/v2018-09/India_mask.generic.1x1.nc                MASK     2000/1/1/0 C xy 1 1  67/7/99/39
+1010 INDIA_MASK  $ROOT/MASKS/v2019-05/India_mask.generic.1x1.nc                MASK     2000/1/1/0 C xy 1 1  67/7/99/39
 
 ### END SECTION MASKS ###
 

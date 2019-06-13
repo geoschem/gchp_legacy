@@ -1,0 +1,12 @@
+dset   ^GRADSDATA
+undef  UNDEF
+title template for 1-deg data
+xdef  1 linear 1 1
+ydef  1 linear 1 1
+zdef ZDIM2 levels LEVS
+tdef TDIM2 linear TIMEBEG TIMEINC
+vars 3
+qm   ZDIM2 0 Arbitray 1-degree data
+qo   ZDIM2 0 Arbitray 1-degree data
+qd   ZDIM2 0 Arbitray 1-degree data
+endvars

@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2018, University Corporation for Atmospheric Research,
+! Copyright 2002-2019, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -121,8 +121,8 @@ program ESMF_ArrayBundleHaloEx
     
 !BOE
 ! The halo exchange pattern stored in {\tt haloHandle} can now be applied to
-! the {\tt arraybundle} object, or any other ArrayBundle that is weakly
-! congruent to the one used during the {\tt ESMF\_ArrayBundleHaloStore()} call.
+! the {\tt arraybundle} object, or any other ArrayBundle that is compatible
+! to the one used during the {\tt ESMF\_ArrayBundleHaloStore()} call.
 !EOE
     
 !BOC

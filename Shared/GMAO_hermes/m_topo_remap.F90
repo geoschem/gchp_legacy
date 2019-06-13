@@ -1,3 +1,4 @@
+#include "unused_dummy.H"
 !---------------------------------------------------------------------------
 ! NASA/GSFC, Global Modeling and Assimilation Office, Code 910.1, GEOS/DAS !
 !---------------------------------------------------------------------------
@@ -266,7 +267,9 @@ CONTAINS
       real, allocatable ::    q_out(:,:,:,:)
 
       real    kappa,cp,rgas,eps,rvap
-      integer i,j,L,n
+      integer i,j,L
+
+      _UNUSED_DUMMY(ak)
 
       kappa = 2.0/7.0
       rgas  = 8314.3/28.97
@@ -472,7 +475,6 @@ CONTAINS
       real        v(im,jm,lm)
       real      thv(im,jm,lm)
       real        q(im,jm,lm,nq)
-      real  ps_trgt(im,jm)
 
       real       ak(lm+1)
       real       bk(lm+1)
@@ -489,7 +491,9 @@ CONTAINS
       real, allocatable ::    q_out(:,:,:,:)
 
       real    kappa,cp,rgas,eps,rvap
-      integer i,j,L,n
+
+      _UNUSED_DUMMY(ak)
+      _UNUSED_DUMMY(bk)
 
       kappa = 2.0/7.0
       rgas  = 8314.3/28.97
@@ -566,7 +570,7 @@ CONTAINS
       real      q_n(im,jm,kn,nq)
 
 ! local (private)
-      integer i, j, k, n, ic
+      integer i, j, k, n
 
       real pe1(im,km+1) ,pe2(im,kn+1)
       real pk1(im,km+1) ,pk2(im,kn+1)
@@ -576,13 +580,14 @@ CONTAINS
       real  t1(im,km)   , t2(im,kn)
       real  q1(im,km,nq), q2(im,kn,nq)
 
-      real ptop
       real akap
-      real ple,  pek, dak, bkh
       real undef
       real big
       parameter ( undef = 1.e15 )
       parameter (   big = 1.e10 )
+
+
+      _UNUSED_DUMMY(akap)
 
 
 #if   (openmp)
@@ -703,6 +708,8 @@ CONTAINS
       real delp,dpsum,esl,PR,PL,TT,qsum
       integer i,k,L,k0,k1
 
+      _UNUSED_DUMMY(dp2)
+
       do k=1,km
          do i=1,im
             a4(1,i,k) = q1(i,k)
@@ -808,10 +815,9 @@ CONTAINS
 ! local arrays.
       real dc(im,km),delq(im,km)
       real h2(im,km)
-      real a1, a2, a3, b2, c1, c2, c3, d1, d2, f1, f2, f3, f4
-      real s1, s2, s3, s4, ss3, s32, s34, s42, sc
+      real a1, a2, c1, c2, c3, d1, d2
       real qmax, qmin, cmax, cmin
-      real dm, qm, dq, tmp
+      real qm, dq, tmp
 
 ! Local scalars:
       real qmp

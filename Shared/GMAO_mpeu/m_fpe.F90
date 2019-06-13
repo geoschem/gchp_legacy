@@ -18,7 +18,9 @@
 ! !INTERFACE:
 !#include "regime.H"
 
-    module m_fpe
+module m_fpe
+   use, intrinsic :: iso_fortran_env, only: REAL32, REAL64
+   use, intrinsic :: ieee_arithmetic
       implicit none
       private	! except
 
@@ -78,8 +80,8 @@
   interface aInf; module procedure aInfr_,aInfd_; end interface
   interface aDen; module procedure aDenr_,aDend_; end interface
 
-  integer,parameter :: SP=kind(1.E0)
-  integer,parameter :: DP=kind(1.D0)
+  integer,parameter :: SP=REAL32
+  integer,parameter :: DP=REAL64
 
   real(SP),parameter :: zero_SP=0._SP
   real(DP),parameter :: zero_DP=0._DP
@@ -169,23 +171,23 @@ function isnDend_(v) result(isDen_)
 function aNaNr_(v)
   implicit none; real(SP) :: aNaNr_
   real(SP),intent(in) :: v ! a mode
-  aNaNr_=zero_SP/zero_SP
+  aNaNr_=ieee_value(v,IEEE_QUIET_NAN)
   end function aNaNr_
 function aNaNd_(v)
   implicit none; real(DP) :: aNaNd_
   real(DP),intent(in) :: v ! a mode
-  aNaNd_=zero_DP/zero_DP
+  aNaNd_=ieee_value(v,IEEE_QUIET_NAN)
   end function aNaNd_
 
 function aInfr_(v)
   implicit none; real(SP) :: aInfr_
   real(SP),intent(in) :: v ! a mode
-  aInfr_=sign(one_SP/zero_SP,one_SP)
+  aInfr_=ieee_value(v,IEEE_POSITIVE_INF)
   end function aInfr_
 function aInfd_(v)
   implicit none; real(DP) :: aInfd_
   real(DP),intent(in) :: v ! a mode
-  aInfd_=sign(one_DP/zero_DP,one_DP)
+  aInfd_=ieee_value(v,IEEE_POSITIVE_INF)
   end function aInfd_
 
 function aDenr_(v)

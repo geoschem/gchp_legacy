@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2018, University Corporation for Atmospheric Research,
+// Copyright 2002-2019, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -26,11 +26,11 @@
 #include "ESMCI_Array.h"
 #include "ESMCI_PointList.h"
 #include "Mesh/include/ESMCI_Mesh.h"
-#include "Mesh/include/ESMCI_MeshRead.h"
-#include "Mesh/include/ESMCI_Exception.h"
-#include "Mesh/include/ESMCI_Integrate.h"
-#include "Mesh/include/ESMCI_Extrapolation.h"
 #include "Mesh/include/ESMCI_MeshCap.h"
+#include "Mesh/include/Regridding/ESMCI_Integrate.h"
+#include "Mesh/include/Regridding/ESMCI_Extrapolation.h"
+#include "Mesh/include/Legacy/ESMCI_MeshRead.h"
+#include "Mesh/include/Legacy/ESMCI_Exception.h"
 
 //------------------------------------------------------------------------------
 //BOP
@@ -60,6 +60,8 @@ extern "C" void FTN_X(c_esmc_regrid_create)(MeshCap **meshsrcpp,
                                             int *extrapMethod,
                                             int *extrapNumSrcPnts,
                                             ESMC_R8 *extrapDistExponent,
+                                            int *extrapNumLevels,
+                                            int *extrapNumInputLevels,                                             
                                             int *unmappedaction, int *_ignoreDegenerate,
                                             int *srcTermProcessing, int *pipelineDepth,
                                             ESMCI::RouteHandle **rh, int *has_rh, int *has_iw,
@@ -78,7 +80,10 @@ extern "C" void FTN_X(c_esmc_regrid_create)(MeshCap **meshsrcpp,
   }
 
   if (*dst_pl_used==1) {
-    *meshdstpp=NULL;
+    // TODO: figure out how to include ESMC_EXTRAPMETHOD_CREEP here without MOAB
+    if (*extrapMethod != 3) {
+      *meshdstpp=NULL;    
+    }
   } else {
     *pldstpp=NULL;
   }
@@ -93,6 +98,8 @@ MeshCap::regrid_create(meshsrcpp, arraysrcpp, plsrcpp,
                        extrapMethod,
                        extrapNumSrcPnts,
                        extrapDistExponent,
+                       extrapNumLevels, 
+                       extrapNumInputLevels, 
                        unmappedaction, _ignoreDegenerate,
                        srcTermProcessing, pipelineDepth,
                        rh, has_rh, has_iw,

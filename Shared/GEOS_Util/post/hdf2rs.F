@@ -62,7 +62,6 @@
       integer, allocatable :: yymmdd(:)
       integer, allocatable :: hhmmss(:)
       integer, allocatable ::  kmvar(:)
-      integer, allocatable ::   nloc(:)
 
       character*128  dynrst, bkgeta, moistrst, pchemrst, topofile
       character*128  anaeta, inceta, incout, bkgsfc
@@ -79,8 +78,8 @@
 ! ANA and BKG Variables
 ! ---------------------
       real, allocatable ::  dp_bkgx(:,:,:)
-      real, allocatable ::    u_ana(:,:,:) ,    u_bkg(:,:,:),   u_bkg0(:,:,:), u_bkg00(:,:,:), u_bkgx(:,:,:)
-      real, allocatable ::    v_ana(:,:,:) ,    v_bkg(:,:,:),   v_bkg0(:,:,:), v_bkg00(:,:,:), v_bkgx(:,:,:)
+      real, allocatable ::    u_ana(:,:,:) ,    u_bkg(:,:,:),   u_bkg0(:,:,:), u_bkgx(:,:,:)
+      real, allocatable ::    v_ana(:,:,:) ,    v_bkg(:,:,:),   v_bkg0(:,:,:), v_bkgx(:,:,:)
       real, allocatable ::  thv_ana(:,:,:) ,  thv_bkg(:,:,:)
       real, allocatable ::   tv_ana(:,:,:) ,  tv_bkgx(:,:,:)
       real, allocatable ::                     th_bkg(:,:,:),  th_bkg0(:,:,:)
@@ -100,12 +99,12 @@
 
       real*4  kappa
       real*4  rgas,rvap,eps,grav
-      real    undefa,undefb
+      real    undefa
 
       character*120, allocatable :: arg(:)
       character*8    date
       character*2    hour
-      integer n,nargs,iargc,i,j,L,ID,rc,iostat,method
+      integer n,nargs,iargc,L,ID,rc,method
       logical increment,ihaveth,doremap,do_o3,showdiv
 
 C **********************************************************************
@@ -3228,7 +3227,7 @@ C***********************************************************************
 
       integer i,j,ii,jj,ibeg,iend,jbeg,jend
       real    zlatc,zlonc
-      real    lonbeg,lonend,lat
+      real    lonbeg,lonend
       real    latbeg,latend
       real    pi,dl,dp,dz 
 
@@ -3455,13 +3454,9 @@ c ---------------
 
 c Local Variables
 c ---------------
-      integer  i,j,l,m,n
+      integer  i,j,l
       integer, allocatable       :: ip1(:), ip0(:), im1(:), im2(:)
       integer, allocatable       :: jp1(:), jp0(:), jm1(:), jm2(:)
-
-      integer ip1_for_jp1, ip0_for_jp1, im1_for_jp1, im2_for_jp1
-      integer ip1_for_jm2, ip0_for_jm2, im1_for_jm2, im2_for_jm2
-      integer jm2_for_jm2, jp1_for_jp1
 
 c Bi-Linear Weights
 c -----------------
@@ -3489,8 +3484,8 @@ c ----------------
       real, allocatable       ::    wc_im1jm2 (:)
       real, allocatable       ::    wc_im2jm2 (:)
 
-      real    ux, ap1, ap0, am1, am2
-      real    uy, bp1, bp0, bm1, bm2
+      real    ap1, ap0, am1, am2
+      real    bp1, bp0, bm1, bm2
 
       real    lon_cmp(im)
       real    lat_cmp(jm)
@@ -3499,9 +3494,9 @@ c ----------------
       real    pi,d
       real    lam,lam_ip1,lam_ip0,lam_im1,lam_im2
       real    phi,phi_jp1,phi_jp0,phi_jm1,phi_jm2
-      real    dl,dp,phi_np,lam_0
-      real    lam_geo, lam_cmp
-      real    phi_geo, phi_cmp
+      real    dl,dp
+      real    lam_cmp
+      real    phi_cmp
       real    undef
       integer im1_cmp,icmp
       integer jm1_cmp,jcmp
@@ -3827,7 +3822,7 @@ c ---------------
       real    q_out(im,jm,lm,2)
 
       real    kappa,cp,rgas,eps,rvap
-      integer i,j,L,n
+      integer i,j,L
 
       kappa = 2.0/7.0
       rgas  = 8314.3/28.97

@@ -16,9 +16,6 @@
           INTEGER,              INTENT(OUT)   :: iMerra
           INTEGER,              INTENT(OUT)   :: iERR
 
-         
-          CHARACTER (LEN = 8)                 :: tmp_today
-          CHARACTER (LEN = 60)                :: tmp_char
 !---------------------------------------------------------------------------
 !       READ *, inputFileName
         OPEN (UNIT = 21, FILE = inputFile, STATUS = 'old')

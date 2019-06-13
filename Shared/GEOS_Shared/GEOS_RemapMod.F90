@@ -1,5 +1,5 @@
+#include "unused_dummy.H"
 module GEOS_RemapMod
-
 implicit none
 private
 public remap
@@ -70,8 +70,11 @@ contains
       real, allocatable ::    q_out(:,:,:,:)
 
       real    kappa,cp,rgas,eps,rvap
-      integer i,j,L,n
+      integer i,j,L
 
+      _UNUSED_DUMMY(ak)
+      _UNUSED_DUMMY(bk)
+      
       kappa = 2.0/7.0
       rgas  = 8314.3/28.97
       rvap  = 8314.3/18.01

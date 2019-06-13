@@ -29,6 +29,8 @@
 !  21mar2005 Todling  Modified to do the reverse of pasta.
 !  14nov2007 Todling  Expanded to allow reading various entries from single line
 !  07may2013 Todling  Add ability to echo table contents
+!  03oct2016 Todling  Ability to read specified column of table
+!  12dec2016 Todling  Skip comment line start w/ exclamation mark
 !
 !-------------------------------------------------------------------------
 !EOP
@@ -38,12 +40,14 @@
    integer, parameter :: MAXENTRIES = 20
    character*255  :: rcfile
    character*255  :: var, fullvar, varentry, fld, expid
+   character*255  :: xentry,redirect
+   character*255  :: syscmd1, syscmd2
    character*255  :: manyentries(MAXENTRIES)
-   logical        :: template, norc
+   logical        :: template, norc, fexist
    integer        :: nymd, nhms
-   integer        :: i, ic, rc, irow, ier
+   integer        :: i, ii, ic, rc, irow, ncol, ier
  
-   call init_ ( rcfile, var, template, norc, expid, nymd, nhms )
+   call init_ ( rcfile, var, template, norc, ncol, expid, nymd, nhms )
 
 !  Load resources
 !  -------------
@@ -62,7 +66,7 @@
         call i90_loadf ( trim(rcfile), ier )
         if ( ier .ne. 0 ) then
           write(6,'(2a)') 'cannot find rc file ' // trim(rcfile)
-          call exit (1)
+          stop 1
         endif
 
        fullvar = trim(var) // '::'
@@ -71,14 +75,26 @@
 
           irow = 0
           do while (ier==0)                   ! read table entries
-             call I90_GLine ( ier )            ! ier=-1: end of file; +1: end of table
+             call I90_GLine ( ier )           ! ier=-1: end of file; +1: end of table
              if (ier==0) then                 ! OK, we have next row of table
                  call I90_GToken(varentry, ier ) ! get this row
+                 if (varentry(1:1)=="!") cycle   ! this is a comment line
+                 if (ncol>1) then
+                    do ii=2,ncol
+                       call I90_GToken(varentry, ier ) ! get this row
+                    enddo
+                 endif
                  if (ier/=0) then
                      write(6,'(2a,i5)') 'echorc.x: I90_GToken error, ier=', ier
-                     call exit(1)
+                     stop 1
                  end if
-                 write(6,'(1x,a)') trim(varentry)
+                 if (template) then
+                     call strTemplate ( fld, varentry, 'GRADS', trim(expid), &
+                                        nymd, nhms, ier )
+                     write(6,'(a)') trim(fld)
+                 else
+                     write(6,'(1x,a)') trim(varentry)
+                 endif
                  irow = irow+1
              end if
           end do
@@ -90,7 +106,7 @@
          call i90_label ( trim(fullvar), ier )
          if ( ier .ne. 0 ) then
              write(6,'(a)') 'cannot find variable string in rc file '
-             call exit (1)
+             stop 1
          else
             call i90_gtoken ( varentry, ier )
                if ( ier .ne. 0 ) call die (myname, 'premature end of rc file')
@@ -116,7 +132,7 @@
 
    endif
 
-   call exit(0)
+   stop 0
 
    CONTAINS
 
@@ -130,7 +146,7 @@
 !
 ! !INTERFACE:
 !
-   subroutine init_ ( rcfile, var, template, norc, expid, nymd, nhms )
+   subroutine init_ ( rcfile, var, template, norc, ncol, expid, nymd, nhms )
 
    implicit NONE
 
@@ -140,6 +156,7 @@
    logical, intent(out)       :: template
    logical, intent(out)       :: norc
    integer, intent(out)       :: nymd, nhms
+   integer, intent(out)       :: ncol
 
 !
 ! !REVISION HISTORY:
@@ -155,7 +172,7 @@
    character(len=*), parameter :: myname = 'init_'
 
    character*255 :: argv
-   integer       :: n,i,argc,iarg,iargc,nargs
+   integer       :: i,argc,iarg,iargc
 
 !  Defaults
 !  --------
@@ -163,8 +180,9 @@
    template = .false.   ! when var requested not a template type
    rcfile   = 'fvpsas.rc'  ! default rc file
    norc     = .false.   ! default: read template from resource file
+   ncol     = 1
 
-   argc =  iargc()
+   argc =  command_argument_count()
    if ( argc .lt. 1 ) call usage_()
    iarg = 0
 lp:  do i = 1, 32767
@@ -172,28 +190,33 @@ lp:  do i = 1, 32767
         if ( iarg .gt. argc ) then
              exit lp
         endif 
-        call GetArg ( iArg, argv )
+        call Get_Command_Argument ( iArg, argv )
         if (index(argv,'-template') .gt. 0 ) then
              if ( iarg+3 .gt. argc ) call usage_()
              iarg = iarg + 1
-             call GetArg ( iArg, argv )
+             call Get_Command_Argument ( iArg, argv )
              read(argv,*) expid
              iarg = iarg + 1
-             call GetArg ( iArg, argv )
+             call Get_Command_Argument ( iArg, argv )
              read(argv,*) nymd
              iarg = iarg + 1
-             call GetArg ( iArg, argv )
+             call Get_Command_Argument ( iArg, argv )
              read(argv,*) nhms
              template = .true.
         elseif (index(argv,'-fill') .gt. 0 ) then
            norc = .true.
+        elseif (index(argv,'-ncol') .gt. 0 ) then
+           if ( iarg+1 .gt. argc ) call usage_()
+           iarg = iarg + 1
+           call Get_Command_Argument ( iArg, argv )
+           read(argv,*) ncol
         elseif (index(argv,'-var') .gt. 0 ) then
            if ( iarg+1 .gt. argc ) call usage_()
            iarg = iarg + 1
         elseif (index(argv,'-rc') .gt. 0 ) then
              if ( iarg+1 .gt. argc ) call usage_()
              iarg = iarg + 1
-             call GetArg ( iarg, rcfile )
+             call Get_Command_Argument ( iarg, rcfile )
         else
            var = trim(argv)
         end if
@@ -210,6 +233,7 @@ lp:  do i = 1, 32767
       print *
       write(6,'(a)') ' -template expid nymd nhms  specify when var is expected to be a GRADS template'
       write(6,'(a)') ' -rc       rcfilename       rc file name (default: fvpsas.rc)'
+      write(6,'(a)') ' -ncol     column_number    when reading table, allows getting given column (default: 1)'
       print *
       write(6,'(a)') ' Example (using rc file): echorc.x -template myexp 20040101 060000 -rc myfile.rc templatename '
       write(6,'(a)') '  with myfile.rc containing the following line: ' 

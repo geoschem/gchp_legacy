@@ -40,6 +40,13 @@ sub get_siteID {
 
     chomp($site = `uname -n`);
 
+    # GMAO desktop
+    # ------------
+    $siteID = "gmao" if $site =~ /gsfc/;
+    $siteID = "gmao" if $site =~ /^gs6101/;
+    $siteID = "gmao" if $site =~ /.*gsfc\.nasa\.gov$/;
+    $siteID = "gmao" if $site =~ /.*ndc\.nasa\.gov$/;
+
     # NAS sites
     #----------
     if ($site =~ /^cfe/) {

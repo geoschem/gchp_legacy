@@ -1,28 +1,14 @@
-#------------------------------------------------------------------------------
-#                  GEOS-Chem Global Chemical Transport Model                  !
-#------------------------------------------------------------------------------
-#BOP
 #
-# !MODULE: GNUmakefile
+# recursive makefile for ESMA.
 #
-# !DESCRIPTION: Makefile to build MAPL and related libraries. 
-#\\
-#\\
-# !REMARKS:
-#  Originally from the GEOS-5 build sequence. 
-#
-# !REVISION HISTORY: 
-#  20 Nov 2014 - R. Yantosca - Build GMAO_mpeu before GMAO_gfio.
-#  20 Nov 2014 - R. Yantosca - Add more visible separators to text to 
-#                              indicate when we are building an new library
-#EOP
-#------------------------------------------------------------------------------
-#BOC
 
 # Make sure ESMADIR is defined
 # ----------------------------
 ifndef ESMADIR
-       ESMADIR := $(shell pwd)/
+       # Change for GCHP
+       #ESMADIR := $(PWD)/../..
+       ESMADIR := $(shell pwd)
+       #---
 endif
 
 
@@ -47,42 +33,36 @@ esma_help :
 	@echo "      BASEDIR = $(BASEDIR)"
 	@echo "         ARCH = $(ARCH)"
 	@echo "         SITE = $(SITE)"
-	@echo "     DIR_ESMF = $(DIR_ESMF)"
-	@echo "     MPI_INC  = $(MPI_INC)"
 
 
 #                  --------------------------------
 #                   Recurse Make in Sub-directories
 #                  --------------------------------
 
-###############################################################################
-# %%%%% COMMENTED OUT BY BOB Y. (11/20/14) %%%%%
+# Reduce build list for GCHP
 #ALLDIRS = arpack pnagpack \
-#	  GFDL_fms        \
-#	  GMAO_gfio       \
-#	  GMAO_hermes     \
-#	  GMAO_mpeu       \
-#	  GMAO_pilgrim    \
-#          MAPL_cfio       \
-#          MAPL_Base       \
-#	  GEOS_Shared     \
-#	  GEOS_Util
-###############################################################################
-#------------------------------------------------------------------------------
-# %%%%% ADDED BY BOB Y. (11/20/14) %%%%%
-#
-# Change order of Shared library builds.  Put GMAO_mpeu before GMAO_gfio.
-ALLDIRS = arpack pnagpack \
-	  GFDL_fms        \
-	  GMAO_mpeu       \
-	  GMAO_gfio       \
-	  GMAO_hermes     \
-	  GMAO_pilgrim    \
-          MAPL_cfio       \
-          MAPL_Base       \
-	  GEOS_Shared     \
-	  GEOS_Util
-#------------------------------------------------------------------------------
+#          GMAO_mpeu GMAO_pilgrim GMAO_mfhdf3 \
+#          GMAO_gfio GMAO_gfioeos GMAO_perllib \
+#          GMAO_ods  MAPL_cfio GMAO_pFIO \
+#          MAPL_Base GEOS_Shared Chem_Base Chem_Shared\
+#          GMAO_etc  GMAO_hermes GMAO_transf GMAO_psas GMAO_gems \
+#          GFDL_fms LANL_Shared \
+#          GMAO_iret GEOS_Util GMAO_pyobs GMAO_radmon GMAO_stoch \
+#          GMAO_ncdiag \
+#          GEOS_Pert
+ALLDIRS = GMAO_mpeu   \
+          GMAO_gfio   \
+          MAPL_cfio   \
+          GMAO_pFIO   \
+          MAPL_Base   \
+          GMAO_hermes \
+          GFDL_fms
+# Needed for advection: 
+#     GFDL_fms, GMAO_hermes (which needs GMAO_gfio which needs GMAO_mpeu)
+# Needed for MAPL: 
+#     GMAO_mpeu, MAPL_cfio, GMAO_pFIO, MAPL_Base
+# Eventually add MAPL_pFUnit for potential unit testing adaption
+#---
 
 SUBDIRS = $(wildcard $(ALLDIRS) )
 
@@ -92,14 +72,11 @@ TARGETS = esma_install esma_clean esma_distclean esma_doc \
 export ESMADIR BASEDIR ARCH SITE
 
 $(TARGETS): 
-	@echo "BPREC $(BPREC)"  
 	@ t=$@; argv="$(SUBDIRS)" ;\
-	  for d in $$argv; do \
-	    ( cd $$d ;\
-              echo '%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%';\
-	      echo "%%% Making $$t in ', `pwd`" ;\
-              echo '%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%';\
-	      $(MAKE) $$t ) \
+	  for d in $$argv; do			 \
+	    ( cd $$d				;\
+	      echo ""; echo Making $$t in `pwd`          ;\
+	      $(MAKE) -e $$t ) \
 	  done
 
 
@@ -110,16 +87,79 @@ local_esma_install local_install: $(LIB)
 #              Package Dependencies for Parallel Install
 #              ------------------------------------------
 
+ifeq ($(wildcard GMAO_mfhdf3), $(null))
+   GMAO_MFHDF3 =
+else
+   GMAO_MFHDF3 = GMAO_mfhdf3_install
+endif
+
+ifeq ($(wildcard GMAO_mpeu), $(null))
+   GMAO_MPEU =
+else
+   GMAO_MPEU = GMAO_mpeu_install
+endif
+
+ifeq ($(wildcard GMAO_pilgrim), $(null))
+   GMAO_PILGRIM =
+else
+   GMAO_PILGRIM = GMAO_pilgrim_install
+endif
+
 ifeq ($(wildcard MAPL_cfio), $(null))
    MAPL_CFIO =
 else
    MAPL_CFIO = MAPL_cfio_install
 endif
 
+Chem_Base_install   : MAPL_Base_install   \
+                      GEOS_Shared_install \
+                      $(GMAO_MPEU)        \
+                      GMAO_gfio_install   \
+                      $(GMAO_MFHDF3)
+Chem_Shared_install : Chem_Base_install   \
+                      MAPL_Base_install   \
+                      GEOS_Shared_install \
+                      GMAO_gfio_install   \
+                      $(GMAO_MPEU)        \
+                      $(GMAO_PILGRIM)
 
-MAPL_Base_install   : $(MAPL_CFIO)
+MAPL_Base_install   : $(MAPL_CFIO)        \
+                      GMAO_pFIO_install
+GEOS_Shared_install : MAPL_Base_install   \
+                      $(MAPL_CFIO)
+GEOS_Pert_install   : MAPL_Base_install   \
+                      GMAO_hermes_install \
+                      $(MAPL_CFIO)
+GEOS_Util_install   : GMAO_gfio_install   \
+                      MAPL_Base_install   \
+                      GMAO_hermes_install \
+                      $(MAPL_CFIO)        \
+                      $(GMAO_MFHDF3)
 MAPL_cfio_install   : $(GMAO_MPEU)        \
                       $(GMAO_MFHDF3)
+GMAO_etc_install    : $(GMAO_MPEU)
+GMAO_gfio_install   : $(GMAO_MFHDF3)      \
+                      $(GMAO_MPEU)
+GMAO_hermes_install : GMAO_etc_install    \
+                      $(GMAO_MPEU)        \
+                      $(MAPL_CFIO)        \
+                      GMAO_gfio_install   \
+                      MAPL_Base_install   \
+                      GEOS_Shared_install
+GMAO_iret_install   : GMAO_hermes_install \
+                      $(GMAO_MPEU)        \
+                      Chem_Base_install
+GMAO_ods_install    : $(GMAO_MPEU)        \
+                      $(GMAO_PILGRIM)
+GMAO_psas_install   : $(GMAO_MPEU)        \
+                      GMAO_ods_install
+GMAO_transf_install : GMAO_hermes_install \
+                      $(GMAO_MPEU)        
+LANL_Shared_install : MAPL_Base_install
+GMAO_gems_install   : MAPL_Base_install
+GMAO_stoch_install  : MAPL_Base_install \
+                      GMAO_transf_install
 
+  -include $(ESMADIR)/Config/ESMA_post.mk  # ESMA additional targets, macros
 
 #.

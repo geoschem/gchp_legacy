@@ -21,7 +21,6 @@
 
    use ESMF
    use MAPL_Mod
-   use MAPL_ShmemMod
 
    implicit NONE
 
@@ -34,7 +33,6 @@
    type(ESMF_Time)         :: Time(4)        ! Time objects
    type(ESMF_TimeInterval) :: TimeStep       ! used to define a clock
    type(ESMF_VM)           :: vm             ! ESMF Virtual Machine
-   type(ESMF_Config)       :: config         ! ESMF Config
 
 !  Bundles to hold data to be read in
 !  ----------------------------------
@@ -60,19 +58,15 @@
    integer :: rc
    integer :: i, j, k
 
-   integer :: Nx, Ny                             ! Layout
+   integer :: Nx = 1, Ny=6                             ! Layout
   !integer :: IM_World=360, JM_World=2160, LM_World=0   ! Grid dimensions
    integer :: IM_World, JM_World
    integer :: nlon, nlat
-   integer :: LM_World
+   integer :: LM_World=1
 
    integer :: yr, mon, day, hr, mn
 
    integer, pointer :: resolution(:)  ! for output fie
-   logical :: useShmem, cnvrgd, onlyvars
-   integer :: comm,conservative
-   character(len=ESMF_MAXSTR) :: cfgname
-   character(len=512) :: vars
 
    character(len=120) :: str_arg
 #ifndef __GFORTRAN__
@@ -94,62 +88,71 @@ CONTAINS
     subroutine Main()
 
     nargs = IARGC()
-    if ((nargs /= 0) .and. (nargs /= 1)) then
-       __raise__(MAPL_RC_ERROR,"ABORT: need 0 or 1 arguments, optional name for config file to over ride default")
-    end if
-    if (nargs==1) then
-       call GETARG(1,str_arg)
-       cfgName = str_arg
-    else if (nargs == 0) then
-       cfgName = "c2l_CFIO_offline.rc"
-    end if
+    if ((nargs /= 11) .and. (nargs /= 12)) then
+       __raise__(MAPL_RC_ERROR,"ABORT: need 11 or 12 arguments LM_World(if 3D data) IM_World,JM_World, nlon,nlat, in_filename, out_filename, year, month, day, hour, minute")
+    endif
+
+    if (nargs==11) then
+    CALL GETARG(1, str_arg)
+    read (str_arg,'(I10)') IM_World
+    CALL GETARG(2, str_arg)
+    read (str_arg,'(I10)') JM_World
+    CALL GETARG(3, str_arg)
+    read (str_arg,'(I10)') nlon
+    CALL GETARG(4, str_arg)
+    read (str_arg,'(I10)') nlat
+    CALL GETARG(5, str_arg)
+    in_Filename = str_arg
+    CALL GETARG(6, str_arg)
+    out_Filename = str_arg
+    CALL GETARG(7, str_arg)
+    read (str_arg,'(I10)') yr
+    CALL GETARG(8, str_arg)
+    read (str_arg,'(I10)') mon
+    CALL GETARG(9, str_arg)
+    read (str_arg,'(I10)') day
+    CALL GETARG(10, str_arg)
+    read (str_arg,'(I10)') hr
+    CALL GETARG(11, str_arg)
+    read (str_arg,'(I10)') mn
+    else
+    CALL GETARG(1, str_arg)
+    read (str_arg,'(I10)') LM_World
+    CALL GETARG(2, str_arg)
+    read (str_arg,'(I10)') IM_World
+    CALL GETARG(3, str_arg)
+    read (str_arg,'(I10)') JM_World
+    CALL GETARG(4, str_arg)
+    read (str_arg,'(I10)') nlon
+    CALL GETARG(5, str_arg)
+    read (str_arg,'(I10)') nlat
+    CALL GETARG(6, str_arg)
+    in_Filename = str_arg
+    CALL GETARG(7, str_arg)
+    out_Filename = str_arg
+    CALL GETARG(8, str_arg)
+    read (str_arg,'(I10)') yr
+    CALL GETARG(9, str_arg)
+    read (str_arg,'(I10)') mon
+    CALL GETARG(10, str_arg)
+    read (str_arg,'(I10)') day
+    CALL GETARG(11, str_arg)
+    read (str_arg,'(I10)') hr
+    CALL GETARG(12, str_arg)
+    read (str_arg,'(I10)') mn
+    endif
+
 
 !   Initialize the ESMF. For performance reasons, it is important
 !    to turn OFF ESMF's automatic logging feature
 !   -------------------------------------------------------------
     call ESMF_Initialize (LogKindFlag=ESMF_LOGKIND_NONE, vm=vm, __RC__ )
 
-    config = ESMF_ConfigCreate ( __RC__ )
-    call ESMF_ConfigLoadFile   ( config, cfgName, __RC__)
-    call ESMF_ConfigGetAttribute(config,value=LM_World,label="LM_World:",default=1,__RC__)
-    call ESMF_ConfigGetAttribute(config,value=IM_World,label="IM_World:",__RC__)
-    call ESMF_ConfigGetAttribute(config,value=JM_World,label="JM_World:",__RC__)
-    call ESMF_ConfigGetAttribute(config,value=nlon,label="nlon:",__RC__)
-    call ESMF_ConfigGetAttribute(config,value=nlat,label="nlat:",__RC__)
-    call ESMF_ConfigGetAttribute(config,value=in_Filename,label="input_file:",__RC__)
-    call ESMF_ConfigGetAttribute(config,value=out_Filename,label="output_file:",__RC__)
-    call ESMF_ConfigGetAttribute(config,value=yr,label="year:",__RC__)
-    call ESMF_ConfigGetAttribute(config,value=mon,label="month:",__RC__)
-    call ESMF_ConfigGetAttribute(config,value=day,label="day:",__RC__)
-    call ESMF_ConfigGetAttribute(config,value=hr,label="hour:",__RC__)
-    call ESMF_ConfigGetAttribute(config,value=mn,label="minute:",__RC__)
-    call ESMF_ConfigGetAttribute(config,value=vars,label="vars:",rc=status)
-    if (status /= ESMF_SUCCESS) then 
-       onlyVars = .false.
-    else
-       onlyVars = .true.
-    end if
-    call ESMF_ConfigGetAttribute(config,value=NX,label="NX:",default=1,__RC__)
-    call ESMF_ConfigGetAttribute(config,value=NY,label="NY:",default=6,__RC__)
-    call ESMF_ConfigGetAttribute(config,value=useShmem,label="USE_SHMEM:",default=.false.,__RC__)
-    call ESMF_ConfigGetAttribute(config,value=cnvrgd,label="CONSERVATIVE:",default=.false.,__RC__)
-    if (cnvrgd) then
-       conservative = 1
-    else
-       conservative = 0
-    end if
-
 !   Check the number of processors
 !   ------------------------------
-    call ESMF_VMGet(vm, localPET=myPET, PETcount=nPET, mpiCommunicator=comm)  
-    if ( nPET < 6 ) then
-       __raise__(MAPL_RC_ERROR,"Invalid number of PETS; needs to be at least 6 PEs")
-    end if
-    call MAPL_GetNodeInfo (comm=comm, rc=status)
-    VERIFY_(STATUS)
-    if (useShmem) then
-       call MAPL_InitializeShmem (rc=status)
-       VERIFY_(STATUS)
+    call ESMF_VMGet(vm, localPET=myPET, PETcount=nPET)  
+    if ( nPET /= 6 ) then
+       __raise__(MAPL_RC_ERROR,"Invalid number of PETS; needs to be 6 PEs")
     end if
 
     if ( MAPL_am_I_root() ) then
@@ -191,11 +194,8 @@ __try__
 
 !   Read given time on file into a 3D Bundle: all variables
 !   -------------------------------------------------------
-    if (onlyvars) then
-       call MAPL_CFIORead  ( in_Filename, Time(1), Bundle3d, only_vars=vars, verbose=.true., __rc__ )
-    else
-       call MAPL_CFIORead  ( in_Filename, Time(1), Bundle3d, verbose=.true., __rc__ )
-    end if
+    call MAPL_CFIORead  ( in_Filename, Time(1), Bundle3d, &
+                          verbose=.true., __rc__ )
 
 __except__
 
@@ -227,7 +227,6 @@ __try__
 !   ---------------------------------------------------
     call MAPL_CFIOCreate ( cfio, out_Filename, clock, Bundle3d,  &
                            resolution=resolution, &
-                           conservative=conservative, &
                            descr='Bundle Write Test',            &
                            __rc__)
 
@@ -248,7 +247,6 @@ __endtry__
 
 !   All done
 !   --------
-    call MAPL_FinalizeShmem(__RC__)
     call ESMF_Finalize ( __RC__ )
 
   end subroutine Main

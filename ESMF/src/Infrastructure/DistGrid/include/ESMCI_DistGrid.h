@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2018, University Corporation for Atmospheric Research, 
+// Copyright 2002-2019, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -44,9 +44,11 @@ namespace ESMCI {
   // constants and enums
 
   enum Decomp_Flag {DECOMP_INVALID=0, DECOMP_BALANCED,
-    DECOMP_RESTFIRST, DECOMP_RESTLAST, DECOMP_CYCLIC};
+    DECOMP_RESTFIRST, DECOMP_RESTLAST, DECOMP_CYCLIC, DECOMP_SYMMEDGEMAX};
 
   enum DistGridMatch_Flag {DISTGRIDMATCH_INVALID=0, DISTGRIDMATCH_NONE,
+    DISTGRIDMATCH_ELEMENTCOUNT, DISTGRIDMATCH_INDEXSPACE,
+    DISTGRIDMATCH_TOPOLOGY, DISTGRIDMATCH_DECOMP,
     DISTGRIDMATCH_EXACT, DISTGRIDMATCH_ALIAS};
 
   // classes
@@ -79,7 +81,8 @@ namespace ESMCI {
                                   // [elementCountPCollPLocalDe(localDe)]
     int *collocationPDim;         // collocation [dimCount]
     int diffCollocationCount;     // number different seqIndex collocations
-    int *collocationTable;        // collocation in packed format [dimCount]
+    int *collocationTable;        // collocation in packed format 
+                                  // [diffCollocationCount]
     int **elementCountPCollPLocalDe; // number of elements 
                                   // [diffCollocationCount][localDeCount]
     int *regDecomp;               // regular decomposition descriptor
@@ -125,9 +128,10 @@ namespace ESMCI {
    public:
     // create() and destroy()
     static DistGrid *create(DistGrid *dg,
-      InterArray<int> *firstExtra, InterArray<int> *lastExtra, 
-      ESMC_IndexFlag *indexflag, InterArray<int> *connectionList, 
-      VM *vm=NULL, bool actualFlag=true, int *rc=NULL);
+      InterArray<int> *firstExtra, InterArray<int> *lastExtra,
+      ESMC_IndexFlag *indexflag, InterArray<int> *connectionList,
+      bool balanceFlag, DELayout *delayout=NULL, VM *vm=NULL,
+      bool actualFlag=true, int *rc=NULL);
     static DistGrid *create(InterArray<int> *minIndex,
       InterArray<int> *maxIndex, InterArray<int> *regDecomp, 
       Decomp_Flag *decompflag, int decompflagCount,
@@ -140,6 +144,13 @@ namespace ESMCI {
     static DistGrid *create(InterArray<int> *minIndex,
       InterArray<int> *maxIndex, InterArray<int> *deBlockList, 
       InterArray<int> *deLabelList, ESMC_IndexFlag *indexflag, 
+      InterArray<int> *connectionList,
+      DELayout *delayout=NULL, VM *vm=NULL, int *rc=NULL,
+      ESMC_TypeKind_Flag indexTK=ESMF_NOKIND);
+    static DistGrid *create(InterArray<int> *minIndex,
+      InterArray<int> *maxIndex, InterArray<int> *deBlockList,
+      InterArray<int> *deToTileMap,
+      InterArray<int> *deLabelList, ESMC_IndexFlag *indexflag,
       InterArray<int> *connectionList,
       DELayout *delayout=NULL, VM *vm=NULL, int *rc=NULL,
       ESMC_TypeKind_Flag indexTK=ESMF_NOKIND);
@@ -212,16 +223,17 @@ namespace ESMCI {
     // get/set arb sequence indices
     int *const *getElementCountPCollPLocalDe()
       const {return elementCountPCollPLocalDe;}
-    void const *getArbSeqIndexList(int localDe, int collocation, int *rc=NULL)
+    void const *getArbSeqIndexList(int localDe, int collocation=1, int *rc=NULL)
       const;
     template<typename T> int setArbSeqIndex(InterArray<T> *arbSeqIndex, 
-      int localDe, int collocation);
+      int localDe, int collocation=1);
+    int setArbSeqIndex(void *ptr, int localDe, int collocation=1);
     int setCollocationPDim(InterArray<int> *collocationPDim);
     // fill()
     template<typename T> int fillSeqIndexList(InterArray<T> *seqIndexList,
-      int localDe, int collocation) const;
+      int localDe, int collocation=1) const;
     int fillSeqIndexList(std::vector<int> &seqIndexList, int localDe,
-      int collocation) const;
+      int collocation=1) const;
     int fillIndexListPDimPDe(int *indexList, int de, int dim,
       VMK::commhandle **commh, int rootPet, VM *vm=NULL) const;
     // misc.
@@ -276,7 +288,7 @@ namespace ESMCI {
     int const *getIndexTuple()const;
     int const *getIndexTupleEnd()const;
     int const *getIndexTupleStart()const;
-    void print()const;
+    void log()const;
   };  // class MultiDimIndexLoop
   //============================================================================
 

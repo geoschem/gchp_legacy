@@ -1,20 +1,20 @@
 function progz (args)
 
-EXPORT   = subwrd(args,1)
-GC       = subwrd(args,2)
+                            n =     1
+EXPORT   = subwrd(args,n) ; n = n + 1
+GC       = subwrd(args,n) ; n = n + 1
 
-expid    = subwrd(args,3)
-output   = subwrd(args,4)
-debug    = subwrd(args,5)
+expid    = subwrd(args,n) ; n = n + 1
+output   = subwrd(args,n) ; n = n + 1
+debug    = subwrd(args,n) ; n = n + 1
 
-ptop     = 20
-plttop   = 30
+ptop = 0.1
 
 
 * Define Seasons to Process
 * -------------------------
 seasons  = ''
-       k = 6
+       k = n
 while( k > 0 )
     season = subwrd(args,k)
 if( season = '' )
@@ -46,7 +46,8 @@ endif
          mname  = subwrd(result,1)
          mfile  = subwrd(result,2)
          scale  = subwrd(result,3)
-         expdsc = subwrd(result,4)
+         qdesc  = subwrd(result,4)
+         qtag   = subwrd(result,5)
 
 if( mfile = "NULL" ) ; return ; endif
 
@@ -106,9 +107,9 @@ if( mfile = "NULL" ) ; return ; endif
 '!/bin/mv HISTORY.T HISTORY.Tmp'
 'run getenv "CMPEXP"'
          cmpexp = result
-            num = 1
+         numexp = 1
 
-          dummy = get_cmpexp (cmpexp,num)
+          dummy = get_cmpexp (cmpexp,numexp)
             exp = subwrd(dummy,1)
            type = subwrd(dummy,2)
 
@@ -160,13 +161,15 @@ if ( EXPORT = "HE" )
 else
     'run getvar 'EXPORT' 'GC' 'exp
 endif
-               oname = subwrd(result,1)
-               ofile = subwrd(result,2)
-              oscale = subwrd(result,3)
-              obsdsc = subwrd(result,4)
-              obsnam = subwrd(result,5)
+               oname.numexp = subwrd(result,1)
+               ofile.numexp = subwrd(result,2)
+              oscale.numexp = subwrd(result,3)
+              obsdsc.numexp = subwrd(result,4)
+              obsnam.numexp = subwrd(result,5)
 
-'set dfile 'ofile
+if( ofile.numexp != "NULL" )
+
+'set dfile 'ofile.numexp
     'getdates'
      begdateo = subwrd(result,1)
      enddateo = subwrd(result,2)
@@ -175,11 +178,11 @@ endif
 'set lat 'latmin' 'latmax
 'setz'
 
-                     ' alias ' oname
+                     ' alias ' oname.numexp
                       oalias = result
 'chckname            'oalias
-'seasonalf -FUNCTION 'oalias'*'oscale' -NAME exp'num
- expfile  = subwrd(result,1)
+'seasonalf -FUNCTION 'oalias'*'oscale.numexp' -NAME exp'numexp
+ expfile.numexp  = subwrd(result,1)
  
 
 * Loop over Seasons to Process
@@ -198,28 +201,28 @@ say 'Processing Season: 'season
 'count "'season'" 'begdate' 'enddate
  nmod =  result
 
-'set dfile 'ofile
-'count "'season'"'
+'set dfile 'ofile.numexp
+'count "'season'" 'begdateo' 'enddateo
+*'count "'season'"'
  nobs =  result
 
 
 * Set EXPORT Model and Observation Scaling Factors
 * ------------------------------------------------
-if( EXPORT = "U"     ) ; facm = 1     ; endif
-if( EXPORT = "V"     ) ; facm = 1     ; endif
-if( EXPORT = "T"     ) ; facm = 1     ; endif
-if( EXPORT = "Q"     ) ; facm = 1000  ; endif
-if( EXPORT = "ZLE"   ) ; facm = 1     ; endif
-if( EXPORT = "RH2"   ) ; facm = 100   ; endif
-if( EXPORT = "OMEGA" ) ; facm = 864   ; endif
+if( EXPORT = "U"     ) ; facm = 1     ; nplots = 2 ; progname = uwnd  ; endif
+if( EXPORT = "V"     ) ; facm = 1     ; nplots = 2 ; progname = vwnd  ; endif
+if( EXPORT = "T"     ) ; facm = 1     ; nplots = 2 ; progname = tmpu  ; endif
+if( EXPORT = "Q"     ) ; facm = 1000  ; nplots = 1 ; progname = sphu  ; endif
+if( EXPORT = "ZLE"   ) ; facm = 1     ; nplots = 2 ; progname = hght  ; endif
+if( EXPORT = "RH2"   ) ; facm = 100   ; nplots = 1 ; progname = rh    ; endif
+if( EXPORT = "OMEGA" ) ; facm = 864   ; nplots = 1 ; progname = omega ; endif
+if( EXPORT = "O3"    ) ; facm = 1e6   ; nplots = 2 ; progname = o3    ; endif
 
 faco = facm
 
-* Create Temporary File at 1x1 degree resolution with consistent levels
-* ---------------------------------------------------------------------
+* Create Temporary File at 0.25x0.25 degree resolution with consistent levels
+* ---------------------------------------------------------------------------
 'set dfile 'mfile
-*'setlons'
-*'setlats'
 'set lon 0 360'
 'set lat -90 90'
 
@@ -229,23 +232,31 @@ faco = facm
 'define mod = mod0'season'*'facm
 'makez  mod z'
 
-'set dfile 'expfile
+'set dfile 'expfile.numexp
 'setz'
 'set t 1'
-'define obs = exp'num''season'*'faco
+'define obs = exp'numexp''season'*'faco
 'makez  obs z'
 
 'set dfile 'mfile
 'set t 1'
-'makezdif -q1 mod -q2 obs -file1 'modfile' -file2 'expfile' -ptop 'ptop
+'makezdif -q1 mod -q2 obs -file1 'modfile' -file2 'expfile.numexp' -ptop 'ptop
 
 
 * Make ZPLT
 * ---------
+                      nplot  = 1
+               while( nplot <= nplots )
+                  if( nplot  = 1 )
+                      plttop = 30
+                  else
+                      plttop = 0.1
+                  endif
+
                        flag = ""
                while ( flag = "" )
 
-'run 'geosutil'/plots/zcmp/zplt -EXPID 'expid' -EXPORT 'EXPORT' -ALIAS 'mname' -QFILE 'mfile' -OFILE 'ofile' -ONAME 'obsnam' -OBDATE 'begdateo' -OEDATE 'enddateo' -NMOD 'nmod' -NOBS 'nobs' -QDESC 'expdsc' -ODESC 'obsdsc' -OUTPUT 'output' -SEASON 'season' -PTOP 'plttop
+'run 'geosutil'/plots/zcmp/zplt -EXPID 'expid' -EXPORT 'EXPORT' -ALIAS 'mname' -QFILE 'mfile' -OFILE 'ofile.numexp' -ONAME 'obsnam.numexp' -OBDATE 'begdateo' -OEDATE 'enddateo' -NMOD 'nmod' -NOBS 'nobs' -QDESC 'qdesc ' -ODESC 'obsdsc.numexp' -OUTPUT 'output' -SEASON 'season' -PTOP 'plttop
 
                 if( debug = "debug" )
                     say "Hit  ENTER  to repeat plot"
@@ -257,6 +268,9 @@ faco = facm
                'c'
                endwhile
 
+               nplot = nplot + 1
+               endwhile
+
 * End Seasonal Test
 * -----------------
 endif
@@ -265,36 +279,167 @@ endif
 * -----------------
 endwhile
 
+* End OFILE Check
+* ---------------
+endif
 
 * Check next Comparison Experiment Dataset
 * ----------------------------------------
-
-'undefine exp'num'clim'
-'undefine exp'num'jan'
-'undefine exp'num'feb'
-'undefine exp'num'mar'
-'undefine exp'num'apr'
-'undefine exp'num'may'
-'undefine exp'num'jun'
-'undefine exp'num'jul'
-'undefine exp'num'aug'
-'undefine exp'num'sep'
-'undefine exp'num'oct'
-'undefine exp'num'nov'
-'undefine exp'num'dec'
-'undefine exp'num'djf'
-'undefine exp'num'jja'
-'undefine exp'num'mam'
-'undefine exp'num'son'
-'undefine exp'num'ann'
-
-    num = num + 1
-  dummy = get_cmpexp (cmpexp,num)
+    numexp = numexp + 1
+  dummy = get_cmpexp (cmpexp,numexp)
     exp = subwrd(dummy,1)
    type = subwrd(dummy,2)
 
 endwhile
 '!/bin/mv HISTORY.Tmp HISTORY.T'
+    numexp = numexp - 1
+
+*********************************************************************
+****                Check for Closeness to MERRA-2               ****
+*********************************************************************
+
+* Find MERRA2 experiment
+* ----------------------
+  MERRA2  = 0
+       n  = 1
+while( n <= numexp )
+if( obsnam.n = "MERRA-2" )
+    MERRA2 = n
+endif
+         n = n + 1
+endwhile
+
+say 'MERRA-2 tag: 'MERRA2
+
+if( MERRA2 != 0 )
+
+* Loop over Seasons to Process
+* ----------------------------
+       m = 1
+while( m > 0 )
+    season = subwrd(seasons,m)
+if( season = '' )
+         m = -1
+else
+         m = m+1
+         say 'Processing Season: 'season
+
+'set dfile 'mfile
+'set gxout shaded'
+'rgbset'
+
+* Zonal Mean Closeness Plot (Experiment_vs_Comparison to MERRA-2)
+* ---------------------------------------------------------------
+       n  = 1
+while( n <= numexp )
+
+if( obsnam.n != "merra" & obsnam.n != "MERRA-2" )
+say 'Closeness plot between  exp: 'qtag
+say '                       cexp: 'obsnam.n
+say '                        obs: 'obsnam.MERRA2
+say '              Total  numexp: 'numexp
+say ''
+
+if( ofile.n != "NULL" )
+
+'set dfile 'modfile
+'set lon  0 360'
+'set lat -90 90'
+'setz'
+'set t 1'
+'define mod = mod0'season'*'facm
+
+'set dfile 'expfile.n
+'set lon  0 360'
+'set lat -90 90'
+'setz'
+'set t 1'
+'define cmp = exp'n''season'*'faco
+
+'set dfile 'expfile.MERRA2
+'set lon  0 360'
+'set lat -90 90'
+'setz'
+'set t 1'
+'define obs = exp'MERRA2''season'*'faco
+
+'set dfile 'mfile
+'set lon  0 360'
+'set lat -90 90'
+'set t 1'
+
+'makezdif -q1 mod -q2 obs -file1 'modfile'   -file2 'expfile.MERRA2' -ptop 'ptop' -name   dif1     '
+'makezdif -q1 mod -q2 obs -file1 'modfile'   -file2 'expfile.MERRA2' -ptop 'ptop' -name  adif1 -abs'
+'run getenv "ZDIFILE"'
+             zdifile1 = result
+
+'makezdif -q1 cmp -q2 obs -file1 'expfile.n' -file2 'expfile.MERRA2' -ptop 'ptop' -name   dif2     '
+'makezdif -q1 cmp -q2 obs -file1 'expfile.n' -file2 'expfile.MERRA2' -ptop 'ptop' -name  adif2 -abs'
+'run getenv "ZDIFILE"'
+             zdifile2 = result
+
+'set dfile 'zdifile1
+'setx'
+'sety'
+'setz'
+'set t 1'
+'define q1 = q.'zdifile1
+'set dfile 'zdifile2
+'setx'
+'sety'
+'setz'
+'set t 1'
+'define q2 = q.'zdifile2
+'makezdif -q1 q1 -q2 q2 -file1 'zdifile1' -file2 'zdifile2' -ptop 'ptop' -name absdif'
+'run getenv "ZDIFILE"'
+             zdifile3 = result
+
+* Make ZCLOSEPLT
+* --------------
+                      nplot  = 1
+               while( nplot <= nplots )
+                  if( nplot  = 1 )
+                      plttop = 30
+                  else
+                      plttop = 0.1
+                  endif
+
+                       flag = ""
+               while ( flag = "" )
+
+'run 'geosutil'/plots/zcmp/zcloseplt -EXPID 'expid' -EXPORT 'EXPORT' -ALIAS 'mname' -QFILE 'zdifile1' -CFILE 'zdifile2' -OFILE 'zdifile3' -ONAME 'obsnam.MERRA2' -CNAME 'obsnam.n' -OBDATE 'begdateo' -OEDATE 'enddateo' -NMOD 'nmod' -NOBS 'nobs' -QDESC 'qdesc ' -ODESC 'obsdsc.n' -OUTPUT 'output' -SEASON 'season' -PTOP 'plttop
+
+                if( debug = "debug" )
+                    say "Hit  ENTER  to repeat plot"
+                    say "Type 'next' for  next plot, 'done' for next field"
+                    pull flag
+                else
+                    flag = "next"
+                endif
+               'c'
+               endwhile
+
+               nplot = nplot + 1
+               endwhile
+
+* End OFILE Check
+* ---------------
+endif
+
+* End MERRA Check
+* ---------------
+endif
+
+       n  = n + 1
+endwhile ;* END While_N Loop
+
+* End Season Test
+* ---------------
+endif
+* ---------------
+endwhile ;* END While_m>0 (Season) Loop
+
+endif ;* END MERRA-2 Test
 
 if( cmpexp_only = TRUE ) ; return ; endif
 
@@ -304,13 +449,14 @@ if( cmpexp_only = TRUE ) ; return ; endif
 
 * Set EXPORT Model and Observation Scaling Factors
 * ------------------------------------------------
-if( EXPORT = "U"     ) ; facm = 1     ; faco = 1     ; endif
-if( EXPORT = "V"     ) ; facm = 1     ; faco = 1     ; endif
-if( EXPORT = "T"     ) ; facm = 1     ; faco = 1     ; endif
-if( EXPORT = "Q"     ) ; facm = 1000  ; faco = 1000  ; endif
-if( EXPORT = "ZLE"   ) ; facm = 1     ; faco = 1     ; endif
-if( EXPORT = "RH2"   ) ; facm = 100   ; faco = 100   ; endif
-if( EXPORT = "OMEGA" ) ; facm = 864   ; faco = 864   ; endif
+if( EXPORT = "U"     ) ; facm = 1     ; faco = 1     ; nplots = 2 ; endif
+if( EXPORT = "V"     ) ; facm = 1     ; faco = 1     ; nplots = 2 ; endif
+if( EXPORT = "T"     ) ; facm = 1     ; faco = 1     ; nplots = 2 ; endif
+if( EXPORT = "Q"     ) ; facm = 1000  ; faco = 1000  ; nplots = 1 ; endif
+if( EXPORT = "ZLE"   ) ; facm = 1     ; faco = 1     ; nplots = 2 ; endif
+if( EXPORT = "RH2"   ) ; facm = 100   ; faco = 100   ; nplots = 1 ; endif
+if( EXPORT = "OMEGA" ) ; facm = 864   ; faco = 864   ; nplots = 1 ; endif
+if( EXPORT = "O3"    ) ; facm = 1e6   ; faco = 1e6   ; nplots = 2 ; endif
 
 * Get Plotting Values from Resource File
 * --------------------------------------
@@ -356,8 +502,36 @@ if( oname != 'NULL' )
                      ' alias ' oname
                       oalias = result
 'chckname            'oalias
-'seasonalf -FUNCTION 'oalias'*'oscale' -NAME obs'num
- obsfile  = subwrd(result,1)
+
+* Compute ECOPS differently due to missing monthly means
+* ------------------------------------------------------
+if( obsnam = "ecops" )
+   'define   qecops = 'oalias'*'oscale
+   'seasonal qecops'
+   'define obs'num'jan = qecopsjan'
+   'define obs'num'feb = qecopsfeb'
+   'define obs'num'mar = qecopsmar'
+   'define obs'num'apr = qecopsapr'
+   'define obs'num'may = qecopsmay'
+   'define obs'num'jun = qecopsjun'
+   'define obs'num'jul = qecopsjul'
+   'define obs'num'aug = qecopsaug'
+   'define obs'num'sep = qecopssep'
+   'define obs'num'oct = qecopsoct'
+   'define obs'num'nov = qecopsnov'
+   'define obs'num'dec = qecopsdec'
+   'define obs'num'djf = qecopsdjf'
+   'define obs'num'mam = qecopsmam'
+   'define obs'num'jja = qecopsjja'
+   'define obs'num'son = qecopsson'
+   'define obs'num'ann = qecopsann'
+    obsfile  = ofile
+else
+   'seasonalf -FUNCTION 'oalias'*'oscale' -NAME obs'num
+    obsfile  = subwrd(result,1)
+endif
+
+
  
 
 * Loop over Seasons to Process
@@ -381,8 +555,8 @@ say 'Processing Season: 'season
  nobs =  result
 
 
-* Create Temporary File at 1x1 degree resolution with consistent levels
-* ---------------------------------------------------------------------
+* Create Temporary File at 0.25x0.25 degree resolution with consistent levels
+* ---------------------------------------------------------------------------
 'set dfile 'mfile
 *'setlons'
 *'setlats'
@@ -407,10 +581,18 @@ say 'Processing Season: 'season
 
 * Make ZPLT
 * ---------
+                      nplot  = 1
+               while( nplot <= nplots )
+                  if( nplot  = 1 )
+                      plttop = 30
+                  else
+                      plttop = 0.1
+                  endif
+
                        flag = ""
                while ( flag = "" )
 
-'run 'geosutil'/plots/zcmp/zplt -EXPID 'expid' -EXPORT 'EXPORT' -ALIAS 'mname' -QFILE 'mfile' -OFILE 'ofile' -ONAME 'obsnam' -OBDATE 'begdateo' -OEDATE 'enddateo' -NMOD 'nmod' -NOBS 'nobs' -QDESC 'expdsc' -ODESC 'obsdsc' -OUTPUT 'output' -SEASON 'season' -PTOP 'plttop
+'run 'geosutil'/plots/zcmp/zplt -EXPID 'expid' -EXPORT 'EXPORT' -ALIAS 'mname' -QFILE 'mfile' -OFILE 'ofile' -ONAME 'obsnam' -OBDATE 'begdateo' -OEDATE 'enddateo' -NMOD 'nmod' -NOBS 'nobs' -QDESC 'qdesc ' -ODESC 'obsdsc' -OUTPUT 'output' -SEASON 'season' -PTOP 'plttop
 
                 if( debug = "debug" )
                     say "Hit  ENTER  to repeat plot"
@@ -421,6 +603,97 @@ say 'Processing Season: 'season
                 endif
                'c'
                endwhile
+
+               nplot = nplot + 1
+               endwhile
+
+
+
+* Zonal Mean Closeness Plot (Experiment_vs_Comparison to Verification)
+* --------------------------------------------------------------------
+       n  = 1
+while( n <= numexp )
+
+if( obsnam.n != "merra" & obsnam.n != "MERRA-2" & ofile.n != "NULL" )
+say 'Closeness plot between  exp: 'qtag
+say '                       cexp: 'obsnam.n
+say '                        obs: 'obsnam
+say ''
+
+'set dfile 'expfile.n
+'set lon  0 360'
+'set lat -90 90'
+'setz'
+'set t 1'
+'define cmp = exp'n''season'*'faco
+
+'set dfile 'mfile
+'set lon  0 360'
+'set lat -90 90'
+'set t 1'
+
+'makezdif -q1 mod -q2 obs -file1 'modfile'   -file2 'obsfile' -ptop 'ptop' -name   dif1     '
+'makezdif -q1 mod -q2 obs -file1 'modfile'   -file2 'obsfile' -ptop 'ptop' -name  adif1 -abs'
+'run getenv "ZDIFILE"'
+             zdifile1 = result
+
+'makezdif -q1 cmp -q2 obs -file1 'expfile.n' -file2 'obsfile' -ptop 'ptop' -name   dif2     '
+'makezdif -q1 cmp -q2 obs -file1 'expfile.n' -file2 'obsfile' -ptop 'ptop' -name  adif2 -abs'
+'run getenv "ZDIFILE"'
+             zdifile2 = result
+
+'set dfile 'zdifile1
+'setx'
+'sety'
+'setz'
+'set t 1'
+'define q1 = q.'zdifile1
+'set dfile 'zdifile2
+'setx'
+'sety'
+'setz'
+'set t 1'
+'define q2 = q.'zdifile2
+'makezdif -q1 q1 -q2 q2 -file1 'zdifile1' -file2 'zdifile2' -ptop 'ptop' -name absdif'
+'run getenv "ZDIFILE"'
+             zdifile3 = result
+
+* Make ZCLOSEPLT
+* --------------
+                      nplot  = 1
+               while( nplot <= nplots )
+                  if( nplot  = 1 )
+                      plttop = 30
+                  else
+                      plttop = 0.1
+                  endif
+
+                       flag = ""
+               while ( flag = "" )
+
+'run 'geosutil'/plots/zcmp/zcloseplt -EXPID 'expid' -EXPORT 'EXPORT' -ALIAS 'mname' -QFILE 'zdifile1' -CFILE 'zdifile2' -OFILE 'zdifile3' -ONAME 'obsnam' -CNAME 'obsnam.n' -OBDATE 'begdateo' -OEDATE 'enddateo' -NMOD 'nmod' -NOBS 'nobs' -QDESC 'qdesc ' -ODESC 'obsdsc.n' -OUTPUT 'output' -SEASON 'season' -PTOP 'plttop
+
+                if( debug = "debug" )
+                    say "Hit  ENTER  to repeat plot"
+                    say "Type 'next' for  next plot, 'done' for next field"
+                    pull flag
+                else
+                    flag = "next"
+                endif
+               'c'
+               endwhile
+
+               nplot = nplot + 1
+               endwhile
+
+* End OFILE Check
+* ---------------
+endif
+n = n + 1
+endwhile
+
+
+
 
 * End Seasonal Test
 * -----------------

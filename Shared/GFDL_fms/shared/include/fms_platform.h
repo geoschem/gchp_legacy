@@ -49,7 +49,7 @@
 #endif
 
 !most compilers support Cray pointers
-!if you find a compiler that doesn't, #undef this inside a suitable #ifdef
+!if you find a compiler that doesnt, #undef this inside a suitable #ifdef
 #define use_CRI_pointers
 
 !values of kind: double and long are 8-byte, float and int are 4-byte
@@ -79,7 +79,7 @@
 #endif
 
 #ifdef sgi_generic
-!this is for the Edinburgh n32/o32 compiler, which won't accept 8-byte ints at any price
+!this is for the Edinburgh n32/o32 compiler, which wont accept 8-byte ints at any price
 #define no_8byte_integers
 #define LONG_KIND 4
 #endif
@@ -97,7 +97,7 @@
 #define NF_GET_ATT_REAL nf_get_att_double
 #endif
 
-#ifdef __CRAYXT_COMPUTE_LINUX_TARGET
+#if defined __CRAYXT_COMPUTE_LINUX_TARGET || defined __GFORTRAN__
 !Cray XT compilers do not support real*16 computation
 !also known as 128-bit or quad precision
 #define NO_QUAD_PRECISION
@@ -113,10 +113,8 @@
 #define use_libMPI
 #endif
 
-#if defined(__INTEL_COMPILER) || defined(__PGI) || defined(__GFORTRAN__)
 #define _F95
 #define _F2000
-#endif
 
 #ifdef _F95
 !DEC$ MESSAGE:'Using PURE'

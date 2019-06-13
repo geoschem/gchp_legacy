@@ -41,6 +41,9 @@ if [[ $? == 0 ]]; then
     # Start the simulation. Use 6 cores.
     time mpirun -np ${nCores} ./geos >> ${log}
 
+    # Rename the restart (checkpoint) file so MAPL does not crash upon rerun
+    mv gcchem_internal_checkpoint.nc gccchem_internal_checkpoint.restart.nc
+
     # Echo end date
     echo '===> Run ended at' `date` >> ${log}
 

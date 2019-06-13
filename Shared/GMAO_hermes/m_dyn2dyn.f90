@@ -68,7 +68,7 @@
 !
 ! !INTERFACE:
 
-      subroutine dyn2dyn_do0_ ( dynfile, w_e, nymd, nhms, freq, nstep, rc, &
+      subroutine dyn2dyn_do0_ ( dynfile, w_e, nymd, nhms, freq, nstep, indxlevs, rc, &
                                 prec, dophys, expid, RCfile, force, dgrid, &
                                 vectype )
 
@@ -89,6 +89,7 @@
 
       integer,          intent(in), optional :: prec    ! precision of output file
       logical,          intent(in), optional :: dophys  ! controls call oft vdc2vdc
+      logical,          intent(in), optional :: indxlevs! place indx levels instead of pressures
       character(len=*), intent(in), optional :: expid   ! experiment name
       character(len=*), intent(in), optional :: RCfile  ! resource file name
       logical,          intent(in), optional :: force   ! force zmap
@@ -151,7 +152,7 @@
         endif
 
       call dyn2dyn_do1_ ( w_e, &
-                          in, jn, kn, verbose, ier, &
+                          in, jn, kn, indxlevs, verbose, ier, &
                           dynfile=dynfile, lwifile=lwifile, &
                           nymd=nymd, nhms=nhms, prec=lprec, freq=freq, nstep=nstep, &
                           dophys=dophys, expid=expid,&
@@ -173,7 +174,7 @@
 ! !INTERFACE:
 
       subroutine dyn2dyn_do1_ ( w_e, &
-                                in, jn, kn, verbose, rc, &
+                                in, jn, kn, indxlevs, verbose, rc, &
                                 dynfile, lwifile, w_out, &
                                 nymd, nhms, prec, freq, nstep, &
                                 dophys, expid, force, dgrid, vectype )
@@ -194,6 +195,7 @@
       integer, intent(in),optional :: prec              ! precision of output file 0=32;1=64
       integer, intent(in),optional :: freq              ! frequency of times in file
       integer, intent(in),optional :: nstep             ! gcm-phys control parameter
+      logical, intent(in), optional :: indxlevs         ! place indx levels instead of pressures
       logical, intent(in) :: verbose                    ! echo msgs
 
       integer, intent(in),optional :: nymd              ! date (YYYYMMDD)
@@ -240,10 +242,10 @@
 !     Locals
 !     ------
       integer ier
-      integer ntimes, n, ks, k
-      integer im, jm, km
+      integer ks, k
       real,allocatable:: ak(:),bk(:)
       logical interp, zinterp, hinterp, zint_done, do_phys, force_it, dgrid_
+      logical indxlevs_
 
       if (present(dophys)) then 
           do_phys = dophys
@@ -261,6 +263,12 @@
            dgrid_ = dgrid
       else
            dgrid_ = .true.
+      end if      
+
+      if ( present(indxlevs) ) then
+           indxlevs_ = indxlevs
+      else
+           indxlevs_ = .false.
       end if      
 
 !                                 *******
@@ -298,14 +306,6 @@
                         rc = 1
                         return
                    endif
-                !following is helpful sometimes ... (RT)
-                do k=kn+1,1,-1
-                   write(6,*) kn-k+2, ak(k)/1000.d0,bk(k)
-                enddo
-                print *
-                do k=1,kn+1
-                   write(6,*) k, ak(k)/1000.d0,bk(k)
-                enddo
                 deallocate(ak,bk)
 
 !               Map to desired resolution
@@ -386,7 +386,7 @@
                    write(*,'(a,i8,i3,a,i8)') trim(myname_) // ': writing ' // trim(dynfile) // &
                                           ' on ', nymd, nhms/10000, 'Z, freq = ', freq 
                    call dyn_put ( dynfile, nymd, nhms, prec, w_o, ier, &
-                                  freq=freq, nstep=nstep, vectype=vectype )
+                                  freq=freq, nstep=nstep, vectype=vectype, indxlevs=indxlevs_ )
                      if ( ier .ne. 0 ) then
                           call dyn_clean ( w_o )
                           print *, trim(myname_), ': cannot write interpolated ETA file'
@@ -428,7 +428,7 @@
                    write(*,'(a,i8,i3,a,i8)') trim(myname_) // ': writing ' // trim(dynfile) // &
                                           ' on ', nymd, nhms/10000, 'Z, freq = ', freq 
                    call dyn_put ( dynfile, nymd, nhms, prec, w_v, ier, &
-                                  freq=freq, nstep=nstep, vectype=vectype )
+                                  freq=freq, nstep=nstep, vectype=vectype, indxlevs=indxlevs_ )
                       if ( ier .ne. 0 ) then
                            print *, trim(myname_), ': cannot write interpolated ETA file'
                            rc = 3
@@ -470,7 +470,7 @@
                write(*,'(a,i8,i3,a,i8)') trim(myname_) // ': writing ' // trim(dynfile) // &
                                       ' on ', nymd, nhms/10000, 'Z, freq = ', freq
                call dyn_put ( dynfile, nymd, nhms, prec, w_e, ier, &
-                              freq=freq, nstep=nstep, vectype=vectype )
+                              freq=freq, nstep=nstep, vectype=vectype, indxlevs=indxlevs_ )
                   if ( ier .ne. 0 ) then
                        print *, trim(myname_), ':cannot write ETA file'
                        rc = 3
@@ -551,10 +551,9 @@
       character(len=*), parameter :: myname_   = myname//'::set_'
 
       character(len=255) template
-      character(len=255) token
       character(len=255) d2drc
 
-      integer            ival, iret, ierr
+      integer            ival, iret
 
 !     Default grid: a18
 !     -----------------
@@ -570,7 +569,7 @@
       if ( present(RCfile) ) then
         d2drc = trim(RCfile)
       else
-        call getenv('DYN2DYN_RC',d2drc)		! Unix binding
+        call get_environment_variable('DYN2DYN_RC',d2drc)		! Unix binding
         if(d2drc.eq.' ') d2drc=def_RCd2d	! default name
       endif
       call i90_loadf (trim(d2drc), iret)

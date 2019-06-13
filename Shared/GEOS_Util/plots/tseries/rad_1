@@ -7,11 +7,11 @@ output = subwrd(args,3)
 'run getenv "GEOSUTIL"'
          geosutil = result
 'sett'
-'getinfo tdim'
-         tdim = result
-         tann = tdim/12
-'getint 'tann 
-         tann = result*12
+
+'run getenv "RADLWAVE"'
+'define radlwave = 'result
+'run getenv "RADSWAVE"'
+'define radswave = 'result
 
 'run minmax radlwg'
        radmax = subwrd(result,1)
@@ -41,7 +41,6 @@ radmin = radave - raddif
 'set ccolor 2'
 'set cthick 6'
 'd radlwg'
-'define radlwave = ave(radlwg,t=1,t='tann')'
 'set cmark  0'
 'set cstyle 1'
 'set ccolor 2'
@@ -53,7 +52,6 @@ radmin = radave - raddif
 'set ccolor 4'
 'set cthick 6'
 'd radswg'
-'define radswave = ave(radswg,t=1,t='tann')'
 'set cmark  0'
 'set cstyle 1'
 'set ccolor 4'
@@ -62,7 +60,7 @@ radmin = radave - raddif
 
 * Plot Global Mean Time-Average Values
 * ------------------------------------
-'set t 'tann
+'set t 1'
 'getinfo date'
          date = result
 
@@ -98,22 +96,30 @@ endif
 * Plot NET
 * --------
 'sett'
+
+'define net = -(radlwg-radswg)'
+'run minmax net'
+     netmax = subwrd(result,1)
+     netmin = subwrd(result,2)
+     netmax = netmax * 1.05
+     netmin = netmin * 1.05
+
 'set vpage 0 11 0 4.5'
 'set grads off'
-'set axlim -15 15'
+'set axlim 'netmin' 'netmax
 'set cmark  0'
 'set cstyle 1'
 'set ccolor 3'
 'set cthick 6'
-'d -(radlwg-radswg)'
-'define radave = -ave( radlwg-radswg ,t=1,t='tann')'
+'d net'
+'define radave = radswave - radlwave'
 'set cmark  0'
 'set cstyle 1'
 'set ccolor 3'
 'set cthick 1'
 'd radave'
 
-'set t 'tann
+'set t 1'
 'getinfo date'
          date = result
 'd radave'

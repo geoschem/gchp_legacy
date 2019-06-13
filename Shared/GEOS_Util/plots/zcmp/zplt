@@ -25,6 +25,11 @@ if( subwrd(args,num) = '-PTOP'    ) ; ptop     = subwrd(args,num+1) ; endif
 
 endwhile
 
+if( ptop < 20 )
+    scale = 'LOG'
+else
+    scale = ''
+endif
 
 * Check for Contour Level Type
 * ----------------------------
@@ -46,6 +51,7 @@ say '-QDESC 'qdesc
 say '-ODESC 'odesc
 say '-OUTPUT 'output
 say '-SEASON 'season
+say '-PTOP   'ptop
 
 * Get Dates for Plots
 * -------------------
@@ -85,10 +91,11 @@ PLOTRC = geosutil'/plots/grads_util/plot.rc'
 if( EXPORT = "U"   )
     oname = "/horiz_"obsnam"_uwnd_z"
    'getresource 'PLOTRC' U_DYN_TITLE'           ; title = result
-   'getresource 'PLOTRC' U_DYN_Z_CLEVS'         ; clevs = result
-   'getresource 'PLOTRC' U_DYN_Z_CCOLS'         ; ccols = result
-   'getresource 'PLOTRC' U_DYN_Z_DCOLS'         ; dcols = result
+   'getresource 'PLOTRC' U_DYN_Z'scale'_CLEVS'  ; clevs = result
+   'getresource 'PLOTRC' U_DYN_Z'scale'_CCOLS'  ; ccols = result
+   'getresource 'PLOTRC' U_DYN_Z'scale'_DCOLS'  ; dcols = result
    'getresource 'PLOTRC' U_DYN_Z_'LEVTYPE'LEVS' ; dlevs = result
+   'getresource 'PLOTRC' U_DYN_Z'scale'_'LEVTYPE'LEVS' ; dlevs = result
 endif
 if( EXPORT = "V"   )
     oname = "/horiz_"obsnam"_vwnd_z"
@@ -124,11 +131,11 @@ if( EXPORT = "RH2" )
 endif
 if( EXPORT = "ZLE"   )
     oname = "/horiz_"obsnam"_hght_z"
-   'getresource 'PLOTRC' ZLE_DYN_TITLE'           ; title = result
-   'getresource 'PLOTRC' ZLE_DYN_Z_CLEVS'         ; clevs = result
-   'getresource 'PLOTRC' ZLE_DYN_Z_CCOLS'         ; ccols = result
-   'getresource 'PLOTRC' ZLE_DYN_Z_'LEVTYPE'COLS' ; dcols = result
-   'getresource 'PLOTRC' ZLE_DYN_Z_'LEVTYPE'LEVS' ; dlevs = result
+   'getresource 'PLOTRC' ZLE_DYN_TITLE'                  ; title = result
+   'getresource 'PLOTRC' ZLE_DYN_Z'scale'_CLEVS'         ; clevs = result
+   'getresource 'PLOTRC' ZLE_DYN_Z_CCOLS'                ; ccols = result
+   'getresource 'PLOTRC' ZLE_DYN_Z'scale'_'LEVTYPE'COLS' ; dcols = result
+   'getresource 'PLOTRC' ZLE_DYN_Z'scale'_'LEVTYPE'LEVS' ; dlevs = result
 endif
 if( EXPORT = "OMEGA"   )
     oname = "/horiz_"obsnam"_omega_z"
@@ -138,6 +145,17 @@ if( EXPORT = "OMEGA"   )
    'getresource 'PLOTRC' OMEGA_DYN_'LEVTYPE'COLS'   ; dcols = result
    'getresource 'PLOTRC' OMEGA_DYN_'LEVTYPE'LEVS'   ; dlevs = result
 endif
+if( EXPORT = "O3"   )
+    oname = "/horiz_"obsnam"_o3_z"
+   'getresource 'PLOTRC' O3_CHEMISTRY_TITLE'                    ; title = result
+   'getresource 'PLOTRC' O3_CHEMISTRY_Z_CCOLS'                  ; ccols = result
+   'getresource 'PLOTRC' O3_CHEMISTRY_Z_DCOLS'                  ; dcols = result
+   'getresource 'PLOTRC' O3_CHEMISTRY_Z'scale'_CLEVS'           ; clevs = result
+   'getresource 'PLOTRC' O3_CHEMISTRY_Z'scale'_'LEVTYPE'LEVS'   ; dlevs = result
+endif
+say ' TITLE: 'title
+say ' CLEVS: 'clevs
+say ' DLEVS: 'dlevs
 
 * Make Mean Plot
 * --------------
@@ -161,7 +179,8 @@ endif
 
 'set vpage 0 8.5 0.0 11'
 'set parea 1.5 7.0 7.70 10.50'
-if( EXPORT = "U" | EXPORT = "T" | EXPORT = "ZLE" ) ; 'setlevs' ; endif
+'set zlog  off'
+if( EXPORT = "U" | EXPORT = "T" | EXPORT = "ZLE" | ptop < 20 ) ; 'setlevs' ; endif
 'set grads off'
 'set gxout shaded'
 'set clevs 'clevs
@@ -183,7 +202,8 @@ if( EXPORT = "U" | EXPORT = "T" | EXPORT = "ZLE" ) ; 'setlevs' ; endif
 'set t 1'
 'set vpage 0 8.5 0.0 11'
 'set parea 1.5 7.0 4.30 7.10'
-if( EXPORT = "U" | EXPORT = "T" | EXPORT = "ZLE" ) ; 'setlevs' ; endif
+'set zlog  off'
+if( EXPORT = "U" | EXPORT = "T" | EXPORT = "ZLE" | ptop < 20 ) ; 'setlevs' ; endif
 'set grads off'
 'set gxout shaded'
 'set clevs 'clevs
@@ -207,7 +227,8 @@ if( EXPORT = "U" | EXPORT = "T" | EXPORT = "ZLE" ) ; 'setlevs' ; endif
 'set t 1'
 'set vpage 0 8.5 0.0 11'
 'set parea 1.5 7.0 0.90 3.70'
-if( EXPORT = "U" | EXPORT = "T" | EXPORT = "ZLE" ) ; 'setlevs' ; endif
+'set zlog  off'
+if( EXPORT = "U" | EXPORT = "T" | EXPORT = "ZLE" | ptop < 20 ) ; 'setlevs' ; endif
 'set grads off'
 'set gxout shaded'
 
@@ -222,7 +243,7 @@ if( CINTDIFF = 'NULL' )
    'set ccolor 1'
    'set clevs 'dlevs
    'd qz'
-   'cbarn -snum 0.75'
+   'cbarn -snum 0.65 -xmid 4.25 -ymid 0.4'
 else
    'stats qz'
      avgdif = subwrd(result,1)
@@ -252,7 +273,7 @@ else
       'define qzplt = qz/1e'n
        dfact = "10**"n
       'd qzplt'
-      'cbarn -snum 0.55'
+      'cbarn -snum 0.55 -xmid 4.25 -ymid 0.4'
       'set gxout contour'
       'set clevs -'cint' 'cint
       'set ccolor 1'
@@ -269,12 +290,16 @@ endif
 'draw ylab Pressure (mb)'
 
 'set vpage off'
+'set string 1 l 4'
+'set strsiz .065'
+'draw string 0.05 0.08 ( EXPID:  'expid' )'
+
 'set string 1 c 6'
 'set strsiz .13'
 'draw string 4.25 10.85 'title
 
-'set strsiz .11'
-'draw string 4.25 10.635 EXPID: 'expid'  'qdesc' 'season' ('nmod')'
+'set strsiz .10'
+'draw string 4.25 10.635 'qdesc' 'season' ('nmod')'
 'draw string 4.25  7.235 'odesc' 'season' ('nobs') ('climate')'
 
 if( dfact = 1 )
@@ -305,7 +330,11 @@ eyearo = subwrd(date,2)
 'draw string 0.10  6.84 End: 'emntho' 'eyearo
 'set string 1 c 6'
 
+if( ptop > 1 )
 'myprint -name 'output'/'oname'.'season
+else
+'myprint -name 'output'/'oname'log.'season
+endif
 
 return
 

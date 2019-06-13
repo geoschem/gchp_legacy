@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2018, University Corporation for Atmospheric Research,
+// Copyright 2002-2019, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -13,26 +13,26 @@
 // Take out if MOAB isn't being used
 #if defined ESMF_MOAB
 
-#include <Mesh/include/ESMCI_Exception.h>
-#include <Mesh/include/ESMCI_MeshOBjConn.h>
-#include <Mesh/include/ESMCI_MeshUtils.h>
-#include <Mesh/include/ESMCI_MEValues.h>
-#include <Mesh/include/ESMCI_Polynomial.h>
-#include <Mesh/include/ESMCI_MeshField.h>
-#include <Mesh/include/ESMCI_MeshTypes.h>
+#include <Mesh/include/Legacy/ESMCI_Exception.h>
+#include <Mesh/include/Legacy/ESMCI_MeshObjConn.h>
+#include <Mesh/include/Legacy/ESMCI_MeshUtils.h>
+#include <Mesh/include/Legacy/ESMCI_MEValues.h>
+#include <Mesh/include/Legacy/ESMCI_Polynomial.h>
+#include <Mesh/include/Legacy/ESMCI_MeshField.h>
+#include <Mesh/include/Legacy/ESMCI_MeshTypes.h>
 #include <Mesh/include/ESMCI_MathUtil.h>
-#include <Mesh/include/ESMCI_Ftn.h>
-#include <Mesh/include/ESMCI_ParEnv.h>
-#include <Mesh/include/ESMCI_Sintdnode.h>
+#include <Mesh/include/Legacy/ESMCI_Ftn.h>
+#include <Mesh/include/Legacy/ESMCI_ParEnv.h>
+#include <Mesh/include/Legacy/ESMCI_Sintdnode.h>
 #include <Mesh/include/ESMCI_XGridUtil.h>
-#include <Mesh/include/ESMCI_Phedra.h>
+#include <Mesh/include/Legacy/ESMCI_Phedra.h>
 #include <Mesh/include/ESMCI_MBMesh.h>
-#include <Mesh/include/ESMCI_WMat.h>
+#include <Mesh/include/Regridding/ESMCI_WMat.h>
 #include <Mesh/include/ESMCI_MBMesh_BBox.h>
 #include <Mesh/include/ESMCI_MBMesh_Search_EToE.h>
 #include <Mesh/include/ESMCI_MBMesh_Util.h>
 #include <Mesh/include/ESMCI_MBMesh_Rendez_Elem.h>
-#include <Mesh/include/ESMCI_Interp.h>
+#include <Mesh/include/Regridding/ESMCI_Interp.h>
 
 #include <iostream>
 #include <iterator>

@@ -50,6 +50,8 @@ void QuickSort(long long a[], int b[], int l, int r, int m, int n)
   else {
     int       j = r;
     int       i = l-1;
+    int      mid= (r+l)/2;
+    QSswap(a,b,mid,r,m,n);
     long long v = a[r];
 
     for(;;)  {
@@ -103,6 +105,8 @@ void QuickSortS(int a[], int b[], int l, int r, int m, int n)
   else {
     int  j = r;
     int  i = l-1;
+    int mid= (r+l)/2;
+    QSswapS(a,b,mid,r,m,n);
     int  v = a[r];
 
     for(;;)  {

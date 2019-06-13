@@ -33,6 +33,17 @@ ESMF_CXXLINKLIBS       += -lmpi -lmpi++
 ESMF_MPIRUNDEFAULT      = mpiexec_mpt $(ESMF_MPILAUNCHOPTIONS)
 ESMF_MPIMPMDRUNDEFAULT  = mpiexec_mpt $(ESMF_MPILAUNCHOPTIONS)
 else
+ifeq ($(ESMF_COMM),mpt)
+# MPT with compiler wrappers -------------------------------
+ESMF_F90DEFAULT         = mpif90
+ESMF_CXXDEFAULT         = mpicxx
+ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
+ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
+# Under ticket #3614573 found that MPT has issues. One of the following macros
+# must be set!
+ESMF_CXXCOMPILEOPTS    += -DMUST_USE_BLOCKING_SEND
+#ESMF_CXXCOMPILEOPTS    += -DMUST_NOTUSE_MALLOC_TRIM
+else
 ifeq ($(ESMF_COMM),mpich)
 # Mpich ----------------------------------------------------
 ESMF_F90COMPILECPPFLAGS+= -DESMF_MPICH
@@ -40,6 +51,8 @@ ESMF_CXXCOMPILECPPFLAGS+= -DESMF_MPICH
 ESMF_F90DEFAULT         = mpif90
 ESMF_CXXDEFAULT         = mpiCC
 ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
+ESMF_F90COMPILECPPFLAGS+= -DESMF_NO_MPI3
+ESMF_CXXCOMPILECPPFLAGS+= -DESMF_NO_MPI3
 else
 ifeq ($(ESMF_COMM),mpich2)
 # Mpich2 ---------------------------------------------------
@@ -77,6 +90,8 @@ ESMF_F90DEFAULT         = mpif90
 ESMF_CXXDEFAULT         = mpic++
 ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
 ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
+ESMF_F90COMPILECPPFLAGS+= -DESMF_NO_MPI3
+ESMF_CXXCOMPILECPPFLAGS+= -DESMF_NO_MPI3
 else
 ifeq ($(ESMF_COMM),lam)
 # LAM (assumed to be built with ifort) ---------------------
@@ -85,6 +100,8 @@ ESMF_F90DEFAULT         = mpif77
 ESMF_CXXDEFAULT         = mpic++
 ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
 ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
+ESMF_F90COMPILECPPFLAGS+= -DESMF_NO_MPI3
+ESMF_CXXCOMPILECPPFLAGS+= -DESMF_NO_MPI3
 else
 ifeq ($(ESMF_COMM),openmpi)
 # OpenMPI --------------------------------------------------
@@ -116,6 +133,7 @@ endif
 endif
 endif
 endif
+endif
 
 ############################################################
 # Print compiler version string
@@ -128,8 +146,8 @@ ESMF_CXXMAJORVERSION      = $(shell $(ESMF_DIR)/scripts/version.intel 1 ${ESMF_C
 ############################################################
 # Special debug flags
 #
+ESMF_F90OPTFLAG_G       += -traceback -check arg_temp_created,bounds,format,output_conversion,stack,uninit
 ESMF_CXXOPTFLAG_G       += -traceback -Wcheck
-ESMF_F90OPTFLAG_G       += -traceback -check bounds
 
 ############################################################
 # Enable TR15581/F2003 Allocatable array resizing

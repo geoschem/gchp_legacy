@@ -69,8 +69,6 @@
 !     Dynamics/simulator vectors
 !     --------------------------
       type(dyn_vect) w_e  ! dynamics vector in eta (input)
-      type(dyn_vect) w_o  ! fully interpolated dynamics vector in eta (output)
-      type(dyn_vect) w_v  ! auxiliar dynamics vector
 
 
 !     Locals
@@ -78,13 +76,14 @@
       character(len=255) msg
       integer, parameter :: READ_ONLY = 1
       integer fid, nvars, ngatts
-      integer ios, iopt, ier, ifile
+      integer ier, ifile
       integer ntimes, n, freq, myfreq, nstep, nymd, nhms, prec, nymdf, nhmsf
       integer im, jm, km
       integer in, jn, kn
       integer vectype
       logical verbose, pick, dophys, oldana, force, fakedate, dgrid, ncep72
       logical ncf,pncf
+      logical indxlevs
  
 
 !                                 *******
@@ -96,7 +95,7 @@
                                 prec, in, jn, kn, pick, nymd, nhms, myfreq,  &
                                 fakedate, nymdf, nhmsf, &
                                 dophys, expid, RCfile, verbose, oldana, force, &
-                                vectype, dgrid, ncep72, ncf, pncf )
+                                vectype, dgrid, ncep72, ncf, pncf, indxlevs )
 
 
 !  Loop over input eta files
@@ -159,7 +158,7 @@
          if ( trim(RCfile)=='NONE' ) then
 
               call dyn2dyn_do ( w_e,  &
-                                in, jn, kn, verbose, ier, &
+                                in, jn, kn, indxlevs, verbose, ier, &
                                 dynfile=dynfile, lwifile=lwifile, &
                                 nymd=nymd, nhms=nhms, prec=prec, freq=freq, nstep=nstep,   &
                                 dophys=dophys, force=force, dgrid=dgrid, vectype=vectype )
@@ -173,7 +172,7 @@
                                  nymd=nymd, nhms=nhms, stat=ier )
                   if (ier/=0) call die(myname,'cannot determine file via template')
 
-              call dyn2dyn_do ( dynfile, w_e, nymd, nhms, freq, nstep, ier, &
+              call dyn2dyn_do ( dynfile, w_e, nymd, nhms, freq, nstep, indxlevs, ier, &
                                 dophys=dophys, expid=expid, RCfile=RCfile, force=force, &
                                 dgrid=dgrid, vectype=vectype )
          endif
@@ -208,7 +207,7 @@ CONTAINS
                          prec, in, jn, kn, pick, nymd, nhms, myfreq, &
                          fakedate, nymdf, nhmsf,                     &
                          dophys, expid, RCfile, verbose, oldana, force, &
-                         vectype, dgrid, ncep72, ncf, pncf )
+                         vectype, dgrid, ncep72, ncf, pncf, indxlevs )
 
       implicit NONE
 
@@ -240,6 +239,7 @@ CONTAINS
       logical,       intent(out) :: ncep72  ! Set NCEP-like-levels, but 72 of them
       logical,       intent(out) :: ncf     ! non-complaint dyn-file knob
       logical,       intent(out) :: pncf    ! non-complaint dyn-perturbation file knob
+      logical,       intent(out) :: indxlevs! index levels (in place of pressure levs)
       
 !
 ! !REVISION HISTORY:
@@ -251,6 +251,7 @@ CONTAINS
 !       21Apr2009  Todling            Updated default hor/ver resolutions of GEOS-5
 !       20Feb2014  Todling            Knob for non-complaint file
 !       27Jan2015  Todling            Add 137-level option
+!       02May2018  Todling            Add 132 to list of supported levels
 !
 !EOP
 !BOC
@@ -258,15 +259,23 @@ CONTAINS
       character*4, parameter :: myname = 'init'
 
       integer iret, i, iarg, argc, iargc
-      integer uprec, iprec, ires
-      logical verb, setres, geos4res
+      integer uprec, iprec, ires, jcapusr
+      logical verb, setres, geos4res, setjcap
       character(len=255) :: etafile, argv, res
       character*10 str
 
       integer, dimension(6), parameter :: IMS4 = (/ 72, 144, 288, 576, 1152, 2304 /)
       integer, dimension(6), parameter :: IMS5 = (/ 72, 144, 288, 576, 1152, 2304 /)
-      integer, dimension(6), parameter :: JMS  = (/ 46,  91, 181, 361,  721, 1441 /)
-      integer, dimension(7), parameter :: KMS  = (/ 18,  32,  55,  64,   72,   91, 137 /)
+      integer, dimension(6), parameter :: JMSG = (/ 46,  91, 181, 361,  721, 1441 /)
+
+      ! in most cases ...
+      ! nlat=(jcap+2)+2
+      ! nlon=(jcap+2)*2
+      integer, dimension(6), parameter :: JCAP = (/ 62,  188, 254, 382,  574, 1150 /)
+      integer, dimension(6), parameter :: IMSN = (/ 192, 376, 512, 768, 1152, 2304 /)
+      integer, dimension(6), parameter :: JMSN = (/  96, 192, 258, 386,  578, 1154 /)
+
+      integer, dimension(8), parameter :: KMS  = (/ 18,  32,  55,  64,   72,   91, 132, 137 /)
 
 !     Defaults
 !     --------
@@ -289,12 +298,14 @@ CONTAINS
       expid='NONE'         ! default name of experiment
       RCfile='NONE'        ! default not to use an RCfile
       setres=.false.       ! default no horizontal resolution change
+      setjcap=.false.      ! default no handling of NCEP-like resolutions
       geos4res=.false.     ! default use geos-5 horizontal resolution defs
       vectype = 4          ! default: assume vector is GEOS-4-type
       dgrid   = .true.     ! default: in GEOS-4 dyn-vector winds are on D-grid
       ncep72  = .false.    ! default: use usual GMAO-72 level
       ncf     = .false.    ! default: handle usual dyn-complaint file
       pncf    = .false.    ! default: handle usual dyn-complaint file
+      indxlevs= .false.    ! default: put pressure levels in lev attribute
 
 !     Parse command line
 !     ------------------
@@ -350,6 +361,29 @@ CONTAINS
                      call exit(1)
              end select
              setres = .true.
+           case ("-jcap")
+             if ( iarg+1 .gt. argc ) call usage()
+             iarg = iarg + 1
+             call GetArg ( iarg, argv )
+             read(argv,*) jcapusr
+             select case (jcapusr)
+               case (62)
+                     ires=1
+               case (188)
+                     ires=2
+               case (254)
+                     ires=3
+               case (382)
+                     ires=4
+               case (574)
+                     ires=5
+               case (1150)
+                     ires=6
+               case default
+                     print *, 'Sorry this resolution not supported'
+                     call exit(1)
+             end select
+             setjcap = .true.
            case ('-verb')
             verbose = .true.
            case ('-force')
@@ -392,6 +426,8 @@ CONTAINS
                iarg = iarg + 1
                call GetArg ( iarg, argv )
                read(argv,*) myfreq
+           case ('-indxlevs')
+               indxlevs = .true.
            case ('-g5')
                vectype = 5
                dgrid   = .false.
@@ -426,14 +462,24 @@ CONTAINS
          end if
       end if
 
+      if (setres .and. setjcap ) then
+         print *
+         print *, 'Invalid resolution options, aborting ...'
+         print *
+         stop 999 
+      endif
       if ( setres ) then
            if ( geos4res ) then
              in = ims4(ires)
-             jn = jms (ires)
+             jn = jmsg(ires)
            else
              in = ims5(ires)
-             jn = jms (ires)
+             jn = jmsg(ires)
            endif
+      endif
+      if ( setjcap ) then
+          in = imsn(ires)
+          jn = jmsn(ires)
       endif
 
       if (verbose) then

@@ -16,6 +16,7 @@
 #  18 Nov 2014 - M. Long     - Initial version
 #  18 Nov 2014 - R. Yantosca - Now use env vars to specify MPI inc & lib dirs
 #  01 Dec 2014 - R. Yantosca - Now put FV_LIB before MPI_LIB in link command
+#  01 Mar 2019 - E. Lundgren - Modify to include only components needed with MAPL v1.0
 #EOP
 #------------------------------------------------------------------------------
 #BOC
@@ -92,14 +93,12 @@ ESMF_LIB      := -lrt $(ESMF_DIR)/$(ARCH)/lib/libesmf.so
 
 # %%%%% FVdycore settings %%%%%
 FV_INC        := -I$(FVDIR)
-FV_LIB        := -L$(ESMADIR)/$(ARCH)/lib -lFVdycoreCubed_GridComp -lfvdycore -lGFDL_fms -lGEOS_Shared -lGMAO_hermes
+FV_LIB        := -L$(ESMADIR)/$(ARCH)/lib -lFVdycoreCubed_GridComp -lfvdycore -lGFDL_fms -lGMAO_hermes
 
 # %%%%% MAPL settings %%%%%
 MAPL_INC      := -I$(ESMADIR)/$(ARCH)/include/MAPL_Base
-MAPL_INC      += -I$(ESMADIR)/$(ARCH)/include/GMAO_mpeu
-MAPL_INC      += -I$(ESMADIR)/$(ARCH)/include/GMAO_pilgrim
 MAPL_INC      += -I$(ESMADIR)/$(ARCH)/include/GMAO_hermes
-MAPL_LIB      := -L$(ESMADIR)/$(ARCH)/lib -lMAPL_Base -lMAPL_cfio -lGMAO_mpeu -lGMAO_pilgrim
+MAPL_LIB      := -L$(ESMADIR)/$(ARCH)/lib -lMAPL_Base -lMAPL_cfio -lGMAO_pFIO
 
 # %%%%% Link command %%%%%
 LINK          := -lGIGC  $(MAPL_LIB) $(FV_LIB) $(ESMF_LIB) $(MPI_LIB)  $(LINK) -lGIGC 

@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2018, University Corporation for Atmospheric Research,
+! Copyright 2002-2019, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -898,13 +898,21 @@ contains
 
     ! timestamp mirrored fields
 
-    call NUOPC_UpdateTimestamp(importState, clock, rc=rc)
+    ! no Clock is passed into the driver from the application level
+    ! -> query the driver for its internal clock
+    call ESMF_GridCompGet(drvr, clock=clock, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
          line=__LINE__, &
          file=__FILE__)) &
          call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
-    call NUOPC_UpdateTimestamp(exportState, clock, rc=rc)
+    call NUOPC_SetTimestamp(importState, clock, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+         line=__LINE__, &
+         file=__FILE__)) &
+         call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
+    call NUOPC_SetTimestamp(exportState, clock, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
          line=__LINE__, &
          file=__FILE__)) &

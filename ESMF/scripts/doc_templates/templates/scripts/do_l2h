@@ -1,7 +1,7 @@
 #!/bin/csh -f
 #
 # Earth System Modeling Framework
-# Copyright 2002-2018, University Corporation for Atmospheric Research, 
+# Copyright 2002-2019, University Corporation for Atmospheric Research, 
 # Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 # Laboratory, University of Michigan, National Centers for Environmental 
 # Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -65,7 +65,7 @@ latex2html  -white \
     -split +1 \
     -show_section_numbers \
     -local_icons \
-    -address "<A HREF="mailto:esmf_support@list.woc.noaa.gov">esmf_support@list.woc.noaa.gov</A>" \
+    -address "<A HREF="mailto:esmf_support@ucar.edu">esmf_support@ucar.edu</A>" \
     $1_$2doc.tex
 
 

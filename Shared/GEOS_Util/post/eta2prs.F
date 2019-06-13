@@ -19,7 +19,6 @@ c **********************************************************************
       integer  nymdb ,nhmsb
       integer  nymdb0,nhmsb0
 
-      integer  hour,day,month,year
       integer  im_out, jm_out
 
 
@@ -47,55 +46,38 @@ c -----------------------------
 
       integer id,rc,fid,nhmsf,n2d,n3d
       integer idpr,n2dp,n3dp,nvarsp
-      integer nvars,ngatts,ntime,ntimes,gfrc
+      integer nvars,ntime,ntimes,gfrc
 
       real,          allocatable :: plevs(:)
       character*256, allocatable ::   arg(:)
       character*256, allocatable :: fname(:)
       character*256, allocatable :: prfname(:)
-      character*256  dummy,  name
+      character*256  name
       character*256  output, hdfile
       character*256  ftype
       character*256  ext
 
-      character*8    date,date0
+      character*8    date0
       character*4    time0
-      character*2    time,hour0,mins0
+      character*2    hour0,mins0
       character*1    char
       data output  /'eta2prs'/
 
-      integer n,m,nargs,iargc,L,nbeg,nfiles,npfiles,mlev
+      integer n,m,nargs,iargc,L,nfiles,npfiles,mlev
 
       real*8   lonbeg
       real     undef
-      real,    allocatable ::    lev(:)
-      real,    allocatable :: vrange(:,:)
-      real,    allocatable :: prange(:,:)
-      integer, allocatable :: yymmdd(:)
-      integer, allocatable :: hhmmss(:)
-      integer, allocatable ::  kmvar(:)
-
-      character*256  title
-      character*256  source
-      character*256  contact
-      character*256  levunits
-      character*256, allocatable ::  vname(:)
-      character*256, allocatable :: vtitle(:)
-      character*256, allocatable :: vunits(:)
 
       real, allocatable ::  dum2d(:,:)
       real, allocatable ::  dum3d(:,:,:)
 
-      integer i,j,ndt
-      integer imax,jmax
+      integer ndt
       logical hdf, quad
       logical nopres
       logical hdfcreate
       logical edges
       logical underg
       real    ptop
-
-      character*8 cdate
 
       interface
                 subroutine read_hdf_meta ( hdffile,im,jm,lm,n2d,n3d,lat,lon,lonbeg,undef,id,
@@ -369,7 +351,7 @@ C **********************************************************************
                   print *, 'Writing nymd: ',nymd,' nhms: ',nhms
                   call timebeg (' Eta2Prs')
                   call eta2prs ( dp,ps,ptop,q2d,q3d,name2d,titl2d,unit2d,name3d,titl3d,unit3d,n2d,n3d,undef,
-     .                           im,jm,lm,nt,plevs,mlev,im_out,jm_out,lat,lon,lonbeg,nymd,nhms,ndt,
+     .                           im,jm,lm,plevs,mlev,im_out,jm_out,lat,lon,lonbeg,nymd,nhms,ndt,
      .                           fid,hdf,hdfcreate,hdfile,quad,edges,ftype,underg )
                   call timeend (' Eta2Prs')
                   call tick (nymd,nhms,ndt)
@@ -415,8 +397,7 @@ c ------------------------
       integer       ntime,ngatts,rc,timinc,nymdb,nhmsb,ndt
       real          undef
       real*8        lonbeg
-      integer       L,m,n
-      character*256 dummy,name
+      integer       n
 
       character*256  title
       character*256  source
@@ -432,7 +413,6 @@ c ------------------------
       integer, allocatable :: yymmdd(:)
       integer, allocatable :: hhmmss(:)
       integer, allocatable ::  kmvar(:)
-      integer, allocatable ::    loc(:)
                                                                                                                      
 C **********************************************************************
 C ****                  Read HDF File for Meta Data                 ****
@@ -523,7 +503,7 @@ C **********************************************************************
       implicit none
       include 'alias.com'
 
-      integer   im,jm,lm,nymd,nhms,id,idpr,rc
+      integer   im,jm,lm,nymd,nhms,id,rc
       integer   n2d,n3d,ntime,ntimes
       real   ptop
       real   ps(im,jm)
@@ -536,6 +516,7 @@ C **********************************************************************
       logical edges
       logical lprs,leta,zflip
       integer i,j,L,n
+      logical match
 
       real, allocatable :: pl(:,:,:)
 
@@ -669,16 +650,16 @@ c ----------------
       end subroutine read_hdf_data
 
       subroutine eta2prs ( dp,ps,ptop,q2d,q3d,name2d,titl2d,unit2d,mame3d,titl3d,unit3d,n2d,n3d,undef,
-     .                     im,jm,lm,nt,plev,mlev,im_out,jm_out,latin,lonin,lonbeg,nymd,nhms,ninc,
+     .                     im,jm,lm,plev,mlev,im_out,jm_out,latin,lonin,lonbeg,nymd,nhms,ninc,
      .                     id,hdf,create,filename,quad,edges,ftype,underg )
       use MAPL_ConstantsMod
+      use GEOS_UtilsMod, only: GEOS_Qsat
       implicit none
       include 'alias.com'
 
 c Input Variables
 c ---------------
-      integer  im,jm,lm,nt,mlev,im_out,jm_out,nymd,nhms,ninc,n2d,n3d
-      integer  nymd0,nhms0
+      integer  im,jm,lm,mlev,im_out,jm_out,nymd,nhms,ninc,n2d,n3d
 
       real   dp(im,jm,lm)
       real   ps(im,jm)
@@ -697,10 +678,11 @@ c ---------------
       real*8 lat(jm_out),lon(im_out)
       real   latin(jm),lonin(im)
       logical hdf, create, quad, edges, underg
+      logical match
 
 c Local Variables
 c ---------------
-      integer i,j,k,L,n,m
+      integer i,j,L,n,m
       real    logpe(im,jm,lm+1)
       real    logpl(im,jm,lm)
       real    logps(im,jm)
@@ -730,7 +712,7 @@ c ---------------
       real,          allocatable :: vrange(:,:)
       real,          allocatable :: prange(:,:)
 
-      real  pref,tref,pkref,dum,kappa
+      real  dum,kappa
        
 
 c Value-Added Products
@@ -1435,7 +1417,7 @@ C **********************************************************************
          do j=1,jm
          do i=1,im
          if( tp(i,j,L).ne.undef ) then
-             call qsat (tp(i,j,L),plev(L)*0.01,qstar(i,j,L),dum,.false.)
+             qstar(i,j,L) = GEOS_Qsat(tp(i,j,L), plev(L)*0.01)
          else
              qstar(i,j,L) = undef
          endif
@@ -1449,7 +1431,7 @@ C **********************************************************************
          do j=1,jm
          do i=1,im
          if( qp(i,j,L).ne.undef .and. qstar(i,j,L).ne.undef ) then
-             rh(i,j,L) = qp(i,j,L)/qstar(i,j,L)
+             rh(i,j,L) = MAX(MIN( qp(i,j,L)/qstar(i,j,L), 1.00 ),0.0) ! note: GEOS uses 1.02 instead of 1.0
          else
              rh(i,j,L) = undef
          endif
@@ -1821,8 +1803,8 @@ C
       real logps(im,jm)
       real logpt(im,jm)
 
-      real  p,undef,kappa
-      real  logp,logpmin,logpmax,temp
+      real  undef,kappa
+      real  logp,temp
       logical underg
 
       kappa = MAPL_KAPPA
@@ -2201,13 +2183,9 @@ c ---------------
 
 c Local Variables
 c ---------------
-      integer  i,j,l,m,n
+      integer  i,j,l
       integer, allocatable       :: ip1(:), ip0(:), im1(:), im2(:)
       integer, allocatable       :: jp1(:), jp0(:), jm1(:), jm2(:)
-
-      integer ip1_for_jp1, ip0_for_jp1, im1_for_jp1, im2_for_jp1
-      integer ip1_for_jm2, ip0_for_jm2, im1_for_jm2, im2_for_jm2
-      integer jm2_for_jm2, jp1_for_jp1
 
 c Bi-Linear Weights
 c -----------------
@@ -2235,8 +2213,8 @@ c ----------------
       real, allocatable       ::    wc_im1jm2 (:)
       real, allocatable       ::    wc_im2jm2 (:)
 
-      real    ux, ap1, ap0, am1, am2
-      real    uy, bp1, bp0, bm1, bm2
+      real    ap1, ap0, am1, am2
+      real    bp1, bp0, bm1, bm2
 
       real    lon_cmp(im)
       real    lat_cmp(jm)
@@ -2245,9 +2223,9 @@ c ----------------
       real    pi,d
       real    lam,lam_ip1,lam_ip0,lam_im1,lam_im2
       real    phi,phi_jp1,phi_jp0,phi_jm1,phi_jm2
-      real    dl,dp,phi_np,lam_0
-      real    lam_geo, lam_cmp
-      real    phi_geo, phi_cmp
+      real    dl,dp
+      real    lam_cmp
+      real    phi_cmp
       real    undef
       integer im1_cmp,icmp
       integer jm1_cmp,jcmp

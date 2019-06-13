@@ -18,6 +18,24 @@
 # 13May2010  Stassi     Extended fix to work on NAS nodes as well as NCCS
 # 27Jul2010  Stassi     Modified to work with either intel-mpi or mvapich
 # 18May2011  Stassi     Capture status of cmd and die if not success
+# 18May2016  Thompson   Add support for MPT
+# 24Sep2018  Thompson   Add support for Open MPI and MPICH3, remove Intel MPI
+#                       section at NAS, add detection for GMAO desktop, remove
+#                       references to Scali MPI
+# 25Sep2018  Thompson   SLURM doesn't always provide SLURM_NTASKS_PER_NODE so
+#                       you can't always make Intel MPI depend on it. Add
+#                       detection of needed environment variable so that
+#                       perhost on Intel MPI + SLURM works as expected.
+# 27Sep2018  Thompson   Rewrite the which_mpi_cmd code so that it is more
+#                       specific based on MPI stack rather than on if the
+#                       command exists on the system. Add a new sub to check
+#                       if you are on slurm batch for NCCS MPT. Removed
+#                       mpdboot bits as that is not used anymore.
+# 03Oct2018  Thompson   Remove code for MPT + SLURM + Interactive thanks
+#                       to Virginie Buchard who made me explore it a bit
+#                       deeper. The correct fix is an environment variable
+#                       which is not something to be set in esma_mpirun. But
+#                       a fat comment is added for future reference.
 #============================================================================
 use strict;
 use warnings;
@@ -27,7 +45,7 @@ use warnings;
 my ($node, $mpi_type, $perhost);
 my ($progx, @mpiARGs, @progARGs);
 my ($mpicmd, $xtraflags);
-my ($scriptname);
+my ($scriptname,$scriptbasename);
 
 # main program
 #-------------
@@ -46,22 +64,19 @@ my ($scriptname);
 # name - init
 # purpose - get runtime inputs
 #
-# notes:
-# 1. -inherit_limits flag only valid for scali mpi
-# 2. -perhost flag only valid for intel mpi
 #============================================================================
 sub init {
     use FindBin;
     use Getopt::Long;
+    use File::Basename;
     Getopt::Long::Configure("pass_through");
-    my ($inherit_limits_flag);
 
     # get runtime flags
     #------------------
-    GetOptions("inherit_limits" => \$inherit_limits_flag,
-               "perhost=i"      => \$perhost );
+    GetOptions( "perhost=i"      => \$perhost );
 
     $scriptname = $0;
+    $scriptbasename = basename($0);
 }
 
 #============================================================================
@@ -73,18 +88,26 @@ sub get_mpi_type {
 
     $mpi_type = "unknown";
 
-    # check MPI_ROOT env variable
-    #----------------------------
-    if    ( $ENV{"OPENMPI"} )                { $mpi_type = "openmpi"  }
-    elsif ( $ENV{"M_MPI_ROOT"} )             { $mpi_type = "mvapich2" }
+    # At NCCS, Open MPI modules can define M_MPI_ROOT, so we cannot
+    # depend on that as always good. Instead, we'll use the specific
+    # environment variables that seem valid. Note MPT_VERSION is defined
+    # at NCCS, but not at NAS, so that should failover to MPI_ROOT
+
+    # check MPI specific env variable
+    #--------------------------------
+    if    ( $ENV{"MVAPICH"}    )             { $mpi_type = "mvapich2" }
     elsif ( $ENV{"I_MPI_ROOT"} )             { $mpi_type = "intel"    }
+    elsif ( $ENV{"OPENMPI"}    )             { $mpi_type = "openmpi"  }
+    elsif ( $ENV{"MPICH"}      )             { $mpi_type = "mpich"    }
+    elsif ( $ENV{"MPT_VERSION"})             { $mpi_type = "mpt"      }
 
     # check $MPIHOME env variable
     #----------------------------
     elsif ( $MPIHOME = $ENV{"MPIHOME"} ) {
         if    ( $MPIHOME =~ m[mvapich2] )    { $mpi_type = "mvapich2" }
         elsif ( $MPIHOME =~ m[/intel/mpi/] ) { $mpi_type = "intel"    }
-        elsif ( $MPIHOME =~ m[/sgi/mpi/] )   { $mpi_type = "mpt"      }
+        elsif ( $MPIHOME =~ m[openmpi] )     { $mpi_type = "openmpi"  }
+        elsif ( $MPIHOME =~ m[mpich] )       { $mpi_type = "mpich"    }
     }
 
     # check $MPI_HOME env variable
@@ -92,8 +115,20 @@ sub get_mpi_type {
     elsif ( $MPIHOME = $ENV{"MPI_HOME"} ) {
         if    ( $MPIHOME =~ m[mvapich2] )    { $mpi_type = "mvapich2" }
         elsif ( $MPIHOME =~ m[/intel/mpi/] ) { $mpi_type = "intel"    }
+        elsif ( $MPIHOME =~ m[openmpi] )     { $mpi_type = "openmpi"  }
+        elsif ( $MPIHOME =~ m[mpich] )       { $mpi_type = "mpich"    }
     }
 
+    # check $MPI_ROOT env variable
+    #-----------------------------
+    elsif ( $MPIHOME = $ENV{"MPI_ROOT"} ) {
+        if    ( $MPIHOME =~ m[mvapich2] )    { $mpi_type = "mvapich2" }
+        elsif ( $MPIHOME =~ m[/intel/mpi/] ) { $mpi_type = "intel"    }
+        elsif ( $MPIHOME =~ m[/sgi/mpi/] )   { $mpi_type = "mpt"      }
+        elsif ( $MPIHOME =~ m[/hpe/mpt/] )   { $mpi_type = "mpt"      }
+        elsif ( $MPIHOME =~ m[openmpi] )     { $mpi_type = "openmpi"  }
+        elsif ( $MPIHOME =~ m[mpich] )       { $mpi_type = "mpich"    }
+    }
     print "$scriptname: mpi_type = $mpi_type\n";
     return;
 }
@@ -134,23 +169,58 @@ sub parse_command_line {
 }
 
 #============================================================================
+# name - isSLURMbatch
+# purpose - determine if SLURM allocation is batch or interactive
+#============================================================================
+sub isSLURMbatch {
+    my ($BatchFlag);
+
+    if ($ENV{SLURM_JOBID}) {
+       $BatchFlag = `scontrol show job $ENV{SLURM_JOBID} | grep -o 'BatchFlag=[[:alnum:]]' | cut -d= -f2`;
+    }
+
+    return int($BatchFlag);
+}
+
+#============================================================================
 # name - which_mpi_cmd
 # purpose - determine which mpi command to use
 #============================================================================
 sub which_mpi_cmd {
-    my ($progname, $status);
+    use FindBin qw($Bin);
+    use lib ("$Bin");
+    use GMAO_utils qw(get_siteID);
+    my ($progname, $status, $siteID);
+    $siteID = get_siteID();
 
-    # check for existence of mpirun or mpiexec command
-    #-------------------------------------------------
+    # check for existence of mpirun, mpiexec, or mpiexec_mpt command
+    #---------------------------------------------------------------
     $mpicmd = "notfound";
 
-    foreach $progname ( "mpiexec_mpt", "mpirun", "mpiexec" ) {
-        $status = system "which $progname >& /dev/null";
-        next if $status;
+    if ($mpi_type eq 'mpt') {
 
-        chomp($mpicmd = `which $progname`);
-        last;
+       # NOTE: If you are running mpiexec_mpt at NCCS under SLURM interactive
+       #       with MPT, you will *NOT* get the same behavior as under
+       #       a batch job. To get the same behaviour, you must run with:
+       #          
+       #          setenv SLURM_DISTRIBUTION=block
+       #
+       #       This is currently done with both g5das.j and gcm_run.j
+       
+       chomp($mpicmd = `which mpiexec_mpt`);
+    } elsif ($mpi_type eq 'mpich') {
+       chomp($mpicmd = `which mpiexec`);
+    } elsif ($mpi_type eq 'mvapich2') {
+       # For now use mpirun_rsh. At NCCS this should be
+       # srun -n but as -np is *external* to esma_mpirun
+       # this requires wholesale script changes
+       chomp($mpicmd = `which mpirun_rsh`);
+    } else {
+       # Used by both Intel MPI and Open MPI
+       chomp($mpicmd = `which mpirun`);
     }
+
+    # This might be superfluous, but a good check
     die ">>> Error <<< Cannot find command to run mpi" unless -e $mpicmd;
 
     return;
@@ -160,60 +230,115 @@ sub which_mpi_cmd {
 # name - get_xtraflags
 # purpose - set other flags needed by the node where executing.
 #
-# node types at NCCS (info from D.Kokron):
-# - borga      => Dempsey node ..... 4 core/node
-# - borg[bcde] => Woodcrest node ... 4 core/node
-# - borg[fghi] => Harpertown node .. 8 core/node 
-#
 # notes
-# 1. node-specific flags for different borg node types have been removed
-# 2. have not updated node info with addition of nehalem nodes
+# 1. This is mainly handling -perhost. At some point it will
+#    be good to add something that can handle prepend rank flags
 #============================================================================
 sub get_xtraflags {
     use FindBin qw($Bin);
     use lib ("$Bin");
-    use GMAO_utils qw(get_siteID pbs_env);
-    my ($cpus_per_node, $numnodes, $siteID, $label);
+    use GMAO_utils qw(get_siteID);
+    my ($cpus_per_node, $numnodes, $siteID, $label, $ignoreslurm, $respectplacement);
+
     $xtraflags = "";
+    $siteID = get_siteID();
 
     # flags needed for mvapich2 mpi
     #------------------------------
-    $xtraflags .= "-f \$PBS_NODEFILE" if $mpi_type eq "mvapich2";
+    $xtraflags .= "-export -hostfile \$PBS_NODEFILE" if $mpi_type eq "mvapich2";
 
     # flags needed for intel mpi
     #---------------------------
     if ($mpi_type eq "intel") {
+       if ($perhost) {
 
-        # perhost value
-        #--------------
-        $cpus_per_node = pbs_env("cpus_per_node");
-        if ($perhost and $cpus_per_node) {
-            $label = "WARNING; perhost ($perhost) and cpus_per_node "
-                . "($cpus_per_node) differ; using $cpus_per_node;";
-            warn $label if $perhost != $cpus_per_node;
-        }
+          # Detect if we are on slurm
+          # -------------------------
+          if ($ENV{SLURM_JOB_ID}) {
 
-        $perhost = $cpus_per_node if $cpus_per_node;
-        die "Error; no value for perhost;" unless $perhost;
+             #############################################################
+             # Intel MPI on SLURM handles -perhost in a possibly         #
+             # unexpected manner. When in a SLURM allocation, Intel      #
+             # MPI by default obeys SLURM. If you ask for 97 tasks on    #
+             # Haswell nodes that have 28 cores each, you will end up    #
+             # with SLURM_TASKS_PER_NODE=25,24(x3) and Intel MPI will    #
+             # put 24 tasks per node on 3 nodes and 25 on the other. If  #
+             # you pass in mpirun -perhost 5 -np 20, you will end up     #
+             # running all 20 processes on the first node. In order      #
+             # to have -perhost work "as expected" one needs to tell     #
+             # Intel MPI to ignore SLURM job placement by setting:       #
+             # I_MPI_JOB_RESPECT_PROCESS_PLACEMENT=disable.              #
+             #                                                           #
+             # As this is somewhat unexpected behavior, esma_mpirun will #
+             # die unless it detects process placement is being ignored. #
+             #############################################################
 
-        $siteID = get_siteID();
+             # Intel kindly provides four ways to disable process
+             # placement respecting. We must test for all four
+             # --------------------------------------------------
+             $respectplacement = lc $ENV{I_MPI_JOB_RESPECT_PROCESS_PLACEMENT};
 
-        # nas site
-        #---------
-        if ($siteID eq "nas") {
-            if ($mpi_type eq "intel") {
-                $numnodes = pbs_env("num_nodes");
-                $xtraflags .= " --totalnum=$numnodes";
-                $xtraflags .= " --file=\$PBS_NODEFILE";
-                $xtraflags .= " --rsh=ssh";
-            }
-        }
-        $xtraflags .= " -perhost $perhost";
+             if ( $respectplacement eq 0     || $respectplacement eq "no"    ||
+                  $respectplacement eq "off" || $respectplacement eq "disable" ) {
+                $ignoreslurm = 1;
+             } else {
+                $ignoreslurm = 0;
+             }
+
+             # Check if we are ignoring SLURM
+             # ------------------------------
+             if ( $ignoreslurm ) {
+                $xtraflags .= " -perhost $perhost ";
+             } else {
+
+                # Write a good error message about Intel MPI + SLURM perhost behavior
+                # -------------------------------------------------------------------
+                my $message = qq {
+                >> Error << Intel MPI on SLURM with -perhost works differently
+                than one would expect. Intel MPI will ignore -perhost
+                unless I_MPI_JOB_RESPECT_PROCESS_PLACEMENT=disable in the
+                environment. This was not detected but -perhost was passed
+                in which could lead to unexpected behavior. Please either
+                disable I_MPI_JOB_RESPECT_PROCESS_PLACEMENT or reconsider
+                how you have called $scriptbasename
+                };
+
+                # Unindent the above
+                # ------------------
+                $message =~ s/^\s+//gm;
+
+                die "$message\n";
+             }
+          } else {
+             # We cannot assume all cases of Intel MPI are on SLURM, so
+             # pass through perhost, but be aware of unknown behavior.
+
+             $xtraflags .= " -perhost $perhost";
+          }
+       }
     }
 
-    # flags needed for scali mpi
-    #---------------------------
-    $xtraflags .= " -inherit_limits" if $mpi_type eq "scali";
+    # MPT can respect perhost as well. Note that it will
+    # die if the perhost number does not divide evenly
+    # --------------------------------------------------
+    if ($mpi_type eq "mpt") {
+       if ($perhost) {
+          $xtraflags .= " -perhost $perhost";
+       }
+    }
+
+    if ($mpi_type eq "openmpi") {
+
+       if ($siteID eq "gmao") {
+          $xtraflags .= " -oversubscribe";
+       } elsif ($perhost) {
+          $xtraflags .= " -map-by ppr:$perhost:node -bind-to core";
+       } else {
+          $xtraflags .= " -map-by core -bind-to core";
+       }
+
+    }
+
 }
 
 #============================================================================
@@ -229,14 +354,6 @@ sub run_mpicmd {
     $flags .= " $xtraflags"     if $xtraflags;
     $flags .= " @mpiARGs"       if @mpiARGs;
 
-    if (basename($mpicmd) eq "mpiexec") {
-        $PBS_NODEFILE = $ENV{"PBS_NODEFILE"};
-        die ">> Error << Cannot find PBS_NODEFILE: $PBS_NODEFILE;"
-            unless -f $PBS_NODEFILE;
-        chomp($num = `cat $PBS_NODEFILE | uniq | wc -l`);
-        $cmd = "mpdboot -n $num -f $PBS_NODEFILE -r ssh -v";
-        my_system($cmd);
-    }
     $cmd = "$mpicmd $flags $progx @progARGs";
     my_system($cmd);
 }

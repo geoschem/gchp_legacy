@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2018, University Corporation for Atmospheric Research,
+// Copyright 2002-2019, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -1177,22 +1177,16 @@ bool IO::redist_check(Array *array_p, int *rc) {
   VM *currentVM = VM::getCurrent(&localrc);
   if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT, rc))
     return false;
-  int npets = currentVM->getNpets();
   int localDeCount = array_p->getDELayout()->getLocalDeCount();
-  std::vector<int> deCounts_send(npets, localDeCount);
-  std::vector<int> deCounts_recv(npets);
-  localrc = currentVM->VMK::allgather (&deCounts_send[0], &deCounts_recv[0], sizeof(int));
+  bool need_redist  = false;
+  // TODO: This could be slightly simpler when VMK::allreduce supports bools and MPI_LOR.
+  int local_de_test = (localDeCount == 1)?0:1;
+  int de_test;
+  localrc = currentVM->VMK::allreduce (&local_de_test, &de_test, 1, vmI4, vmSUM);
   if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT, rc)) {
     return false;
   }
-
-  bool need_redist  = false;
-  for (int i=0; i<npets; i++) {
-    if (deCounts_recv[i] != 1) {
-      need_redist = true;
-      break;
-    }
-  }
+  need_redist = de_test != 0;
 
   if (rc) *rc = ESMF_SUCCESS;
   return need_redist;
@@ -1289,7 +1283,7 @@ void IO::redist_arraycreate1de(Array *src_array_p, Array **dest_array_p, int pet
 
   ESMCI::Array *temp_arr_p = ESMCI::Array::create(&arrayspec, distgrid,
     &distgridToArrayMapArg,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
     &undistLBoundArg, &undistUBoundArg,
     &localrc);
   if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU, ESMC_CONTEXT, rc))

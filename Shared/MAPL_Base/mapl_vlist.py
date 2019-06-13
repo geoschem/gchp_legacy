@@ -14,11 +14,11 @@ def main():
 
     # parse command line args
     # -----------------------
-    comm_args = parse_args()
-    ROOT_DIR = comm_args['root']
-    FORMAT = comm_args['format']
-    SORTBY = comm_args['sort']
-    ONLYME = comm_args['self']
+    a = parse_args()
+    ROOT_DIR = a.rootdir
+    FORMAT = a.format
+    SORTBY = a.sort
+    ONLYME = a.selfonly
 
 
     # get lists of fort and rc files
@@ -199,6 +199,8 @@ def prc_fort(src, im_list, ex_list, in_list):
             except NameError: long = ''
             try: vloc
             except NameError: vloc = ''
+            try: short
+            except NameError: short = ''
 
             if imFlag: im_list.append([short, gc, units, dims, long, vloc])
             if exFlag: ex_list.append([short, gc, units, dims, long, vloc])
@@ -492,28 +494,30 @@ DESCRIPTION
 
 EXAMPLE
 
-     % ./mapl_vlist.py --root /path/to/GEOSgcm_GridComp --sort comp --format
+     % ./mapl_vlist.py --sort comp --format ascii <rootdir>
 """
 
-    p = argparse.ArgumentParser(description=DESCRIPTION,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument('--root',   help='[RQD] top level GridComp directory', required=True)
-    p.add_argument('--sort',   help='[RQD] argument to sort by (short/comp/both/none)', required=True)
-    p.add_argument('--format', help='[RQD] output format (ascii/wiki/latex)', required=True)
-    p.add_argument('--self',   help='[OPT] only the specified dir (default: sub dirs as well)', action='store_true')
+    p = argparse.ArgumentParser(
+        description=DESCRIPTION,
+        formatter_class=argparse.RawDescriptionHelpFormatter
+        )
+    p.add_argument('rootdir', help='Top level GridComp directory')
+    p.add_argument('--sort', help='Argument to sort by (short/comp/both/default=none)', default='none')
+    p.add_argument('--format', help='Output format (wiki/latex/default=ascii)', default='ascii')
+    p.add_argument('--selfonly', help='Only the specified dir (default: sub dirs as well)', action='store_true')
 
-    args = vars(p.parse_args()) # vars converts to dict
+    args = p.parse_args()
 
     # some checks
     # -----------
-    if args['sort'] not in ['short', 'comp', 'both', 'none']:
+    if args.sort not in ['short', 'comp', 'both', 'none']:
         sys.exit('error: sort is one of short/comp/both/none')
     
-    if args['format'] not in ['ascii', 'wiki', 'latex']:
+    if args.format not in ['ascii', 'wiki', 'latex']:
         sys.exit('error: format is one of ascii/wiki/latex')
 
-    if not os.path.isdir(args['root']):
-        sys.exit('error: root dir [%s] not found' % args['root'])
+    if not os.path.isdir(args.rootdir):
+        sys.exit('error: root dir [%s] not found' % args.rootdir)
 
 
     return args

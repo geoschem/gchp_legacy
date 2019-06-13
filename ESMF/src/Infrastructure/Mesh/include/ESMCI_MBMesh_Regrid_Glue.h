@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2018, University Corporation for Atmospheric Research, 
+// Copyright 2002-2019, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -31,14 +31,14 @@
 #include "ESMC_Util.h"
 #include "ESMCI_Array.h"
 #include "Mesh/include/ESMCI_Mesh.h"
-#include "Mesh/include/ESMCI_MeshRead.h"
-#include "Mesh/include/ESMCI_MeshRegrid.h"
-#include "Mesh/include/ESMCI_Exception.h"
-#include "Mesh/include/ESMCI_Integrate.h"
-#include "Mesh/include/ESMCI_Interp.h"
-#include "Mesh/include/ESMCI_Extrapolation.h"
+#include "Mesh/include/Legacy/ESMCI_MeshRead.h"
+#include "Mesh/include/Regridding/ESMCI_MeshRegrid.h"
+#include "Mesh/include/Legacy/ESMCI_Exception.h"
+#include "Mesh/include/Regridding/ESMCI_Integrate.h"
+#include "Mesh/include/Regridding/ESMCI_Interp.h"
+#include "Mesh/include/Regridding/ESMCI_Extrapolation.h"
 #include "Mesh/include/ESMCI_MathUtil.h"
-#include "Mesh/include/ESMCI_Regrid_Helper.h"
+#include "Mesh/include/Regridding/ESMCI_Regrid_Helper.h"
 
 
 //-----------------------------------------------------------------------------
@@ -63,6 +63,7 @@ void MBMesh_regrid_create(void **meshsrcpp, ESMCI::Array **arraysrcpp, ESMCI::Po
                           ESMCI::RouteHandle **rh, int *has_rh, int *has_iw,
                           int *nentries, ESMCI::TempWeights **tweights,
                           int *has_udl, int *_num_udl, ESMCI::TempUDL **_tudl, 
+                          int *_has_statusArray, ESMCI::Array **_statusArray,
                           int*rc);
 
 

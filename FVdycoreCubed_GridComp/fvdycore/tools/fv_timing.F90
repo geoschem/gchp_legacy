@@ -1,9 +1,28 @@
+!***********************************************************************
+!*                   GNU General Public License                        *
+!* This file is a part of fvGFS.                                       *
+!*                                                                     *
+!* fvGFS is free software; you can redistribute it and/or modify it    *
+!* and are expected to follow the terms of the GNU General Public      *
+!* License as published by the Free Software Foundation; either        *
+!* version 2 of the License, or (at your option) any later version.    *
+!*                                                                     *
+!* fvGFS is distributed in the hope that it will be useful, but        *
+!* WITHOUT ANY WARRANTY; without even the implied warranty of          *
+!* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU   *
+!* General Public License for more details.                            *
+!*                                                                     *
+!* For the full text of the GNU General Public License,                *
+!* write to: Free Software Foundation, Inc.,                           *
+!*           675 Mass Ave, Cambridge, MA 02139, USA.                   *
+!* or see:   http://www.gnu.org/licenses/gpl.html                      *
+!***********************************************************************
       module fv_timing_mod
 
+      use mpp_mod, only: mpp_error, FATAL
 #if defined(SPMD)
-      use fv_mp_mod, only: mp_barrier, masterproc, mp_reduce_max
+      use fv_mp_mod, only: is_master, mp_reduce_max
 #endif
-      use fv_arrays_mod, only: REAL8
 !
 ! ... Use system etime() function for timing
 !
@@ -12,26 +31,32 @@
       integer, private      :: nblks
       parameter  (nblks   = 100)
 
-      character*20, private :: blkname(nblks)
+      character(len=20), private :: blkname(nblks)
 
       integer , private      :: tblk
 
 #if defined(SPMD)
-      real(REAL8) , external       :: MPI_Wtime
+      real(kind=8) , external       :: MPI_Wtime
 #endif
-      real(REAL8) , private       :: etime
-      real(REAL8) , private       :: totim
-      real(REAL8) , private       :: tarray(2)
+      real , private       :: etime
+      real(kind=8) , private       :: totim
+      real , private       :: tarray(2)
       type tms
            private
-           real(REAL8) :: usr, sys
+           real (kind=8) :: usr, sys
       end type tms
 
 
       type (tms), private   :: accum(nblks), last(nblks)
 
-      real(REAL8) , private       :: us_tmp1(nblks,2)
-      real(REAL8) , private       :: us_tmp2(nblks,2)
+      real , private       :: us_tmp1(nblks,2)
+      real , private       :: us_tmp2(nblks,2)
+
+      logical, private :: module_initialized = .false.
+
+!---- version number -----
+      character(len=128) :: version = '$Id$'
+      character(len=128) :: tagname = '$Name$'
 
       contains
          subroutine timing_init
@@ -41,10 +66,11 @@
          implicit none
 
          integer  :: C, R, M
-         real(REAL8)    :: wclk
+         real (kind=8) :: wclk
 
          integer  n
 
+         if ( module_initialized ) return
 
          tblk=0
          do n = 1, nblks
@@ -69,6 +95,7 @@
 #   endif
 #endif
 
+         module_initialized = .true.
          end subroutine timing_init
 
 
@@ -79,19 +106,23 @@
 
          implicit none
 
-         character*(*)  blk_name
+         character(len=*) :: blk_name
 
 
 
-         character*20   UC_blk_name
-         character*20   ctmp 
+         character(len=20) :: UC_blk_name
+         character(len=20) ::  ctmp 
          integer i
          integer iblk
 
          integer :: C, R, M
-         real(REAL8)   :: wclk
+         real (kind=8)  :: wclk
 
          integer ierr
+
+         if ( .not. module_initialized ) then
+            call timing_init()
+         end if
 
          UC_blk_name = blk_name
 
@@ -142,14 +173,14 @@
 !
 
         implicit none
-        character*(*) blk_name
+        character(len=*) :: blk_name
 
-        character*20  UC_blk_name
-        character*20  ctmp
+        character(len=20) :: UC_blk_name
+        character(len=20) :: ctmp
         integer i
 
         integer  :: C, R, M
-        real(REAL8)    :: wclk
+        real (kind=8)   :: wclk
 
         integer  iblk
 
@@ -168,6 +199,7 @@
       
 !         write(*,*) 'timing_off ', ctmp, tblk, tblk
         if ( iblk .eq. 0 ) then
+            call mpp_error(FATAL,'fv_timing_mod: timing_off called before timing_on for: '//trim(blk_name))
 !           write(*,*) 'stop in timing off in ', ctmp
 !           stop 
         endif
@@ -217,7 +249,7 @@
         integer  n
 
         type (tms)   :: others, tmp(nblks)
-        real(REAL8)         :: tmpmax
+        real         :: tmpmax
 
 #if defined( SPMD )
         do n = 1, nblks                   !will clean these later
@@ -228,7 +260,7 @@
            call mp_reduce_max(tmpmax)
            tmp(n)%sys = tmpmax
         enddo
-        if ( gid .eq. masterproc ) then
+        if ( is_master() ) then
 #else
         do n = 1, nblks
            tmp(n)%usr = accum(n)%usr
@@ -240,13 +272,13 @@
         print *,                                  &
         '  -----------------------------------------------------'
         print *,                                  &
-        '     Block          User time  System Time   Total Time'
+        '     Block                    User time  System Time   Total Time   GID '
         print *,                                  &
         '  -----------------------------------------------------'
 
         do n = 1, tblk
-           print '(3x,a20,2x,3(1x,f12.4))', blkname(n),     &
-               tmp(n)%usr, tmp(n)%sys, tmp(n)%usr + tmp(n)%sys
+           print '(3x,a20,2x,3(1x,f12.4), 2x, I6)', blkname(n),     &
+               tmp(n)%usr, tmp(n)%sys, tmp(n)%usr + tmp(n)%sys, gid
         end do
 
 
@@ -270,7 +302,7 @@
       implicit         none
 
 !      character string(length)
-!      character*20 string
+!      character(len=20) string
 !      character, dimension(length) :: string
 !      character (len=*), intent(inout) ::  string
 !      character (len=*) ::  string

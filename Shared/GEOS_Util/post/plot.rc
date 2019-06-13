@@ -24,6 +24,8 @@
 #
 #        PLOT_MOVE:         ON ... Submits gcm_moveplot.j to populate Web Page (Assumes EXPID exists on Web Page)
 #                                  Note:  moveplot options may be appended (e.g., ON -expid NEWID )
+#
+#        PLOT_JOBS:         10 ... Number of Batch Plot Jobs to Submit for Processing
 # ---------------------------------------------------------------------------------------------------
 
    PLOT_STATUS: ON
@@ -33,3 +35,4 @@ PLOT_FREQUENCY: CLIM
    PLOT_CMPEXP:
      PLOT_MISC: MISC
      PLOT_MOVE: OFF
+     PLOT_JOBS: 10

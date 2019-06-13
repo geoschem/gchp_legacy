@@ -40,13 +40,18 @@ PROGRAM proc_SST_FRACI_quart
         CHARACTER(LEN = 2)      :: today_Mon,  tomrw_Mon, today_Day, tomrw_Day
         INTEGER                 :: today_iYear, tomrw_iYear
         INTEGER                 :: today_iMon,  tomrw_iMon, today_iDay, tomrw_iDay
+
+! Thresholds on diff_SST and diff_ICE
+        REAL                    :: max_diff_SST
+        REAL                    :: max_diff_ICE
 !       ....................................................................
 
 !---------------------------------------------------------------------------
 !       Read all input data parameters (time to proc, files to proc, output resolution)
         CALL getarg(1,inputBuffer)
         READ(inputBuffer, *) inputFile
-        CALL read_input_quart(inputFile, iDebug, today, tomrw, fileNames, NLAT_out, NLON_out, iERR)
+        CALL read_input_quart(inputFile, iDebug, today, tomrw, fileNames, NLAT_out, NLON_out, iERR, &
+                              max_diff_SST, max_diff_ICE)
 !---------------------------------------------------------------------------
         IF( iERR == 0) THEN
              PRINT *, 'Processing SST and ICE data @ 1/4 deg from: ', today, '...To... ', tomrw
@@ -111,7 +116,7 @@ PROGRAM proc_SST_FRACI_quart
               IF( (ostia_ICE_quart(iLon,iLat) .eq. myUNDEF) .or. (ostia_ICE_quart(iLon,iLat) <= Ice_thr))       &
                    ostia_ICE_quart(iLon,iLat) = MIN( 1.0d0, MAX(-0.017451*((ostia_SST_quart(iLon,iLat)- 271.38)/0.052747) + 0.96834, 0.0d0)) 
 
-              IF( iDebug /= 0 ) PRINT *, ostia_SST_quart(iLon,iLat), ostia_ICE_quart(iLon,iLat)
+              IF( iDebug /= 0) PRINT *, ostia_SST_quart(iLon,iLat), ostia_ICE_quart(iLon,iLat)
             END IF  ! IF( ostia_SST_quart(iLon,iLat) <= 275.0d0)
 
             IF( reynolds_SST(iLon,iLat) <= 275.0d0) THEN
@@ -188,8 +193,8 @@ PROGRAM proc_SST_FRACI_quart
 !---------------------------------------------------------------------------
         diff_SST = SUM( ABS(reynolds_SST-ostia_SST_quart))/(NLON_out*NLAT_out)
         diff_ICE = SUM( ABS(reynolds_ICE-ostia_ICE_quart))/(NLON_out*NLAT_out)
-        IF( diff_SST > 2.0d0) PRINT *, 'CAUTION! SST of OSTIA and Reynolds differ by Threshold; CHECK!!'
-        IF( diff_ICE > 0.20d0)PRINT *, 'CAUTION! ICE of OSTIA and Reynolds differ by Threshold; CHECK!!'
+        IF( diff_SST > max_diff_SST) PRINT *, 'CAUTION! SST of OSTIA and Reynolds differ by Threshold; CHECK!!'
+        IF( diff_ICE > max_diff_ICE) PRINT *, 'CAUTION! ICE of OSTIA and Reynolds differ by Threshold; CHECK!!'
 !---------------------------------------------------------------------------
 !       Header info.  Start & end dates: format: YYYYMMDDHHMMSS; Hour,min,Sec are set to zero.
         today_Year    = today(1:4);      tomrw_Year    = tomrw(1:4)

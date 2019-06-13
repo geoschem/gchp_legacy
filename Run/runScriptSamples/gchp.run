@@ -83,6 +83,9 @@ if [[ $? == 0 ]]; then
     # Start the simulation
     time srun -n ${coreCount} -N ${SLURM_NNODES} -m plane=${planeCount} --mpi=pmix ./geos >> ${log}
 
+    # Rename the restart (checkpoint) file so MAPL does not crash upon rerun
+    mv gcchem_internal_checkpoint.nc gccchem_internal_checkpoint.restart.nc
+
     # Clean up any shared memory segments owned by this user
     if grep -q "USE_SHMEM.*1" CAP.rc; then
         srun -w $SLURM_JOB_NODELIST -n $SLURM_NNODES --ntasks-per-node=1 ${memCleaner}

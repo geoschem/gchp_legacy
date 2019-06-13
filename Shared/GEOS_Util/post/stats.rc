@@ -29,7 +29,7 @@
 # ---------------------------------------------------------------------------------------------------
 
     TYPE_p: scalar
-   ALIAS_p: slp slprs mean_sea_level_
+   ALIAS_p: slp slprs mean_sea_level_ Mean_sea_level_pressure
 
     TYPE_u: vector
    ALIAS_u: u uwnd ugrd ugrdprs u_velocity

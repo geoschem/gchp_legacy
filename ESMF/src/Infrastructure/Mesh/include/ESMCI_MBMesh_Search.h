@@ -1,6 +1,6 @@
 // $Id$
 // Earth System Modeling Framework
-// Copyright 2002-2018, University Corporation for Atmospheric Research, 
+// Copyright 2002-2019, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -16,7 +16,7 @@
 #if defined ESMF_MOAB
 
 #include <Mesh/include/ESMCI_OTree.h>
-#include <Mesh/include/ESMCI_SearchFlags.h>
+#include <Mesh/include/Regridding/ESMCI_SearchFlags.h>
 #include <Mesh/include/ESMCI_MBMesh.h>
 
 

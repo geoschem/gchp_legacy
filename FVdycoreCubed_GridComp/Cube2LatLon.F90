@@ -5,9 +5,6 @@ subroutine cube2latlon(npx, npy, nlon, nlat, data_cs, data_ll)
  use ESMF
  use MAPL_Mod, only : MAPL_UNDEF
  use MAPL_IOMod, only : GETFILEUNIT, FREE_FILE
- use MAPL_ConstantsMod, only : pi=> MAPL_PI
- use fv_grid_utils_mod, only : gnomonic_grids
- use fv_grid_tools_mod, only : mirror_grid
  use CUB2LATLON_mod,    only : init_latlon_grid, &
                            read_c2l_weight,  write_c2l_weight,         &
                            new_get_c2l_weight, get_c2l_weight, do_c2l_interpolation_r4

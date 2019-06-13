@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2018, University Corporation for Atmospheric Research, 
+! Copyright 2002-2019, University Corporation for Atmospheric Research, 
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 ! Laboratory, University of Michigan, National Centers for Environmental 
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -47,7 +47,7 @@ module NUOPC_Auxiliary
 !BOP
 ! !IROUTINE: NUOPC_Write - Write a distributed interpolation matrix to file in SCRIP format
 ! !INTERFACE:
-  ! call using generic interface: NUOPC_Write
+  ! Private name; call using NUOPC_Write()
   subroutine NUOPC_SCRIPWrite(factorList, factorIndexList, fileName, &
     relaxedflag, rc)
 ! !ARGUMENTS:
@@ -84,6 +84,7 @@ module NUOPC_Auxiliary
     ! local variables
     logical                 :: ioCapable
     logical                 :: doItFlag
+    integer                 :: localrc
 
     if (present(rc)) rc = ESMF_SUCCESS
     
@@ -96,9 +97,9 @@ module NUOPC_Auxiliary
     
     if (doItFlag) then
       call ESMF_OutputSimpleWeightFile(fileName, factorList, &
-        factorIndexList, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=FILENAME)) return  ! bail out
+        factorIndexList, rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
     endif
     
   end subroutine
@@ -109,7 +110,7 @@ module NUOPC_Auxiliary
 !BOP
 ! !IROUTINE: NUOPC_Write - Write a distributed factorList to file
 ! !INTERFACE:
-  ! call using generic interface: NUOPC_Write
+  ! Private name; call using NUOPC_Write()
   subroutine NUOPC_FactorsWrite(factorList, fileName, rc)
 ! !ARGUMENTS:
     real(ESMF_KIND_R8), pointer               :: factorList(:)
@@ -143,22 +144,23 @@ module NUOPC_Auxiliary
     type(ESMF_VM)                   :: vm
     type(ESMF_DistGrid)             :: dg
     type(ESMF_Array)                :: array
+    integer                         :: localrc
     integer                         :: localPet, petCount
     integer                         :: j
     
     if (present(rc)) rc = ESMF_SUCCESS
     
-    call ESMF_VMGetCurrent(vm, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=FILENAME)) return  ! bail out
-    call ESMF_VMGet(vm, localPet=localPet, petCount=petCount, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=FILENAME)) return  ! bail out
+    call ESMF_VMGetCurrent(vm, rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
+    call ESMF_VMGet(vm, localPet=localPet, petCount=petCount, rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
     allocate(weightsPerPet(petCount))
     call ESMF_VMAllGather(vm, (/size(factorList)/), weightsPerPet, &
-      count=1, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=FILENAME)) return  ! bail out
+      count=1, rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
     allocate(deBlockList(1,2,petCount))
     do j=1, petCount
       if (j==1) then
@@ -171,22 +173,22 @@ module NUOPC_Auxiliary
     enddo
     dg = ESMF_DistGridCreate(minIndex=(/1/), &
       maxIndex=(/deBlockList(1,2,petCount)/), &
-      deBlockList=deBlockList, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=FILENAME)) return  ! bail out
-    array = ESMF_ArrayCreate(dg, factorList, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=FILENAME)) return  ! bail out
+      deBlockList=deBlockList, rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
+    array = ESMF_ArrayCreate(dg, factorList, rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
     call ESMF_ArrayWrite(array, fileName, variableName="weights", &
-      status=ESMF_FILESTATUS_REPLACE, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=FILENAME)) return  ! bail out
-    call ESMF_ArrayDestroy(array, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=FILENAME)) return  ! bail out
-    call ESMF_DistGridDestroy(dg, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=FILENAME)) return  ! bail out
+      status=ESMF_FILESTATUS_REPLACE, rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
+    call ESMF_ArrayDestroy(array, rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
+    call ESMF_DistGridDestroy(dg, rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
     deallocate(weightsPerPet, deBlockList)
     
   end subroutine
@@ -196,7 +198,7 @@ module NUOPC_Auxiliary
 !BOP
 ! !IROUTINE: NUOPC_Write - Write Field data to file
 ! !INTERFACE:
-  ! call using generic interface: NUOPC_Write
+  ! Private name; call using NUOPC_Write()
   subroutine NUOPC_FieldWrite(field, fileName, overwrite, status, timeslice, &
     iofmt, relaxedflag, rc)
 ! !ARGUMENTS:
@@ -250,7 +252,8 @@ module NUOPC_Auxiliary
 !    {\tt ESMF\_IOFMT\_NETCDF}.
 !   \item[{[relaxedflag]}]
 !     If {\tt .true.}, then no error is returned even if the call cannot write
-!     the file due to library limitations. Default is {\tt .false.}.
+!     the file due to library limitations, or because {\tt field} does not 
+!     contain any data. Default is {\tt .false.}.
 !   \item[{[rc]}]
 !     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !   \end{description}
@@ -258,35 +261,47 @@ module NUOPC_Auxiliary
 !EOP
   !-----------------------------------------------------------------------------
     ! local variables
-    character(ESMF_MAXSTR)  :: standardName
-    logical                 :: ioCapable
-    logical                 :: doItFlag
+    character(ESMF_MAXSTR)      :: standardName
+    logical                     :: ioCapable
+    logical                     :: doItFlag
+    integer                     :: localrc
+    type(ESMF_FieldStatus_Flag) :: fieldStatus
 
     if (present(rc)) rc = ESMF_SUCCESS
     
     ioCapable = (ESMF_IO_PIO_PRESENT .and. &
       (ESMF_IO_NETCDF_PRESENT .or. ESMF_IO_PNETCDF_PRESENT))
+      
+    call ESMF_FieldGet(field, status=fieldStatus, rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, &
+      file=FILENAME, &
+      rcToReturn=rc)) &
+      return  ! bail out
     
     doItFlag = .true. ! default
     if (present(relaxedFlag)) then
-      doItFlag = .not.relaxedflag .or. (relaxedflag.and.ioCapable)
+      doItFlag = .not.relaxedflag .or. (relaxedflag.and.ioCapable.and. &
+        (fieldStatus==ESMF_FIELDSTATUS_COMPLETE))
     endif
     
     if (doItFlag) then
       
       call ESMF_AttributeGet(field, name="StandardName", &
-        value=standardName, convention="NUOPC", purpose="Instance", rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        value=standardName, convention="NUOPC", purpose="Instance", rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
-        file=FILENAME)) &
+        file=FILENAME, &
+        rcToReturn=rc)) &
         return  ! bail out
     
       call ESMF_FieldWrite(field, fileName=fileName, &
         variableName=standardName, overwrite=overwrite, status=status, &
-        timeslice=timeslice, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        timeslice=timeslice, rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
-        file=FILENAME)) &
+        file=FILENAME, &
+        rcToReturn=rc)) &
         return  ! bail out
       
     endif
@@ -298,7 +313,7 @@ module NUOPC_Auxiliary
 !BOP
 ! !IROUTINE: NUOPC_Write - Write the Fields within a State to NetCDF files
 ! !INTERFACE:
-  ! call using generic interface: NUOPC_Write
+  ! Private name; call using NUOPC_Write()
   subroutine NUOPC_StateWrite(state, fieldNameList, fileNamePrefix, overwrite, &
     status, timeslice, relaxedflag, rc)
 ! !ARGUMENTS:
@@ -358,11 +373,12 @@ module NUOPC_Auxiliary
 !EOP
   !-----------------------------------------------------------------------------
     ! local variables
+    integer                         :: localrc
     integer                         :: i, itemCount
     type(ESMF_Field)                :: field
     type(ESMF_StateItem_Flag)       :: itemType
-    character(len=80)               :: fileName
-    character(len=80), allocatable  :: fieldNameList_loc(:)
+    character(len=160)              :: fileName
+    character(len=160), allocatable :: fieldNameList_loc(:)
 
     if (present(rc)) rc = ESMF_SUCCESS
 
@@ -372,33 +388,37 @@ module NUOPC_Auxiliary
         fieldNameList_loc(i) = trim(fieldNameList(i))
       enddo
     else
-      call ESMF_StateGet(state, itemCount=itemCount, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      call ESMF_StateGet(state, itemCount=itemCount, rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
-        file=__FILE__)) &
+        file=__FILE__, &
+        rcToReturn=rc)) &
         return  ! bail out
       allocate(fieldNameList_loc(itemCount))
-      call ESMF_StateGet(state, itemNameList=fieldNameList_loc, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      call ESMF_StateGet(state, itemNameList=fieldNameList_loc, rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
-        file=__FILE__)) &
+        file=__FILE__, &
+        rcToReturn=rc)) &
         return  ! bail out
     endif
 
     do i=1, size(fieldNameList_loc)
       call ESMF_StateGet(state, itemName=fieldNameList_loc(i), &
-        itemType=itemType, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        itemType=itemType, rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, &
-        file=FILENAME)) &
+        file=FILENAME, &
+        rcToReturn=rc)) &
         return  ! bail out
       if (itemType == ESMF_STATEITEM_FIELD) then
         ! field is available in the state
         call ESMF_StateGet(state, itemName=fieldNameList_loc(i), field=field, &
-          rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          rc=localrc)
+        if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
           line=__LINE__, &
-          file=FILENAME)) &
+          file=FILENAME, &
+          rcToReturn=rc)) &
           return  ! bail out
         ! -> output to file
         if (present(fileNamePrefix)) then
@@ -408,11 +428,12 @@ module NUOPC_Auxiliary
         endif
         call NUOPC_FieldWrite(field, fileName=trim(fileName), &
           overwrite=overwrite, status=status, timeslice=timeslice, &
-          relaxedflag=relaxedflag, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg="Failed writing file: "// &
+          relaxedflag=relaxedflag, rc=localrc)
+        if (ESMF_LogFoundError(rcToCheck=localrc, msg="Failed writing file: "// &
           trim(fileName), &
           line=__LINE__, &
-          file=FILENAME)) &
+          file=FILENAME, &
+          rcToReturn=rc)) &
           return  ! bail out
       endif
     enddo

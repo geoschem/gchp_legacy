@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2018, University Corporation for Atmospheric Research,
+// Copyright 2002-2019, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -9,20 +9,20 @@
 // Licensed under the University of Illinois-NCSA License.
 //
 //==============================================================================
-#include <Mesh/include/ESMCI_Interp.h>
-#include <Mesh/include/ESMCI_Exception.h>
-#include <Mesh/include/ESMCI_MEValues.h>
-#include <Mesh/include/ESMCI_PatchRecovery.h>
-#include <Mesh/include/ESMCI_MeshField.h>
-#include <Mesh/include/ESMCI_CommRel.h>
-#include <Mesh/include/ESMCI_MeshOBjConn.h>
-#include <Mesh/include/ESMCI_MeshObj.h>
-#include <Mesh/include/ESMCI_MeshUtils.h>
-#include <Mesh/include/ESMCI_ConserveInterp.h>
-#include <Mesh/include/ESMCI_Sintdnode.h>
-#include <Mesh/include/ESMCI_MeshVTK.h>
+#include <Mesh/include/Regridding/ESMCI_Interp.h>
+#include <Mesh/include/Legacy/ESMCI_Exception.h>
+#include <Mesh/include/Legacy/ESMCI_MEValues.h>
+#include <Mesh/include/Regridding/ESMCI_PatchRecovery.h>
+#include <Mesh/include/Legacy/ESMCI_MeshField.h>
+#include <Mesh/include/Legacy/ESMCI_CommRel.h>
+#include <Mesh/include/Legacy/ESMCI_MeshObjConn.h>
+#include <Mesh/include/Legacy/ESMCI_MeshObj.h>
+#include <Mesh/include/Legacy/ESMCI_MeshUtils.h>
+#include <Mesh/include/Regridding/ESMCI_ConserveInterp.h>
+#include <Mesh/include/Legacy/ESMCI_Sintdnode.h>
+#include <Mesh/include/Legacy/ESMCI_MeshVTK.h>
 #include <Mesh/include/ESMCI_XGridUtil.h>
-#include <Mesh/include/ESMCI_MeshRegrid.h>
+#include <Mesh/include/Regridding/ESMCI_MeshRegrid.h>
 #include <Mesh/include/ESMCI_MathUtil.h>
 
 #include <cassert>
@@ -714,7 +714,7 @@ int weiler_clip_difference(int pdim, int sdim, int num_p, double *p, int num_q, 
     return 0;
   }
 
-  if(false){ // Check if the two polygons are the same
+  if(true){ // Check if the two polygons are the same
     // The number of p and q points have to be the same
     if(num_p == num_q ) {
       // 1. Find the two points on p and q with smallest arc length distance
@@ -1227,6 +1227,7 @@ void compute_midmesh(std::vector<sintd_node *> & sintd_nodes, std::vector<sintd_
   Mesh & meshmid = *midmesh;
   meshmid.set_parametric_dimension(pdim);
   meshmid.set_spatial_dimension(sdim);
+  meshmid.orig_spatial_dim=pdim;
   int rc;
   int me = VM::getCurrent(&rc)->getLocalPet();
 
@@ -1585,6 +1586,8 @@ int online_regrid_xgrid(Mesh &srcmesh, Mesh &dstmesh, Mesh * midmesh, IWeights &
   bool tmp_set_dst_status=false;
   int tmpExtrapMethod=0;
   int tmpExtrapNumSrcPnts=1;
+  int tmpExtrapNumLevels=1;
+  int tmpExtrapNumInputLevels=1;
   ESMC_R8 tmpExtrapDistExponent=2.0;
   IWeights tmp_dst_status;
 //WriteVTKMesh(srcmesh, "srcmesh");
@@ -1594,6 +1597,8 @@ int online_regrid_xgrid(Mesh &srcmesh, Mesh &dstmesh, Mesh * midmesh, IWeights &
               &tmpExtrapMethod,
               &tmpExtrapNumSrcPnts,
               &tmpExtrapDistExponent,
+              &tmpExtrapNumLevels,
+              &tmpExtrapNumInputLevels,
               unmappedaction,
               tmp_set_dst_status, tmp_dst_status))
     Throw() << "Regridding error" << std::endl;
@@ -1815,7 +1820,11 @@ return acos(v);
 }
 // arc length = arc angle * radius = arc angle * 1 = arccos(v1.v2)
 double gcdistance(double * v1, double * v2){
-  return acos(dot(xvector(v1, 3), xvector(v2, 3)));
+  double dotprod = dot(xvector(v1, 3), xvector(v2, 3));
+  // Work around spurious floating point result
+  if(std::abs(dotprod) > 1.01) Throw() << "Dot product from two unit vectors exceeded 1. by 1%\n";
+  if(std::abs(dotprod) > 1) return 0;
+  return acos(dotprod);
 }
 
 bool intersect_line_with_line(const double *p1, const double *p2, const double *q1, const double *q2, double * result, bool * coincident,

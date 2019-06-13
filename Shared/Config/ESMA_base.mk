@@ -11,7 +11,8 @@
 # 26apr2005  da Silva  MADE BOPT=O the default
 # 08Jun2006  Stassi    Added Check Environment section
 # 26Jun2006  da SIlva  Removed Assert.pl related staff; see Assert.mk instead
-# 20 Nov 2014 - R. Yantosca - Remove hardwiring for netCDF, MPI
+# 17Aug2012  Purnendu  Added PDFLATEX, MKINDX; flags -b -f to PROTEX_FLAGS
+#
 #--------------------------------------------------------------------------
 
 #                       ----------------
@@ -32,12 +33,16 @@ endif
 ifndef NODE             # same as SITE name, except sometimes SITE comes predefined
   NODE := $(shell uname -n)
 endif
-#ifndef BPREC
-#  BPREC := 64#  Build with "-r8"
-#endif
-ifndef BPREC            #  Build with "-r4"
-  BPREC := 32
+ifndef BPREC
+  # Change for GCHP
+  #BPREC := 64#  Build with "-r8"
+  BPREC := 32 #  Build with "-r4"
 endif
+
+# Comment out for GCHP: use REAL8
+#ifndef FV_PRECISION #  Toggle build precision for FV3. Set to R4 for single precision
+#  FV_PRECISION := R4
+#endif
 
 #                       ----------------
 #                       Main Directories
@@ -45,22 +50,32 @@ endif
 
 # Installation Directories
 # ------------------------
+  # Change for GCHP
+  #ESMABIN = $(ESMADIR)/$(ARCH)/bin
   ESMABIN = $(ESMADIR)/Config/bin
+  #---
+
   ESMALIB = $(ESMADIR)/$(ARCH)/lib
   ESMAINC = $(ESMADIR)/$(ARCH)/include
   ESMAMOD = $(ESMADIR)/$(ARCH)/include
   ESMAETC = $(ESMADIR)/$(ARCH)/etc
   ESMADOC = $(ESMADIR)/$(ARCH)/doc
-  ESMACFG = $(ESMADIR)/$(ARCH)/Config
+
+  # Change for GCHP
+  #ESMACFG = $(ESMADIR)/$(ARCH)/Config
+  ESMACFG = $(ESMADIR)/Config
+  #---
+
   ESMATST = $(ESMAETC)/testsuites
+  ESMAWFL = $(ESMADIR)/$(ARCH)/workflow
 
 # Base Libraries and utilities
 # ----------------------------
-  BASEBIN = $(ESMADIR)/$(ARCH)/bin
-  BASELIB = $(ESMADIR)/$(ARCH)/lib
-  BASEINC = $(ESMADIR)/$(ARCH)/include
-  BASEMOD = $(ESMADIR)/$(ARCH)/include
-  BASEETC = $(ESMADIR)/$(ARCH)/etc
+  BASEBIN = $(BASEDIR)/$(ARCH)/bin
+  BASELIB = $(BASEDIR)/$(ARCH)/lib
+  BASEINC = $(BASEDIR)/$(ARCH)/include
+  BASEMOD = $(BASEDIR)/$(ARCH)/include
+  BASEETC = $(BASEDIR)/$(ARCH)/etc
 
 #                       ----------
 #                       Utilities
@@ -77,19 +92,26 @@ MAKE        = gmake
 MKDIR       = /bin/mkdir -p
 PERL        = /usr/bin/perl
 RANLIB      = /usr/bin/ranlib
+RANLIB_FLAGS= 
 RM          = /bin/rm -f
-SED         = /bin/sed                       
+SED         = sed                       
 TAR         = /bin/tar
 GZIP        = gzip -v
 BOPT        = O
 M4          = m4
-FDP         = $(ESMABIN)/fdp
+
+# Change for GCHP
+#FDP         = $(ESMABIN)/fdp
+FDP         = $(ESMACFG)/fdp
+#---
+
 FDP_FLAGS   = -v
 STUB        = $(ESMABIN)/mapl_stub.pl
 ACG         = $(ESMABIN)/mapl_acg.pl 
 ACG_FLAGS   = -v
 F90SPLIT    = $(ESMABIN)/f90split.x  # split f90 file by procedure
 F90AIB      = $(ESMABIN)/f90aib.x    # automatic interface block
+USE_F2PY    = no     # Toggle usage of python fortran extension builder
 F2PY        = f2py   # python fortran extension builder
 DLLEXT      = so     # extension for shared libraries
 F2PYEXT     = so     # extension for python extensions
@@ -101,7 +123,7 @@ F2PYEXT     = so     # extension for python extensions
 PROTEX       = $(ESMABIN)/protex
 PROTEX_FLAGS = -g -b -f
 LATEX        = latex
-PDFLATEX     = pdflatex
+PDFLATEX     = pdflatex -interaction=batchmode
 MKINDX       = makeindex
 DVIPS        = dvips -Ppdf -G0 -f 
 PS2PDF       = ps2pdf
@@ -120,52 +142,38 @@ ESMA_TIMER_CO  = # command to end   timer (for user to backet code segments)
 #                         Libraries
 #                     -----------------
 
+INC_SCI =
 LIB_SCI =
+
+INC_SYS =
 LIB_SYS =
 
-###############################################################################
-# %%%%% COMMENTED OUT BY BOB Y. (11/20/14) %%%%%
-#
-# We will get the netCDF include & lib paths from GC_INCLUDE and GC_LIB
-# which are set in the GEOS-Chem Makefile_header.mk 
-#DIR_HDF5 = $(GC_BIN)
-#INC_HDF5 = $(DIR_HDF5)/../include
-#LIB_HDF5 = $(wildcard $(foreach lib,hdf5_hl hdf5 z sz gpfs,\
+# Change for GCHP
+#DIR_HDF5 = $(BASEDIR)/$(ARCH)
+#INC_HDF5 = $(DIR_HDF5)/include/hdf5
+#LIB_HDF5 = $(wildcard $(foreach lib,hdf5hl_fortran hdf5_hl hdf5_fortran hdf5 z sz gpfs,\
 #           $(BASELIB)/lib$(lib).a) )
 #
-#DIR_NETCDF = $(GC_BIN)
-##./$(ARCH)
-#INC_NETCDF = $(GC_INCLUDE)
-##$(DIR_NETCDF)/../include
-##ifeq ($(wildcard $(BASEBIN)/nc-config), )
-##    LIB_NETCDF = $(BASELIB)/libnetcdf.a $(LIB_HDF5)
-##else
-#    LIB_NETCDF := $(shell $(GC_BIN)/nc-config --flibs)
-##endif
-#
-##	LIB_NETCDF = -L$(GC_LIB)
-##$(NCL)
-###############################################################################
-#------------------------------------------------------------------------------
-# %%%%% ADDED BY BOB Y. (11/20/14) %%%%%
-#
-# Always assume we are using netCDF-4.  Take the include & link
-# directory paths as computed from the Makefile_header.mk.
+#DIR_NETCDF = $(BASEDIR)/$(ARCH)
+#INC_NETCDF = $(DIR_NETCDF)/include/netcdf
+#ifneq ($(wildcard $(BASEBIN)/nf-config), )
+#    LIB_NETCDF := $(shell $(BASEBIN)/nf-config --flibs)
+#else
+#  ifneq ($(wildcard $(BASEBIN)/nc-config), )
+#      LIB_NETCDF := $(shell $(BASEBIN)/nc-config --flibs)
+#  else
+#      LIB_NETCDF = $(BASELIB)/libnetcdf.a $(LIB_HDF5)
+#  endif
+#endif
 INC_NETCDF :=$(GC_INCLUDE)
 ifdef GC_F_INCLUDE
    INC_NETCDF +=$(GC_F_INCLUDE)
 endif
 LIB_NETCDF :=$(NCL)
-#------------------------------------------------------------------------------
+#---
 
-###############################################################################
-# %%%%% COMMENTED OUT BY BOB Y. (11/20/14) %%%%%
-#
-# COMMENTED OUT BY BOB Y. (11/20/14)
-# We know that we are using netCDF for the data I/O, so we can skip
-# all of this HDF stuff.
-#DIR_HDF = $(GC_BIN)
-##./$(ARCH)
+# Change for GCHP
+#DIR_HDF = $(BASEDIR)/$(ARCH)
 #INC_HDF = $(DIR_HDF)/include/hdf
 #LIB_HDF = $(wildcard $(foreach lib,mfhdf df hdfjpeg jpeg hdfz z sz,\
 #          $(BASELIB)/lib$(lib).a) )
@@ -183,66 +191,62 @@ LIB_NETCDF :=$(NCL)
 #     ifneq ($(shell grep -c 'netcdf version 3' $(INC_SDF)/netcdf.inc),0)
 #        DEF_SDF += $(D)HAS_NETCDF3
 #     endif
-##     ifneq ($(shell grep -c 'define H5_HAVE_PARALLEL 1' $(INC_HDF5)/H5pubconf.h),0)
-##        DEF_SDF += $(D)H5_HAVE_PARALLEL
-##     endif
+#     ifneq ($(shell grep -c 'define H5_HAVE_PARALLEL 1' $(INC_HDF5)/H5pubconf.h),0)
+#        DEF_SDF += $(D)H5_HAVE_PARALLEL
+#        F2PY_FLAGS += --f77exec=$(FC) --f90exec=$(FC)
+#     endif
+#     ifneq ($(wildcard $(INC_SDF)/netcdf_par.h), )
+#        DEF_SDF += $(D)NETCDF_NEED_NF_MPIIO
+#     endif
 #   endif
 #endif
-###############################################################################
-#------------------------------------------------------------------------------
-# %%%%% ADDED BY BOB Y. (11/20/14) %%%%%
-#
-# Always assume we are using netCDF-4 (bmy, 11/20/14)
 INC_SDF = $(INC_NETCDF)
 LIB_SDF = $(LIB_NETCDF)
 DEF_SDF += $(D)HAS_NETCDF4 
 DEF_SDF += $(D)H5_HAVE_PARALLEL
-#DEF_SDF += $(D)NETCDF_NEED_NF_MPIIO
-#------------------------------------------------------------------------------
 
-DIR_ESMF := $(ESMF_DIR)
-INC_ESMF := $(DIR_ESMF)/$(ARCH)/include/ 
-MOD_ESMF := $(DIR_ESMF)/$(ARCH)/mod/
-LIB_ESMF := $(DIR_ESMF)/$(ARCH)/lib/libesmf.so
+ifeq ($(F2PY),f2py)
+ F2PY += $(F2PY_FLAGS)
+endif
 
-###############################################################################
-# %%%%% COMMENTED OUT BY BOB Y. (11/20/14) %%%%%
-#
-# Don't rely on hardwired MPI paths & libraries.
+LIB_GCTP   = $(BASELIB)/libGctp.a
+LIB_HDFEOS = $(BASELIB)/libhdfeos.a
+LIB_EOS    = $(LIB_HDFEOS) $(LIB_GCTP)
+
+# Change for GCHP
+#DIR_ESMF = $(BASEDIR)
+#INC_ESMF = $(DIR_ESMF)/$(ARCH)/include/esmf
+#MOD_ESMF = $(DIR_ESMF)/$(ARCH)/include/esmf
+#LIB_ESMF = $(DIR_ESMF)/$(ARCH)/lib/libesmf.a
+DIR_ESMF = $(ESMF_DIR)
+INC_ESMF = $(DIR_ESMF)/$(ARCH)/include/
+MOD_ESMF = $(DIR_ESMF)/$(ARCH)/mod/
+LIB_ESMF = $(DIR_ESMF)/$(ARCH)/lib/libesmf.so
+#---
+
+# Remove for GCHP; see mpi.mk
 #INC_MPI = /usr/include
 #LIB_MPI = -lmpi
-###############################################################################
-#------------------------------------------------------------------------------
-# %%%%% ADDED BY BOB Y. (11/20/14) %%%%%
-#
-# Now query for the correct MPI info (bmy, 11/20/14)
-	FC := mpif90
-        ifeq ($(ESMF_COMM),mvapich2)
-           INC_MPI := $(MPI_ROOT)/include
-           LIB_MPI := -L$(MPI_ROOT)/lib  -lmpich
-        else ifeq ($(ESMF_COMM),mpich)
-           INC_MPI := $(MPI_ROOT)/include
-           LIB_MPI := -L$(MPI_ROOT)/lib  -lmpich
-        else ifeq ($(ESMF_COMM),mpich2)
-           INC_MPI := $(MPI_ROOT)/include
-           LIB_MPI := -L$(MPI_ROOT)/lib  -lmpich
-        else ifeq ($(ESMF_COMM),openmpi)
-           INC_MPI := $(shell mpif90 --showme:incdirs)
-           LIB_MPI := $(shell mpif90 --showme:link)
-           LIB_MPI += $(shell mpicxx --showme:link)
-        else ifeq ($(ESMF_COMM),mpi)
-           # Generic MPI
-           INC_MPI := $(MPI_ROOT)/include
-           LIB_MPI := -L$(MPI_ROOT)/lib  -lmpi -lmpi++
-        else
-           $(error Bad ESMF_COMM in ESMA_base.mk)
-        endif
-#------------------------------------------------------------------------------
-
+#---
 
 DIR_THIS := $(shell basename `pwd`)
 INC_THIS = $(ESMAINC)/$(DIR_THIS)
 LIB_THIS = $(ESMALIB)/lib$(DIR_THIS).a
+
+# Change for GCHP
+#INC_gFTL = $(BASEDIR)/$(ARCH)/gFTL/include
+INC_gFTL = $(gFTL)/include
+#---
+
+# Comment out for GCHP
+#INC_FLAP = $(BASEDIR)/$(ARCH)/include/FLAP
+#LIB_FLAP = $(BASEDIR)/$(ARCH)/lib/libflap.a
+
+# This lines control linking in the Allinea 
+# profiling libraries. By default, they are not linked in.
+
+DOING_APROF = no
+LIB_APROF = 
 
 #                     -----------------------
 #                     C Compiler/Loader Flags
@@ -266,7 +270,10 @@ endif
 CC        = gcc
 CXX       = g++
 CPP       = cpp
+
+# Add for GCHP
 PP        = -$(CPP)
+#---
 
 CFLAGS    = $(CDEFS) $(CINCS) $(COPT) $(USER_CFLAGS)
 CXXFLAGS  = $(CDEFS) $(CINCS) $(COPT) $(USER_CFLAGS)
@@ -298,6 +305,12 @@ BIG_ENDIAN  =
 BYTERECLEN  =
 OMPFLAG     =
 FREAL4      = 
+
+# Remove for GCHP
+#FREAL8      = -r8
+#---
+
+# Add for GCHP
 ifeq ("$(ESMF_COMPILER)","intel")
   FREAL8      = -r8
   FREE        =
@@ -311,6 +324,8 @@ else
   FREE        =
   CPPANSIX    = -ansi -DANSI_CPP 
 endif
+#---
+
 ifeq ( "$(BPREC)","32" )
       FREAL = $(FREAL4)
 else
@@ -320,16 +335,28 @@ FINT4       =
 FINT8       = -i8
 FINT        = $(FINT4)
 
+ifdef FDEF1
+      USER_FDEFS += $(D)$(FDEF1)
+endif
+
 FDEFS     = $(D)sys$(ARCH) $(D)ESMA$(BPREC) $(DEF_SDF) $(USER_FDEFS)
 FINCS     = $(foreach dir,$(INC_ESMF), $(I)$(dir)) $(USER_FINCS)
+
+# Change for GCHP
+#FMODS     = $(foreach dir,$(INC_ESMF), $(M)$(dir)) $(USER_FMODS)
 FMODS     = $(foreach dir,$(MOD_ESMF), $(M)$(dir)) $(USER_FMODS)
+#---
+
 XFLAGS    = 
 
+# Remove for GCHP
 #FC        = f90
+#---
+
 fFLAGS    = $(FDEFS) $(FINCS) $(FMODS) $(FOPT) $(FREAL) $(FINT) $(XFLAGS) $(USER_FFLAGS)
-f90FLAGS  = $(FDEFS) $(FINCS) $(FMODS) $(FOPT) $(FREAL) $(FINT) $(XFLAGS) $(USER_FFLAGS) $(FREE)
+f90FLAGS  = $(FDEFS) $(FINCS) $(FMODS) $(FOPT) $(FREAL) $(FINT) $(XFLAGS) $(USER_FFLAGS)
 FFLAGS    = $(FDEFS) $(FINCS) $(FMODS) $(FOPT) $(FREAL) $(FINT) $(XFLAGS) $(USER_FFLAGS)
-F90FLAGS  = $(FDEFS) $(FINCS) $(FMODS) $(FOPT) $(FREAL) $(FINT) $(XFLAGS) $(USER_FFLAGS) $(FREE)
+F90FLAGS  = $(FDEFS) $(FINCS) $(FMODS) $(FOPT) $(FREAL) $(FINT) $(XFLAGS) $(USER_FFLAGS)
 
 FPP = /lib/cpp 
 FPPFLAGS = -P $(DC)sys$(ARCH) $(FDEFS) $(FINCS) $(foreach dir,$(INC_MPI), $(I)$(dir))
@@ -343,7 +370,7 @@ LDFLAGS = $(LDPATH) $(USER_LDFLAGS)
 #                     -----------------
 
 .SUFFIXES:
-.SUFFIXES: .P90 .m4 .F90 .f90 .F .f .c .o .H .h .d .tex .dvi .pdf 
+.SUFFIXES: .m4 .F90 .f90 .F .f .c .o .H .h .d .tex .dvi .pdf 
 
 .c.o:
 	$(ESMA_TIMER) $(CC) -c $(CFLAGS) $<
@@ -362,11 +389,6 @@ LDFLAGS = $(LDPATH) $(USER_LDFLAGS)
 
 .F90.o:
 	$(ESMA_TIMER) $(FC) -c $(F90FLAGS) $<
-
-.P90.o:
-	@sed -e "/\!.*'/s/'//g" $< | $(CPP) $(CPPANSIX) $(FPPFLAGS) > $*___.f90
-	$(ESMA_TIMER) $(FC) -c $(f90FLAGS) -o $*.o $*___.f90
-	@$(RM) $*___.f90
 
 .H.h:
 	$(FPP) $(FPPFLAGS) $*.H > $*.h
@@ -394,9 +416,6 @@ LDFLAGS = $(LDPATH) $(USER_LDFLAGS)
 	-@$(CPP) $(FPPFLAGS) $< > $*___.f90
 	@$(PERL) $(FDP) -i $< $(FDP_FLAGS) -c $*___.f90
 	@$(RM) $*___.f90
-
-.P90.d:
-	@$(PERL) $(FDP) -i $< $(FDP_FLAGS) -c $<
 
 .m4.d:
 	$(M4) $(M4FLAGS) $*.m4 > $*___.F90

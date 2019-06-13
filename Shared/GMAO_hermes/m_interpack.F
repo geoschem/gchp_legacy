@@ -28,6 +28,7 @@
 !EOI
 !-------------------------------------------------------------------------
 
+      use, intrinsic :: iso_fortran_env, only: REAL32, REAL64
       implicit none
       
       private
@@ -57,19 +58,19 @@
       integer, intent(in)    :: im1, jm1, km1    ! dim of input vector
       integer, intent(in)    :: im2, jm2, km2    ! dim to interpolate to
       integer, intent(out)   :: rc
-      real(4), intent(in)    ::    f(im1,jm1,km1)
-      real(4), intent(inout) :: fint(im2,jm2,km2)
-      real(4), intent(in), optional :: lon0
-      real(4), intent(in), optional :: fill
+      real(kind=REAL32), intent(in)    ::    f(im1,jm1,km1)
+      real(kind=REAL32), intent(inout) :: fint(im2,jm2,km2)
+      real(kind=REAL32), intent(in), optional :: lon0
+      real(kind=REAL32), intent(in), optional :: fill
 
-      real(8) ::  f_r8(im1,jm1,km1)
-      real(8) :: fint_r8(im2,jm2,km2)
+      real(kind=REAL64) ::  f_r8(im1,jm1,km1)
+      real(kind=REAL64) :: fint_r8(im2,jm2,km2)
 
       f_r8 = f
       fint_r8 = fint
 
       call terpv3d_ ( im1, jm1, km1, f_r8, im2, jm2, km2, fint_r8, rc,
-     &                real(lon0,8), real(fill,8) ) ! optionals
+     &                real(lon0,REAL64), real(fill,REAL64) ) ! optionals
 
       fint = fint_r8
 
@@ -110,8 +111,8 @@
 
       integer, intent(in)    :: im1, jm1     ! dim of input vector
       integer, intent(in)    :: im2, jm2     ! dim to interpolate to
-      real(4), intent(in)    ::    f(im1,jm1)
-      real(4), intent(inout) :: fint(im2,jm2)
+      real(kind=REAL32), intent(in)    ::    f(im1,jm1)
+      real(kind=REAL32), intent(inout) :: fint(im2,jm2)
       real, intent(in), optional :: lon0
       real, intent(in), optional :: fill
 

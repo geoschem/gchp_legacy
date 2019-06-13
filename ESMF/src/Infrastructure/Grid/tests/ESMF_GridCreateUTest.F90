@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2018, University Corporation for Atmospheric Research,
+! Copyright 2002-2019, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -257,19 +257,105 @@ program ESMF_GridCreateUTest
 
   !-----------------------------------------------------------------------------
   !NEX_UTest
-  write(name, *) "Grid creation from file with default RegDecomp Test"
+  write(name, *) "Grid creation from file ESMF_FILEFORMAT_SCRIP with default regDecomp Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
-  grid=ESMF_GridCreate('data/T42_grid.nc',ESMF_FILEFORMAT_SCRIP,rc=localrc)
-  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+
+  grid=ESMF_GridCreate('data/T42_grid.nc',ESMF_FILEFORMAT_SCRIP,rc=rc)
+#ifdef ESMF_NETCDF
+  call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+#else
+  write(failMsg, *) "Did not return ESMF_RC_LIB_NOT_PRESENT"
+  call ESMF_Test((rc==ESMF_RC_LIB_NOT_PRESENT), name, failMsg, result, ESMF_SRCLINE) 
+#endif
 
   !-----------------------------------------------------------------------------
   !NEX_UTest
-  write(name, *) "Grid creation from file with non-default RegDecomp Test"
+  write(name, *) "Grid creation from file ESMF_FILEFORMAT_SCRIP with custom regDecomp Test"
   write(failMsg, *) "Did not return ESMF_SUCCESS"
 
   grid=ESMF_GridCreate('data/T42_grid.nc',ESMF_FILEFORMAT_SCRIP, &
-    regDecomp=(/2,2/), rc=localrc)
-  call ESMF_Test((rc.eq.ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+    regDecomp=(/2,2/), rc=rc)
+  if (petCount==1) then
+    write(failMsg, *) "Did not return ESMF failure RC"
+    call ESMF_Test((rc/=ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  else
+#ifdef ESMF_NETCDF
+    call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+#else
+    write(failMsg, *) "Did not return ESMF_RC_LIB_NOT_PRESENT"
+    call ESMF_Test((rc==ESMF_RC_LIB_NOT_PRESENT), name, failMsg, result, ESMF_SRCLINE) 
+#endif
+  endif
+
+  !-----------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Grid creation from file ESMF_FILEFORMAT_SCRIP with custom regDecomp < petCount Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+
+  grid=ESMF_GridCreate('data/T42_grid.nc',ESMF_FILEFORMAT_SCRIP, &
+    regDecomp=(/2,2/), rc=rc)
+  if (petCount==1) then
+    write(failMsg, *) "Did not return ESMF failure RC"
+    call ESMF_Test((rc/=ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  else
+#ifdef ESMF_NETCDF
+    call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+#else
+    write(failMsg, *) "Did not return ESMF_RC_LIB_NOT_PRESENT"
+    call ESMF_Test((rc==ESMF_RC_LIB_NOT_PRESENT), name, failMsg, result, ESMF_SRCLINE) 
+#endif
+  endif
+
+  !-----------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Grid creation from file ESMF_FILEFORMAT_GRIDSPEC with default regDecomp Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+
+  grid=ESMF_GridCreate('data/horizontal_grid.tile6.nc', ESMF_FILEFORMAT_GRIDSPEC, rc=rc)
+#ifdef ESMF_NETCDF
+  call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+#else
+  write(failMsg, *) "Did not return ESMF_RC_LIB_NOT_PRESENT"
+  call ESMF_Test((rc==ESMF_RC_LIB_NOT_PRESENT), name, failMsg, result, ESMF_SRCLINE) 
+#endif
+
+  !-----------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Grid creation from file ESMF_FILEFORMAT_GRIDSPEC with custom regDecomp Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+
+  grid=ESMF_GridCreate('data/horizontal_grid.tile6.nc', &
+    ESMF_FILEFORMAT_GRIDSPEC, regDecomp=(/2,2/), rc=rc)
+  if (petCount==1) then
+    write(failMsg, *) "Did not return ESMF failure RC"
+    call ESMF_Test((rc/=ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  else
+#ifdef ESMF_NETCDF
+    call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+#else
+    write(failMsg, *) "Did not return ESMF_RC_LIB_NOT_PRESENT"
+    call ESMF_Test((rc==ESMF_RC_LIB_NOT_PRESENT), name, failMsg, result, ESMF_SRCLINE) 
+#endif
+  endif
+
+  !-----------------------------------------------------------------------------
+  !NEX_UTest
+  write(name, *) "Grid creation from file ESMF_FILEFORMAT_GRIDSPEC with custom regDecomp < petCount Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+
+  grid=ESMF_GridCreate('data/horizontal_grid.tile6.nc', &
+    ESMF_FILEFORMAT_GRIDSPEC, regDecomp=(/2,1/), rc=rc)
+  if (petCount==1) then
+    write(failMsg, *) "Did not return ESMF failure RC"
+    call ESMF_Test((rc/=ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  else
+#ifdef ESMF_NETCDF
+    call ESMF_Test((rc==ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+#else
+    write(failMsg, *) "Did not return ESMF_RC_LIB_NOT_PRESENT"
+    call ESMF_Test((rc==ESMF_RC_LIB_NOT_PRESENT), name, failMsg, result, ESMF_SRCLINE) 
+#endif
+  endif
 
   !-----------------------------------------------------------------------------
   !NEX_UTest

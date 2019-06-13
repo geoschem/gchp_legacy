@@ -1,10 +1,11 @@
 
 module gaussian_topog_mod
 
-! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">
+! <CONTACT EMAIL="Bruce.Wyman@noaa.gov">
 !   Bruce Wyman
 ! </CONTACT>
 
+! <HISTORY SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/"/>
 
 ! <OVERVIEW>
 !   Routines for creating Gaussian-shaped land surface topography
@@ -72,8 +73,8 @@ public :: gaussian_topog_init, get_gaussian_topog
 
 !-----------------------------------------------------------------------
 
-character(len=128) :: version = '$Id$'
-character(len=128) :: tagname = '$Name$'
+! Include variable "version" to be written to log file.
+#include<file_version.h>
 
 logical :: do_nml = .true.
 logical :: module_is_initialized = .FALSE.
@@ -119,7 +120,7 @@ real, intent(out) :: zsurf(:,:)
 integer :: n
 
   if (.not.module_is_initialized) then
-     call write_version_number( version, tagname )
+     call write_version_number("GAUSSIAN_TOPOG_MOD", version)
   endif
 
   if(any(shape(zsurf) /= (/size(lon(:)),size(lat(:))/))) then
@@ -249,6 +250,7 @@ subroutine read_namelist
 
 #ifdef INTERNAL_FILE_NML
       read (input_nml_file, gaussian_topog_nml, iostat=io)
+      ierr = check_nml_error(io,'gaussian_topog_nml')
 #else
    if ( file_exist('input.nml')) then
       unit = open_namelist_file ( )

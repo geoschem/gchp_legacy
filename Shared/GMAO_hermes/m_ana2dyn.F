@@ -1,3 +1,4 @@
+#include "unused_dummy.H"
 !-------------------------------------------------------------------------
 !         NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
 !-------------------------------------------------------------------------
@@ -187,8 +188,14 @@
       real, parameter :: pt_min = 1. ! min allowable pt value
       real, allocatable ::  pk(:,:,:)
       integer i, j, k, lm, ios, rcs
-      real    pktmp
       logical sbc
+
+      _UNUSED_DUMMY(glat)
+      _UNUSED_DUMMY(glon)
+      _UNUSED_DUMMY(ilat)
+      _UNUSED_DUMMY(ilon)
+      _UNUSED_DUMMY(ilvm)
+      _UNUSED_DUMMY(ilve)
 
       sbc = .false.
       if ( present(b_f) ) sbc = .true.
@@ -420,7 +427,7 @@
       real :: du(im,jm)
       real :: w1d(im)
 
-      integer i, j, k, ios
+      integer i, j, k
       real  dq, qf, cp, gcp
       real*8 asouth, anorth          ! polar values
 

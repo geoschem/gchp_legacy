@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2018, University Corporation for Atmospheric Research,
+// Copyright 2002-2019, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -3056,8 +3056,8 @@ void c_esmc_grid_get_from_proto(ESMCI::Grid **_grid,
 
     // Check if Grids match
     bool match=ESMCI::Grid::match(*ptr1,*ptr2, &localrc);
-    ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
-                  ESMC_CONTEXT, ESMC_NOT_PRESENT_FILTER(rc));
+    if (ESMC_LogDefault.MsgFoundError(localrc, ESMCI_ERR_PASSTHRU,
+                  ESMC_CONTEXT, ESMC_NOT_PRESENT_FILTER(rc))) return;
 
     // Return result
     if (match) *matchResult=1;

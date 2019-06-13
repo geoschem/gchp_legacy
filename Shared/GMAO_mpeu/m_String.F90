@@ -1,3 +1,4 @@
+#include "unused_dummy.H"
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 !       NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
 !BOP -------------------------------------------------------------------
@@ -463,6 +464,7 @@ end subroutine bcast_
 
   character(len=*),parameter :: myname_=myname//'::mci0_'
 
+  _UNUSED_DUMMY(marg)
   call mall_ci(1,thread)
 
 end subroutine mci0_
@@ -490,6 +492,7 @@ end subroutine mci0_
 
   character(len=*),parameter :: myname_=myname//'::mco0_'
 
+  _UNUSED_DUMMY(marg)
   call mall_co(1,thread)
 
 end subroutine mco0_

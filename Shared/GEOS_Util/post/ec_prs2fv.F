@@ -1,5 +1,6 @@
       program  main
       use MAPL_ConstantsMod
+      use m_set_eta, only: set_eta 
       implicit none
 
 c **********************************************************************
@@ -11,7 +12,7 @@ c **********************************************************************
 c **********************************************************************
 
       integer  im,jm,lm
-      real     pbelow,pabove,ptop
+      real     pbelow,pabove,ptop,pint
       real     rgas,eps,rvap
 
       real dum
@@ -32,7 +33,7 @@ c **********************************************************************
 
 c Set analysis, fvdas, date and time
 c ----------------------------------
-      character*2  clm,cnhms
+      character*2  cnhms
       character*8  cnymd
 
       character*256 dynrst,  mstrst, prsdata, topog, tag, ext
@@ -51,10 +52,8 @@ c -----------------------------------
       real, allocatable ::   dp(:,:,:)
       real, allocatable ::   pl(:,:,:)
       real, allocatable ::  ple(:,:,:)
-      real, allocatable ::   er(:,:,:)
       real, allocatable ::    u(:,:,:), ud(:,:,:)
       real, allocatable ::    v(:,:,:), vd(:,:,:)
-      real, allocatable ::   tv(:,:,:)
       real, allocatable ::   th(:,:,:)
       real, allocatable ::  thv(:,:,:)
       real, allocatable ::  pke(:,:,:)
@@ -84,14 +83,12 @@ c -----------------------------------
 c Analysis variables
 c ------------------
       real, allocatable :: phis_ana(:,:)
-      real, allocatable ::  slp_ana(:,:)
       real, allocatable ::   ps_ana(:,:)
       real, allocatable ::    u_ana(:,:,:)
       real, allocatable ::    v_ana(:,:,:)
       real, allocatable ::    z_ana(:,:,:)
       real, allocatable ::   er_ana(:,:,:)
       real, allocatable ::    q_ana(:,:,:)
-      real, allocatable ::   rh_ana(:,:,:)
       real, allocatable ::    p_ana(:,:,:)
       real, allocatable ::   dp_ana(:,:,:)
       real, allocatable ::   pl_ana(:,:,:)
@@ -102,41 +99,22 @@ c ------------------
       real, allocatable ::    logp (:,:,:)
       real, allocatable ::    logpl(:,:,:)
       real, allocatable ::    qdum (:,:,:)
-      integer id,rc
+      integer id,rc,ks
       integer imax,jmax
       integer nvars, ngatts, ntime
 
       character*120, allocatable :: arg(:)
-      character*120  eta_fname
-      character*120   rs_fname
-
-      logical ::   agrid = .false.
-      logical ::   dgrid = .false.
-      logical :: u_agrid = .false.
-      logical :: v_agrid = .false.
-      logical :: u_dgrid = .false.
-      logical :: v_dgrid = .false.
-      logical ::  tvflag = .false.
-      logical :: thvflag = .false.
-      logical :: lwiflag = .false.
 
       logical recon
-      logical ihavetv,agridw
       integer precision
       integer i,j,k,L,n,nargs,iargc
 
 c Analysis Grads CTL File Variables
 c ---------------------------------
-      character*256  ctlfile,format
+      character*256  ctlfile
       integer imana,jmana,lmana
 
-      character*256, pointer :: names (:)
-      character*256, pointer :: descs (:)
-      integer,       pointer :: lmvars(:)
-      real,          pointer ::   levs(:)
       real,          pointer ::  plevs(:)
-      real,          pointer ::   lats(:)
-      real,          pointer ::   lons(:)
 
 C **********************************************************************
 C ****           Initialize Filenames, Methods, etc.                ****
@@ -252,7 +230,7 @@ C **********************************************************************
       pl(:,:,L) = (ple(:,:,L+1)+ple(:,:,L))*0.5
       enddo
 
-c     call set_eta ( lm,ptop,ak,bk )
+c     call set_eta ( lm,ks,ptop,pint,ak,bk )
 c     do L=1,lm+1
 c     ple(:,:,L) = ak(L) + ps(:,:)*bk(L)
 c     enddo
@@ -380,7 +358,7 @@ C **********************************************************************
 
           call get_ana_data  ( id,ps_ana,u_ana,v_ana,t_ana,q_ana,h_ana,phis_ana,
      .                         im,jm,lmana,nymd,nhms,lon(1),
-     .                         imana,jmana,lmana,nvars,names,lmvars,undef,plevs )
+     .                         imana,jmana,lmana,undef,plevs )
           t_ec = t_ana
 
             allocate(  dp_ana(im,jm,lm)   )
@@ -421,22 +399,22 @@ C **********************************************************************
 
           allocate    ( qdum(im,jm,lm) )
 
-          call interp ( qdum,u_ana,logp,logpl,p_ana,pl_ana,ple_ana,im,jm,lm,lmana,undef,'UWND',niter,i0,j0,1 )
+          call interp ( qdum,u_ana,logp,logpl,p_ana,pl_ana,ple_ana,im,jm,lm,lmana,undef,'UWND    ',niter,i0,j0,1 )
           deallocate  ( u_ana )
             allocate  ( u_ana(im,jm,lm) )
                         u_ana = qdum
 
-          call interp ( qdum,v_ana,logp,logpl,p_ana,pl_ana,ple_ana,im,jm,lm,lmana,undef,'VWND',niter,i0,j0,1 )
+          call interp ( qdum,v_ana,logp,logpl,p_ana,pl_ana,ple_ana,im,jm,lm,lmana,undef,'VWND    ',niter,i0,j0,1 )
           deallocate  ( v_ana )
             allocate  ( v_ana(im,jm,lm) )
                         v_ana = qdum
 
-          call interp ( qdum,t_ana,logp,logpl,p_ana,pl_ana,ple_ana,im,jm,lm,lmana,undef,'TMPU',niter,i0,j0,1 )
+          call interp ( qdum,t_ana,logp,logpl,p_ana,pl_ana,ple_ana,im,jm,lm,lmana,undef,'TMPU    ',niter,i0,j0,1 )
           deallocate  ( t_ana )
             allocate  ( t_ana(im,jm,lm) )
                         t_ana = qdum
 
-          call interp ( qdum,q_ana,logp,logpl,p_ana,pl_ana,ple_ana,im,jm,lm,lmana,undef,'SPHU',niter,i0,j0,-1 )
+          call interp ( qdum,q_ana,logp,logpl,p_ana,pl_ana,ple_ana,im,jm,lm,lmana,undef,'SPHU    ',niter,i0,j0,-1 )
           deallocate  ( q_ana )
             allocate  ( q_ana(im,jm,lm) )
                         q_ana = qdum
@@ -714,15 +692,11 @@ c            ----------------------------------------------
 
       subroutine get_ana_data  ( id,ps,u,v,t,q,h,phis,
      .                           im,jm,lm,nymd,nhms,lonbeg,
-     .                           imana,jmana,lmana,nvars,names,lmvars,undef,plevs )
+     .                           imana,jmana,lmana,undef,plevs )
       use MAPL_ConstantsMod
       implicit none
       integer  id,im,jm,lm,nymd,nhms,rc
       integer  imana,jmana,lmana
-      integer              nvars
-      integer       lmvars(nvars)
-      character*256  names(nvars)
-      character*256  filename, format
 
       real     lonbeg
       real     ps(im,jm)
@@ -736,7 +710,6 @@ c            ----------------------------------------------
       real  plevs(lm)
       real   phis2(im,jm)
       real     slp(im,jm)
-      real     thv(im,jm)
 
       real, allocatable ::  vor  (:,:)
       real, allocatable ::  div  (:,:)
@@ -753,7 +726,7 @@ c            ----------------------------------------------
       real, allocatable :: dumv (:,:,:)
 
       real    undef,kappa,grav,dum,beta,cp,rgas,gamma,dp
-      integer L,i,j,n,LM1
+      integer L,i,j,LM1
 
       allocate (   vor  (imana,jmana)     )
       allocate (   div  (imana,jmana)     )
@@ -1258,7 +1231,7 @@ C***********************************************************************
       PARAMETER ( NSDAY  = 86400 )
       PARAMETER ( NCYCLE = 1461*24*3600 )
 
-      INTEGER YEAR, DAY, SEC, YEAR0, DAY0, SEC0
+      INTEGER YEAR, DAY, SEC
 
       DIMENSION  MNDY(12,4)
       DATA MNDY /0,31,60,91,121,152,182,213,244,274,305,335,366,
@@ -1351,6 +1324,7 @@ C*                  GODDARD LABORATORY FOR ATMOSPHERES                 *
 C***********************************************************************
 
       use MAPL_ConstantsMod
+      use m_set_eta, only: set_eta
       implicit none
       integer  im,jm,nq,lm1,lm2
 
@@ -1389,9 +1363,9 @@ c ---------------
       real  pke2(im,jm,lm2+1)
       real  phi2(im,jm,lm2+1)
 
-      real    kappa,cp,ptop,pbelow,pabove,pl,alf
+      real    kappa,cp,ptop,pbelow,pabove,pl,alf,pint
       real    rgas,pref,tref,pkref,tstar,eps,rvap,grav
-      integer i,j,L,n
+      integer i,j,L,n,ks
 
       kappa = MAPL_KAPPA
       rgas  = MAPL_RGAS
@@ -1400,7 +1374,7 @@ c ---------------
       cp    = MAPL_CP
       eps   = rvap/rgas-1.0
 
-      call set_eta ( lm1,ptop,ak,bk )
+      call set_eta ( lm1,ks,ptop,pint,ak,bk )
 
 c Compute edge-level pressures
 c ----------------------------
@@ -1656,7 +1630,7 @@ c ---------------
 c Local Variables
 c ---------------
       real  xlat(im,jm)
-      integer i,j,L,koz
+      integer i,j,koz
 
       real        voltomas
       PARAMETER ( VOLTOMAS = 1.655E-6 )
@@ -1722,7 +1696,7 @@ C **********************************************************************
 C ****            Update Chemistry State to Current Time            ****
 C **********************************************************************
 
-      call time_bound  ( nymd,nhms, nymd1,nhms1, nymd2,nhms2, imns,ipls )
+      call time_bound  ( nymd, nymd1,nhms1, nymd2,nhms2, imns,ipls )
       call interp_time ( nymd,nhms, nymd1,nhms1, nymd2,nhms2, facm,facp )
 
       do L = 1,nlevs
@@ -2011,7 +1985,7 @@ C***********************************************************************
       RETURN                                                                    
       END                                                                       
 
-      subroutine time_bound ( nymd,nhms,nymd1,nhms1,nymd2,nhms2, imnm,imnp )
+      subroutine time_bound ( nymd,nymd1,nhms1,nymd2,nhms2, imnm,imnp )
 C***********************************************************************
 C  PURPOSE
 C     Compute Date and Time boundaries.
@@ -2032,7 +2006,7 @@ C*                  GODDARD LABORATORY FOR ATMOSPHERES                 *
 C***********************************************************************
 
       implicit none
-      integer  nymd,nhms, nymd1,nhms1, nymd2,nhms2
+      integer  nymd, nymd1,nhms1, nymd2,nhms2
 
 c Local Variables
 c ---------------
@@ -2324,7 +2298,7 @@ C **********************************************************************
       integer       im,jm,lm,nvars
       real          undef,dx,dy,dz
       integer       i,j,L,m,n,ndum
-      character*256 dummy,name
+      character*256 dummy
       character*256, allocatable :: dum(:)
 
       open (10,file=trim(ctlfile),form='formatted')
@@ -3775,13 +3749,9 @@ c ---------------
 
 c Local Variables
 c ---------------
-      integer  i,j,l,m,n
+      integer  i,j,l
       integer, allocatable       :: ip1(:), ip0(:), im1(:), im2(:)
       integer, allocatable       :: jp1(:), jp0(:), jm1(:), jm2(:)
-
-      integer ip1_for_jp1, ip0_for_jp1, im1_for_jp1, im2_for_jp1
-      integer ip1_for_jm2, ip0_for_jm2, im1_for_jm2, im2_for_jm2
-      integer jm2_for_jm2, jp1_for_jp1
 
 c Bi-Linear Weights
 c -----------------
@@ -3809,8 +3779,8 @@ c ----------------
       real, allocatable       ::    wc_im1jm2 (:)
       real, allocatable       ::    wc_im2jm2 (:)
 
-      real    ux, ap1, ap0, am1, am2
-      real    uy, bp1, bp0, bm1, bm2
+      real    ap1, ap0, am1, am2
+      real    bp1, bp0, bm1, bm2
 
       real    lon_cmp(im)
       real    lat_cmp(jm)
@@ -3819,9 +3789,9 @@ c ----------------
       real    pi,d
       real    lam,lam_ip1,lam_ip0,lam_im1,lam_im2
       real    phi,phi_jp1,phi_jp0,phi_jm1,phi_jm2
-      real    dl,dp,phi_np,lam_0
-      real    lam_geo, lam_cmp
-      real    phi_geo, phi_cmp
+      real    dl,dp
+      real    lam_cmp
+      real    phi_cmp
       real    undef
       integer im1_cmp,icmp
       integer jm1_cmp,jcmp
@@ -4129,8 +4099,8 @@ C
       real  q   (im,jm,lm)
       real logpl(im,jm,lm)
 
-      real  p,undef
-      real  logp,logpmin,logpmax,temp
+      real  undef
+      real  logp,temp
 
 c Initialize to UNDEFINED
 c -----------------------

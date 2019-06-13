@@ -49,7 +49,12 @@ if( result = 'NULL' ) ; 'getresource 'PLOTRC' 'export'_'GC'_CLEVS' ; endif
                         'getresource 'PLOTRC' 'export'_'GC'_YFMT'    ; yfmt    = result
                         'getresource 'PLOTRC' 'export'_'GC'_CBSCALE'; cbscale = result
                         'getresource 'PLOTRC' 'export'_'GC'_AXLIM'  ; axlim   = result
+                        'getresource 'PLOTRC' 'export'_'GC'_ZLOG'   ; zlog    = result
 say ''
+
+if( zlog   != 'NULL' )
+     logflag = zlog
+endif
 
 if( title   = 'NULL' )
   'getdesc 'name
@@ -175,7 +180,7 @@ endif
 'set clab off'
 if( blak = 1 ) ; 'black' ; endif
                                         'set zlog off'
-if( logflag = "ON" | logflag = "on" ) 
+if( logflag = "ON" | logflag = "on" | logflag = " ON" | logflag = " on" ) 
                                         'set zlog on'
                                         'setlevs' 
 endif

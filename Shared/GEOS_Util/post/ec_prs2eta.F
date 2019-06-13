@@ -1,5 +1,6 @@
       program  main
       use MAPL_ConstantsMod
+      use m_set_eta, only: set_eta
       implicit none
 
 c **********************************************************************
@@ -11,12 +12,11 @@ c **********************************************************************
 c **********************************************************************
 
       integer  im,jm,lm,nq
-      real     ptop
+      real     ptop,pint
       real     rgas,eps,rvap
       real     kappa
       real     grav
 
-      real dum
       integer     niter,i0,j0
       parameter ( niter = 5 )
 
@@ -28,11 +28,10 @@ c **********************************************************************
 
 c Set analysis, fvdas, date and time
 c ----------------------------------
-      character*2  clm,cnhms
+      character*2  cnhms
       character*8  cnymd
 
-      character*256 dynrst,  mstrst, prsdata, topog, tag, ext
-      character*256 dynrst2, mstrst2
+      character*256 prsdata, tag, ext
 
       real    :: phibg, phifg, thbr1, thbr2, delth, cp
 
@@ -43,13 +42,9 @@ c fv restart variables and topography
 c -----------------------------------
       real, allocatable ::   ps(:,:)
       real, allocatable ::   dp(:,:,:)
-      real, allocatable ::   pl(:,:,:)
       real, allocatable ::  ple(:,:,:)
-      real, allocatable ::   er(:,:,:)
       real, allocatable ::    u(:,:,:)
       real, allocatable ::    v(:,:,:)
-      real, allocatable ::   tv(:,:,:)
-      real, allocatable ::   th(:,:,:)
       real, allocatable ::  thv(:,:,:)
       real, allocatable ::  pke(:,:,:)
       real, allocatable ::  pk (:,:,:)
@@ -78,14 +73,12 @@ c -----------------------------------
 c Analysis variables
 c ------------------
       real, allocatable :: phis_ana(:,:)
-      real, allocatable ::  slp_ana(:,:)
       real, allocatable ::   ps_ana(:,:)
       real, allocatable ::    u_ana(:,:,:)
       real, allocatable ::    v_ana(:,:,:)
       real, allocatable ::    z_ana(:,:,:)
       real, allocatable ::   er_ana(:,:,:)
       real, allocatable ::    q_ana(:,:,:)
-      real, allocatable ::   rh_ana(:,:,:)
       real, allocatable ::    p_ana(:,:,:)
       real, allocatable ::   dp_ana(:,:,:)
       real, allocatable ::   pl_ana(:,:,:)
@@ -97,26 +90,22 @@ c ------------------
       real, allocatable ::    logpl(:,:,:)
       real, allocatable ::    qdum (:,:,:)
       integer id,rc
-      integer imax,jmax
       integer nvars, ngatts, ntime
 
       character*256, allocatable :: arg(:)
 
       integer precision
-      integer i,j,k,L,n,nargs,iargc
+      integer i,j,k,L,n,nargs,iargc,ks
+      logical gmaoprs
 
 c Analysis Grads CTL File Variables
 c ---------------------------------
-      character*256  ctlfile,format
+      character*256  ctlfile
       integer imana,jmana,lmana
 
       character*256, pointer :: names (:)
-      character*256, pointer :: descs (:)
       integer,       pointer :: lmvars(:)
-      real,          pointer ::   levs(:)
       real,          pointer ::  plevs(:)
-      real,          pointer ::   lats(:)
-      real,          pointer ::   lons(:)
 
 C **********************************************************************
 C ****           Initialize Filenames, Methods, etc.                ****
@@ -140,6 +129,7 @@ C **********************************************************************
            nymd = -999
            nhms = -999
             tag = ''
+        gmaoprs =.false.
 
           nargs = iargc()
       if( nargs.eq.0 ) then
@@ -157,6 +147,7 @@ C **********************************************************************
              if( trim(arg(n)).eq.'-lm'    ) read(arg(n+1), * ) lm
              if( trim(arg(n)).eq.'-i0'    ) read(arg(n+1), * ) i0
              if( trim(arg(n)).eq.'-j0'    ) read(arg(n+1), * ) j0
+             if( trim(arg(n)).eq.'-gmaoprs') gmaoprs=.true.
           enddo
       endif
 
@@ -242,12 +233,20 @@ C **********************************************************************
       allocate (  ps_ana(im,jm) )
       allocate (phis_ana(im,jm) )
 
-      print *, 'Reading Analysis for Date: ',nymd,' Time: ',nhms
-      print *
 
-          call get_ana_data  ( id,ps_ana,u_ana,v_ana,t_ana,q_ana,h_ana,phis_ana,
-     .                         im,jm,lmana,nymd,nhms,lon(1),
-     .                         imana,jmana,lmana,nvars,names,lmvars,undef,plevs )
+          if ( gmaoprs ) then
+             print *, 'Reading G5-prs Analysis for Date: ',nymd,' Time: ',nhms
+             print *
+             call get_gmaoana_data  ( id,ps_ana,u_ana,v_ana,t_ana,q_ana,h_ana,phis_ana,
+     .                                im,jm,lmana,nymd,nhms,lon(1),
+     .                                imana,jmana,lmana,nvars,names,lmvars,undef,plevs )
+          else
+             print *, 'Reading EC-prs Analysis for Date: ',nymd,' Time: ',nhms
+             print *
+             call get_ana_data  ( id,ps_ana,u_ana,v_ana,t_ana,q_ana,h_ana,phis_ana,
+     .                            im,jm,lmana,nymd,nhms,
+     .                            imana,jmana,lmana,undef,plevs )
+          endif
           t_ec = t_ana
 
 ! Construct Pressure Variables
@@ -261,7 +260,7 @@ C **********************************************************************
       allocate( ak(lm+1) )
       allocate( bk(lm+1) )
 
-      call set_eta ( lm,ptop,ak,bk )
+      call set_eta ( lm,ks,ptop,pint,ak,bk )
 
           do L=1,lm+1
           ple_ana(:,:,L) = ak(L) + ps_ana(:,:)*bk(L)
@@ -344,8 +343,8 @@ C **********************************************************************
       endif
 
       print *, 'Calling Remap'
-      call remap  ( ps,    dp,    u,    v,    thv,  q,    phis,    lm,
-     .              ps_ana,dp_ana,u_ana,v_ana,t_ana,q_ana,phis_ana,lm,im,jm,1 )
+      call remap  ( ps,    dp,    u,    v,    thv,  q,    lm,
+     .              ps_ana,dp_ana,u_ana,v_ana,t_ana,q_ana,lm,im,jm,1 )
       print *, '   Fini Remap'
 
       if( i0.ne.0 .and. j0.ne.0 ) then
@@ -548,18 +547,13 @@ c            ----------------------------------------------
       end
 
       subroutine get_ana_data  ( id,ps,u,v,t,q,h,phis,
-     .                           im,jm,lm,nymd,nhms,lonbeg,
-     .                           imana,jmana,lmana,nvars,names,lmvars,undef,plevs )
+     .                           im,jm,lm,nymd,nhms,
+     .                           imana,jmana,lmana,undef,plevs )
       use MAPL_ConstantsMod
       implicit none
       integer  id,im,jm,lm,nymd,nhms,rc
       integer  imana,jmana,lmana
-      integer              nvars
-      integer       lmvars(nvars)
-      character*256  names(nvars)
-      character*256  filename, format
 
-      real     lonbeg
       real     ps(im,jm)
       real      u(im,jm,lm)
       real      v(im,jm,lm)
@@ -570,15 +564,14 @@ c            ----------------------------------------------
       real   phis(im,jm)
       real  plevs(lm)
       real     slp(im,jm)
-      real     thv(im,jm)
 
       real, allocatable :: dum2d(:,:)
       real, allocatable :: dum3d(:,:,:)
       real, allocatable :: dumu (:,:,:)
       real, allocatable :: dumv (:,:,:)
 
-      real    undef,kappa,grav,dum,beta,cp,rgas,gamma,dp
-      integer L,i,j,n,LM1
+      real    undef,kappa,grav,dum,beta,cp,rgas
+      integer L,i,j,LM1
 
       allocate ( dum2d(imana,jmana)       )
       allocate ( dum3d(imana,jmana,lmana) )
@@ -743,7 +736,7 @@ c -------------------
 
       subroutine zflip ( q,im,jm,lm )
       implicit none
-      integer  im,jm,lm,i,j,L
+      integer  im,jm,lm,L
       real*4 q(im,jm,lm),dum(im,jm,lm)
       dum = q
       do L=1,lm
@@ -1005,6 +998,7 @@ c ------------------------------------
       print *, "  -im            im:  Optional Zonal      Dimenstion for Output (Default: IM from File)"
       print *, "  -jm            jm:  Optional Meridional Dimenstion for Output (Default: JM from File)"
       print *, "  -tag          tag:  Optional Prefix tag            for Output (Default: ec_prs2eta)"
+      print *, "  -gmaoprs         :  Indicates input is really GMAO prs file (used for test only)"
       print *
       call exit(7)
       end
@@ -1099,13 +1093,9 @@ c ---------------
 
 c Local Variables
 c ---------------
-      integer  i,j,l,m,n
-      integer, allocatable       :: ip1(:), ip0(:), im1(:), im2(:)
-      integer, allocatable       :: jp1(:), jp0(:), jm1(:), jm2(:)
-
-      integer ip1_for_jp1, ip0_for_jp1, im1_for_jp1, im2_for_jp1
-      integer ip1_for_jm2, ip0_for_jm2, im1_for_jm2, im2_for_jm2
-      integer jm2_for_jm2, jp1_for_jp1
+      integer  i,j,l
+      integer, allocatable    :: ip1(:), ip0(:), im1(:), im2(:)
+      integer, allocatable    :: jp1(:), jp0(:), jm1(:), jm2(:)
 
 c Bi-Linear Weights
 c -----------------
@@ -1133,8 +1123,8 @@ c ----------------
       real, allocatable       ::    wc_im1jm2 (:)
       real, allocatable       ::    wc_im2jm2 (:)
 
-      real    ux, ap1, ap0, am1, am2
-      real    uy, bp1, bp0, bm1, bm2
+      real    ap1, ap0, am1, am2
+      real    bp1, bp0, bm1, bm2
 
       real    lon_cmp(im)
       real    lat_cmp(jm)
@@ -1143,9 +1133,9 @@ c ----------------
       real    pi,d
       real    lam,lam_ip1,lam_ip0,lam_im1,lam_im2
       real    phi,phi_jp1,phi_jp0,phi_jm1,phi_jm2
-      real    dl,dp,phi_np,lam_0
-      real    lam_geo, lam_cmp
-      real    phi_geo, phi_cmp
+      real    dl,dp
+      real    lam_cmp
+      real    phi_cmp
       real    undef
       integer im1_cmp,icmp
       integer jm1_cmp,jcmp
@@ -1453,8 +1443,8 @@ C
       real  q   (im,jm,lm)
       real logpl(im,jm,lm)
 
-      real  p,undef
-      real  logp,logpmin,logpmax,temp
+      real  undef
+      real  logp,temp
 
 c Initialize to UNDEFINED
 c -----------------------
@@ -1608,8 +1598,8 @@ c    .                                                           /( logpl1(i,j,k
       return
       end
     
-      subroutine remap  ( ps1,dp1,u1,v1,thv1,q1,phis1,lm1,
-     .                    ps2,dp2,u2,v2,t2  ,q2,phis2,lm2,im,jm,nq )
+      subroutine remap  ( ps1,dp1,u1,v1,thv1,q1,lm1,
+     .                    ps2,dp2,u2,v2,t2  ,q2,lm2,im,jm,nq )
 
 C***********************************************************************
 C
@@ -1624,7 +1614,6 @@ C     v1 ....... model meridional wind
 C     thv1 ..... model virtual potential  temperature
 C     q1 ....... model specific   humidity
 C     oz1 ...... model ozone
-C     phis1 .... model surface geopotential
 C     lm1 ...... model vertical   dimension
 C
 C     ps2 ...... analysis surface  pressure
@@ -1634,7 +1623,6 @@ C     v2 ....... analysis meridional wind
 C     t2 . ..... analysis dry-bulb temperature
 C     q2 ....... analysis specific   humidity
 C     oz2 ...... analysis ozone
-C     phis2 .... analysis surface geopotential
 C     lm2 ...... analysis vertical   dimension
 C
 C     im ....... zonal      dimension
@@ -1646,6 +1634,7 @@ C*                  GODDARD LABORATORY FOR ATMOSPHERES                 *
 C***********************************************************************
 
       use MAPL_ConstantsMod
+      use m_set_eta, only: set_eta
       implicit none
       integer  im,jm,lm1,lm2,nq
 
@@ -1658,7 +1647,6 @@ c ----------------
       real       q1(im,jm,lm1,nq)
       real      ps1(im,jm)
 
-      real   phis1(im,jm)
       real      ak(lm1+1)
       real      bk(lm1+1)
 
@@ -1671,7 +1659,6 @@ c -------------------------
       real    thv2(im,jm,lm2)
       real      q2(im,jm,lm2,nq)
       real     ps2(im,jm)
-      real   phis2(im,jm)
 
 c Local variables
 c ---------------
@@ -1680,11 +1667,10 @@ c ---------------
       real   pk2(im,jm,lm2  )
       real  pke1(im,jm,lm1+1)
       real  pke2(im,jm,lm2+1)
-      real  phi2(im,jm,lm2+1)
 
-      real    kappa,cp,ptop,pl,alf
+      real    kappa,cp,ptop,pl,alf,pint
       real    rgas,pref,tref,pkref,tstar,eps,rvap,grav
-      integer i,j,L,n
+      integer i,j,L,n,ks
 
       kappa = MAPL_KAPPA
       rgas  = MAPL_RGAS
@@ -1736,7 +1722,7 @@ c ----------------------------------------------
 
 c Construct fv pressure variables using surface pressure and AK & BK
 c ------------------------------------------------------------------
-      call set_eta ( lm1,ptop,ak,bk )
+      call set_eta ( lm1,ks,ptop,pint,ak,bk )
 
       do L=1,lm1+1
       do j=1,jm
@@ -1769,6 +1755,7 @@ c -------------------------------
      .                       timeinc,precision )
       use MAPL_BaseMod, only: MAPL_UNDEF
       use MAPL_ConstantsMod
+      use m_set_eta, only: set_eta
       implicit  none
 
       integer   im,jm,lm,nq,nymd,nhms
@@ -1794,8 +1781,8 @@ c -------------------------------
       real   bk(lm+1)
 
       real  rgas,rvap,eps,kappa,grav
-      real  ptop,dlon,dlat,pref,dpref(lm),undef,lonbeg
-      integer i,j,L,m,n,rc
+      real  ptop,dlon,dlat,pref,dpref(lm),undef,lonbeg,pint
+      integer i,j,L,m,n,rc,ks
       character*256 tag,ext,filename, fname
       integer nvars,fid,precision
 
@@ -1812,6 +1799,7 @@ c -------------------------------
       real,          allocatable :: p_range(:,:)
 
       character*2 cnhms
+      character*3 cLM
       character*8 cnymd
 
       print *, im,jm,lm,nq,nymd,nhms,trim(ext)
@@ -1825,12 +1813,14 @@ c -------------------------------
 
       write( cnymd,200 ) nymd
       write( cnhms,300 ) nhms/10000
+      write(   cLM,400 ) lm
   200 format(i8.8)
   300 format(i2.2)
-      fname = trim(tag) // 'ec_prs2eta.' // trim(cnymd) // '_' // trim(cnhms) // 'z.' // trim(ext)
+  400 format(i3.3)
+      fname = trim(tag) // 'ec_prs2eta_L' // trim(cLM) // '.' // trim(cnymd) // '_' // trim(cnhms) // 'z.' // trim(ext)
       print *, 'Creating 32-bit eta file: ',trim(fname)
 
-      call set_eta ( lm,ptop,ak,bk )
+      call set_eta ( lm,ks,ptop,pint,ak,bk )
 
 ! Construct T, TV
 ! ---------------
@@ -1958,3 +1948,174 @@ c ----------------------------
       return
       end
 
+      subroutine get_gmaoana_data  ( id,ps,u,v,t,q,h,phis,
+     .                               im,jm,lm,nymd,nhms,lonbeg,
+     .                               imana,jmana,lmana,nvars,names,lmvars,undef,plevs )
+      use MAPL_ConstantsMod
+      implicit none
+      integer  id,im,jm,lm,nymd,nhms,rc
+      integer  imana,jmana,lmana
+      integer              nvars
+      integer       lmvars(nvars)
+      character*256  names(nvars)
+      character*256  filename, format
+
+      real     lonbeg
+      real     ps(im,jm)
+      real      u(im,jm,lm)
+      real      v(im,jm,lm)
+      real      t(im,jm,lm)
+      real      h(im,jm,lm)
+      real     rh(im,jm,lm)
+      real      q(im,jm,lm)
+      real   phis(im,jm)
+      real  plevs(lm)
+      real     slp(im,jm)
+      real     thv(im,jm)
+
+      real, allocatable :: dum2d(:,:)
+      real, allocatable :: dum3d(:,:,:)
+      real, allocatable :: dumu (:,:,:)
+      real, allocatable :: dumv (:,:,:)
+
+      real    undef,kappa,grav,dum,beta,cp,rgas,gamma,dp
+      integer L,i,j,n,LM1
+
+      allocate ( dum2d(imana,jmana)       )
+      allocate ( dum3d(imana,jmana,lmana) )
+      allocate ( dumu (imana,jmana,lmana) )
+      allocate ( dumv (imana,jmana,lmana) )
+
+      kappa = MAPL_KAPPA
+      rgas  = MAPL_RGAS
+      grav  = MAPL_GRAV
+      cp    = MAPL_CP
+      beta  = 6.5e-3
+
+!       Writing variable: slp
+!       Writing variable: ps
+!       Writing variable: hght
+!       Writing variable: rh
+!       Writing variable: tmpu
+!       Writing variable: u
+!       Writing variable: v
+
+c Read ANA Variables
+c ------------------
+      call gfio_getvar ( id,'slp',nymd,nhms,imana,jmana,0,1 ,dum2d,rc )
+      if( rc.ne.0 ) then
+          print *, 'Could not find GMAO SLP variable'
+          call exit(7)
+      endif
+      if( im.ne.imana .or. jm.ne.jmana ) then
+              call hinterp ( dum2d,imana,jmana,slp,im,jm,1,undef )
+      else
+              slp = dum2d
+      endif
+
+      call gfio_getvar     ( id,'ps',nymd,nhms,imana,jmana,0,1 ,dum2d ,rc )  ! New ECMWF Format 2011/05/11 06z
+      if( rc.ne.0 ) then
+          print *, 'Could not find GMAO Surface Pressure variable'
+          call exit(7)
+      endif
+      if( im.ne.imana .or. jm.ne.jmana ) then
+              call hinterp ( dum2d,imana,jmana,ps,im,jm,1,undef )
+      else
+              ps = dum2d
+      endif
+
+      call gfio_getvar ( id,'hght',nymd,nhms,imana,jmana,1,lmana,dum3d,rc )
+      if( rc.ne.0 ) then
+          print *, 'Could not find GMAO Height variable'
+          call exit(7)
+      endif
+                 call zflip( dum3d,imana,jmana,lmana )
+      if( im.ne.imana .or. jm.ne.jmana ) then
+              call hinterp ( dum3d,imana,jmana,h,im,jm,lm,undef )
+      else
+              h = dum3d
+      endif
+
+c Winds
+c -----
+      call gfio_getvar ( id,'u',nymd,nhms,imana,jmana,1,lmana,dumu,rc )
+      if( rc.ne.0 ) then
+          print *, 'Could not find GMAO U-Wind variable'
+          call exit(7)
+      endif
+      call gfio_getvar ( id,'v',nymd,nhms,imana,jmana,1,lmana,dumv,rc )
+      if( rc.ne.0 ) then
+          print *, 'Could not find GMAO V-Wind variable'
+          call exit(7)
+      endif
+
+                 call zflip( dumu,imana,jmana,lmana )
+      if( im.ne.imana .or. jm.ne.jmana ) then
+              call hinterp ( dumu,imana,jmana,u,im,jm,lm,undef )
+      else
+              u = dumu
+      endif
+
+                 call zflip( dumv,imana,jmana,lmana )
+      if( im.ne.imana .or. jm.ne.jmana ) then
+              call hinterp ( dumv,imana,jmana,v,im,jm,lm,undef )
+      else
+              v = dumv
+      endif
+
+c Temperature
+c -----------
+      call gfio_getvar ( id,'tmpu',nymd,nhms,imana,jmana,1,lmana,dum3d,rc )
+      if( rc.ne.0 ) then
+          print *, 'Could not find GMAO Temperature variable'
+          call exit(7)
+      endif
+                 call zflip( dum3d,imana,jmana,lmana )
+      if( im.ne.imana .or. jm.ne.jmana ) then
+              call hinterp ( dum3d,imana,jmana,t,im,jm,lm,undef )
+      else
+              t = dum3d
+      endif
+
+c Relative Humidity
+c -----------------
+      call gfio_getvar ( id,'rh',nymd,nhms,imana,jmana,1,lmana,dum3d,rc )
+      if( rc.ne.0 ) then
+          print *, 'Could not find GMAO Rel.Hum. variable'
+          call exit(7)
+      endif
+                 call zflip( dum3d,imana,jmana,lmana )
+      if( im.ne.imana .or. jm.ne.jmana ) then
+              call hinterp ( dum3d,imana,jmana,rh,im,jm,lm,undef )
+      else
+              rh = dum3d
+      endif
+      rh = max( rh,0.0 )
+
+c Compute PHIS
+c ------------
+      do j=1,jm
+      do i=1,im
+         L=1
+         do while( L.lt.lm .and. plevs(L).lt.ps(i,j)/100.0 )
+         L=L+1
+         enddo
+         LM1 = L-1
+         phis(i,j) = h(i,j,L) - ( h(i,j,L)-h(i,j,LM1) )*log( 100*plevs(L)/ps(i,j) )/log( plevs(L)/plevs(LM1) )
+       enddo
+       enddo
+       phis = phis*grav
+
+c Load GMAO Variables
+c -------------------
+      do L=1,lm
+      do j=1,jm
+      do i=1,im
+      call qsat (t(i,j,L),plevs(L),q(i,j,L),dum,.false.)
+      q(i,j,L) = rh(i,j,L)*q(i,j,L)*0.01
+      enddo
+      enddo
+      enddo
+     
+      return
+      end

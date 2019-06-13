@@ -24,7 +24,7 @@ endif
 # Make sure ESMADIR is defined
 # -----------------------------
 ifndef ESMADIR
-   ESMADIR := $(PWD)/../../..
+   ESMADIR := $(PWD)/../../../../..
 endif
 
 #-------------------------------
@@ -36,12 +36,22 @@ include $(ESMADIR)/Config/GMAO_base.mk   # System dependencies
 
 ########################################################################
 
-INC_LIST = $(INC_NETCDF)
-LIB_LIST = $(LIB_NETCDF)
+LIB_SHARED = $(wildcard \
+             $(ESMALIB)/libMAPL_Base.a \
+             $(ESMALIB)/libMAPL_cfio_r4.a \
+             $(ESMALIB)/libGMAO_gfio_r4.a \
+             $(ESMALIB)/libMAPL_Base_stubs.a \
+             $(ESMALIB)/libGMAO_hermes.a \
+             $(ESMALIB)/libGMAO_mpeu.a )
 
+INC_LIST = $(INC_NETCDF) $(INC_ESMF) $(INC_MPI) $(INC_GMAO_SHARED)
+LIB_LIST = $(LIB_SHARED) $(LIB_ESMF) $(LIB_SDF) $(LIB_MPI) $(LIB_SYS)
+
+THIS_CFIO := MAPL_cfio_r4
+THIS_GFIO := GMAO_gfio_r4
 ########################################################################
 
-BINS = sst_sic_EIGTHdeg.x sst_sic_QUARTdeg.x
+BINS = sst_sic_EIGTHdeg.x sst_sic_QUARTdeg.x regrid_forcing.x
 
 UT =
 
@@ -75,8 +85,6 @@ ALLSRCS = \
          fill_Land.F90 \
          hflip.F90 \
          interp_to_eight_deg.F90 \
-         proc_SST_FRACI.F90 \
-         proc_SST_FRACI_ostia_quart.F90 \
          read_input.F90 \
          read_input_quart.F90 \
          read_Ostia.F90 \
@@ -276,7 +284,7 @@ ut UT:
 # User Defined Targets
 #----------------------
 
-vpath % $(INC_LIST) /usr/include
+vpath % $(INC_LIST)
 
 FOPT       = 
 FREAL      = $(FREAL4) 
@@ -290,12 +298,18 @@ USER_FINCS  = $(foreach dir,$(INC_LIST),$(I)$(dir))
 $(LIB) lib : $(DEPS) $(OBJS)
 	@if [ "$(OBJS)" != "" ]; then ( \
 	   $(RM) $(LIB); \
-	   $(AR) $(AR_FLAGS) $(LIB) $(OBJS) \
+	   $(AR) $(AR_FLAGS) $(LIB) $(OBJS); \
+	   $(RANLIB) $(RANLIB_FLAGS) $(LIB) \
 	) fi
 
-%.x : $(LIB)
-	$(LD) $(LDFLAGS) -o $@ $(LIB) $(LIB_LIST) $(LIB_SYS)
+sst_sic_EIGTHdeg.x : proc_SST_FRACI.d proc_SST_FRACI.o $(LIB)
+	$(LD) -o $@ proc_SST_FRACI.o $(LDFLAGS) $(LIB) $(LIB_LIST)
 
+sst_sic_QUARTdeg.x : proc_SST_FRACI_ostia_quart.d proc_SST_FRACI_ostia_quart.o $(LIB)
+	$(LD) -o $@ proc_SST_FRACI_ostia_quart.o $(LDFLAGS) $(LIB) $(LIB_LIST)
+
+regrid_forcing.x : regrid_forcing.d regrid_forcing.o
+	$(LD) -o $@ regrid_forcing.o $(LDFLAGS) $(LIB_LIST)
 
 #----------------------------------------------------
 # Hack to prevent remaking dep files during cleaning

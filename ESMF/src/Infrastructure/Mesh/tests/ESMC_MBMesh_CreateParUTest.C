@@ -2,7 +2,7 @@
 //==============================================================================
 //
 // Earth System Modeling Framework
-// Copyright 2002-2016, University Corporation for Atmospheric Research,
+// Copyright 2002-2019, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -46,9 +46,6 @@
 // for Windows...
 #define M_PI 3.14159265358979323846
 #endif
-
-using namespace std;
-
 
 int main(int argc, char *argv[]) {
 
@@ -102,7 +99,6 @@ int main(int argc, char *argv[]) {
   Interface *mb_mesh_quad_10=mesh_quad_10->mesh;
   int merr_quad_10=mb_mesh_quad_10->get_entities_by_dimension(0,mesh_quad_10->pdim,range_quad_10);
   if (merr_quad_10 != MB_SUCCESS) rc = ESMF_FAILURE;
-
   // clean up
   delete mesh_quad_10;
 #else
@@ -143,6 +139,7 @@ int main(int argc, char *argv[]) {
   strcpy(name, "get_entities");
   strcpy(failMsg, "Cannot get entities");
   ESMC_Test(rc==ESMF_SUCCESS, name, failMsg, &result, __FILE__, __LINE__, 0);
+
 
   //----------------------------------------------------------------------------
   ESMC_TestEnd(__FILE__, __LINE__, 0);

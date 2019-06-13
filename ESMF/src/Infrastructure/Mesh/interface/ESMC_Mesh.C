@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2018, University Corporation for Atmospheric Research,
+// Copyright 2002-2019, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -22,12 +22,12 @@
 //------------------------------------------------------------------------------
 // INCLUDES
 
-#include "ESMCI_ParEnv.h"
 #include "ESMCI_LogErr.h"
-#include "ESMCI_MeshCXX.h"
-#include "ESMC_Mesh.h"
 #include "ESMCI_VM.h"
 #include "ESMCI_CoordSys.h"
+#include "Mesh/include/ESMC_Mesh.h"
+#include "Mesh/include/ESMCI_MeshCXX.h"
+#include "Mesh/include/Legacy/ESMCI_ParEnv.h"
 
 //-----------------------------------------------------------------------------
  // leave the following line as-is; it will insert the cvs ident string

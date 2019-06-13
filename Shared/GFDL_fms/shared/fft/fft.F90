@@ -1,10 +1,11 @@
 
 module fft_mod
 
-! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">
+! <CONTACT EMAIL="Bruce.Wyman@noaa.gov">
 !   Bruce Wyman
 ! </CONTACT>
 
+! <HISTORY SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/"/>
 
 ! <OVERVIEW>
 !     Performs simultaneous fast Fourier transforms (FFTs) between
@@ -42,10 +43,9 @@ module fft_mod
 use platform_mod, only: R8_KIND, R4_KIND
 use      fms_mod, only: write_version_number,  &
                         error_mesg, FATAL
-#ifndef SGICRAY
-#ifndef NAGFFT
+
+#if (!defined(SGICRAY) && !defined(NAGFFT))
 use    fft99_mod, only: fft991, set99
-#endif
 #endif
 
 implicit none
@@ -179,9 +179,8 @@ integer :: leng, leng1, leng2, lenc    ! related to transform size
 
 logical :: module_is_initialized=.false.
 
-!  cvs version and tag name
-character(len=128) :: version = '$Id$'
-character(len=128) :: tagname = '$Name$'
+! Include variable "version" to be written to log file.
+#include<file_version.h>
 
 !-----------------------------------------------------------------------
 !
@@ -844,9 +843,9 @@ contains
       if (module_is_initialized) &
       call error_handler ('fft_init', 'attempted to reinitialize fft')
 
-!  write version and tag name to log file
+!  write file version to log file
    if (do_log) then
-      call write_version_number (version, tagname)
+      call write_version_number("FFT_MOD", version)
       do_log = .false.
    endif
 

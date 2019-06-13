@@ -31,25 +31,6 @@ numvar = 0
         alias.2 = radsw
         numvar  = numvar + 1
 
-*'run getvar SLRTP SOLAR'
-*        qname.3 = subwrd(result,1)
-*        qfile.3 = subwrd(result,2)
-*        scale.3 = subwrd(result,3)
-*        alias.3 = radswt
-*        numvar  = numvar + 1
-*'run getvar OLC IRRAD'
-*        qname.4 = subwrd(result,1)
-*        qfile.4 = subwrd(result,2)
-*        scale.4 = subwrd(result,3)
-*        alias.4 = radlwc
-*        numvar  = numvar + 1
-*'run getvar RSC SOLAR'
-*        qname.5 = subwrd(result,1)
-*        qfile.5 = subwrd(result,2)
-*        scale.5 = subwrd(result,3)
-*        alias.5 = radswc
-*        numvar  = numvar + 1
-
 rc = 0
  n = 1
 while( n<=numvar )
@@ -64,6 +45,9 @@ if( rc = numvar ) ; return ; endif
 'run getenv "GEOSUTIL"'
          geosutil = result
                                                                                                                             
+'set dfile 'qfile.1
+'getinfo undef'
+         undef = result
 
 * Experiment Datasets
 * -------------------
@@ -76,10 +60,11 @@ while( n<=numvar )
 'sett'
 'set z 1'
 
+'set undef 'undef
+
 if( qname.n != 'NULL' )
 'make_ts -FUNCTION 'qname.n' -NAME 'alias.n
-  newfile = subwrd(result,1)
-  kdim    = subwrd(result,2)
+
 'set x 1'
 'set y 1'
 'set z 1'
@@ -90,9 +75,42 @@ endif
 n = n+1
 endwhile
 
+'set dfile 'qfile.1
+'sett'
+'getinfo tmin'
+         tmin = result
+'set t  'tmin
+'getinfo date'
+         mdatemin = result
+'sett'
+'getinfo tmax'
+         tmax = result
+'set t  'tmax
+'getinfo date'
+         mdatemax = result
+
+say 'EXP DATEMIN: 'mdatemin
+say 'EXP DATEMAX: 'mdatemax
+
 'set x 1'
 'set y 1'
 'set z 1'
+'set t 1'
+
+'getinfo year'
+         year = result
+
+'define radlwave = ave(radlwgclim,time=JAN'year',time=DEC'year')'
+'define radswave = ave(radswgclim,time=JAN'year',time=DEC'year')'
+
+'d radlwave'
+   radlwave = subwrd(result,4)
+'d radswave'
+   radswave = subwrd(result,4)
+
+'run setenv RADLWAVE 'radlwave
+'run setenv RADSWAVE 'radswave
+'sett'
 
 * Make Time-Series Plot
 * ---------------------
@@ -123,3 +141,375 @@ while ( flag = "" )
         endif
         'c'
 endwhile
+
+*****************************************************************
+****  Loop over Possible Experiment Datasets for Comparison  ****
+*****************************************************************
+
+'run setenv TBEG NULL'
+'run setenv TEND NULL'
+
+'!/bin/mv HISTORY.T HISTORY.Tmp'
+'run getenv "CMPEXP"'
+         cmpexp = result
+            num = 1
+
+          dummy = get_cmpexp (cmpexp,num)
+            exp = subwrd(dummy,1)
+           type = subwrd(dummy,2)
+
+while( exp != 'NULL' )
+say ' '
+say 'Comparing with: 'exp
+
+'!chckfile 'exp'/.HOMDIR'
+ 'run getenv CHECKFILE'
+         CHECKFILE  = result
+     if( CHECKFILE != 'NULL' )
+        '!/bin/cp `cat 'exp'/.HOMDIR`/HISTORY.rc .'
+     else
+        '!/bin/cp 'exp'/HISTORY.rc .'
+     endif
+'!remove CHECKFILE.txt'
+
+'!cat HISTORY.rc | sed -e "s/,/ , /g" | sed -e "s/*/@/g" > HISTORY.T'
+
+'run getvar OLR IRRAD 'exp
+          oname.1 = subwrd(result,1)
+        obsfile.1 = subwrd(result,2)
+         oscale.1 = subwrd(result,3)
+         obsdsc.1 = subwrd(result,4)
+         obsnam.1 = subwrd(result,5)
+         oalias.1 = oradlw
+
+'run getvar RSR SOLAR 'exp
+          oname.2 = subwrd(result,1)
+        obsfile.2 = subwrd(result,2)
+         oscale.2 = subwrd(result,3)
+         obsdsc.2 = subwrd(result,4)
+         obsnam.2 = subwrd(result,5)
+         oalias.2 = oradsw
+
+if( oname.1 != 'NULL' & oname.2 != 'NULL' )
+
+* Verification Datasets
+* ---------------------
+n = 1
+while( n<=numvar )
+
+'set dfile 'obsfile.n
+'setx'
+'sety'
+'sett'
+'set z 1'
+
+'set undef 'undef
+'make_ts -FUNCTION 'oname.n' -NAME 'oalias.n
+
+'set x 1'
+'set y 1'
+'set z 1'
+'sett'
+'seasonal 'oalias.n'g'
+
+n = n+1
+endwhile
+
+'set dfile 'obsfile.1
+'set x 1'
+'set y 1'
+'set z 1'
+'set t 1'
+
+'getinfo year'
+         year = result
+
+'define oradlwave = ave(oradlwgclim,time=JAN'year',time=DEC'year')'
+'define oradswave = ave(oradswgclim,time=JAN'year',time=DEC'year')'
+
+'d oradlwave'
+   oradlwave = subwrd(result,4)
+'d oradswave'
+   oradswave = subwrd(result,4)
+
+'run setenv ORADLWAVE 'oradlwave
+'run setenv ORADSWAVE 'oradswave
+
+'sett'
+'getinfo tmin'
+         tmin = result
+'set t  'tmin
+'getinfo date'
+         odatemin = result
+'sett'
+'getinfo tmax'
+         tmax = result
+'set t  'tmax
+'getinfo date'
+         odatemax = result
+
+say 'OBS DATEMIN: 'odatemin
+say 'OBS DATEMAX: 'odatemax
+
+if( (odatemin <= mdatemin) & (odatemax >= mdatemax) )
+      datemin  = mdatemin
+      datemax  = mdatemax
+endif
+if( (odatemin <= mdatemin) & (mdatemax >= odatemax) )
+      datemin  = odatemin
+      datemax  = mdatemax
+endif
+if( (mdatemin <= odatemin) & (odatemax >= mdatemax) )
+      datemin  = mdatemin
+      datemax  = odatemax
+endif
+
+
+
+
+*    datemin = mdatemin
+*if( datemin > odatamin )
+*    datemin = odatemin
+*endif
+*    datemax = mdatemax
+*if( datemax < odatamax )
+*    datemax = odatemax
+*endif
+
+'set time 'datemin' 'datemax
+
+say 'TOT DATEMIN: 'datemin
+say 'TOT DATEMAX: 'datemax
+
+* Make Time-Series Plot
+* ---------------------
+        flag = ""
+while ( flag = "" )
+       'run 'geosutil'/plots/tseries/rad_3 'expid' 'qfile.1' 'expdsc' 'obsnam.1' 'obsdsc.1' 'obsfile.1' 'output
+        if( debug = "debug" )
+            say "Hit  ENTER  to repeat plot"
+            say "Type 'next' for  next plot, 'done' for next field"
+                 pull flag
+        else
+                 flag = "next"
+        endif
+        'c'
+endwhile
+
+* Make Seasonal Cycle Plot
+* ------------------------
+        flag = ""
+while ( flag = "" )
+       'run 'geosutil'/plots/tseries/rad_4 'expid' 'qfile.1' 'expdsc' 'obsnam.1' 'obsdsc.1' 'obsfile.1' 'output
+        if( debug = "debug" )
+            say "Hit  ENTER  to repeat plot"
+            say "Type 'next' for  next plot, 'done' for next field"
+                 pull flag
+        else
+                 flag = "next"
+        endif
+        'c'
+endwhile
+
+* End IF-TEST for RADLW & RADSW Data
+* ----------------------------------
+endif
+
+* Check next Comparison Experiment Dataset
+* ----------------------------------------
+    num = num + 1
+  dummy = get_cmpexp (cmpexp,num)
+    exp = subwrd(dummy,1)
+   type = subwrd(dummy,2)
+
+endwhile
+'!/bin/mv HISTORY.Tmp HISTORY.T'
+
+*******************************************************************
+****  Loop over Possible Verification Datasets for Comparison  ****
+*******************************************************************
+
+'run setenv TBEG NULL'
+'run setenv TEND NULL'
+
+'getnumrc 'geosutil'/plots/tseries'
+     rcinfo = result
+     numrc  = subwrd( rcinfo,1 )
+
+         k  = 1
+while(   k <= numrc )
+        loc = k + 1
+     rcfile = subwrd( rcinfo,loc )
+'run getobs OLR IRRAD 'rcfile
+          oname.1 = subwrd(result,1)
+        obsfile.1 = subwrd(result,2)
+         oscale.1 = subwrd(result,3)
+         obsdsc.1 = subwrd(result,4)
+         obsnam.1 = subwrd(result,5)
+         oalias.1 = oradlw
+
+'run getobs RSR SOLAR 'rcfile
+          oname.2 = subwrd(result,1)
+        obsfile.2 = subwrd(result,2)
+         oscale.2 = subwrd(result,3)
+         obsdsc.2 = subwrd(result,4)
+         obsnam.2 = subwrd(result,5)
+         oalias.2 = oradsw
+
+if( oname.1 != 'NULL' & oname.2 != 'NULL' )
+
+* Verification Datasets
+* ---------------------
+n = 1
+while( n<=numvar )
+
+'set dfile 'obsfile.n
+'setx'
+'sety'
+'sett'
+'set z 1'
+
+'set undef 'undef
+'make_ts -FUNCTION 'oname.n' -NAME 'oalias.n
+
+'set x 1'
+'set y 1'
+'set z 1'
+'sett'
+'seasonal 'oalias.n'g'
+
+n = n+1
+endwhile
+
+'set dfile 'obsfile.1
+'set x 1'
+'set y 1'
+'set z 1'
+'set t 1'
+
+'getinfo year'
+         year = result
+
+'define oradlwave = ave(oradlwgclim,time=JAN'year',time=DEC'year')'
+'define oradswave = ave(oradswgclim,time=JAN'year',time=DEC'year')'
+
+'d oradlwave'
+   oradlwave = subwrd(result,4)
+'d oradswave'
+   oradswave = subwrd(result,4)
+
+'run setenv ORADLWAVE 'oradlwave
+'run setenv ORADSWAVE 'oradswave
+
+'sett'
+'getinfo tmin'
+         tmin = result
+'set t  'tmin
+'getinfo date'
+         odatemin = result
+'sett'
+'getinfo tmax'
+         tmax = result
+'set t  'tmax
+'getinfo date'
+         odatemax = result
+
+say 'OBS DATEMIN: 'odatemin
+say 'OBS DATEMAX: 'odatemax
+
+if( (odatemin <= mdatemin) & (odatemax >= mdatemax) )
+      datemin  = mdatemin
+      datemax  = mdatemax
+endif
+if( (odatemin <= mdatemin) & (mdatemax >= odatemax) )
+      datemin  = odatemin
+      datemax  = mdatemax
+endif
+if( (mdatemin <= odatemin) & (odatemax >= mdatemax) )
+      datemin  = mdatemin
+      datemax  = odatemax
+endif
+
+*    datemin = mdatemin
+*if( datemin > odatamin )
+*    datemin = odatemin
+*endif
+*    datemax = mdatemax
+*if( datemax < odatamax )
+*    datemax = odatemax
+*endif
+
+'set time 'datemin' 'datemax
+
+say 'TOT DATEMIN: 'datemin
+say 'TOT DATEMAX: 'datemax
+
+* Make Time-Series Plot
+* ---------------------
+        flag = ""
+while ( flag = "" )
+       'run 'geosutil'/plots/tseries/rad_3 'expid' 'qfile.1' 'expdsc' 'obsnam.1' 'obsdsc.1' 'obsfile.1' 'output
+        if( debug = "debug" )
+            say "Hit  ENTER  to repeat plot"
+            say "Type 'next' for  next plot, 'done' for next field"
+                 pull flag
+        else
+                 flag = "next"
+        endif
+        'c'
+endwhile
+
+* Make Seasonal Cycle Plot
+* ------------------------
+        flag = ""
+while ( flag = "" )
+       'run 'geosutil'/plots/tseries/rad_4 'expid' 'qfile.1' 'expdsc' 'obsnam.1' 'obsdsc.1' 'obsfile.1' 'output
+        if( debug = "debug" )
+            say "Hit  ENTER  to repeat plot"
+            say "Type 'next' for  next plot, 'done' for next field"
+                 pull flag
+        else
+                 flag = "next"
+        endif
+        'c'
+endwhile
+
+* End IF-TEST for RADLW & RADSW Data
+* ----------------------------------
+endif
+
+* End Loop over Verification RC Files
+* -----------------------------------
+k = k + 1
+endwhile
+
+return
+
+* Get Next EXP from CMPEXP List
+* -----------------------------
+function get_cmpexp (cmpexp,num)
+      exp  = subwrd(cmpexp,num)
+      len = get_length (exp)
+      bit = substr(exp,len-1,1)
+      if( bit = ":" )
+          type = substr(exp,len,1)
+          exp  = substr(exp,1,len-2)
+      else
+          type = M
+      endif
+return exp' 'type
+
+function get_length (string)
+tb = ""
+i = 1
+while (i<=256)
+blank = substr(string,i,1)
+if( blank = tb )
+length = i-1
+i = 999
+else
+i = i + 1
+endif
+endwhile
+return length
+

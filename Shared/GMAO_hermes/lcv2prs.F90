@@ -163,7 +163,6 @@
       real, pointer ::  outField(:,:,:)        ! Output variable
       real, pointer ::  vField(:,:,:)          ! V wind Input
       real, pointer ::  vOutField(:,:,:)       ! V wind Output
-      real, pointer ::  pl(:,:,:)              ! Input mid-eta level
       real, pointer ::  ple(:,:,:)             ! Input edge eta level
       real, pointer ::  delp(:,:,:)            ! Input delp 
       real, pointer ::  wz(:,:,:)              ! Input hght 
@@ -239,7 +238,6 @@
       character(len=256) :: cvsFile            ! CVS file name containing CVS version
       character(len=256) :: cvsV               ! CVS version
       integer            :: cvsV_yes=0
-      real               :: missing_val
       character(len=128) :: vtitle(mVars)      ! output title
       character(len=128) :: stitle(mVars)      ! variable standard name
       character(len=128) :: vunits(mVars)      ! output title
@@ -282,11 +280,7 @@
 
       real              :: valid_range(2, mVars)
       real              :: packing_range(2, mVars)
-      integer           :: ngatts              ! Number of attributes for GFIO
 
-      real              :: xWest               ! starting point for lon   
-      real              :: xSouth              ! starting point for lat   
-      real              :: deltaPhi            ! diffeence of two grid point in lat
       type(int_grid)    :: grid                ! Output grid variable
 
 ! define ESMF_CFIO, ESMF_CFIOVarInfo, and ESMF_CFIOGrid objects
@@ -305,9 +299,7 @@
       real ptopp(1)
       integer ksp(1)
       integer nbits
-      integer nbit
       integer tSteps
-      integer mykm
       integer :: hour, minute, sec, incSecs
       real, pointer ::  x(:,:)
       real*4, pointer ::  xr(:,:)
@@ -767,14 +759,18 @@
                       call ESMF_CFIOVarReadT2(cfio_in, 'delp', curDate, curTime, delp, rc= rc, cfio2=cfio_in2)
                   else
                       call ESMF_CFIOVarReadT2(cfio_in, 'DELP', curDate, curTime, delp, rc= rc, cfio2=cfio_in2)
+                      if (rc/=0) then
+                         print *, 'Cannot find delp/DELP, trying dp ...'
+                         call ESMF_CFIOVarReadT2(cfio_in, 'dp', curDate, curTime, delp, rc= rc, cfio2=cfio_in2)
+                      endif
                   end if
                   if ( rc /= 0 )  call die (myNewName, 'can not read DELP')
                else
                   call checkStrictVar('delp', vName, nVars_e, rtcode)
                   if ( rtcode .eq. 0) then 
-                     call readPrs(curDate, curTime, 'delp', im_e, jm_e, km_e, delp, rc)
+                     call readPrs(curDate, curTime, 'delp', delp, rc)
                   else 
-                     call readPrs(curDate, curTime, 'DELP', im_e, jm_e, km_e, delp, rc)
+                     call readPrs(curDate, curTime, 'DELP', delp, rc)
                   end if
                   if ( rc /= 0 )  call die (myNewName, 'can not read DELP')
                end if
@@ -1036,7 +1032,7 @@
                        (lon_o(1) .lt. 0 .and. lon_e(1) .ge. 0) ) .and. &
                        (index(inVars(iv),";") .le. 0) )                &
                       call lon_shift(inField, im_e, jm_e, km_e)
-                  call doSubseting(inField, im_e, jm_e, km_e, outField, nLevs, levNums)
+                  call doSubseting(inField, im_e, jm_e, outField, nLevs, levNums)
                end if
             else
                if (.not. associated(outField)) then
@@ -1392,8 +1388,7 @@ CONTAINS
    integer :: iargc
    character(len=4096)  argv, prsFile
 
-   character(len=255)   rcfile, var, Vars(mVars), tmp, tmp1
-   character(len=4096) label
+   character(len=255)   rcfile, Vars(mVars), tmp, tmp1
    character(len=64)   inType
    character(len=256)  usrHistory, usrConvention, usrInstitution 
    character(len=256)  usrReferences, usrComment, usrSource
@@ -2326,14 +2321,13 @@ print *
       return
       end subroutine checkStrictVar
 
-      subroutine doSubseting(inField, im_e, jm_e, km_e, outField, km, levNums)
+      subroutine doSubseting(inField, im_e, jm_e, outField, km, levNums)
 !
       Implicit NONE
 !
 ! !INPUT PARAMETERS:
       integer :: im_e
       integer :: jm_e
-      integer :: km_e
       integer :: km
       integer, pointer :: levNums(:)
       real, pointer :: inField(:,:,:)
@@ -2520,6 +2514,10 @@ subroutine compHght(cfio_in, curDate, curTime, delp, im, jm, km, lon_min, wz, sl
 
 ! HISTORY:
 !  04Dec2009 Todling  fix dims on wz and peln
+!  10Jun2016 Todling  truncate rh similarly with how GCM truncates so-called
+!                     rh2, but instead of allow rh to reach values up to 1.02 do 
+!                     not allow it to be larger than 1.0 (as done in files we get
+!                     from ECMWF)
 !
      character(len=*), parameter :: myname_ = 'compHght'
 
@@ -2566,12 +2564,18 @@ subroutine compHght(cfio_in, curDate, curTime, delp, im, jm, km, lon_min, wz, sl
          print*,'... found TV instead'
      endif
      call ESMF_CFIOVarReadT2(cfio_in, 'sphu', curDate, curTime, sphu, rc=rc,cfio2=cfio_in2)
+     if (rc/=0) then
+        print*,'cannot find sphu ...'
+        call ESMF_CFIOVarReadT2(cfio_in, 'qv', curDate, curTime, sphu, rc=rc,cfio2=cfio_in2)
+        if(rc/=0) call die(myname_,'cannot find sphu/qv in file')
+        print*,'... found qv instead'
+     endif
      if (lon_min < 0 .and. .not. doSubset ) then
         call lon_shift(theta, im, jm, km)
         call lon_shift(sphu, im, jm, km)
      end if
 
-     call geopm(ptop,pk,delp,im,jm,km,1,jm,cpm,kappa,1)
+     call geopm(ptop,pk,delp,im,jm,km,1,jm,kappa,1)
      call pkez(im,jm,km,1,jm,ptop,grid%pe,pk,kappa,ks,peln,pkz,.false.)
      if (have_tv) then
          tmpu  = theta / (1. + zvir*sphu)
@@ -2589,7 +2593,6 @@ subroutine compHght(cfio_in, curDate, curTime, delp, im, jm, km, lon_min, wz, sl
             end do
          end do
                           
-!         call vqsat ( tfield, pmk, qsfield, im*jm, undef )
           qsfield = GEOS_Qsat(tfield, pmk, PASCALS=.true.)
                           
          do j = 1, jm
@@ -2599,16 +2602,15 @@ subroutine compHght(cfio_in, curDate, curTime, delp, im, jm, km, lon_min, wz, sl
          end do
      end do
                           
-     rh = 100 * sphu / rh
-!     rh = 100 * sphu*(1.-rh) / (rh*(1.-sphu))
+     rh = 100 * MAX(MIN( sphu/rh , 1.00 ),0.0) ! note: GEOS uses 1.02 instead of 1.0
      call comp_slp(im,jm,km,theta,phis,delp,            &
-                  grid%pe,grid%pm,kappa,grav,pkz,slp)
-     call comp_hght(ptop,im,jm,km,kappa,cpm,grav,delp, phis, theta, wz)
+                  grid%pe,grid%pm,grav,pkz,slp)
+     call comp_hght(ptop,im,jm,km,kappa,cpm,delp, phis, theta, wz)
      wz = wz / grav
      deallocate(phis, theta, sphu) 
 end subroutine compHght
 
-      subroutine geopm(ptop,pk,delp,im,jm, km,jfirst, jlast, cp,akap,id)
+      subroutine geopm(ptop,pk,delp,im,jm, km,jfirst, jlast, akap,id)
                                                                                                      
       implicit none
                                                                                                      
@@ -2621,7 +2623,6 @@ end subroutine compHght
       integer,     intent(in)  ::  jlast
       integer,     intent(in)  ::  id
       real,        intent(in)  ::  akap
-      real,        intent(in)  ::  cp
       real,        intent(in)  ::  ptop
       real,        intent(in)  ::  delp(im,jm,km)
                                                                                                      
@@ -2680,7 +2681,7 @@ end subroutine compHght
       return
       end subroutine geopm
                                                                                                      
-      subroutine comp_hght(ptop,im,jm,km,akap,cpm,grav,delp,phis,pt,wz)
+      subroutine comp_hght(ptop,im,jm,km,akap,cpm,delp,phis,pt,wz)
                                                                                                      
                                                                                                      
 ! !INPUT PARAMETERS:
@@ -2690,7 +2691,6 @@ end subroutine compHght
       integer,     intent(in)  :: km
       real,        intent(in)  :: akap
       real,        intent(in)  :: cpm
-      real,        intent(in)  :: grav
       real,        intent(in)  :: delp(im, jm, km)
       real,        intent(in)  :: phis(im, jm)
       real,        intent(in)  :: pt(im, jm, km)
@@ -2896,7 +2896,7 @@ end subroutine compHght
       return
       end subroutine pkez
                                                                                                      
-      subroutine  comp_slp(im,jm,km,pt,phis,delp,pe,pm,cappa,grav,pkz,inField)
+      subroutine  comp_slp(im,jm,km,pt,phis,delp,pe,pm,grav,pkz,inField)
       integer,        intent(in)  :: im
       integer,        intent(in)  :: jm
       integer,        intent(in)  :: km
@@ -2905,7 +2905,6 @@ end subroutine compHght
       real,           intent(in)  :: delp(im,jm,km)
       real,           intent(in)  :: pe(im,km+1,jm)
       real,           intent(in)  :: pm(im,km,jm)
-      real,           intent(in)  :: cappa
       real,           intent(in)  :: grav
       real,           intent(in)  :: pkz(im,jm,km+1)
       real,           intent(out) :: inField(im,jm,1)
@@ -3069,11 +3068,10 @@ subroutine unitConvert(im,jm,km,scaleFactor,offSet,undef,outField)
 
 end subroutine unitConvert
 
-subroutine readPrs (curDate, curTime, vName, im, jm, km, prs, rc)
+subroutine readPrs (curDate, curTime, vName, prs, rc)
      integer, intent(in)  :: curDate
      integer, intent(in)  :: curTime
      character(len=*),intent(in) :: vName
-     integer, intent(in)  :: im, jm, km 
      real, pointer  :: prs(:,:,:)
      integer, intent(out) :: rc
      

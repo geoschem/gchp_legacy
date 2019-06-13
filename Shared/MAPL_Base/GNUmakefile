@@ -17,12 +17,11 @@
 # Make sure ESMADIR is defined
 # ----------------------------
 ifndef ESMADIR
-       ESMADIR := $(shell pwd)/..
+       ESMADIR := $(shell pwd)/../../..
 endif
 
 THIS := $(shell basename `pwd`)
 LIB  = lib$(THIS).a
-LIB_STUBS  = lib$(THIS)_stubs.a
 
 # Compilation rules, flags, etc
 # -----------------------------
@@ -70,12 +69,14 @@ $(TARGETS):
 	  done
 	$(MAKE) local_$@
 
-local_esma_install local_install: $(LIB) $(LIB_STUBS)
+BINS = Regrid_Util.x 
+
+local_esma_install local_install: $(LIB) $(BINS)
 	$(MKDIR) $(ESMALIB) $(ESMAINC)/$(THIS)
 	$(CP) -pr *.a $(wildcard Python)   $(ESMALIB)
 	$(CP) -p *.[Mm][Oo][Dd] $(IINCS)   $(ESMAINC)/$(THIS)
-	$(CP) -p *.pl                      $(ESMABIN) 
-
+	$(CP) -p *.pl                      $(ESMABIN)
+	$(CP) -p $(BINS)                   $(ESMABIN) 
 
 local_esma_clean local_clean:
 	-$(RM) *~ *.[aox] *.[Mm][Oo][Dd] *___.f90
@@ -91,7 +92,7 @@ local_esma_doc local_doc:
 #                  --------------------
 
 INCS :=  MAPL_ErrLog.h            MAPL_ErrLogMain.h      MAPL_Generic.h \
-         MAPL_Exceptions.h
+         MAPL_Exceptions.h  unused_dummy.H
 
 CODE :=  allgather.code           bcast.code             recv.code      \
          allgatherv.code          gather.code            scatter.code\
@@ -99,39 +100,86 @@ CODE :=  allgather.code           bcast.code             recv.code      \
          arrayscatter.code        read_parallel.code     sendrecv.code\
          allreducemin.code        allreducemax.code      allreducesum.code
 
-SRCS :=  ESMFL_Mod.P90            MAPL_HeapMod.F90       MAPL_VarSpecMod.F90\
+SRCS :=  ESMFL_Mod.F90            MAPL_HeapMod.F90       MAPL_VarSpecMod.F90\
          MAPL_Base.F90            MAPL_InterpMod.F90     hinterp.F\
-         MAPL_CFIO.F90            MAPL_IO.P90            MAPL_HorzTransform.F90\
-         MAPL_Comms.P90           MAPL_LocStreamMod.F90  MAPL_Mod.F90\
+         MAPL_ErrorHandling.F90 \
+         MAPL_Config.F90\
+         MAPL_CFIO.F90            MAPL_IO.F90            \
+         MAPL_Comms.F90           MAPL_LocStreamMod.F90  MAPL_Mod.F90\
          MAPL_Constants.F90       MAPL_Profiler.F90      sort.c\
          MAPL_GenericCplComp.F90  MAPL_Sort.F90\
-         MAPL_Generic.F90         MAPL_sun_uc.P90        MAPL_SatVapor.F90\
+         MAPL_Generic.F90         MAPL_sun_uc.F90        MAPL_SatVapor.F90\
          MAPL_HistoryGridComp.F90 MAPL_Cap.F90           hash.c\
+         MAPL_CapGridComp.F90\
+         MAPL_GridType.F90 \
+         MAPL_GridSpec.F90 \
+         MAPL_AbstractRegridder.F90\
+         MAPL_EsmfRegridder.F90\
+         MAPL_LatLonToLatLonRegridder.F90\
+         MAPL_TilingRegridder.F90\
+         MAPL_ConservativeRegridder.F90\
+         MAPL_VotingRegridder.F90\
+         MAPL_FractionalRegridder.F90\
+         MAPL_IdentityRegridder.F90\
+         MAPL_CapGridComp.F90\
+         MAPL_KeywordEnforcer.F90 \
+         MAPL_Range.F90  \
+         MAPL_AbstractGridFactory.F90 \
+         MAPL_IntegerVector.F90 \
+         MAPL_Integer64GridFactoryMap.F90 \
+         MAPL_StringGridFactoryMap.F90 \
+         MAPL_StringGridMap.F90 \
+         MAPL_GridManager.F90 \
+         MAPL_RegridderManager.F90 \
+         MAPL_RegridderSpec.F90 \
+         MAPL_RegridderVector.F90 \
+         MAPL_RegridderTypeSpecRegridderMap.F90 \
+         MAPL_LatLonGridFactory.F90 \
+         MAPL_LatLonToLatLonRegridder.F90 \
+         MAPL_TripolarGridFactory.F90 \
+         AbstractCommSplitter.F90 SimpleCommSplitter.F90 SplitCommunicator.F90 CommGroupDescription.F90\
+         MAPL_StringVector.F90 \
+         MAPL_DirPath.F90 \
          c_mapl_locstream_F.c\
          memuse.c                 MAPL_MemUtils.F90      MAPL_Hash.F90 \
-         CubeToLatLon.F90         MAPL_MaxMinMod.F90     MAPL_SimpleBundleMod.F90 \
+         MAPL_MaxMinMod.F90     MAPL_SimpleBundleMod.F90 \
          MAPL_OrbGridCompMod.F90  MAPL_NominalOrbitsMod.F90 MAPL_ExtDataGridCompMod.F90 \
-         MAPL_NewArthParser.F90   MAPL_ShmemMod.F90      MAPL_LoadBalance.F90 MAPL_CFIOServer.F90
-
-SRC_STUBS :=  MAPL_stubs.F90
+         MAPL_ExtData_IOBundleMod.F90\
+         MAPL_ExtData_IOBundleVectorMod.F90\
+         MAPL_NewArthParser.F90   MAPL_ShmemMod.F90      MAPL_LoadBalance.F90 MAPL_CFIOServer.F90 \
+         MAPL_DefGridName.F90 MAPL_VerticalInterpMod.F90 MAPL_Throw.F90 MAPL_MinMax.F90 \
+         MAPL_StringIntegerMap.F90 CFIOCollection.F90 ESMF_CFIOPtrVectorMod.F90 Regrid_Functions_Mod.F90 \
+         MAPL_HistoryCollection.F90 MAPL_TransposeRegridder.F90 MAPL_GetLatLonCoord.F90 MAPL_EsmfRegridder.F90 \
+         MAPL_newCFIO.F90 MAPL_newCFIOitem.F90 MAPL_VerticalMethods.F90 MAPL_TimeMethods.F90\
+	 MAPL_ServerManager.F90 MAPL_ESMFTimeVectorMod.F90
+# Remove MAPL_NUOPCWrapperMod.F90 from GCHP
+#	 MAPL_NUOPCWrapperMod.F90 MAPL_ServerManager.F90 MAPL_ESMFTimeVectorMod.F90
 
 # Hack to allow runs on jaguar
 # FOPT = $(FOPT0) 
 
-TESTS = utCFIO_Bundle.x utCFIO_Array.x utCFIO_Nbits.x 
-IINCS = $(wildcard MAPL_*.h)
+FOPT += $(OMPFLAG)
+
+TESTS = utCFIO_Bundle.x utCFIO_Array.x utCFIO_Nbits.x
+IINCS = $(wildcard MAPL_*.h) unused_dummy.H
 
 OBJS := $(addsuffix .o, $(basename $(SRCS)))
-DEPS := $(addsuffix .d, $(basename $(SRCS) $(SRC_STUBS)))
+DEPS := $(addsuffix .d, $(basename $(SRCS))) \
+        $(addsuffix .d, $(basename $(BINS)))
 
-OBJ_STUBS := $(addsuffix .o, $(basename $(SRC_STUBS)))
-
-INC_DIRS = . $(INC_ESMF) $(INC_MPI) $(INC_SDF) /usr/include 
-MOD_DIRS = $(MOD_ESMF) $(INC_DIRS) $(INC_CFIO) $(INC_MPEU)
+# Change for GCHP
+#INC_DIRS = . $(INC_ESMF) $(INC_MPI) $(INC_SDF) $(INC_gFTL) $(INC_FLAP)
+INC_DIRS = . $(INC_ESMF) $(INC_MPI) $(INC_SDF) $(INC_gFTL)
+MOD_DIRS = $(INC_DIRS) $(INC_CFIO) $(INC_GMAO_pFIO)
 
 USER_FINCS = $(foreach dir,$(INC_DIRS),$(I)$(dir))
 USER_FMODS = $(foreach dir,$(MOD_DIRS),$(M)$(dir)) 
-USER_FDEFS = $(D)MAPL $(D)DO_COMMAS $(D)TWO_SIDED_COMM
+USER_FDEFS = $(D)MAPL $(D)DO_COMMAS $(D)TWO_SIDED_COMM $(D)__ifort_18
+USER_LDFLAGS = $(OMPFLAG)
+
+ifeq ($(IFORT_MAJOR),18)
+  USER_FDEFS += $(D)__ifort_18
+endif
 
 FREAL = $(FREAL4) # for now, require 32 bit reals (R4)
 THIS_CFIO = MAPL_cfio_r4
@@ -149,9 +197,9 @@ ifneq ( $(wildcard $(ESMADIR)/src/GEOSagcmPert_GridComp ), $(null) )
    USER_FFLAGS += -DUSE_CUBEDSPHERE
 endif
 
-#ifneq ( $(wildcard $(ESMADIR)/src/GEOSctm_GridComp/FVdycoreCubed_GridComp ), $(null) )
+ifneq ( $(wildcard $(ESMADIR)/src/GEOSctm_GridComp/FVdycoreCubed_GridComp ), $(null) )
       USER_FFLAGS += -DUSE_CUBEDSPHERE
-#endif 
+endif 
 
 ifdef GPU_TARGET
   INC_DIRS += $(INC_PGI) # Needed to pick up CUDA libraries
@@ -171,13 +219,17 @@ vpath % $(MOD_DIRS) tests TeX
 
 $(LIB) lib : $(DEPS) $(OBJS)
 	$(AR) $(AR_FLAGS) $(LIB) $(OBJS)
+	$(RANLIB) $(RANLIB_FLAGS) $(LIB)
 
-$(LIB_STUBS) lib : $(DEPS) $(OBJ_STUBS)
-	$(AR) $(AR_FLAGS) $(LIB_STUBS) $(OBJ_STUBS)
-
+# Change for GCHP
+#%.x : $(LIB) %.o
+#	$(FC) $(LDFLAGS) -o $@ $*.o $(LIB) \
+#              $(LIB_ESMF) $(LIB_CFIO) $(LIB_GMAO_pFIO) \
+#              $(wildcard $(LIB_MFHDF3)) $(LIB_SDF)\
+#              $(LIB_MPI) $(LIB_SYS) $(LIB_FLAP)
 %.x : $(LIB) %.o
-	$(FC) $(LDFLAGS) -o $@ $*.o $(LIB) $(LIB_STUBS) \
-              $(LIB_ESMF) $(LIB_CFIO) $(LIB_MPEU) \
+	$(FC) $(LDFLAGS) -o $@ $*.o $(LIB) \
+              $(LIB_ESMF) $(LIB_CFIO) $(LIB_GMAO_pFIO) \
               $(wildcard $(LIB_MFHDF3)) $(LIB_SDF)\
               $(LIB_MPI) $(LIB_SYS)
 
@@ -200,9 +252,6 @@ test: $(TESTS)
 #            MAPL_HistoryGridComp.pdf       
 
 # esma_doc doc: $(PDF_DOCS)
-
-# UG_SRCS = MAPL_Generic.F90 MAPL_GenericCplComp.F90  \
-#           MAPL_sun_uc.P90 MAPL_SatVapor.F90
 
 # MAPL_UsersGuide.tex: $(UG_SRCS)
 # 	$(PROTEX) -g -b -f $(UG_SRCS) > MAPL_UsersGuide___.tex

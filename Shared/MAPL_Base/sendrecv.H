@@ -1,10 +1,15 @@
-! $Id: sendrecv.H,v 1.3 2008-08-28 20:24:07 trayanov Exp $
+! $Id$
 
 #ifdef NAME_
 #undef NAME_
 #endif
 
+#ifdef NAMESTR_
+#undef NAMESTR_
+#endif
+
 #define NAME_ MAPL_CommsSendRecv_
+#define NAMESTR_ 'MAPL_CommsSendRecv_'
 
 #include "overload.macro"
 
@@ -33,23 +38,25 @@
     type(ESMF_VM)                         :: vm
 
     call ESMF_DELayoutGet(layout, vm=vm, rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call ESMF_VMGet(vm, mpiCommunicator=COMM, rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MPI_SendRecv( sendbuf, sendcount, MPITYPE_, dest,   msg_tag, &
                        recvbuf, recvcount, MPITYPE_, source, msg_tag, &
                        COMM, mpstatus, IERR )
-    VERIFY_(IERR)
+    _VERIFY(IERR)
   
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
   END SUBROUTINE SUB_
 
 #undef NAME_
+#undef NAMESTR_
 
 #undef DIMENSIONS_
 #undef RANK_
+#undef RANKSTR_
 #undef VARTYPE_
 
 

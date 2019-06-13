@@ -1,0 +1,70 @@
+#!/bin/csh -f
+
+set SOURCE = $1
+cd $SOURCE
+
+#######################################################################
+#                     Create FIXCTL Utility
+#######################################################################
+
+set           FILE = fixctl
+/bin/rm -f   $FILE
+cat << EOF > $FILE
+#!/bin/ksh
+/bin/mv \$1 \$1.tmp
+touch   \$1
+while read line
+do
+echo \$line | cut -d'>' -f2- >> \$1
+done < \$1.tmp
+exit
+EOF
+chmod +x $FILE
+
+#######################################################################
+#           Gather Systematic Error Files into Single File
+#######################################################################
+
+set  files = `/bin/ls -1 *fma*.nc3`
+set nfiles = $#files
+     @  n = 1
+/bin/cp $files[$n] previous
+while( $n < $nfiles )
+     @  m = $n + 1
+/bin/cp    $files[$m] next
+ncks -h -A  previous  next
+/bin/mv -f  next  previous
+     @  n = $n + 1
+end
+
+set name = `echo $files[1] | cut -b5-`
+/bin/mv -f previous syserr_$name
+
+#######################################################################
+#               Convert Systematic Error File to NC4
+#######################################################################
+
+set SYSERR_FILE = `echo syserr_$name | cut -d. -f1`
+
+/bin/rm -f                                               grads.commands
+touch                                                    grads.commands
+echo \'sdfopen ${SYSERR_FILE}.nc3\'                   >> grads.commands
+echo \'run $GEOSUTIL/plots/grads_util/writegrads.gs\' >> grads.commands
+echo \'q ctlinfo\'                                    >> grads.commands
+echo   write \(ctlinfo,\result\)                      >> grads.commands
+echo \'quit\'                                         >> grads.commands
+grads -b -l -c "run grads.commands"
+
+./$FILE ctlinfo
+
+/bin/mv -f ctlinfo   ctlinfo.tmp
+set oldstring = `cat ctlinfo.tmp | grep slp`
+set newstring = "slp 0 t,z,y,x slp"
+cat ctlinfo.tmp | sed -e "s?$oldstring?$newstring?g" > ctlinfo
+
+$GEOSUTIL/post/flat2hdf.x -flat grads.fwrite -ctl ctlinfo -nymd 19800101 -nhms 0 -ndt 21600
+/bin/mv -f grads.fwrite.nc4 ${SYSERR_FILE}.nc4
+
+/bin/rm -f $FILE
+/bin/rm -f grads*
+/bin/rm -f ctlinfo*

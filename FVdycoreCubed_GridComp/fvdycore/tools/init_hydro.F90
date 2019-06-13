@@ -1,73 +1,126 @@
-! $Id: init_hydro.F90,v 1.2.2.1.2.1.2.1.10.1.12.1.88.1 2014-02-21 21:00:45 wputman Exp $
+!***********************************************************************
+!*                   GNU Lesser General Public License                 
+!*
+!* This file is part of the FV3 dynamical core.
+!*
+!* The FV3 dynamical core is free software: you can redistribute it 
+!* and/or modify it under the terms of the
+!* GNU Lesser General Public License as published by the
+!* Free Software Foundation, either version 3 of the License, or 
+!* (at your option) any later version.
+!*
+!* The FV3 dynamical core is distributed in the hope that it will be 
+!* useful, but WITHOUT ANYWARRANTY; without even the implied warranty 
+!* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+!* See the GNU General Public License for more details.
+!*
+!* You should have received a copy of the GNU Lesser General Public
+!* License along with the FV3 dynamical core.  
+!* If not, see <http://www.gnu.org/licenses/>.
+!***********************************************************************
 
 module init_hydro_mod
 
-      use fv_arrays_mod, only: REAL8
+! <table>
+! <tr>
+!     <th>Module Name</th>
+!     <th>Functions Included</th>
+!   </tr>
+!   <tr>
+!     <td>constants_mod</td>
+!     <td>grav, rdgas, rvgas</td>
+!   </tr>
+!   <tr>
+!     <td>fv_grid_utils_mod</td>
+!     <td>g_sum</td>
+!   </tr>
+!   <tr>
+!     <td>fv_mp_mod</td>
+!     <td>is_master</td>
+!   </tr>
+!   <tr>
+!     <td>mpp_mod</td>
+!     <td>mpp_chksum, stdout, mpp_error, FATAL, NOTE,get_unit, mpp_sum, mpp_broadcast,
+!         mpp_get_current_pelist, mpp_npes, mpp_set_current_pelist, mpp_send, mpp_recv, 
+!         mpp_sync_self, mpp_npes, mpp_pe, mpp_sync</td>
+!   </tr>
+!   <tr>
+!     <td>mpp_domains_mod</td>
+!     <td> domain2d</td>
+!   </tr>
+!   <tr>
+!     <td>tracer_manager_mod</td>
+!     <td>get_tracer_index</td>
+!   </tr>
+! </table>
 
-#ifndef MAPL_MODE
-      use constants_mod, only: grav, rdgas, rvgas
-#else
-      use MAPL_MOD,      only: MAPL_GRAV, MAPL_RGAS, MAPL_RVAP
-#endif
 
-      use fv_grid_utils_mod,    only: g_sum
-      use fv_grid_tools_mod,    only: area
-      use fv_mp_mod,        only: gid, masterproc
+      use constants_mod,      only: grav, rdgas, rvgas
+      use fv_grid_utils_mod,  only: g_sum
+      use fv_mp_mod,          only: is_master
+      use field_manager_mod,  only: MODEL_ATMOS
+      use tracer_manager_mod, only: get_tracer_index
+      use mpp_domains_mod,    only: domain2d
+      use fv_arrays_mod,      only: R_GRID
 !     use fv_diagnostics_mod, only: prt_maxmin
 
       implicit none
       private
-
-#ifdef MAPL_MODE
-  real(REAL8), parameter :: RVGAS        = MAPL_RVAP
-  real(REAL8), parameter :: RDGAS        = MAPL_RGAS
-  real(REAL8), parameter :: GRAV         = MAPL_GRAV
-#endif
 
       public :: p_var, hydro_eq
 
 contains
 
 !-------------------------------------------------------------------------------
+!>@brief the subroutine 'p_var' computes auxiliary pressure variables for 
+!! a hydrostatic state.
+!>@details The variables are: surfce, interface, layer-mean pressure, exener function
+!! Given (ptop, delp) computes (ps, pk, pe, peln, pkz)
  subroutine p_var(km, ifirst, ilast, jfirst, jlast, ptop, ptop_min,    &
-                  delp, delz, pt, ps,  pe, peln, pk, pkz, cappa, q, ng, nq,    &
+                  delp, delz, pt, ps,  pe, peln, pk, pkz, cappa, q, ng, nq, area,   &
                   dry_mass, adjust_dry_mass, mountain, moist_phys,      &
-                  hydrostatic, ktop, nwat, make_nh)
-               
+                  hydrostatic, nwat, domain, make_nh)
 ! Given (ptop, delp) computes (ps, pk, pe, peln, pkz)
 ! Input:
    integer,  intent(in):: km
-   integer,  intent(in):: ifirst, ilast            ! Longitude strip
-   integer,  intent(in):: jfirst, jlast            ! Latitude strip
+   integer,  intent(in):: ifirst, ilast            !< Longitude strip
+   integer,  intent(in):: jfirst, jlast            !< Latitude strip
    integer,  intent(in):: nq, nwat
    integer,  intent(in):: ng
-   integer,  intent(in):: ktop
    logical, intent(in):: adjust_dry_mass, mountain, moist_phys, hydrostatic
-   real(REAL8), intent(in):: dry_mass, cappa, ptop, ptop_min
-   real(REAL8), intent(in   )::   pt(ifirst-ng:ilast+ng,jfirst-ng:jlast+ng, km)
-   real(REAL8), intent(inout):: delz(ifirst   :ilast   ,jfirst   :jlast   , km)
-   real(REAL8), intent(inout):: delp(ifirst-ng:ilast+ng,jfirst-ng:jlast+ng, km)
-   real(REAL8), intent(inout)::    q(ifirst-ng:ilast+ng,jfirst-ng:jlast+ng, km, nq)
+   real, intent(in):: dry_mass, cappa, ptop, ptop_min
+   real, intent(in   )::   pt(ifirst-ng:ilast+ng,jfirst-ng:jlast+ng, km)
+   real, intent(inout):: delz(ifirst-ng:ilast+ng,jfirst-ng:jlast+ng, km)
+   real, intent(inout):: delp(ifirst-ng:ilast+ng,jfirst-ng:jlast+ng, km)
+   real, intent(inout)::    q(ifirst-ng:ilast+ng,jfirst-ng:jlast+ng, km, nq)
+   real(kind=R_GRID), intent(IN)   :: area(ifirst-ng:ilast+ng,jfirst-ng:jlast+ng)
    logical, optional:: make_nh
 ! Output:
-   real(REAL8), intent(out) ::   ps(ifirst-ng:ilast+ng, jfirst-ng:jlast+ng)
-   real(REAL8), intent(out) ::   pk(ifirst:ilast, jfirst:jlast, km+1)
-   real(REAL8), intent(out) ::   pe(ifirst-1:ilast+1,km+1,jfirst-1:jlast+1) ! Ghosted Edge pressure
-   real(REAL8), intent(out) :: peln(ifirst:ilast, km+1, jfirst:jlast)    ! Edge pressure
-   real(REAL8), intent(out) ::  pkz(ifirst:ilast, jfirst:jlast, km)
+   real, intent(out) ::   ps(ifirst-ng:ilast+ng, jfirst-ng:jlast+ng)
+   real, intent(out) ::   pk(ifirst:ilast, jfirst:jlast, km+1)
+   real, intent(out) ::   pe(ifirst-1:ilast+1,km+1,jfirst-1:jlast+1) !< Ghosted Edge pressure
+   real, intent(out) :: peln(ifirst:ilast, km+1, jfirst:jlast)    !< Edge pressure
+   real, intent(out) ::  pkz(ifirst:ilast, jfirst:jlast, km)
+   type(domain2d), intent(IN) :: domain
 
 ! Local
-   real(REAL8) ratio(ifirst:ilast)
-   real(REAL8) pek, lnp, ak1, rdg, dpd, zvir
+   integer  sphum, liq_wat, ice_wat
+   integer  rainwat, snowwat, graupel          ! GFDL Cloud Microphysics
+   real ratio(ifirst:ilast)
+   real pek, lnp, ak1, rdg, dpd, zvir
    integer i, j, k
 
-
 ! Check dry air mass & compute the adjustment amount:
+   if ( adjust_dry_mass )      &
    call drymadj(km, ifirst, ilast,  jfirst,  jlast, ng, cappa, ptop, ps, &
-                delp, q, nq, nwat, dry_mass, adjust_dry_mass, moist_phys, dpd)
+                delp, q, nq, area, nwat, dry_mass, adjust_dry_mass, moist_phys, dpd, domain)
 
    pek = ptop ** cappa
 
+!$OMP parallel do default(none) shared(ifirst,ilast,jfirst,jlast,km,ptop,pek,pe,pk, &
+!$OMP                                  ps,adjust_dry_mass,dpd,delp,peln,cappa,      &
+!$OMP                                  ptop_min,hydrostatic,pkz )                   &
+!$OMP                          private(ratio, ak1, lnp)
    do j=jfirst,jlast
       do i=ifirst,ilast
          pe(i,1,j) = ptop
@@ -90,7 +143,6 @@ contains
             pe(i,k,j) = pe(i,k-1,j) + delp(i,j,k-1)
             peln(i,k,j) = log(pe(i,k,j))
             pk(i,j,k) = exp( cappa*peln(i,k,j) )
-!            pk(i,j,k) = pe(i,k,j)**cappa
          enddo
       enddo
 
@@ -123,20 +175,11 @@ contains
 
    if ( .not.hydrostatic ) then
 
-      if ( ktop>1 ) then
-! Compute pkz using hydrostatic formular:
-         do k=1,ktop-1
-            do j=jfirst,jlast
-            do i=ifirst,ilast
-               pkz(i,j,k) = (pk(i,j,k+1)-pk(i,j,k))/(cappa*(peln(i,k+1,j)-peln(i,k,j)))
-            enddo
-            enddo
-         enddo
-      endif
-
       rdg = -rdgas / grav
       if ( present(make_nh) ) then
           if ( make_nh ) then
+             delz = 1.e25 
+!$OMP parallel do default(none) shared(ifirst,ilast,jfirst,jlast,km,delz,rdg,pt,peln)
              do k=1,km
                 do j=jfirst,jlast
                    do i=ifirst,ilast
@@ -144,27 +187,34 @@ contains
                    enddo
                 enddo
              enddo
-             if(gid==0) write(*,*) 'delz computed from hydrostatic state'
+             if(is_master()) write(*,*) 'delz computed from hydrostatic state'
           endif
       endif
 
      if ( moist_phys ) then
 !------------------------------------------------------------------
 ! The following form is the same as in "fv_update_phys.F90"
-! Therefore, restart reproducibility is only enforced in diabatic cases
 !------------------------------------------------------------------
-! For adiabatic runs, use "-DSOLO_REPRO" to enforce reproducibility
        zvir = rvgas/rdgas - 1.
-       do k=ktop,km
+#ifdef MAPL_MODE
+       sphum   = 1
+#else
+       sphum   = get_tracer_index (MODEL_ATMOS, 'sphum')
+#endif
+!$OMP parallel do default(none) shared(ifirst,ilast,jfirst,jlast,km,pkz,cappa,rdg, &
+!$OMP                                  delp,pt,zvir,q,sphum,delz)
+       do k=1,km
           do j=jfirst,jlast
              do i=ifirst,ilast
                 pkz(i,j,k) = exp( cappa*log(rdg*delp(i,j,k)*pt(i,j,k)*    &
-                                (1.+zvir*q(i,j,k,1))/delz(i,j,k)) )
+                                (1.+zvir*q(i,j,k,sphum))/delz(i,j,k)) )
              enddo
           enddo
        enddo
      else
-       do k=ktop,km
+!$OMP parallel do default(none) shared(ifirst,ilast,jfirst,jlast,km,pkz,cappa,rdg, &
+!$OMP                                  delp,pt,delz)
+       do k=1,km
           do j=jfirst,jlast
              do i=ifirst,ilast
                 pkz(i,j,k) = exp( cappa*log(rdg*delp(i,j,k)*pt(i,j,k)/delz(i,j,k)) )
@@ -180,31 +230,33 @@ contains
 
 
  subroutine drymadj(km,  ifirst, ilast, jfirst,  jlast,  ng, &  
-                    cappa,   ptop, ps, delp, q,  nq,  nwat,  &
-                    dry_mass, adjust_dry_mass, moist_phys, dpd)
+                    cappa,   ptop, ps, delp, q,  nq, area,  nwat,  &
+                    dry_mass, adjust_dry_mass, moist_phys, dpd, domain)
 
-! !INPUT PARAMETERS:
+! INPUT PARAMETERS:
       integer km
-      integer ifirst, ilast  ! Long strip
-      integer jfirst, jlast  ! Latitude strip    
+      integer ifirst, ilast  !< Longitude strip
+      integer jfirst, jlast  !< Latitude strip    
       integer nq, ng, nwat
-      real(REAL8), intent(in):: dry_mass
-      real(REAL8), intent(in):: ptop
-      real(REAL8), intent(in):: cappa
+      real, intent(in):: dry_mass
+      real, intent(in):: ptop
+      real, intent(in):: cappa
       logical, intent(in):: adjust_dry_mass
       logical, intent(in):: moist_phys
+      real(kind=R_GRID), intent(IN) :: area(ifirst-ng:ilast+ng, jfirst-ng:jlast+ng)
+      type(domain2d), intent(IN) :: domain
 
-! !INPUT/OUTPUT PARAMETERS:     
-      real(REAL8), intent(in)::   q(ifirst-ng:ilast+ng,jfirst-ng:jlast+ng,km,nq)
-      real(REAL8), intent(in)::delp(ifirst-ng:ilast+ng,jfirst-ng:jlast+ng,km)     !
-      real(REAL8), intent(inout):: ps(ifirst-ng:ilast+ng,jfirst-ng:jlast+ng)        ! surface pressure
-      real(REAL8), intent(out):: dpd
+! INPUT/OUTPUT PARAMETERS:     
+      real, intent(in)::   q(ifirst-ng:ilast+ng,jfirst-ng:jlast+ng,km,nq)
+      real, intent(in)::delp(ifirst-ng:ilast+ng,jfirst-ng:jlast+ng,km)     
+      real, intent(inout):: ps(ifirst-ng:ilast+ng,jfirst-ng:jlast+ng)        !< surface pressure
+      real, intent(out):: dpd
 ! Local
-      real(REAL8)  psd(ifirst:ilast,jfirst:jlast)     ! surface pressure  due to dry air mass
-      real(REAL8)  psmo, psdry
+      real  psd(ifirst:ilast,jfirst:jlast)     !< surface pressure due to dry air mass
+      real  psmo, psdry
       integer i, j, k
 
-!$omp parallel do default(shared) 
+!$OMP parallel do default(none) shared(ifirst,ilast,jfirst,jlast,km,ps,ptop,psd,delp,nwat,q) 
       do j=jfirst,jlast
 
          do i=ifirst,ilast
@@ -233,129 +285,87 @@ contains
 
 ! Check global maximum/minimum
 #ifndef QUICK_SUM
-      psdry = g_sum(psd, ifirst, ilast, jfirst, jlast, ng, area, 1, .true.) 
-       psmo = g_sum(ps(ifirst:ilast,jfirst:jlast), ifirst, ilast, jfirst, jlast,  &
+      psdry = g_sum(domain, psd, ifirst, ilast, jfirst, jlast, ng, area, 1, .true.) 
+       psmo = g_sum(domain, ps(ifirst:ilast,jfirst:jlast), ifirst, ilast, jfirst, jlast,  &
                      ng, area, 1, .true.) 
 #else
-      psdry = g_sum(psd, ifirst, ilast, jfirst, jlast, ng, area, 1) 
-       psmo = g_sum(ps(ifirst:ilast,jfirst:jlast), ifirst, ilast, jfirst, jlast,  &
+      psdry = g_sum(domain, psd, ifirst, ilast, jfirst, jlast, ng, area, 1) 
+       psmo = g_sum(domain, ps(ifirst:ilast,jfirst:jlast), ifirst, ilast, jfirst, jlast,  &
                      ng, area, 1) 
 #endif
 
-      if(gid==masterproc) then
-         write(6,*) 'Total surface pressure (mb) = ', 0.01*psmo
+#ifdef MAPL_MODE
+      if( adjust_dry_mass ) Then
+          dpd = real(dry_mass - psdry,4)
+          if (dpd /= 0.0) then
+            if(is_master()) then
+               write(*,*) 'Total surface pressure (mb) = ', 0.01*psmo
+               if ( moist_phys ) then
+                   write(*,*) 'mean dry surface pressure = ', 0.01*psdry
+                   write(*,*) 'Total Water (kg/m**2) =', real(psmo-psdry,4)/GRAV
+               endif
+               write(*,*) 'dry mass to be added (pascals) =', dpd
+            endif
+          endif
+      endif
+#else
+      if(is_master()) then
+         write(*,*) 'Total surface pressure (mb) = ', 0.01*psmo
          if ( moist_phys ) then
-              write(6,*) 'mean dry surface pressure = ', 0.01*psdry
-              write(6,*) 'Total Water (kg/m**2) =', real(psmo-psdry,4)/GRAV
+              write(*,*) 'mean dry surface pressure = ', 0.01*psdry
+              write(*,*) 'Total Water (kg/m**2) =', real(psmo-psdry,4)/GRAV
          endif
       endif
 
       if( adjust_dry_mass ) Then
           dpd = real(dry_mass - psdry,4)
-          if(gid==masterproc) write(6,*) 'dry mass to be added (pascals) =', dpd
+          if(is_master()) write(*,*) 'dry mass to be added (pascals) =', dpd
       endif
+#endif
 
  end subroutine drymadj
 
-
-
+!>@brief The subroutine 'hydro_eq' computes a hydrostatically balanced and isothermal
+!! basic state from input heights.
  subroutine hydro_eq(km, is, ie, js, je, ps, hs, drym, delp, ak, bk,  &
-                     pt, delz, ng, mountain, hybrid_z)
+                     pt, delz, area, ng, mountain, hydrostatic, hybrid_z, domain)
 ! Input: 
   integer, intent(in):: is, ie, js, je, km, ng
-  real(REAL8), intent(in):: ak(km+1), bk(km+1)
-  real(REAL8), intent(in):: hs(is-ng:ie+ng,js-ng:je+ng)
-  real(REAL8), intent(in):: drym
+  real, intent(in):: ak(km+1), bk(km+1)
+  real, intent(in):: hs(is-ng:ie+ng,js-ng:je+ng)
+  real, intent(in):: drym
   logical, intent(in):: mountain
+  logical, intent(in):: hydrostatic
   logical, intent(in):: hybrid_z
+  real(kind=R_GRID), intent(IN) :: area(is-ng:ie+ng,js-ng:je+ng)
+  type(domain2d), intent(IN) :: domain
 ! Output
-  real(REAL8), intent(out):: ps(is-ng:ie+ng,js-ng:je+ng)
-  real(REAL8), intent(out)::   pt(is-ng:ie+ng,js-ng:je+ng,km)
-  real(REAL8), intent(out):: delp(is-ng:ie+ng,js-ng:je+ng,km)
-  real(REAL8), intent(inout):: delz(is:ie,js:je,km)
+  real, intent(out):: ps(is-ng:ie+ng,js-ng:je+ng)
+  real, intent(out)::   pt(is-ng:ie+ng,js-ng:je+ng,km)
+  real, intent(out):: delp(is-ng:ie+ng,js-ng:je+ng,km)
+  real, intent(inout):: delz(is-ng:ie+ng,js-ng:je+ng,km)
 ! Local
-  real(REAL8)   gz(is:ie,km+1)
-  real(REAL8)   ph(is:ie,km+1)
-  real(REAL8) mslp, z1, t1, p1, t0, a0, psm
-  real(REAL8) ztop, c0
+  real   gz(is:ie,km+1)
+  real   ph(is:ie,km+1)
+  real mslp, z1, t1, p1, t0, a0, psm
+  real ztop, c0
 #ifdef INIT_4BYTE
   real(kind=4) ::  dps 
 #else
-  real(REAL8) dps    ! note that different PEs will get differt dps during initialization
+  real dps    ! note that different PEs will get differt dps during initialization
               ! this has no effect after cold start
 #endif
-  real(REAL8) p0, gztop, ptop
+  real p0, gztop, ptop
   integer  i,j,k
 
-  if ( gid==masterproc ) write(*,*) 'Initializing ATM hydrostatically'
+  if ( is_master() ) write(*,*) 'Initializing ATM hydrostatically'
 
-#if defined(MARS_GCM)
-  if ( gid==masterproc ) write(*,*) 'Initializing Mars'
-      p0 = 6.5E2         !
-      t0 = 200.0
-
-!         Isothermal temperature
-      pt = t0
-
-      gztop = rdgas*t0*log(p0/ak(1))        ! gztop when zs==0
-
-     do j=js,je
-        do i=is,ie
-           ps(i,j) = ak(1)*exp((gztop-hs(i,j))/(rdgas*t0))
-        enddo
-     enddo
-
-     psm = g_sum(ps(is:ie,js:je), is, ie, js, je, ng, area, 1, .true.)
-     dps = drym - psm
-
-     if(gid==masterproc) write(6,*) 'Initializing:  Computed mean ps=', psm
-     if(gid==masterproc) write(6,*) '            Correction delta-ps=', dps
-
-!           Add correction to surface pressure to yield desired
-!                globally-integrated atmospheric mass  (drym)
-     do j=js,je
-        do i=is,ie
-           ps(i,j) = ps(i,j) + dps
-        enddo
-     enddo
-
-      do k=1,km
-         do j=js,je
-            do i=is,ie
-               delp(i,j,k) = ak(k+1)-ak(k) + ps(i,j)*(bk(k+1)-bk(k))
-            enddo
-         enddo
-      enddo
-
-#elif defined(VENUS_GCM)
-  if ( gid==masterproc ) write(*,*) 'Initializing Venus'
-      p0 = 92.E5         ! need to tune this value
-      t0 = 700.
-      pt = t0
-! gztop when zs==0
-      gztop = rdgas*t0*log(p0/ak(1))
-
-     do j=js,je
-        do i=is,ie
-           ps(i,j) = ak(1)*exp((gztop-hs(i,j))/(rdgas*t0))
-        enddo
-     enddo
-
-      do k=1,km
-         do j=js,je
-            do i=is,ie
-               delp(i,j,k) = ak(k+1)-ak(k) + ps(i,j)*(bk(k+1)-bk(k))
-            enddo
-         enddo
-      enddo
-
-#else
-  if ( gid==masterproc ) write(*,*) 'Initializing Earth'
+  if ( is_master() ) write(*,*) 'Initializing Earth'
 ! Given p1 and z1 (250mb, 10km)
         p1 = 25000.
         z1 = 10.E3 * grav
-        t1 = 215.
-        t0 = 280.            ! sea-level temp.
+        t1 = 200.
+        t0 = 300.            ! sea-level temp.
         a0 = (t1-t0)/z1
         c0 = t0/a0
 
@@ -366,7 +376,7 @@ contains
      endif
 
      ztop = z1 + (rdgas*t1)*log(p1/ptop)
-     if(gid==masterproc) write(6,*) 'ZTOP is computed as', ztop/grav*1.E-3
+     if(is_master()) write(*,*) 'ZTOP is computed as', ztop/grav*1.E-3
 
   if ( mountain ) then
      mslp = 100917.4
@@ -375,12 +385,12 @@ contains
            ps(i,j) = mslp*( c0/(hs(i,j)+c0))**(1./(a0*rdgas))
         enddo
      enddo
-     psm = g_sum(ps(is:ie,js:je), is, ie, js, je, ng, area, 1, .true.)
+     psm = g_sum(domain, ps(is:ie,js:je), is, ie, js, je, ng, area, 1, .true.)
      dps = drym - psm
-     if(gid==masterproc) write(6,*) 'Computed mean ps=', psm
-     if(gid==masterproc) write(6,*) 'Correction delta-ps=', dps
+     if(is_master()) write(*,*) 'Computed mean ps=', psm
+     if(is_master()) write(*,*) 'Correction delta-ps=', dps
   else
-     mslp = 1000.E2
+     mslp = drym  ! 1000.E2
      do j=js,je
         do i=is,ie
            ps(i,j) = mslp
@@ -445,6 +455,13 @@ contains
              endif
           enddo
        enddo
+       if ( .not. hydrostatic ) then
+          do k=1,km
+             do i=is,ie
+                delz(i,j,k) = ( gz(i,k+1) - gz(i,k) ) / grav
+             enddo
+          enddo
+       endif
      endif  ! end hybrid_z
 
 ! Convert geopotential to Temperature
@@ -457,13 +474,6 @@ contains
       enddo
    enddo    ! j-loop
 
-   if ( hybrid_z ) then 
-!      call prt_maxmin('INIT_hydro: delz', delz, is, ie, js, je,  0, km, 1., gid==masterproc)
-!      call prt_maxmin('INIT_hydro: DELP', delp, is, ie, js, je, ng, km, 1., gid==masterproc)
-   endif
-!  call prt_maxmin('INIT_hydro: PT  ', pt,   is, ie, js, je, ng, km, 1., gid==masterproc)
-
-#endif
 
  end subroutine hydro_eq
 

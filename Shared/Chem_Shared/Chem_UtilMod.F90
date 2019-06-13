@@ -1,14 +1,11 @@
 #include "MAPL_Generic.h"
+#include "unused_dummy.H"
 #if 0
 #define min(x,y) amin(real(x),real(y))
 #define MIN(x,y) AMIN(real(x),real(y))
 #define max(x,y) amax(real(x),real(y))
 #define MAX(x,y) AMAX(real(x),real(y))
 #endif
-
-#define DEALOC_(A) if(associated(A)) then; A=0; call MAPL_DeAllocNodeArray(A,rc=STATUS); if(STATUS==MAPL_NoShm) deallocate(A, stat=STATUS); VERIFY_(STATUS); NULLIFY(A); endif
-
-#define DEALOC2_(A) if(associated(A)) then; deallocate(A, stat=STATUS); VERIFY_(STATUS); NULLIFY(A); endif
 
 !-------------------------------------------------------------------------
 !         NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
@@ -31,14 +28,12 @@
    use MAPL_CFIOMod
    use MAPL_CommsMod
 !  use HorzBinMod
-   use MAPL_HorzTransformMod
    use MAPL_ShmemMod
 
    use Chem_Mod                  ! Chemistry Base Class
    use mod_diag                  ! fvGCM diagnostics
    use m_die
    use m_StrTemplate             ! string templates
-   use m_chars, only: uppercase
 
    implicit NONE
 
@@ -47,13 +42,19 @@
 !
 
    PRIVATE
-   PUBLIC  Chem_UtilMPread          ! Array reader
    PUBLIC  Chem_UtilNegFiller       ! Fills negative values in a column
    PUBLIC  Chem_UtilTroppFixer      ! Repairs tropopause pressure bad values
    PUBLIC  Chem_UtilGetTimeInfo     ! Time info on file
    PUBLIC  Chem_UtilExtractIntegers ! Extract integers from a character-delimited string
    PUBLIC  Chem_BiomassDiurnal      ! Biomass burning diurnal cycle
-   PUBLIC  Chem_UtilResVal          ! Finds resolution dependent value that corresponds to the model resolution
+   PUBLIC  Chem_UtilResVal          ! Finds resolution dependent value that corresponds 
+                                    ! to the model resolution
+   PUBLIC  Chem_UtilIdow            ! Integer day of the week: Sun=1, Mon=2, etc.
+   PUBLIC  Chem_UtilCdow            ! String day of the week: 'Sun', 'Mon', etc.
+
+   PUBLIC  Chem_UtilPointEmissions  ! From a provided list returns a table of
+                                    ! pointwise emissions (e.g., for volcanoes
+                                    ! or wildfires)
 
    PUBLIC tick      ! GEOS-4 stub
    PUBLIC mcalday   ! GEOS-4 stub
@@ -189,722 +190,6 @@ CONTAINS
 
 #endif
 
-!-------------------------------------------------------------------------
-!     NASA/GSFC, Global Modeling and Assimilation Office, Code 900.3     !
-!-------------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE:  Chem_UtilMPread_g4 --- Reads fields from file and distribute
-!
-! !INTERFACE:
-!
-   subroutine Chem_UtilMPread ( filen, varn, nymd, nhms,             &
-                                i1, i2, ig, im, j1, j2, jg, jm, km,  &
-                                var2d, var3d, cyclic, grid,          &
-                                ForceBinning,                        &
-                                maskString, gridMask, instanceNumber,&
-                                Voting, units)
-
-! !USES:
-
-  implicit NONE
-
-! !INPUT PARAMETERS:
-
-  character(len=*), intent(in) :: filen   ! GFIO compatible file name
-  character(len=*), intent(in) :: varn    ! variable name
-  integer, intent(in)          :: nymd, nhms ! date/time
-
-                                          ! Distributed grid info:
-  integer,      intent(in)     :: i1, i2  !   local  zonal indices
-  integer,      intent(in)     :: ig      !   zonal ghosting
-  integer,      intent(in)     :: im      !   global zonal dimension
-  integer,      intent(in)     :: j1, j2  !   local meridional indices
-  integer,      intent(in)     :: jg      !   meridional ghosting
-  integer,      intent(in)     :: jm      !   global zonal dimension
-  integer,      intent(in)     :: km      !   vertical dimension
-
-  logical, OPTIONAL, intent(in) :: cyclic ! whether time dimension is periodic
-                                          ! ESMF Grid; this is required
-                                          !  in GEOS-5 under ESMF
-
-                                       
-       
-  logical, OPTIONAL, intent(in) :: ForceBinning ! Whether remapping uses
-                                                !  binning or interpolation
-                                                ! Starting with ARCTAS default
-                                                ! is .TRUE. so binning always
-                                                ! takes place.
-
-  type(ESMF_Grid), OPTIONAL, intent(in) :: grid
-
-  character(len=*), OPTIONAL, intent(in) :: maskString !Delimited string of integers
-  real, OPTIONAL, intent(in) :: gridMask(i1:i2,j1:j2)  !Grid mask (NOTE: No ghosting) 
-  integer, OPTIONAL, intent(in) :: instanceNumber      !Instantiation, for debugging.
-  logical, OPTIONAL, intent(in) :: Voting     ! Controls interpolation strategy for conservative regridding
-                                              ! Values are copied from the original grid cell with the largest fraction
-                                              ! Should be used when regridding regionMask
-                                              ! Default if .false.
-
-! !OUTPUT PARAMETERS:
-
-  real, OPTIONAL, intent(out)   :: var2d(i1-ig:i2+ig,j1-jg:j2+jg)
-  real, OPTIONAL, intent(out)   :: var3d(i1-ig:i2+ig,j1-jg:j2+jg,km)
-
-  character(len=*), OPTIONAL, intent(out) :: units ! Variable units
-
-! !DESCRIPTION: 
-!
-! !REVISION HISTORY:
-!
-!  28oct2003 da Silva  First crack.
-!  03ayg2004 da Silva  Uses GetVarT for time interpolation
-!  18nov2004 da Silva  Added cyclic option for climatological files.
-!  30may2005 da Silva  Introduced template expansing in file names.
-!  14aug2006 da Silva  Swap longitudes of input arrays (always), and
-!                      made it read only one layer at a time. Notice that
-!                      the lon-swap is dangerous and it is a temporary
-!                      device until re retire this routine in favor of
-!                      CFIOArrayRead().
-!  15Aug2006 da Silva  Renamed with _g4 as this is now obsolete.
-!  21Aug2006 da Silva  Back to GFIO compatible version; renamed CFIO one g5;
-!                      now the GFIO one does horizontal interp/binning
-!                      and swap only if necessary.
-!  29Feb2008 Nielsen   Masking
-!
-!EOP
-!-------------------------------------------------------------------------
-
-    character(len=*), parameter ::  myname = 'Chem_UtilMPread_g4'
-    character(len=*), parameter ::  Iam=myname 
-    logical :: tcyclic, verb
-
-    integer  :: READ_ONLY=1, nokm=0
-    integer :: status, fid, rc, ios, k, kuse
-    character(len=257) :: fname, vname, vunits
-    real :: const
-    integer :: imf, jmf, kmf                  ! dimensions on file
-    real,  pointer :: latf(:), lonf(:), levf(:)
-    real,  pointer :: lat(:) => null()
-    real,  pointer :: lon(:) => null()
-
-    real, pointer :: ptr2(:,:)  => null() 
-    real, pointer :: ptr2f(:,:) => null()
-
-    logical :: doingMasking, ForceBinning_, kreverse
-
-    INTEGER, ALLOCATABLE :: regionNumbers(:),flag(:)
-    INTEGER, ALLOCATABLE :: mask(:,:)
-
-!   type(HorzBinTransform)     :: Trans
-    type(MAPL_HorzTransform)   :: Trans
-    character(len=ESMF_MAXSTR) :: gridname, gridnamef, tileFile
-    logical :: regridCnv
-    logical :: geosGridNames = .false. ! keep the GEOS-5 style grid names
-    logical :: tileDataGlobal          ! this controls how tile data
-                                       ! (for conservative regridding) 
-                                       ! is kept
-    type(ESMF_DistGrid) :: distGrid
-    type(ESMF_DELayout) :: layout
-    type(ESMF_VM) :: vm
-    integer :: comm
-    logical :: IAmTransRoot
-    logical :: amRoot
-    logical :: amOnFirstNode
-    logical :: createTrans
-    logical :: Voting_
-    logical :: doLonShift
-    integer :: i1w,inw,j1w,jnw
-    integer :: order
-
-    tileDataGlobal = .true.
-
-    vname = trim(varn) ! make a copy
-    vunits = 'unknown' 
-
-!   Consistency check
-!   -----------------
-    if ( .not. ( present(var2d) .or. present(var3d) ) ) then
-       call die ( myname, 'missing var2d or var3d' )
-    else if ( present(var2d) .and. present(var3d) ) then
-       call die ( myname, 'either var2d or var3d, but not both' )
-    end if
-
-    if ( present(ForceBinning) ) then
-         ForceBinning_ = ForceBinning
-    else
-         ForceBinning_ = .true.
-    endif
-
-    if ( present(Voting) ) then
-         Voting_ = Voting
-    else
-         Voting_ = .false.
-    endif
-
-    if ( present(cyclic) ) then
-        tcyclic = cyclic
-    else
-        tcyclic = .false. ! by default time dimension is not periodic
-    end if
-
-    if ( .not. present(grid) ) then
-       call die ( myname, 'ESMF is a must when running under the ESMF' )
-    end if
-
-!   When masking, both the mask and the string
-!   of integers (region numbers) must be present
-!   --------------------------------------------
-    IF ( (PRESENT(maskString) .AND. .NOT. PRESENT(gridMask)) .OR.   &
-         (PRESENT(gridMask) .AND. .NOT. PRESENT(maskString))      ) &
-       CALL die ( myname, ": Both gridMask and maskString must be specified." )
-
-    IF(PRESENT(gridMask)) THEN
-       IF(TRIM(maskString) == "-1") THEN
-        doingMasking = .FALSE.
-       ELSE
-        doingMasking = .TRUE.
-       END IF
-    ELSE
-     doingMasking = .FALSE.
-    END IF
-
-!   Masking initialization
-!   ----------------------
-    SetMask: IF(doingMasking) THEN
-
-     k = 32
-     ALLOCATE(regionNumbers(k),flag(k),mask(i1:i2,j1:j2),STAT=ios)
-     IF ( ios /= 0 ) CALL die ( myname, ": Cannot allocate for masking.")
-
-!   Obtain region numbers from delimited list of integers
-!   -----------------------------------------------------
-     regionNumbers(:) = 0
-     CALL Chem_UtilExtractIntegers(maskString,k,regionNumbers,RC=ios)
-     IF ( ios /= 0 ) CALL die ( myname, ": Unable to extract integers for regionNumbers.")
-
-!   How many integers were found?
-!   -----------------------------
-     flag(:) = 1
-     WHERE(regionNumbers(:) == 0) flag(:) = 0
-     k = SUM(flag)
-     DEALLOCATE(flag,STAT=ios)
-     IF ( ios /= 0 ) CALL die ( myname, ": Cannot dallocate flag.")
-
-!   Set local mask to 1 where gridMask matches each integer (within precision!) 
-!   ---------------------------------------------------------------------------
-     mask(i1:i2,j1:j2) = 0
-     DO ios=1,k
-      WHERE(regionNumbers(ios)-0.01 <= gridMask .AND. &
-            gridMask <= regionNumbers(ios)+0.01) mask = 1
-     END DO
-
-    END IF SetMask
-
-!   Expand templates
-!   ----------------
-    if ( index(filen,'%') .gt. 0 ) then
-         call StrTemplate ( fname, filen, xid='unknown', &
-                            nymd=nymd, nhms=nhms )
-    else
-         fname = filen
-    end if
-
-!   Trick: when filename is "/dev/null" it is assumed the user wants to
-!   set the veriable to a constant
-!   -------------------------------------------------------------------
-    if ( fname(1:9) == '/dev/null' ) then    
-         ios = -1
-         k = index(fname,':')
-         if ( k > 9 ) then
-              read(fname(k+1:),*,iostat=ios) const
-         end if
-         if ( ios /= 0 ) const = 0.0
-
-         IF ( PRESENT(var2d) ) THEN
-          var2d = const
-          IF(doingMasking .AND. const /= 0.0) THEN
-           WHERE(mask == 0) var2d = 0.0
-          END IF
-         END IF
-
-         IF ( PRESENT(var3d) ) THEN
-          var3d = const
-          IF(doingMasking .AND. const /= 0.0) THEN
-           DO k=1,km
-            WHERE(mask == 0) var3d(:,:,k) = 0.0
-           END DO
-          END IF
-         END IF
-
-         IF ( PRESENT(units) ) THEN
-          units = trim(vunits)
-         END IF
-
-         if ( MAPL_am_I_root() ) then
-            write(6,*), myname // ': input file is /dev/null'
-            write(6,*), myname // ':    setting variable ' // trim(vname) // &
-                               ' to constant ', const
-         end if
-         return    ! exit here
-    end if
-
-!   Get the lat/lons from the input grid
-!   ------------------------------------
-!WP call GridGetLatLons_ ( grid, lon, lat )
-
-!   Read file
-!   ---------
-    regridCnv = .false.
-    if ( jm == 6*im ) then
-       if (forceBinning_) then
-          regridCnv = .true.
-       end if
-    end if
-
-    call ESMF_GridGet(grid, name=gridname, rc=rc)
-    call ESMF_GridGet(grid, distGrid=distGrid, rc=rc)
-    call ESMF_DistGridGet(distGrid, DELayout=layout, rc=rc)
-    call ESMF_DELayoutGet(layout, vm=vm, rc=rc)
-
-    amRoot = MAPL_am_I_root(vm)
-    call ESMF_VMGet(VM, mpiCommunicator=comm, rc=rc)
-    amOnFirstNode = MAPL_ShmemAmOnFirstNode(comm=comm, RC=rc)
-    IAmTransRoot = (amRoot) .or. (MAPL_ShmInitialized .and. MAPL_AmNodeRoot)
-
-    call ESMF_GRID_INTERIOR(GRID,I1w,INw,J1w,JNw)
-!@    print *,'PE',myid, I1w,INw,J1w,JNw
-
-!    allocate(ptr2(i1w:inw,j1w:jnw),stat=status)
-    if (regridCnv) then
-       allocate(ptr2(inw-i1w+1,jnw-j1w+1),stat=status)
-       VERIFY_(STATUS)
-    else
-       if(amRoot) then
-          allocate(ptr2(im,jm),stat=status)
-       end if
-    end if
-
-    if ( amRoot .or. MAPL_ShmInitialized) then
-
-!      Allocate work space for scatter
-!      -------------------------------
-       if (amRoot) &
-       write(6,*), myname // ': Reading ' // trim(vname) // ' from GFIO file ' &
-                // trim(fname) // ' at ', nymd, nhms
-
-!      Open file
-!      ---------
-       call GFIO_Open ( fname, READ_ONLY, fid, rc )
-       if ( rc .ne. 0 ) then
-          call die(myname,'cannot open GFIO file '//trim(fname))
-       end if
-
-!      Query file metadata
-!      -------------------
-       call queryFile_ ( fid, imf, jmf, kmf, lonf, latf, levf, vname, vunits )
-
-       doLonShift = abs(lonf(1)+180._8) .GT. abs(lonf(2)-lonf(1))
-!      Check to see if the levels are from TOA to SFC in file
-!      ------------------------------------------------------
-       kreverse = .false.
-       if(kmf > 1) then
-        if(levf(1) > levf(kmf)) kreverse = .true.
-       endif
-
-!      Define gridname based on imf, jmf, latf, lonf
-!      ---------------------------------------------
-       call MAPL_GenGridName(imf, jmf, lonf, latf, gridname=gridnamef, geos_style=geosGridNames)
-
-    end if ! masterproc
-
-    if (.not.MAPL_ShmInitialized) then   
-       call MAPL_CommsBcast(vm, imf, N=1, ROOT=MAPL_Root, RC=RC)
-       call MAPL_CommsBcast(vm, jmf, N=1, ROOT=MAPL_Root, RC=RC)
-       call MAPL_CommsBcast(vm, doLonShift, N=1, ROOT=MAPL_Root, RC=RC)
-    end if
-
-
-!   Allocate work space to reada data in
-!   ------------------------------------
-    call MAPL_AllocNodeArray(ptr2f,(/imf,jmf/),rc=STATUS)
-    if(STATUS==MAPL_NoShm) allocate(ptr2f(imf,jmf),stat=status)
-    VERIFY_(STATUS)
-      !@if (IAmTransRoot) then
-      !@    allocate(ptr2f(imf,jmf),stat=status)
-      !@    VERIFY_(STATUS)
-      !@ endif
-
-
-    call MAPL_CommsBcast(vm, vunits, N=len(vunits), ROOT=MAPL_Root, RC=RC)
-
-    if ( jmf == 6*imf ) then
-       if (forceBinning_) then
-          regridCnv = .true.
-       end if
-    end if
-
-    createTrans = .false. ! default, unless
-
-    if (regridCnv) then
-       ! everybody creates a transform
-
-       createTrans = .true.
-
-       if (.not. MAPL_ShmInitialized) &
-       call MAPL_CommsBcast(vm, gridnamef, &
-            N=len(gridnamef), ROOT=MAPL_Root, RC=RC)
-
-       if (.not. geosGridNames) call MAPL_GeosNameNew(gridname)
-
-       tileFile=trim(adjustl(gridnamef)) // '_' // &
-                trim(adjustl(gridname))  // '.bin'
-
-       call MAPL_HorzTransformCreate (Trans, tileFile, gridnamef, gridname, RootOnly=.false., vm=vm, i1=i1w, in=inw, j1=j1w, jn=jnw, rc=rc)
-       if ( rc /= 0 ) call die(myname,'cannot create transform',rc)
-
-       call MAPL_HorzTransformGet(Trans, order=order)
-       if (Voting_) then
-          call MAPL_HorzTransformSet(Trans, order=MAPL_HorzTransOrderSample, rc=rc)
-       endif
-
-    else if (amOnFirstNode) then
-       createTrans = .true.
-       call MAPL_HorzTransformCreate (Trans, imf, jmf, im, jm, rc=rc)
-       if ( rc /= 0 ) call die(myname,'cannot create transform',rc)
-    end if
-
-
-
-!   2D Variables
-!   ------------
-    verb = AmRoot
-    if ( present(var2d) ) then
-
-!        Read global array and swap longitudes
-!        -------------------------------------
-         call MAPL_SyncSharedMemory(rc=STATUS); VERIFY_(STATUS)
-         if ( AmRoot ) then
-
-!           Read the file
-!           -------------
-            call GFIO_GetVarT1 ( fid, trim(vname), nymd, nhms, imf, jmf, &
-                                 nokm, 1, ptr2f, rc, tcyclic, fid )
-            if ( rc .ne. 0 ) call die(myname,'cannot read '//trim(vname) )
-
-         end if ! masterproc
-
-         call MAPL_BcastShared(VM, Data=ptr2f, N=imf*jmf, Root=0, RootOnly=.false., rc=status)
-            VERIFY_(STATUS)
-         call MAPL_SyncSharedMemory(rc=STATUS); VERIFY_(STATUS)
-
-         !           Interpolate/bin if necessary
-         !           ----------------------------
-         if (regridCnv .or. amRoot) then
-            call Regrid_ ( ptr2f, imf, jmf, ptr2, im, jm, doLonShift, verb )
-         end if
-         call MAPL_SyncSharedMemory(rc=STATUS)
-
-!        Scatter the array
-!        -----------------           
-         if (.not. regridCnv) then
-            call ArrayScatter ( var2d, ptr2, grid, rc=ios )
-            if ( ios /= 0 ) call die ( myname, 'cannot scatter '//trim(vname))
-         else
-            call MAPL_SyncSharedMemory(rc=STATUS)
-            VERIFY_(STATUS)
-            var2d(i1:i2,j1:j2) = ptr2
-            call MAPL_SyncSharedMemory(rc=STATUS)
-            VERIFY_(STATUS)
-         endif
-
-!        Apply mask when present
-!        -----------------------
-         IF(doingMasking) THEN
-          WHERE(mask(i1:i2,j1:j2) == 0) var2d(i1:i2,j1:j2) = 0.0
-         END IF
-
-!   3D Variables
-!   ------------
-    else
-
-      do k = 1, km
-
-!        Read 1 level of global array and swap longitudes
-!        ------------------------------------------------
-         call MAPL_SyncSharedMemory(rc=STATUS); VERIFY_(STATUS)
-         if ( AmRoot ) then
-    
-!            Read the file
-!            -------------
-             kuse = k
-             if(kreverse) kuse = km - k + 1
-             call GFIO_GetVarT1 ( fid, trim(vname), nymd, nhms, imf, jmf, kuse, &
-                                  1, ptr2f, rc, tcyclic, fid )
-             if ( rc .ne. 0 ) call die(myname,'cannot read '//trim(vname) )
-
-
-         end if ! masterproc
-
-         call MAPL_BcastShared(VM, Data=ptr2f, N=imf*jmf, Root=0, RootOnly=.false., rc=status)
-            VERIFY_(STATUS)
-         call MAPL_SyncSharedMemory(rc=STATUS); VERIFY_(STATUS)
-
-         !            Interpolate/bin if necessary
-         !            ----------------------------
-         if (regridCnv .or. amRoot) then
-            call Regrid_ ( ptr2f, imf, jmf, ptr2, im, jm, doLonShift, verb ) 
-         end if
-         call MAPL_SyncSharedMemory(rc=status)
-         VERIFY_(STATUS)
-
-!        Scatter the array with 1 level
-!        ------------------------------           
-         if (.not. regridCnv) then
-            call ArrayScatter ( var3d(:,:,k), ptr2, grid, rc=ios )
-            if ( ios /= 0 ) call die ( myname, 'cannot scatter v3d'//trim(vname))
-         else
-            call MAPL_SyncSharedMemory(rc=STATUS)
-            VERIFY_(STATUS)
-            var3d(i1:i2,j1:j2,k) = ptr2
-            call MAPL_SyncSharedMemory(rc=STATUS)
-            VERIFY_(STATUS)
-         endif
-
-         verb = .false. ! true only for k=1
-
-!        Apply mask when present
-!        -----------------------
-         IF(doingMasking) THEN
-          WHERE(mask(i1:i2,j1:j2) == 0) var3d(i1:i2,j1:j2,k) = 0.00
-         END IF
-
-        end do ! over k
-
-      end if ! 2D or 3D
-
-!!! Make sure everyone is done before cleaning up and realeasing shared memory
-      call MAPL_SyncSharedMemory(rc=status)
-      VERIFY_(STATUS)
-
-!   Variable units
-!   --------------
-    if ( present(units) ) then
-       units = trim(vunits)
-    end if
-
-!   Close file
-!   ----------
-
-! clean up. 
-
-    if (regridCnv) then
-       if (Voting_) then
-          call MAPL_HorzTransformSet(Trans, order=order, rc=rc)
-       endif
-    end if
-
-!      Destroy transform
-!      -----------------------------
-      if (createTrans) then
-         call MAPL_HorzTransformDestroy (Trans )
-      end if
-
-     if ( amRoot .or. MAPL_ShmInitialized ) then
-
-       call GFIO_Close ( fid, rc )
-!       write(6,*), myname // ': Closing GFIO file ' // trim(fname)
-
-       deallocate(lonf, latf, levf, stat=ios)
-       if ( ios /= 0 ) call die ( myname, 'cannot deallocate lonf/latf/levf' )
-
-!@       if (IAmTransRoot) then
-!@          deallocate(ptr2f, stat=ios)
-!@          if ( ios /= 0 ) call die ( myname, 'cannot deallocate ptr2f' )
-!@       endif
-
-    end if ! masterproc
-!    Release Shared Memory
-    DEALOC_(ptr2f    )
-    if(associated(ptr2)) deallocate(ptr2)
-
-!   All done
-!   --------
-!WP deallocate(lat, lon, stat=ios)
-!@    if ( ios /= 0 ) call die ( myname, 'cannot deallocate lat/lon/lev')
-    IF(doingMasking) THEN
-     DEALLOCATE(regionNumbers, mask, STAT=ios)
-     IF ( ios /= 0 ) CALL die ( myname, ': Cannot deallocate masking tape.')
-    END IF
-    return
-
-CONTAINS
-
-    subroutine Regrid_ (Gptr2file, im, jm, Gptr2bundle, im0, jm0, &
-                        doLonShift, verb ) 
-    integer, intent(in) :: im, jm, im0, jm0
-    real, pointer :: Gptr2bundle(:,:), Gptr2file(:,:)
-    logical :: doLonShift
-    logical, intent(inout) :: verb
-
-!   Local buffers for cases compiled with -r8
-!   -----------------------------------------
-!    real(ESMF_KIND_R4) :: r4_Gptr2file(im,jm)
-!    real(ESMF_KIND_R4) :: r4_Gptr2bundle(im0,jm0)
-
-!   Code borrowed from MAPL_CFIO - Note (im,jm) here differs from above
-!   Notice that since ARCTAS unless ForceBinning has been specified as
-!   .FALSE. *binning* is always the regridding  method.
-!                             ---
-    integer :: STATUS
-
-    logical :: do_xshift, cubed, change_resolution
-
-!ams    write(6,*), 'Regrid_:  im, jm  (file)   = ', im, jm
-!ams    write(6,*), 'Regrid_: im0, jm0 (bundle) = ', im0, jm0
-
-! 180 Degree Shifting and Cubed Sphere
-! ------------------------------------
-!   We are changing the 180 longitudinal shifting strategy to match MAPL_CFIO   
-!
-!   Out current strategy is to correct the input (from the file), if needed.
-!   We first check if the input is on the Cubed-Sphere grid. 
-!   In this case no shifting is done. Otherwise we still assume that the
-!   input is on a lat-lon grid and if shifting is needed,
-!   it will be done prior to the optional MAPL_HorzTransformRun regridding.
-
-
-    do_xshift = .FALSE. ! Initialize: do not shift
-
-    if ( im /= im0 .OR. jm /= JM0 ) then
-       change_resolution = .true.
-    else
-       change_resolution = .false.
-    end if
-
-    if ( JM == 6*IM )  then
-        cubed = .true.
-    else                              
-        cubed = .false.
-    end if
-
-    if ( IM0==1 .AND. JM0==1 ) then
-       ! running SCM with single point grid
-       change_resolution = .FALSE. ! does not make sense in SCM mode
-    else
-       ! Normal case, not SCM
-       do_xshift = doLonShift
-    end if
-
-    if (cubed) then
-       do_xshift = .FALSE.         ! never shift for Cubed Sphere input
-    end if
-
-    if ( do_xshift ) then
-       if ( verb ) write(6,*), myname // &
-            ': shifting input longitudes by 180 degrees'
-       call MAPL_SyncSharedMemory(rc=status)
-       if (.not. MAPL_ShmInitialized .or. MAPL_AmNodeRoot) then
-       call shift180Lon2D_ ( Gptr2file, im, jm )
-       end if
-       call MAPL_SyncSharedMemory(rc=status)
-!ALT: technically, we could shift lons themselves as well
- 
-    end if
-
-!
-! redefine cubed, so that if any of the grids (in or out) is on the cubed-sphere, 
-! we set cubed to .TRUE.
-!
-    if ( JM0 == 6*IM0 )  then
-        cubed = .true.
-    end if
-
-    if ( change_resolution ) then
-!@       r4_Gptr2file = Gptr2file
-       if (IM0 <  IM .or. JM0 < JM .or. ForceBinning_ .or. cubed ) then
-          if ( verb ) write(6,*), myname // ': Binning... '
-          call MAPL_HorzTransformRun(Trans, Gptr2file, Gptr2bundle, MAPL_undef, rc=STATUS )
-          VERIFY_(STATUS)
-       else
-          if ( verb ) write(6,*), myname // ': Interpolating... '
-          call hinterp2 ( Gptr2file,im,jm, Gptr2bundle,im0,jm0,1,MAPL_Undef )
-       end if ! coarsening
-!@       Gptr2bundle = r4_Gptr2bundle
-    else
-       Gptr2bundle = Gptr2file
-    end if ! change resolution
-    end subroutine Regrid_
-
-
-    subroutine shift180Lon2D_ ( c, im, jm )
-    integer, intent(in) :: im, jm
-    real, intent(inout) :: c(im,jm)
-    real :: cj(im)
-    integer :: m(4), n(4), imh, j
-    imh = nint(im/2.)
-    m = (/ 1,      imh, 1+imh,    im   /)
-    n = (/ 1,   im-imh, 1+im-imh, im   /)
-    do j = 1, jm
-       cj(n(1):n(2)) = c(m(3):m(4),j)
-       cj(n(3):n(4)) = c(m(1):m(2),j)
-       c(:,j) = cj
-    end do
-    return
-    end subroutine shift180Lon2D_
-
-    subroutine queryFile_ ( fid, im, jm, km, lon, lat, lev, varn, varu )
-      integer, intent(in)  :: fid
-      integer, intent(out) :: im, jm, km
-      character(len=255), intent(inout) :: varn
-      character(len=*), intent(out)     :: varu
-      real, pointer :: lon(:), lat(:), lev(:)
-!                    ----
-      character(len=255)              :: title, source, contact, levunits
-      character(len=255), allocatable :: vtitle(:), vunits(:)
-      character(len=257), allocatable :: vname(:)
-    
-      real,    allocatable :: valid_range(:,:), packing_range(:,:)
-      integer, allocatable :: kmvar(:), yyyymmdd(:), hhmmss(:)
-      integer :: lm, nvars, timinc, ngatts, n
-      real    :: amiss
-
-      call GFIO_DimInquire ( fid, im, jm, km, lm, nvars, ngatts, rc )
-      if ( rc /= 0 ) call die(myname,'cannot get file dimensions')
-    
-      allocate ( lat(jm), lon(im), lev(km), yyyymmdd(lm), hhmmss(lm),    &
-              vname(nvars), vunits(nvars), vtitle(nvars), kmvar(nvars), &
-              valid_range(2,nvars), packing_range(2,nvars),             &
-              stat=rc )
-      if ( rc /= 0 ) call die(myname,'cannot allocate file attribs' )
-
-      call GFIO_Inquire ( fid, im, jm, km, lm, nvars,     &
-         title, source, contact, amiss,  &
-         lon, lat, lev, levunits,        &
-         yyyymmdd, hhmmss, timinc,       &
-         vname, vtitle, vunits, kmvar,   &
-         valid_range , packing_range, rc )
-      if ( rc /= 0 ) call die(myname,'cannot get file dimensions')
-    
-!     Make variable names case insensitive
-!     ------------------------------------
-      do n = 1, nvars
-         if ( uppercase(trim(varn)) .EQ. uppercase(trim(vname(n))) ) then
-              varn = trim(vname(n))
-              varu = trim(vunits(n))
-              exit
-         end if
-      end do 
-
-      deallocate ( yyyymmdd, hhmmss,                  &
-                  vname, vunits, vtitle, kmvar,      &
-                  valid_range, packing_range,        &
-                  stat=rc )
-      
-    end subroutine queryFile_
-
-
-end subroutine Chem_UtilMPread
 
 subroutine Chem_UtilGetTimeInfo ( fname, begDate, begTime, nTimes, incSecs )
 
@@ -1078,12 +363,11 @@ end subroutine Chem_UtilGetTimeInfo
 !     NYMD     CURRENT DATE IN YYMMDD FORMAT
 !     M        +/- 1 (DAY ADJUSTMENT)
 
-      integer nymd, m, ny00, ny, nm, nd
+      integer nymd, m, ny, nm, nd
 
       INTEGER NDPM(12)
       DATA    NDPM /31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31/
 !!!      logical leap_year
-      DATA    NY00     / 1900 /
 
       NY = NYMD / 10000
       NM = MOD(NYMD,10000) / 100
@@ -1165,8 +449,6 @@ end subroutine Chem_UtilGetTimeInfo
       real calday                    ! Julian day (1 to 366 for non-leap year)
                                      ! Julian day (-1 to -367 for   leap year)
 ! Local:
-      logical leapyr                 ! leap_year?
-!!!      logical leap_year
       real tsec
       integer n, nsecf, m, mm
       integer dd, ds
@@ -1215,6 +497,10 @@ end subroutine Chem_UtilGetTimeInfo
 !
 !---------------------------Local variables-----------------------------
 !
+      _UNUSED_DUMMY(calday)
+      _UNUSED_DUMMY(dodiavg)
+      _UNUSED_DUMMY(clat)
+      _UNUSED_DUMMY(coszrs(1)) ! assumed-size
 
       call die ('zenith','stub only, please do not call zenith_()' )
 
@@ -1259,7 +545,10 @@ end subroutine Chem_UtilGetTimeInfo
 !-------------------------------------------------------------------------
 
   real :: mass_1(in,jn), mass_2(in,jn), ratio(in,jn)
-  real :: qmin_, vmax, vmin
+  real :: qmin_
+#ifdef DEBUG
+  real :: vmax, vmin
+#endif
   integer :: k, k1, k2, km
 
   k1 = lbound(q,3)
@@ -1390,7 +679,7 @@ end subroutine Chem_UtilNegFiller
 
   LOGICAL :: tellMe
 
-  INTEGER :: i,ier,j,l,m
+  INTEGER :: i,ier,j,m
   INTEGER :: ie,iw,jn,js
 
   INTEGER, ALLOCATABLE :: mask(:,:)
@@ -1776,24 +1065,24 @@ END SUBROUTINE Chem_UtilExtractIntegers
 !      ---------------------------------------
        if ( .not. associated(lons) ) then
             allocate(lons(IM_WORLD), stat=STATUS)
-            VERIFY_(status)
+            _VERIFY(status)
        else
             if(size(LONS,1) /= IM_WORLD) STATUS = 1
-            VERIFY_(status)
+            _VERIFY(status)
        end if
        if ( .not. associated(lats) ) then
             allocate(lats(JM_WORLD), stat=STATUS)
-            VERIFY_(status)
+            _VERIFY(status)
        else
             if(size(LATS,1) /= JM_WORLD) STATUS = 1
-            VERIFY_(status)
+            _VERIFY(status)
        end if
 
 !      Local work space
 !      ----------------
        allocate(LONS2d(IM_WORLD,JM_WORLD), LATS2d(IM_WORLD,JM_WORLD), &
                 STAT=status)             
-       VERIFY_(status)
+       _VERIFY(status)
        LONS2d=0
        LATS2d=0
 
@@ -1805,7 +1094,7 @@ END SUBROUTINE Chem_UtilExtractIntegers
              farrayPtr=R8D2, rc=status)
 
        allocate(LONSLOCAL(size(R8D2,1),size(R8D2,2)), STAT=status)             
-       VERIFY_(status)
+       _VERIFY(status)
 
        LONSLOCAL = R8D2*(180/MAPL_PI)
 
@@ -1819,12 +1108,12 @@ END SUBROUTINE Chem_UtilExtractIntegers
              farrayPtr=R8D2, rc=status)
 
        allocate(LATSLOCAL(size(R8D2,1),size(R8D2,2)), STAT=status)             
-       VERIFY_(status)
+       _VERIFY(status)
 
        LATSlocal = R8D2*(180/MAPL_PI)
 
        call ArrayGather(LATSLOCAL, LATS2D, GRID, RC=STATUS)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
 
 !      Return 1D arrays
 !      ----------------
@@ -1979,7 +1268,7 @@ END SUBROUTINE Chem_UtilExtractIntegers
        real,   save :: fDT=-1
 
        integer :: hh, mm, ss, ndt, i, j, k
-       integer :: i1, i2, j1, j2, NN
+       integer :: NN
        real :: secs, secs_local, aBoreal, aNonBoreal, alpha
 
 !                              -----
@@ -2088,6 +1377,7 @@ END SUBROUTINE Chem_UtilExtractIntegers
        integer, parameter :: res_c = 3  !
        integer, parameter :: res_d = 4  !
        integer, parameter :: res_e = 5  !
+       integer, parameter :: res_f = 6  !
 
        i_res = 0
 
@@ -2106,8 +1396,10 @@ END SUBROUTINE Chem_UtilExtractIntegers
                i_res = res_d
            else if (im_World <= 360) then
                i_res = res_e
+           else if (im_World <= 720) then
+               i_res = res_f
            else
-               i_res = res_e
+               i_res = res_f
            end if
        else
            if ((im_World <= 72) .and. (jm_World <= 46)) then
@@ -2120,10 +1412,12 @@ END SUBROUTINE Chem_UtilExtractIntegers
                i_res = res_d
            else if ((im_World <= 1152) .and. (jm_World <= 721)) then
                i_res = res_e
+           else if ((im_World <= 2304) .and. (jm_World <=1441)) then
+               i_res = res_f
            else
-               i_res = res_e
+               i_res = res_f
            end if
-       end if    
+       end if 
 
        if ((i_res < 1) .or. (i_res > size(res_value))) then
            val = 0.0
@@ -2135,6 +1429,128 @@ END SUBROUTINE Chem_UtilExtractIntegers
 
    end function Chem_UtilResVal
 
+   function Chem_UtilIdow(nymd) result (idow)
+     implicit NONE
+     integer, intent(in) :: nymd
+     integer :: idow ! day of the week: Sun=1, Mon=2, etc.
+     integer :: y, m, d
+     integer, parameter :: t(0:11) = (/ 0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4 /)
+     y = nymd / 10000
+     m = (nymd - y*10000)/100
+     d = nymd - (y*10000 + m*100)
+     if ( m<3 ) then
+        y = y - 1
+     end if
+     idow = 1+mod(y + y/4 - y/100 + y/400 + t(m-1) + d,7)
+     return 
+   end function Chem_UtilIdow
+
+   function Chem_UtilCdow(nymd) result (cdow)
+     implicit NONE
+     integer, intent(in) :: nymd
+     character(len=3) :: cdow ! day of the week: Sun, Mon, etc.
+     character(len=3) :: cday(7) = (/ 'Sun','Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat' /)
+     cdow = cday(Chem_UtilIdow(nymd))
+     return 
+   end function Chem_UtilCdow
+
+
+!  Chem_UtilPointEmissions
+!  Colarco, February 9, 2015
+!  Given a text file of point wise emissions (see example) return a table with
+!  the emissions location (lat,lon), altitude (bottom, top), amount (kg/s over
+!  duration of event), and (optionally) the NHMS start and end times of
+!  emissions.  Useful for events, like volcanic eruptions or individual fires.
+!  This is inspired by GetVolcDailyTables in SulfateChemDriverMod.F90
+!
+!  Table format
+!  Here's an example from volcanic tables (remove ! from lines for functionality
+!###  latitude (-90,90), longitude (-180,180), amount [kg/s], 
+!###  base elevation [m], top altitude [m], 
+!###  (optional) begin time [HHMMSS], (optional) end time [HHMMSS]
+!source::
+!50.170 6.850 3.587963e-03 600. 600.
+!::
+!
+!  Arguments
+!  Input
+!   nymd         -- integer YYYYMMDD for file
+!   filetemplate -- grads-like filename template filled in with nymd
+!  Output
+!   nPts         -- number of events in file
+!   vLat         -- latitude (one per event...)
+!   vLon         -- longitude
+!   vBase        -- base altitude (e.g., bottom of plume)
+!   vTop         -- top altitude (e.g., top of plume)
+!   vEmis        -- emission flux (e.g., kg s-1 of species)
+!   vStart       -- HHMMSS to start emissions (optional)
+!   vEnd         -- HHMMSS to end emissions (optional)
+
+   subroutine Chem_UtilPointEmissions( nymd, filetemplate, &
+                                       nPts, vLat, vLon, vBase, vTop, vEmis, vStart, vEnd )
+			  
+  implicit NONE
+
+  integer, intent(in)            :: nymd
+  character(len=255)             :: filetemplate
+  integer                        :: nPts
+  real, pointer, dimension(:)    :: vLat, vLon, vTop, vBase, vEmis
+  integer, pointer, dimension(:) :: vStart, vEnd
+  integer :: i, j, nLines, nCols, rc, STATUS, nymd1, nhms1, ios
+  character(len=255) :: fname
+  type(ESMF_Config)  :: cf
+  real, pointer, dimension(:) :: vData
+
+! If previous instance of volcano point data tables exist, deallocate it
+! to get the correct number of elements
+  if(associated(vLat))    deallocate(vLat, stat=ios)
+  if(associated(vLon))    deallocate(vLon, stat=ios)
+  if(associated(vEmis))   deallocate(vEmis, stat=ios)
+  if(associated(vBase))   deallocate(vBase, stat=ios)
+  if(associated(vTop))    deallocate(vTop, stat=ios)
+  if(associated(vStart))  deallocate(vStart, stat=ios)
+  if(associated(vEnd))    deallocate(vEnd, stat=ios)
+
+
+! Assumes files provided daily (or less frequently)
+! -------------------------------------------------
+  nymd1 = nymd
+  nhms1 = 120000
+  call StrTemplate ( fname, filetemplate, xid='unknown', &
+                     nymd=nymd1, nhms=nhms1 )
+  cf = ESMF_ConfigCreate()
+  call ESMF_ConfigLoadFile(cf, fileName=trim(fname), rc=STATUS )
+  call ESMF_ConfigGetDim(cf, nLines, nCols, LABEL='source::', rc=STATUS )
+  nPts = nLines
+  allocate(vData(nCols), vLat(nLines), vLon(nLines), &
+           vEmis(nLines), vBase(nLines), vStart(nLines), &
+           vEnd(nLines), vTop(nLines), stat=ios)
+  vStart = -1
+  vEnd   = -1
+  call ESMF_ConfigFindLabel(cf, 'source::',rc=STATUS)
+     do i = 1, nLines
+      call ESMF_ConfigNextLine(cf, rc=rc)
+      do j = 1, nCols
+       call ESMF_ConfigGetAttribute(cf, vData(j), default=-1.)
+      end do
+      vLat(i)    = vData(1)
+      vLon(i)    = vData(2)
+      vEmis(i)   = vData(3)
+      vBase(i)   = vData(4)
+      vTop(i)    = vData(5)
+      if(nCols >= 6) vStart(i)  = vData(6)
+      if(nCols >= 7) vEnd(i)    = vData(7)
+  end do
+! Check value of vStart and vEnd.  Set to be
+! vStart = 000000 if default (=-1) is provided
+! vEnd   = 240000 if default (=-1) is provided
+  where(vStart < 0) vStart = 000000
+  where(vEnd < 0)   vEnd   = 240000
+
+  call ESMF_ConfigDestroy(cf)
+  deallocate(vData, stat=ios)
+
+  end subroutine Chem_UtilPointEmissions
 
  end module Chem_UtilMod
 

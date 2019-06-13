@@ -29,6 +29,7 @@ use FindBin;             # so we can find where this script resides
 use lib ( "$FindBin::Bin", "$FVROOT/bin", "$ESMADIR/$ARCH/bin" );
  
   GetOptions ( "sfx=s",
+               "stage=s",
                "purge",
                "clean",
                "debug",
@@ -46,6 +47,9 @@ $nymd = $nymdb;  $nhms = $nhmsb;
 $hh   = substr($nhms,0,2);
 $sfname = "$expid.$type.${nymd}_${hh}z.$suffix";
 $efname = "$expid.$type.${nymd}_${hh}z.iter${idx}.$suffix";
+if ( $idx >= 99 ) {
+  $efname = "$stagedir/$expid.$type.${nymd}_${hh}z.$suffix";
+}
 if ( ! $opt_clean ) {
   if (-e "$sfname" ) {
      if ( $opt_purge ) {
@@ -73,14 +77,26 @@ while ( $nymd != $nymde || $nhms != $nhmse ) {
    $hh     = substr($nhms,0,2);
    $sfname = "$expid.$type.${nymd}_${hh}z.$suffix";
    $efname = "$expid.$type.${nymd}_${hh}z.iter${idx}.$suffix";
+   if ( $idx >= 99 ) {
+       $efname = "$stagedir/$expid.$type.${nymd}_${hh}z.$suffix";
+   }
    if ( $nymd == $nymde && $nhms == $nhmse ) { # special handle file at final time
      if ( ! $opt_clean ) {
         if (-e "$sfname") {
-          rename("$sfname","$efname");
-          print "/bin/mv $sfname $efname \n";
+          if ( $opt_stage ) {
+            cp("$sfname","$efname");
+            print "/bin/cp $sfname $efname \n";
+          } else {
+            rename("$sfname","$efname");
+            print "/bin/mv $sfname $efname \n";
+          }
         } else {
            if ( $opt_debug ) {
-               print "/bin/mv $sfname $efname \n";
+               if ( $opt_stage ) {
+                  print "/bin/cp $sfname $efname \n";
+               } else {
+                  print "/bin/mv $sfname $efname \n";
+               }
            } else { exit(1); }
         }
      }
@@ -90,15 +106,24 @@ while ( $nymd != $nymde || $nhms != $nhmse ) {
          rm("$sfname");
          print "/bin/rm $sfname \n";
        } else {
-         rename("$sfname","$efname");
-         print "/bin/mv $sfname $efname \n";
+         if ( $opt_stage ) {
+            cp("$sfname","$efname");
+            print "/bin/cp $sfname $efname \n";
+         } else {
+            rename("$sfname","$efname");
+            print "/bin/mv $sfname $efname \n";
+         }
        }
      } else {
         if ( $opt_debug ) {
             if ( $opt_clean ) {
                print "/bin/rm $sfname \n";
             } else {
-               print "/bin/mv $sfname $efname \n";
+               if ( $opt_stage ) {
+                  print "/bin/cp $sfname $efname \n";
+               } else {
+                  print "/bin/mv $sfname $efname \n";
+               }
             }
         } else { exit(1); }
      }
@@ -134,6 +159,10 @@ sub init {
          print "env var NCSUFFIX must be defined. Aborting ...\n";
          exit(1);
       }
+   }
+   $stagedir = ".";
+   if ( $opt_stage ) {
+      $stagedir = $opt_stage;
    }
 }
 #......................................................................
@@ -196,13 +225,14 @@ DESCRIPTION
      dtmin  Time increment in minutes
      idx    Index used for renaming
 
-    Optinal Arguents:
+    Optional Arguments:
 
-    -h      help (echoes this usage)   
-    -purge  rename original file, move all and copying first
-    -clean  remove all files, without touching 1st and last
-    -sfx    filname suffix (default: env(NCSUFFIX))
-    -debug  does not copy/move file, simply echoes what it would be done
+    -h             help (echoes this usage)   
+    -debug         does not copy/move file, simply echoes what it would be done
+    -clean         remove all files, without touching 1st and last
+    -purge         rename original file, move all and copying first
+    -sfx    SUFFIX filname suffix (default: env(NCSUFFIX))
+    -stage  DIR    directory to copy files to
 
 EOF
 

@@ -1,10 +1,15 @@
-! $Id: allgather.H,v 1.2 2008-08-28 20:34:14 trayanov Exp $
+! $Id$
 
 #ifdef NAME_
 #undef NAME_
 #endif
 
+#ifdef NAMESTR_
+#undef NAMESTR_
+#endif
+
 #define NAME_ MAPL_CommsAllGather_
+#define NAMESTR_ 'MAPL_CommsAllGather_'
 
 #include "overload.macro"
 
@@ -22,20 +27,22 @@
     integer                               :: comm
 
     call ESMF_VMGet(vm, mpiCommunicator=COMM, rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call mpi_allgather ( sendbuf, sendcnt, MPITYPE_, &
                          recvbuf, recvcnt, MPITYPE_, &
                          comm, status )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
 
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
   END SUBROUTINE SUB_
 
 #undef NAME_
+#undef NAMESTR_
 
 #undef DIMENSIONS_
 #undef RANK_
+#undef RANKSTR_
 #undef VARTYPE_
 

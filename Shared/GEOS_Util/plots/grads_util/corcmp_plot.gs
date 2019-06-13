@@ -31,9 +31,11 @@ endwhile
 
 ***********************************************************
 *****                                                 *****
-*****  Note:  numexp is the Total Number of           *****
-*****         Experiments (including the Control)     *****
-*****         being compared.                         *****
+*****  Note:  numexp is the Total Number of  EXPs     *****
+*****                (including the Control, EXP0)    *****
+*****                                                 *****
+*****         mexps is the Number of Comparisons      *****
+*****                ( numexp - 1 )                   *****
 *****                                                 *****
 ***********************************************************
 
@@ -126,6 +128,63 @@ fileend  = filebeg + files_per_month - 1
 numfiles = fileend-filebeg+1
 
 
+* Compute Beginning Times Relative to Control (1st File) across ALL Experiments
+* -----------------------------------------------------------------------------
+       m = 0
+while( m<=mexps )
+'set dfile 1'
+'set t 1'
+            n   = filebeg
+            n.m = n + m*numfiles
+'set dfile 'n.m
+
+'q dims'
+   tline    = sublin(result,5)
+   toff.m.n = subwrd(tline,9)
+say 'toffset:  m = 'm'  n = 'n'  toff = 'toff.m.n
+m = m+1
+endwhile
+
+m = 0
+while( m<=mexps )
+        n   = filebeg
+while ( n  <= fileend )
+        n.m = n + m*numfiles
+'set dfile 1'
+'set t 1'
+'set dfile 'n.m
+'q dims'
+tline       = sublin(result,5)
+toffset.n.m = subwrd(tline,9)
+*say 'toffset:  m: 'm'  n: 'n'  file(n.m) = 'n.m'  toffset = 'toffset.n.m
+n = n + 1
+endwhile
+m = m + 1
+endwhile
+
+* Determine Months from Ensembles
+* -------------------------------
+month  = ''
+months = ''
+        n   = filebeg
+while ( n  <= fileend )
+'set dfile 'n
+'set t 1'
+'getinfo date'
+         date = result
+        dummy = substr(date,6,3)
+    if( dummy != month )
+        month  = dummy
+        if( months = '' )
+            months = month
+         else
+            months = months'-'month
+         endif
+     endif
+n = n + 1
+endwhile
+say 'Months Used in Forecasts: 'months
+
 * Define NDAY and NDAYMAX across ALL Experiments
 * ----------------------------------------------
  ndaymax = 999
@@ -140,7 +199,7 @@ while( m<=mexps )
          if( tinc = "NULL" ) ; tinc = 6 ; endif
 
 'run getinfo tdim'
-             tdum = result - 1
+             tdum = result - toff.m.n
              nday = tdum * tinc / 24
          if( nday < ndaymax ) ; ndaymax = nday ; endif
 m = m+1
@@ -150,6 +209,7 @@ endwhile
              nday = result
          if( nday = "NULL" ) ; nday = ndaymax ; endif
          if( nday > ndaymax) ; nday = ndaymax ; endif
+say 'NDAY: ' nday
 
 * Determine TDIM based on TINC from Experiment Files for Diff Calculations
 * ------------------------------------------------------------------------
@@ -163,11 +223,10 @@ while( m<=mexps )
 'getinfo tinc'
          tinc = result
 
-         ndayloc = (tdim-1) * tinc / 24
-
-         tmax = 1 + ndayloc*(24/tinc)
-         tbeg.m = 1 -(tmax-tdim)
-         tdim.m = tbeg.m + nday*(24/tinc)
+         ndayloc = (tdim-toff.m.n) * tinc / 24
+         tmax    = toff.m.n + ndayloc*(24/tinc)
+         tbeg.m  = toff.m.n -(tmax-tdim)
+         tdim.m  = tbeg.m + nday*(24/tinc)
 
 if( tdim.m < tdim.0 )
     tdif.m = tdim.m
@@ -189,12 +248,18 @@ dfile = 1
 while( m<=mexps )
             n   = filebeg
             n.m = n + m*numfiles
+            d.m = 1 + m*numfiles
 if( tdim.m < tmin )
     tmin   = tdim.m
-    dfile  = n.m
+    dfile  = d.m
 endif
 m = m+1
 endwhile
+
+'set dfile 1'
+'getinfo undef'
+         undef = result
+'    set undef ' undef
 
 * Initialize Variables to Zero
 * ----------------------------
@@ -223,22 +288,47 @@ endwhile
 * Plot each individual forecast while computing mean and Fisher Transform (to force Gaussian Distribution)
 * --------------------------------------------------------------------------------------------------------
 
-* Define New Fisher Transform Variable (to force Gaussian Distribution)
-* ---------------------------------------------------------------------
+*say 'Redfine field'
 m = 0
 while( m<=mexps )
         n   = filebeg
 while ( n  <= fileend )
         n.m = n + m*numfiles
-'set dfile 'n.m
+        d.m = 1 + m*numfiles
+*'set dfile 'n.m
+'set dfile 'd.m
 'set t  'tbeg.m' 'tdim.m
-'define     q'm' = 'field'cor.'n.m
+ toffset = 1-toffset.n.m
+*say 'dfile 'd.m'  tbeg: 'tbeg.m'  tend: 'tdim.m'  toffset: 'toffset'  'field'cor'n.m' = 'field'cor.'n.m'(t+'toffset')'
+
+'define 'field'cor'n.m' = 'field'cor.'n.m'(t+'toffset')'
+n = n + 1
+endwhile
+m = m + 1
+endwhile
+*pull flag
+
+* Define New Fisher Transform Variable (to force Gaussian Distribution)
+* ---------------------------------------------------------------------
+*say 'Compute Fisher Transform'
+m = 0
+while( m<=mexps )
+        n   = filebeg
+while ( n  <= fileend )
+        n.m = n + m*numfiles
+        d.m = 1 + m*numfiles
+'set dfile 'd.m
+'set t  'tbeg.m' 'tdim.m
+'define     q'm' = 'field'cor'n.m
+*'d q'm
 'define z'n'e'm' = 0.5*log( (1+ q'm')/(1- q'm'+5.0e-6) )'
 n = n + 1
 endwhile
 m = m + 1
 endwhile
+*pull flag
 
+*say 'Compute CTL and DUM'
 m = 0
 while( m<=mexps )
         n   = filebeg
@@ -246,31 +336,37 @@ while ( n  <= fileend )
         n.m = n + m*numfiles
 'set dfile 'ddif.m
 'set t 'tbeg.m' 'tdif.m
-'define      ctl  = 'field'cor.'n
-'define      dum  = 'field'cor.'n.m
+'define      ctl  = 'field'cor'n
+'define      dum  = 'field'cor'n.m
 'define     dq'm' = 0.5*(ctl-dum)'
 'define zd'n'e'm' = 0.5*log( (1+dq'm')/(1-dq'm') )'
 n = n + 1
 endwhile
 m = m + 1
 endwhile
+*pull flag
 
 * Compute Mean
 * ------------
+*say 'Compute ZAVE'
 m = 0
 while( m<=mexps )
         n  = filebeg
 while ( n <= fileend )
         n.m = n + m*numfiles
-'set dfile 'n.m
+        d.m = 1 + m*numfiles
+'set dfile 'd.m
 'set t 'tbeg.m' 'tdim.m
 'define  zave'm' =  zave'm' +  z'n'e'm
 n = n + 1
 endwhile
 'define  zave'm' =  zave'm'/'numfiles
+*'d zave'm
 m = m + 1
 endwhile
+*pull flag
 
+*say 'Compute ZAVED'
 m = 0
 while( m<=mexps )
         n  = filebeg
@@ -283,6 +379,7 @@ endwhile
 'define zaved'm' = zaved'm'/'numfiles
 m = m + 1
 endwhile
+*pull flag
 
 
 * Compute Variance and Standard Deviations
@@ -291,7 +388,9 @@ m = 0
 while( m<=mexps )
         n  = filebeg
 while ( n <= fileend )
-'set dfile 'n.m
+        n.m = n + m*numfiles
+        d.m = 1 + m*numfiles
+'set dfile 'd.m
 'set t 'tbeg.m' 'tdim.m
 'define  zvar'm' =  zvar'm' + pow(  z'n'e'm'- zave'm',2 )'
 n = n + 1
@@ -322,21 +421,37 @@ m = 0
 while( m<=mexps )
         n  = filebeg
         n.m = n + m*numfiles
-'set dfile 'n.m
+        d.m = 1 + m*numfiles
+'set dfile 'd.m
 'set t 'tbeg.m' 'tdim.m
 'define rave'm' = (exp(2*zave'm')-1) / (exp(2*zave'm')+1)'
 m = m + 1
 endwhile
 
 
+* Compute Confidence Intervals for Two-Tailed Students T-Test Distributions
+* -------------------------------------------------------------------------
+ dof = numfiles-1    ;* Degrees of Freedom (dof)
+
+'astudt 'dof' 0.32'  ;* 68% Confidence
+'q defval astudtout 1 1'
+critval68 = subwrd(result,3)
+
+'astudt 'dof' 0.10'  ;* 90% Confidence
+'q defval astudtout 1 1'
+critval90 = subwrd(result,3)
+
+'astudt 'dof' 0.05'  ;* 95% Confidence
+'q defval astudtout 1 1'
+critval95 = subwrd(result,3)
+
+'astudt 'dof' 0.01'  ;* 99% Confidence
+'q defval astudtout 1 1'
+critval99 = subwrd(result,3)
+
+
 * Estimate Statistically Significant Range for Synoptic Variability from Average of All Experiment
 * ------------------------------------------------------------------------------------------------
- dof = numfiles-1
-'astudt 'dof' 0.2'  ;* 90% Confidence
-'astudt 'dof' 0.1'  ;* 95% Confidence
-'q defval astudtout 1 1'
-critval=subwrd(result,3)
-
 'set dfile 'dfile
 'set t 1   'tmin
 'define zvarave = lev-lev'
@@ -349,20 +464,35 @@ while( m<=mexps )
 endwhile
 'define zvarave = zvarave / 'mexps
 'define se = sqrt( (zvar0 + zvarave)/'numfiles' )'
-'define dx = se*'critval
+'define dx = se*'critval90
 'define rUave = (exp( 2*(zave0+dx))-1)/(exp( 2*(zave0+dx))+1)'
 'define rLave = (exp( 2*(zave0-dx))-1)/(exp( 2*(zave0-dx))+1)'
 
-* Estimate Statistically Significant Range for Zero-Mean Hypothesis in a Paired t-Test)
-* -------------------------------------------------------------------------------------
+
+* Estimate Statistically Significant Range for Zero-Mean Hypothesis in a Paired t-Test
+* ------------------------------------------------------------------------------------
 m = 1
 while( m<=mexps )
 'set dfile 'ddif.m
 'set t 'tbeg.m' 'tdif.m
 'define se  = sqrt( zvard'm'/'numfiles' )'
-'define dx  = se*'critval
-'define rUp'm' = 2*(exp( 2*dx)-1)/(exp( 2*dx)+1)'
-'define rLp'm' = 2*(exp(-2*dx)-1)/(exp(-2*dx)+1)'
+
+'define dx       = se*'critval68
+'define rUp68'm' = 2*(exp( 2*dx)-1)/(exp( 2*dx)+1)'
+'define rLp68'm' = 2*(exp(-2*dx)-1)/(exp(-2*dx)+1)'
+
+'define dx       = se*'critval90
+'define rUp90'm' = 2*(exp( 2*dx)-1)/(exp( 2*dx)+1)'
+'define rLp90'm' = 2*(exp(-2*dx)-1)/(exp(-2*dx)+1)'
+
+'define dx       = se*'critval95
+'define rUp95'm' = 2*(exp( 2*dx)-1)/(exp( 2*dx)+1)'
+'define rLp95'm' = 2*(exp(-2*dx)-1)/(exp(-2*dx)+1)'
+
+'define dx       = se*'critval99
+'define rUp99'm' = 2*(exp( 2*dx)-1)/(exp( 2*dx)+1)'
+'define rLp99'm' = 2*(exp(-2*dx)-1)/(exp(-2*dx)+1)'
+
 m = m + 1
 endwhile
 
@@ -374,7 +504,9 @@ m = 0
 while( m<=mexps )
         n  = filebeg
         n.m = n + m*numfiles
+        d.m = n + m*numfiles
 'set dfile 'n.m
+'set dfile 'd.m
 'set t 'tdim.m
 'd rave'm
 val = subwrd(result,4)
@@ -386,10 +518,10 @@ endwhile
 val = subwrd(result,4)
 if( val < minval ) ; minval = val ; endif
 
-minval = 0.98 * minval
+        offset = 0.0025
+        axmin  = (1.000 - offset) * minval
+        axmax  =  1.000 + offset  * minval
 
-        axmax  = 1.10
-        axmin  = minval
     if( minval > 0.60 )
         axmax  = 1.10
         axmin  = 0.60
@@ -423,13 +555,14 @@ minval = 0.98 * minval
         axmin  = 0.96
     endif
     if( minval > 0.98 )
-        axmax  = 1.005
+        axmax  = 1.004
         axmin  = 0.980
     endif
     if( minval > 0.99 )
-        axmax  = 1.005
+        axmax  = 1.004
         axmin  = 0.990
     endif
+
 say ' AXMAX: 'axmax
 say ' AXMIN: 'axmin
 say 'MINVAL: 'minval
@@ -440,7 +573,9 @@ say 'MINVAL: 'minval
 while( m<=mexps )
         n  = filebeg
         n.m = n + m*numfiles
+        d.m = n + m*numfiles
 'set dfile 'n.m
+'set dfile 'd.m
 'set t 'tbeg.m' 'tdim.m
 'set vpage off'
 'set grads off'
@@ -450,7 +585,7 @@ while( m<=mexps )
 'set ylab %.3f'
 'set xlopts 0'
 'set cmark  0'
-'set cthick 8'
+'set cthick 6'
 'set cstyle 1'
 'set ccolor 'expcol.m
 'd rave'm
@@ -459,7 +594,7 @@ endwhile
 'draw ylab Anomaly Correlation'
 
 
-* Plot 95% Confidence Intervals for Synoptic Variance from Average of All Experiment
+* Plot 90% Confidence Intervals for Synoptic Variance from Average of All Experiment
 * ----------------------------------------------------------------------------------
 'set cmark 0'
 'set cthick 2'
@@ -479,7 +614,6 @@ endwhile
          year = result
 'getinfo date'
          date = result
-        month = substr(date,6,3)
 m = 0
 while( m<=mexps )
         n  = filebeg
@@ -521,7 +655,7 @@ endwhile
 yloc = 0
 m = 0
 while( m<=mexps )
-'set string 'col.m' l 5'
+'set string 'col.m' l 4'
 'set strsiz .08'
 if( y.m-yloc < 0.1 )
     yloc = yloc + 0.1
@@ -532,7 +666,7 @@ endif
 m = m + 1
 endwhile
 
-* Compute Upper and Lower Bounds for 95% Confidence Interval Values for Synoptic Variability
+* Compute Upper and Lower Bounds for 90% Confidence Interval Values for Synoptic Variability
 * ------------------------------------------------------------------------------------------
 'set dfile 'dfile
 'set t 'tmin
@@ -541,59 +675,74 @@ valrU = subwrd(result,4)
 'd rLave'
 valrL = subwrd(result,4)
 
-'q w2xy 'date' 'valrU
-    yU = subwrd(result,6)
-'q w2xy 'date' 'valrL
-    yL = subwrd(result,6)
-
-'set string 4 l 5'
-*'draw string 9.80 'yU' 'valrU
-*'draw string 9.80 'yL' 'valrL
-
-
-* Compute Upper & Lower Bounds for 95% Confidence Interval Values for Paired Hypothesis Test
-* ------------------------------------------------------------------------------------------
+* Compute Upper & Lower Bounds for Confidence Interval Values for Paired Hypothesis Test
+* --------------------------------------------------------------------------------------
 m = 1
 while( m<=mexps )
 'set dfile 'ddif.m
 'set t 'tdif.m
-'d rUp'm
-valrUp.m = subwrd(result,4)
-'d rLp'm
-valrLp.m = subwrd(result,4)
+
+'d rUp68'm
+valrUp68.m = subwrd(result,4)
+'d rLp68'm
+valrLp68.m = subwrd(result,4)
+
+'d rUp90'm
+valrUp90.m = subwrd(result,4)
+'d rLp90'm
+valrLp90.m = subwrd(result,4)
+
+'d rUp95'm
+valrUp95.m = subwrd(result,4)
+'d rLp95'm
+valrLp95.m = subwrd(result,4)
+
+'d rUp99'm
+valrUp99.m = subwrd(result,4)
+'d rLp99'm
+valrLp99.m = subwrd(result,4)
 
 'set t 'tbeg.m' 'tdif.m
 'minmax rave'm'-rave0'
 raveMX.m = subwrd(result,1)
 raveMN.m = subwrd(result,2)
 'set t 'tdif.m
-say 'tdif.'m': 'tdif.m' rUp: 'valrUp.m' rLp: 'valrLp.m' raveMN: 'raveMN.m'  raveMX: 'raveMX.m
+say 'tdif.'m': 'tdif.m' 68% Confidence rUp: 'valrUp68.m' rLp: 'valrLp68.m' raveMN: 'raveMN.m'  raveMX: 'raveMX.m
+say 'tdif.'m': 'tdif.m' 90% Confidence rUp: 'valrUp90.m' rLp: 'valrLp90.m' raveMN: 'raveMN.m'  raveMX: 'raveMX.m
+say 'tdif.'m': 'tdif.m' 95% Confidence rUp: 'valrUp95.m' rLp: 'valrLp95.m' raveMN: 'raveMN.m'  raveMX: 'raveMX.m
+say 'tdif.'m': 'tdif.m' 99% Confidence rUp: 'valrUp99.m' rLp: 'valrLp99.m' raveMN: 'raveMN.m'  raveMX: 'raveMX.m
 m = m + 1
 endwhile
 
 
 * Plot Difference plus Significance
 * ---------------------------------
-grey = 91
-
 axfac = 1.2
-axmax = valrUp.1*axfac
-axmin = valrLp.1*axfac
-m = 2
-while( m<=mexps )
-if( valrUp.m*axfac > axmax ) ; axmax = valrUp.m*axfac ; endif
-if( valrLp.m*axfac < axmin ) ; axmin = valrLp.m*axfac ; endif
-m = m + 1
-endwhile
+axmax = valrUp90.1*axfac
+axmin = valrLp90.1*axfac
 
-say 'EXP 0: axmin: 'axmin'  axmax: 'axmax
-m = 1
-while( m<=mexps )
-if( raveMX.m*axfac > axmax ) ; axmax = raveMX.m*axfac ; endif
-if( raveMN.m*axfac < axmin ) ; axmin = raveMN.m*axfac ; endif
-say 'EXP 'm': axmin: 'axmin'  axmax: 'axmax
-m = m + 1
-endwhile
+* Compute Axis Limits based on Error Bars
+* ---------------------------------------
+if( mexps>1 )
+    m = 2
+    while( m<=mexps )
+    if( valrUp90.m*axfac > axmax ) ; axmax = valrUp90.m*axfac ; endif
+    if( valrLp90.m*axfac < axmin ) ; axmin = valrLp90.m*axfac ; endif
+    m = m + 1
+    endwhile
+else
+    axmax = valrUp99.1*axfac
+    axmin = valrLp99.1*axfac
+endif
+
+* Modify Axis Limits based on Actual Differences
+* ----------------------------------------------
+    m = 1
+    while( m<=mexps )
+    if( raveMX.m*axfac > axmax ) ; axmax = raveMX.m*axfac ; endif
+    if( raveMN.m*axfac < axmin ) ; axmin = raveMN.m*axfac ; endif
+    m = m + 1
+    endwhile
 
 axmax = axmax * 1000
 axmin = axmin * 1000
@@ -608,10 +757,39 @@ while( m<=mexps )
 'set xaxis 0 'nday' .5'
 'set gxout bar'
 'set baropts outline'
+'set bargap 0'
 'set xlopts 1'
-'set ccolor 'grey
-'set ccolor 'expcol.m
-'d rUp'm'*1000;rLp'm'*1000'
+
+if( mexps=1 )
+   'set ccolor 3'
+   'set cstyle 1'
+   'set cthick 3'
+   'set bargap 10'
+   'd rUp68'm'*1000;rLp68'm'*1000'
+
+   'set ccolor 2'
+   'set cstyle 1'
+   'set cthick 7'
+   'set bargap 30'
+   'd rUp90'm'*1000;rLp90'm'*1000'
+
+   'set ccolor 11'
+   'set cstyle 1'
+   'set cthick 5'
+   'set bargap 55'
+   'd rUp95'm'*1000;rLp95'm'*1000'
+
+   'set gxout errbar'
+   'set ccolor 1'
+   'set cstyle 1'
+   'set cthick 5'
+   'set bargap 80'
+   'd rUp99'm'*1000;rLp99'm'*1000'
+else
+   'set ccolor 'expcol.m
+   'd rUp90'm'*1000;rLp90'm'*1000'
+endif
+
 m = m + 1
 endwhile
 
@@ -628,18 +806,67 @@ while( m<=mexps )
 'set cstyle 1'
 'set ccolor 'expcol.m
 'set cmark  3'
-'set cthick 8'
+'set cthick 6'
 'define drave = rave'm'-rave0'
 'd drave*1000'
+m = m + 1
+endwhile
 
-'q w2xy 'date' 'valrUp.m
-    yrUp = subwrd(result,6)
-'q w2xy 'date' 'valrLp.m
-    yrLp = subwrd(result,6)
+* Compute and Display Fisher Mean End-Point Values
+* ------------------------------------------------
+'getinfo year'
+         year = result
+'getinfo date'
+         date = result
+m = 1
+while( m<=mexps )
+        n  = filebeg
+        n.m = n + m*numfiles
+'set dfile 'n.m
+'set t 'tdim.m
+'d  (rave'm'-rave0)*1000'
+valr.m = subwrd(result,4)
+'q w2xy 'date' 'valr.m
+    y.m = subwrd(result,6)
+  col.m = expcol.m
+m = m + 1
+endwhile
 
-'set string 1 l 5'
-*'draw string 9.80 'yrUp' 'valrUp.m
-*'draw string 9.80 'yrLp' 'valrLp.m
+* Sort Fisher Mean End-Point Values
+* ---------------------------------
+m = 1
+while( m<=mexps )
+  n = m+1
+  while( n<=mexps )
+  if( y.n < y.m )
+      dum = y.m
+      y.m = y.n
+      y.n = dum
+      dum    = valr.m
+      valr.m = valr.n
+      valr.n = dum
+       dum   = col.m
+       col.m = col.n
+       col.n = dum
+  endif
+  n = n+1
+  endwhile
+m = m+1
+endwhile
+
+* Plot Fisher Mean End-Point Values
+* ---------------------------------
+yloc = 0
+m = 1
+while( m<=mexps )
+'set string 'col.m' l 4'
+'set strsiz .08'
+if( y.m-yloc < 0.1 )
+    yloc = yloc + 0.1
+else 
+    yloc = y.m
+endif
+'draw string 9.80 'yloc' 'valr.m
 m = m + 1
 endwhile
 
@@ -657,26 +884,19 @@ endwhile
 'set  strsiz .12'
 'draw string 6.0 0.72 Forecast Day'
 
+'set  string 1 l 8 0'
+'set  strsiz .32'
+'run uppercase 'field
+                FIELD = result 
+'draw string 0.70 8.15 'reg
+'draw string 0.70 7.78 'FIELD
+
+
 'set  string 1 c 6 90'
 'set  strsiz .18'
-'draw string 0.80 4.1 'month' 'year
+'draw string 0.80 4.1 'months' 'year
 
 'set  string 1 l 6 0'
-
-'!remove corcmp.stk'
-'!touch  corcmp.stk'
-'!echo 'numexp' >> corcmp.stk'
-m = 0
-while( m<=mexps )
-'!echo 1 6 'expcol.m'                >> corcmp.stk'
-'!echo     'expdsc.m' \('numfiles'\) >> corcmp.stk'
-m = m + 1
-endwhile
-'!echo 2.32 >> corcmp.stk'
-'!echo 4.08 >> corcmp.stk'
-'!echo 5.62 >> corcmp.stk'
-'!echo 5.48 >> corcmp.stk'
-*'lines         corcmp.stk 1'
 
 maxlength = 0
 m = 0
@@ -695,7 +915,6 @@ nploty = 3
 pagex  = 9.000
 pagey  = 0.375
 footer = 0.150
-bordrx = 3.500
 deltax = 0.700
 deltay = 0.300
 
@@ -704,6 +923,11 @@ ysize = ( pagey-footer - (nploty-1)*deltay )/nploty
 
 say 'xsize = 'xsize
 say 'ysize = 'xsize
+
+totalxsize = ( 3 * xsize ) + ( 2 * deltax )
+bordrx = 1.5 * ( 11 - totalxsize )/2
+say 'totalxsize = 'totalxsize
+say 'borderx = 'bordrx
 
 'set  string 1 l 5'
 'set  strsiz .09'
@@ -722,6 +946,8 @@ yend = pagey  - (ny-1)*(ysize+deltay)
 xend = xbeg + xsize
 ybeg = yend - ysize
 
+say 'xbeg: 'xbeg'  xend: 'xend
+
 if( xbeg < bordrx ) ; xbeg = bordrx ; endif
 if( xend > pagex  ) ; xend = pagex  ; endif
 if( ybeg < footer ) ; ybeg = footer ; endif
@@ -739,9 +965,9 @@ endwhile
 '!/bin/mkdir -p 'SOURCE'/corcmp'
 
 if( nday = ndaymax )
-   'myprint -name 'SOURCE'/corcmp/stats_'label'_corcmp_'reg'_'level'_'month' -rotate 90 -density 100x100'
+   'myprint -name 'SOURCE'/corcmp/stats_'label'_corcmp_'reg'_'level'_'months' -rotate 90 -density 100x100'
 else
-   'myprint -name 'SOURCE'/corcmp/stats_'label'_corcmp_'reg'_'level'_'month'_'nday'DAY -rotate 90 -density 100x100'
+   'myprint -name 'SOURCE'/corcmp/stats_'label'_corcmp_'reg'_'level'_'months'_'nday'DAY -rotate 90 -density 100x100'
 endif
 
 if( debug = "TRUE" )

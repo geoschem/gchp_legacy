@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2018, University Corporation for Atmospheric Research,
+// Copyright 2002-2019, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -33,7 +33,8 @@
 #include "ESMCI_LogErr.h"
 #include "ESMCI_VM.h"
 #include "ESMCI_CoordSys.h"
-#include "ESMCI_FindPnts.h"
+
+#include "Mesh/include/Legacy/ESMCI_FindPnts.h"
 #include "Mesh/include/ESMCI_XGridUtil.h"
 //-----------------------------------------------------------------------------
  // leave the following line as-is; it will insert the cvs ident string
@@ -77,14 +78,22 @@ void MBMesh_createelemdistgrid(void **meshpp, int *egrid, int *num_lelems, int *
 void MBMesh_getarea(void **mbmpp, int *num_elem, double *elem_areas, int *rc);
 
 
+void MBMesh_getlocalcoords(void **meshpp, double *ncoords,
+                               int *_orig_sdim, int *rc);
+
 void MBMesh_getlocalelemcoords(void **meshpp, double *ecoords,
                                int *_orig_sdim, int *rc);
 
 
-void MBMesh_meshturnoncellmask(void **mbmpp, ESMCI::InterArray<int> *maskValuesArg,  int *rc);
-void MBMesh_meshturnoffcellmask(void **mbmpp, int *rc);
+void MBMesh_turnonelemmask(void **mbmpp, ESMCI::InterArray<int> *maskValuesArg,  int *rc);
+void MBMesh_turnoffelemmask(void **mbmpp, int *rc);
 
+void MBMesh_turnonnodemask(void **meshpp, ESMCI::InterArray<int> *maskValuesArg,  int *rc);
+void MBMesh_turnoffnodemask(void **meshpp, int *rc);
 
+EntityType get_entity_type(int pdim, int etype);
+
+int ElemType2NumNodes(int pdim, int sdim, int etype);
 
 #if 0
 
@@ -113,11 +122,11 @@ void ESMCI_meshcreateelemdistgrid(Mesh **meshpp, int *egrid, int *num_lelems, in
 
 void ESMCI_meshinfoserialize(int *intMeshFreed,
                 char *buffer, int *length, int *offset,
-                ESMC_InquireFlag *inquireflag, int *localrc,
+                ESMC_InquireFlag *inquireflag, int *rc,
                              ESMCI_FortranStrLenArg buffer_l);
 
 void ESMCI_meshinfodeserialize(int *intMeshFreed,
-                                 char *buffer, int *offset, int *localrc,
+                                 char *buffer, int *offset, int *rc,
                                ESMCI_FortranStrLenArg buffer_l);
 
 void ESMCI_meshserialize(Mesh **meshpp,

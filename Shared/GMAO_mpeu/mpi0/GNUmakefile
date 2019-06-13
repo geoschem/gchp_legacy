@@ -10,7 +10,7 @@
 # Make sure ESMADIR is defined
 # ----------------------------
 ifndef ESMADIR
-       ESMADIR := $(PWD)/../..
+       ESMADIR := $(PWD)/../../..
 endif
 
 # Compilation rules, flags, etc
@@ -120,8 +120,10 @@ DEPS    	= $(SRCS_f:.f=.d)	\
 		  $(SRCS_f90:.f90=.d)	\
 		  $(SRCS_F90:.F90=.d)
 
-FOPT = $(FOPT3)
-COPT = $(COPT3)
+ifneq ("$(BOPT)","g")
+   FOPT = $(FOPT3)
+   COPT = $(COPT3)
+endif
 
 USER_FINCS  = $(I). $(I)$(INC_MPI)
 USER_CINCS  = $(I). $(I)$(INC_MPI)
@@ -135,6 +137,7 @@ vpath % $(MOD_DIRS)
 $(LIB) lib : $(DEPS) $(OBJS_ALL)
 	$(RM) $(LIB)
 	$(AR) $(AR_FLAGS) $(LIB) $(OBJS_ALL)
+	$(RANLIB) $(RANLIB_FLAGS) $(LIB)
 
 
 #                  --------------------

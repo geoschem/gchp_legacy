@@ -1,7 +1,8 @@
 module horiz_interp_bilinear_mod
 
-  ! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Zhi Liang </CONTACT>
+  ! <CONTACT EMAIL="Zhi.Liang@noaa.gov"> Zhi Liang </CONTACT>
 
+  ! <HISTORY SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/"/>
 
   ! <OVERVIEW>
   !   Performs spatial interpolation between grids using bilinear interpolation
@@ -35,10 +36,11 @@ module horiz_interp_bilinear_mod
 
 
   real, parameter :: epsln=1.e-10
+  integer, parameter :: DUMMY = -999
 
   !-----------------------------------------------------------------------
-  character(len=128) :: version = '$Id$'
-  character(len=128) :: tagname = '$Name$'
+! Include variable "version" to be written to log file.
+#include<file_version.h>
   logical            :: module_is_initialized = .FALSE.
 
 contains
@@ -46,16 +48,16 @@ contains
   !#######################################################################
   !  <SUBROUTINE NAME="horiz_interp_bilinear_init">
   !  <OVERVIEW>
-  !     writes version number and tag name to logfile.out
+  !     writes version number to logfile.out
   !  </OVERVIEW>
   !  <DESCRIPTION>       
-  !     writes version number and tag name to logfile.out
+  !     writes version number to logfile.out
   !  </DESCRIPTION>
 
   subroutine horiz_interp_bilinear_init
 
     if(module_is_initialized) return
-    call write_version_number (version, tagname)
+    call write_version_number("HORIZ_INTERP_BILINEAR_MOD", version)
     module_is_initialized = .true.
 
   end subroutine horiz_interp_bilinear_init
@@ -263,7 +265,7 @@ contains
   !   </INOUT>
 
   subroutine horiz_interp_bilinear_new_2d ( Interp, lon_in, lat_in, lon_out, lat_out, &
-       verbose, src_modulo )
+       verbose, src_modulo, new_search, no_crash_when_not_found )
 
     !-----------------------------------------------------------------------
     type(horiz_interp_type), intent(inout) :: Interp
@@ -271,6 +273,8 @@ contains
     real, intent(in),  dimension(:,:)      :: lon_out, lat_out
     integer, intent(in),          optional :: verbose
     logical, intent(in),          optional :: src_modulo
+    logical, intent(in),          optional :: new_search
+    logical, intent(in),          optional :: no_crash_when_not_found
     integer                                :: warns 
     logical                                :: src_is_modulo
     integer                                :: nlon_in, nlat_in, nlon_out, nlat_out
@@ -279,6 +283,8 @@ contains
     real                                   :: a1, b1, c1, d1, a2, b2, c2, d2, a, b, c
     real                                   :: lon1, lat1, lon2, lat2, lon3, lat3, lon4, lat4
     real                                   :: tpi, lon_min, lon_max
+    real                                   :: epsln2
+    logical                                :: use_new_search, no_crash
 
     tpi = 2.0*pi
 
@@ -286,6 +292,10 @@ contains
     if(present(verbose)) warns = verbose
     src_is_modulo = .true. 
     if (present(src_modulo)) src_is_modulo = src_modulo
+    use_new_search = .false.
+    if (present(new_search)) use_new_search = new_search
+    no_crash = .false.
+    if(present(no_crash_when_not_found)) no_crash = no_crash_when_not_found
 
     ! make sure lon and lat has the same dimension
     if(size(lon_out,1) /= size(lat_out,1) .or. size(lon_out,2) /= size(lat_out,2) ) &
@@ -308,7 +318,13 @@ contains
                Interp % j_lat (size(lon_out,1),size(lon_out,2),2))
 
     !--- first fine the neighbor points for the destination points.
-    call find_neighbor(Interp, lon_in, lat_in, lon_out, lat_out, src_is_modulo)
+    if(use_new_search) then
+       epsln2 = epsln*1e5
+       call find_neighbor_new(Interp, lon_in, lat_in, lon_out, lat_out, src_is_modulo, no_crash)
+    else
+       epsln2 = epsln
+       call find_neighbor(Interp, lon_in, lat_in, lon_out, lat_out, src_is_modulo)
+    endif
 
     !***************************************************************************
     !         Algorithm explanation (from disscussion with Steve Garner )      *
@@ -358,6 +374,7 @@ contains
           endif
           is = Interp%i_lon(m,n,1); ie = Interp%i_lon(m,n,2)
           js = Interp%j_lat(m,n,1); je = Interp%j_lat(m,n,2)
+          if( is == DUMMY) cycle
           lon1 = lon_in(is,js); lat1 = lat_in(is,js);
           lon2 = lon_in(ie,js); lat2 = lat_in(ie,js);
           lon3 = lon_in(ie,je); lat3 = lat_in(ie,je);
@@ -379,27 +396,27 @@ contains
           a  = b2*c1-b1*c2
           b  = a1*b2-a2*b1+c1*d2-c2*d1+c2*lon-c1*lat
           c  = a2*lon-a1*lat+a1*d2-a2*d1
-          quadra = b*b-4*a*c
+          quadra = b*b-4.*a*c
           if(abs(quadra) < epsln) quadra = 0.0
           if(quadra < 0.0) call mpp_error(FATAL, &
                "horiz_interp_bilinear_mod: No solution existed for this quadratic equation")
-          if ( abs(a) .lt. epsln) then  ! a = 0 is a linear equation
+          if ( abs(a) .lt. epsln2) then  ! a = 0 is a linear equation
              if( abs(b) .lt. epsln) call mpp_error(FATAL, &
                   "horiz_interp_bilinear_mod: no unique solution existed for this linear equation")
              y = -c/b
           else
              y1 = 0.5*(-b+sqrt(quadra))/a
              y2 = 0.5*(-b-sqrt(quadra))/a
-             if(abs(y1) < epsln) y1 = 0.0
-             if(abs(y2) < epsln) y2 = 0.0
-             if(abs(1-y1) < epsln) y1 = 1.0
-             if(abs(1-y2) < epsln) y2 = 1.0
+             if(abs(y1) < epsln2) y1 = 0.0
+             if(abs(y2) < epsln2) y2 = 0.0
+             if(abs(1.0-y1) < epsln2) y1 = 1.0
+             if(abs(1.0-y2) < epsln2) y2 = 1.0
              num_solution = 0
-             if(y1 .le. 1 .and. y1 .ge. 0) then
+             if(y1 >= 0.0 .and. y1 <= 1.0) then
                 y = y1
                 num_solution = num_solution +1
              endif
-             if(y2 .le. 1 .and. y2 .ge. 0) then
+             if(y2 >= 0.0 .and. y2 <= 1.0) then
                 y = y2
                 num_solution = num_solution + 1
              endif
@@ -411,16 +428,23 @@ contains
            endif
            if(abs(a1+c1*y) < epsln) call mpp_error(FATAL, &
                "horiz_interp_bilinear_mod: the denomenator is 0")
-           if(abs(y) < epsln) y = 0.0
-           if(abs(1-y) < epsln) y = 1.0
+           if(abs(y) < epsln2) y = 0.0
+           if(abs(1.0-y) < epsln2) y = 1.0
            x = (lon-b1*y-d1)/(a1+c1*y)
-           if(abs(x) < epsln) x = 0.0
-           if(abs(1-x) < epsln) x = 1.0
+           if(abs(x) < epsln2) x = 0.0
+           if(abs(1.0-x) < epsln2) x = 1.0
            ! x and y should be between 0 and 1.
-           if( x>1 .or. x<0 .or. y>1 .or. y < 0) call mpp_error(FATAL, &
-               "horiz_interp_bilinear_mod: weight should be between 0 and 1")
-           Interp % wti(m,n,1)=1-x; Interp % wti(m,n,2)=x   
-           Interp % wtj(m,n,1)=1-y; Interp % wtj(m,n,2)=y          
+           !! Added for ECDA 
+           if(use_new_search) then
+             if (x < 0.0) x = 0.0 ! snz
+             if (y < 0.0) y = 0.0 ! snz
+             if (x > 1.0) x = 1.0
+             if (y > 1.0) y = 1.0
+           endif 
+           if( x>1. .or. x<0. .or. y>1. .or. y < 0.) call mpp_error(FATAL, &
+                "horiz_interp_bilinear_mod: weight should be between 0 and 1")
+           Interp % wti(m,n,1)=1.0-x; Interp % wti(m,n,2)=x   
+           Interp % wtj(m,n,1)=1.0-y; Interp % wtj(m,n,2)=y          
        enddo
     enddo
 
@@ -450,8 +474,8 @@ contains
     lon_min = minval(lon_in);
     lon_max = maxval(lon_in);
 
-    max_step = min(nlon_in,nlat_in)/2 ! can be adjusted if needed
-    allocate(ilon(8*max_step), jlat(8*max_step) )
+    max_step = max(nlon_in,nlat_in) ! can be adjusted if needed
+    allocate(ilon(5*max_step), jlat(5*max_step) )
 
     do n = 1, nlat_out
        do m = 1, nlon_out
@@ -511,6 +535,295 @@ contains
                             endif
                          endif
                       endif
+                   endif
+                enddo
+             enddo J_LOOP
+          else
+             step = 0
+             do while ( .not. found .and. step .lt. max_step )
+                !--- take the adajcent point as the starting point
+                if(m == 1) then
+                   is = Interp % i_lon (m,n-1,1)
+                   js = Interp % j_lat (m,n-1,1)
+                else
+                   is = Interp % i_lon (m-1,n,1)
+                   js = Interp % j_lat (m-1,n,1)
+                endif
+                if(step==0) then
+                   npts = 1
+                   ilon(1) = is
+                   jlat(1) = js
+                else
+                   npts = 0
+                   !--- bottom boundary
+                   jstart = max(js-step,1)
+                   jend   = min(js+step,nlat_in)
+
+                   do l = -step, step
+                      i = is+l
+                      if(src_modulo)then
+                         if( i < 1) then
+                            i = i + nlon_in
+                         else if (i > nlon_in) then
+                            i = i - nlon_in
+                         endif
+                         if( i < 1 .or. i > nlon_in) call mpp_error(FATAL, &
+                              'horiz_interp_bilinear_mod: max_step is too big, decrease max_step' )
+                      else
+                         if( i < 1 .or. i > nlon_in) cycle
+                      endif
+
+                      npts       = npts + 1
+                      ilon(npts) = i
+                      jlat(npts) = jstart
+                   enddo
+
+                   !--- right and left boundary -----------------------------------------------
+                   istart = is - step
+                   iend   = is + step
+                   if(src_modulo) then
+                      if( istart < 1)       istart = istart + nlon_in
+                      if( iend   > nlon_in) iend   = iend   - nlon_in
+                   else 
+                      istart = max(istart,1)
+                      iend   = min(iend, nlon_in)
+                   endif
+                   do l = -step, step
+                      j = js+l
+                         if( j < 1 .or. j > nlat_in .or. j==jstart .or. j==jend) cycle
+                         npts = npts+1
+                         ilon(npts) = istart
+                         jlat(npts) = j
+                         npts = npts+1
+                         ilon(npts) = iend
+                         jlat(npts) = j
+                  end do
+
+                   !--- top boundary
+
+                   do l = -step, step
+                      i = is+l
+                      if(src_modulo)then
+                         if( i < 1) then
+                            i = i + nlon_in
+                         else if (i > nlon_in) then
+                            i = i - nlon_in
+                         endif
+                         if( i < 1 .or. i > nlon_in) call mpp_error(FATAL, &
+                              'horiz_interp_bilinear_mod: max_step is too big, decrease max_step' )
+                      else
+                         if( i < 1 .or. i > nlon_in) cycle
+                      endif
+
+                      npts       = npts + 1
+                      ilon(npts) = i
+                      jlat(npts) = jend
+                   enddo
+
+
+                end if
+
+                !--- find the surrouding points             
+                do l = 1, npts
+                   i = ilon(l)
+                   j = jlat(l)
+                   ip1 = i+1
+                   if(ip1>nlon_in) then
+                      if(src_modulo) then
+                         ip1 = 1
+                      else
+                         cycle
+                      endif
+                   endif
+                   jp1 = j+1
+                   if(jp1>nlat_in) cycle
+                   lon1 = lon_in(i,  j);   lat1 = lat_in(i,j)
+                   lon2 = lon_in(ip1,j);   lat2 = lat_in(ip1,j)
+                   lon3 = lon_in(ip1,jp1); lat3 = lat_in(ip1,jp1)
+                   lon4 = lon_in(i,  jp1); lat4 = lat_in(i,  jp1)  
+
+                   if(lon .lt. lon_min .or. lon .gt. lon_max) then
+                      if(i .ne. nlon_in) then
+                         cycle
+                      else
+                         if(lon .lt. lon_min) then
+                             lon1 = lon1 -tpi; lon4 = lon4 - tpi
+                         else if(lon .gt. lon_max) then
+                             lon2 = lon2 +tpi; lon3 = lon3 + tpi
+                         endif
+                      endif
+                   endif
+
+                   if(lat .ge. intersect(lon1,lat1,lon2,lat2,lon))then ! south
+                      if(lon .le. intersect(lat2,lon2,lat3,lon3,lat))then ! east
+                         if(lat .le. intersect(lon3,lat3,lon4,lat4,lon))then !north
+                            if(lon .ge. intersect(lat4,lon4,lat1,lon1,lat))then ! west
+                               found = .true.
+                               is=i; js=j  
+                               Interp % i_lon (m,n,1) = i; Interp % i_lon (m,n,2) = ip1
+                               Interp % j_lat (m,n,1) = j; Interp % j_lat (m,n,2) = jp1
+                               exit
+                            endif
+                         endif
+                      endif
+                   endif
+                enddo
+                step = step + 1
+             enddo
+          endif
+          if(.not.found) then
+              print *,'lon,lat=',lon*180./PI,lat*180./PI
+              print *,'npts=',npts
+              print *,'is,ie= ',istart,iend
+              print *,'js,je= ',jstart,jend              
+              print *,'lon_in(is,js)=',lon_in(istart,jstart)*180./PI
+              print *,'lon_in(ie,js)=',lon_in(iend,jstart)*180./PI
+              print *,'lat_in(is,js)=',lat_in(istart,jstart)*180./PI
+              print *,'lat_in(ie,js)=',lat_in(iend,jstart)*180./PI
+              print *,'lon_in(is,je)=',lon_in(istart,jend)*180./PI
+              print *,'lon_in(ie,je)=',lon_in(iend,jend)*180./PI
+              print *,'lat_in(is,je)=',lat_in(istart,jend)*180./PI
+              print *,'lat_in(ie,je)=',lat_in(iend,jend)*180./PI                  
+              
+             call mpp_error(FATAL, &
+                  'find_neighbor: the destination point is not inside the source grid' )
+          endif
+       enddo
+    enddo
+
+  end subroutine find_neighbor
+
+  !#######################################################################
+  ! 
+  ! The function will return true if the point x,y is inside a polygon, or
+  ! NO if it is not.  If the point is exactly on the edge of a polygon,
+  ! the function will return .true.
+  !
+  ! real polyx(:) : longitude coordinates of corners 
+  ! real polyx(:) : latitude  coordinates of corners
+  ! real x,y      : point to be tested 
+  ! ??? How to deal with truncation error.
+  !
+  function inside_polygon(polyx, polyy, x, y)
+     real, dimension(:), intent(in) :: polyx, polyy
+     real,               intent(in) :: x, y
+     logical                        :: inside_polygon
+     integer                        :: i, j, nedges
+     real                           :: xx
+
+     inside_polygon = .false.
+     nedges = size(polyx(:))
+     j = nedges
+     do i = 1, nedges
+        if( (polyy(i) < y .AND. polyy(j) >= y) .OR. (polyy(j) < y .AND. polyy(i) >= y) ) then
+           xx = polyx(i)+(y-polyy(i))/(polyy(j)-polyy(i))*(polyx(j)-polyx(i))
+           if( xx == x ) then
+             inside_polygon = .true.
+             return
+           else if( xx < x ) then
+             inside_polygon = .not. inside_polygon
+           endif
+        endif
+        j = i
+     enddo
+
+     return
+
+  end function inside_polygon
+
+  !#######################################################################
+  ! this routine will search the source grid to fine the grid box that encloses 
+  ! each destination grid.
+  subroutine find_neighbor_new( Interp, lon_in, lat_in, lon_out, lat_out, src_modulo, no_crash )
+    type(horiz_interp_type), intent(inout) :: Interp
+    real, intent(in),       dimension(:,:) :: lon_in , lat_in
+    real, intent(in),       dimension(:,:) :: lon_out, lat_out
+    logical,                 intent(in)    :: src_modulo, no_crash
+    integer                                :: nlon_in, nlat_in, nlon_out, nlat_out
+    integer                                :: max_step, n, m, l, i, j, ip1, jp1, step
+    integer                                :: is, js, jstart, jend, istart, iend, npts
+    integer, allocatable, dimension(:)     :: ilon, jlat
+    real                                   :: lon_min, lon_max, lon, lat, tpi
+    logical                                :: found
+    real                                   :: polyx(4), polyy(4)
+    real                                   :: min_lon, min_lat, max_lon, max_lat    
+
+    integer, parameter :: step_div=8
+    
+    tpi = 2.0*pi
+    nlon_in  = size(lon_in,1) ; nlat_in  = size(lat_in,2)
+    nlon_out = size(lon_out,1); nlat_out = size(lon_out,2)
+
+    lon_min = minval(lon_in);
+    lon_max = maxval(lon_in);
+
+    max_step = min(nlon_in,nlat_in)/step_div ! can be adjusted if needed
+    allocate(ilon(step_div*max_step), jlat(step_div*max_step) )
+
+    do n = 1, nlat_out
+       do m = 1, nlon_out
+          found = .false.
+          lon = lon_out(m,n)
+          lat = lat_out(m,n)
+
+          if(src_modulo) then
+             if(lon .lt. lon_min) then
+                lon = lon + tpi
+             else if(lon .gt. lon_max) then
+                lon = lon - tpi
+             endif
+          else
+             if(lon .lt. lon_min .or. lon .gt. lon_max ) &
+             call mpp_error(FATAL,'horiz_interp_bilinear_mod: ' //&
+                  'when input grid is not modulo, output grid should locate inside input grid')
+          endif
+          !--- search for the surrounding four points locatioon.
+          if(m==1 .and. n==1) then
+             J_LOOP: do j = 1, nlat_in-1
+                do i = 1, nlon_in
+                   ip1 = i+1
+                   jp1 = j+1
+                   if(i==nlon_in) then
+                      if(src_modulo)then
+                         ip1 = 1
+                      else
+                         cycle
+                      endif
+                   endif
+                   
+                   polyx(1) = lon_in(i,  j);   polyy(1) = lat_in(i,j)
+                   polyx(2) = lon_in(ip1,j);   polyy(2) = lat_in(ip1,j)
+                   polyx(3) = lon_in(ip1,jp1); polyy(3) = lat_in(ip1,jp1)
+                   polyx(4) = lon_in(i,  jp1); polyy(4) = lat_in(i,  jp1) 
+                   if(lon .lt. lon_min .or. lon .gt. lon_max) then
+                      if(i .ne. nlon_in) then
+                         cycle
+                      else
+                         if(lon .lt. lon_min) then
+                             polyx(1) = polyx(1) -tpi; polyx(4) = polyx(4) - tpi
+                         else if(lon .gt. lon_max) then
+                             polyx(2) = polyx(2) +tpi; polyx(3) = polyx(3) + tpi
+                         endif
+                      endif
+                   endif
+ 
+                   min_lon = minval(polyx)
+                   max_lon = maxval(polyx)
+                   min_lat = minval(polyy)
+                   max_lat = maxval(polyy)
+!                   if( lon .GE. min_lon .AND. lon .LE. max_lon .AND. &
+!                       lat .GE. min_lat .AND. lat .LE. max_lat ) then
+!                      print*, 'i =', i, 'j = ', j
+!                      print '(5f15.11)', lon, polyx
+!                      print '(5f15.11)', lat, polyy    
+!                   endif 
+
+                   if(inside_polygon(polyx, polyy, lon, lat)) then
+                      found = .true.
+!                      print*, " found ", i, j
+                      Interp % i_lon (m,n,1) = i; Interp % i_lon (m,n,2) = ip1
+                      Interp % j_lat (m,n,1) = j; Interp % j_lat (m,n,2) = jp1
+                      exit J_LOOP
                    endif
                 enddo
              enddo J_LOOP
@@ -593,48 +906,34 @@ contains
                    endif
                    jp1 = j+1
                    if(jp1>nlat_in) cycle
-                   lon1 = lon_in(i,  j);   lat1 = lat_in(i,j)
-                   lon2 = lon_in(ip1,j);   lat2 = lat_in(ip1,j)
-                   lon3 = lon_in(ip1,jp1); lat3 = lat_in(ip1,jp1)
-                   lon4 = lon_in(i,  jp1); lat4 = lat_in(i,  jp1)  
-
-                   if(lon .lt. lon_min .or. lon .gt. lon_max) then
-                      if(i .ne. nlon_in) then
-                         cycle
-                      else
-                         if(lon .lt. lon_min) then
-                             lon1 = lon1 -tpi; lon4 = lon4 - tpi
-                         else if(lon .gt. lon_max) then
-                             lon2 = lon2 +tpi; lon3 = lon3 + tpi
-                         endif
-                      endif
-                   endif
-
-                   if(lat .ge. intersect(lon1,lat1,lon2,lat2,lon))then ! south
-                      if(lon .le. intersect(lat2,lon2,lat3,lon3,lat))then ! east
-                         if(lat .le. intersect(lon3,lat3,lon4,lat4,lon))then !north
-                            if(lon .ge. intersect(lat4,lon4,lat1,lon1,lat))then ! west
-                               found = .true.
-                               is=i; js=j  
-                               Interp % i_lon (m,n,1) = i; Interp % i_lon (m,n,2) = ip1
-                               Interp % j_lat (m,n,1) = j; Interp % j_lat (m,n,2) = jp1
-                               exit
-                            endif
-                         endif
-                      endif
+                   polyx(1) = lon_in(i,  j);   polyy(1) = lat_in(i,j)
+                   polyx(2) = lon_in(ip1,j);   polyy(2) = lat_in(ip1,j)
+                   polyx(3) = lon_in(ip1,jp1); polyy(3) = lat_in(ip1,jp1)
+                   polyx(4) = lon_in(i,  jp1); polyy(4) = lat_in(i,  jp1)  
+                   if(inside_polygon(polyx, polyy, lon, lat)) then
+                      found = .true.
+                      Interp % i_lon (m,n,1) = i; Interp % i_lon (m,n,2) = ip1
+                      Interp % j_lat (m,n,1) = j; Interp % j_lat (m,n,2) = jp1
+                      exit
                    endif
                 enddo
                 step = step + 1
              enddo
           endif
           if(.not.found) then
-             call mpp_error(FATAL, &
-                  'horiz_interp_bilinear_mod: the destination point is not inside the source grid' )
+             if(no_crash) then
+                Interp % i_lon (m,n,1:2) = DUMMY
+                Interp % j_lat (m,n,1:2) = DUMMY
+                print*,'lon,lat=',lon,lat ! snz
+             else
+                call mpp_error(FATAL, &
+                    'horiz_interp_bilinear_mod: the destination point is not inside the source grid' )
+             endif
           endif
        enddo
     enddo
 
-  end subroutine find_neighbor
+  end subroutine find_neighbor_new
 
   !#######################################################################
   function intersect(x1, y1, x2, y2, x)
@@ -694,7 +993,7 @@ contains
   !   </OUT>
 
   subroutine horiz_interp_bilinear ( Interp, data_in, data_out, verbose, mask_in,mask_out, &
-       missing_value, missing_permit)
+       missing_value, missing_permit, new_handle_missing )
     !-----------------------------------------------------------------------
     type (horiz_interp_type), intent(in)        :: Interp
     real, intent(in),  dimension(:,:)           :: data_in
@@ -704,6 +1003,7 @@ contains
     real, intent(out), dimension(:,:), optional :: mask_out
     real, intent(in),                  optional :: missing_value
     integer, intent(in),               optional :: missing_permit
+    logical, intent(in),               optional :: new_handle_missing
     !-----------------------------------------------------------------------
     integer :: nlon_in, nlat_in, nlon_out, nlat_out, n, m,         &
          is, ie, js, je, iverbose, max_missing, num_missing, &
@@ -711,6 +1011,8 @@ contains
     real    :: dwtsum, wtsum, min_in, max_in, avg_in, &
          min_out, max_out, avg_out, wtw, wte, wts, wtn
     real    :: mask(size(data_in,1), size(data_in,2) )
+    logical :: set_to_missing, is_missing(4), new_handler
+    real    :: f1, f2, f3, f4, middle, w, s
 
     num_missing = 0
 
@@ -735,6 +1037,12 @@ contains
        max_missing = 0
     endif
 
+    if(present(new_handle_missing)) then
+       new_handler = new_handle_missing
+    else
+       new_handler = .false.
+    endif
+
     if(max_missing .gt. 3 .or. max_missing .lt. 0) call mpp_error(FATAL, &
          'horiz_interp_bilinear_mod: missing_permit should be between 0 and 3')
 
@@ -744,60 +1052,217 @@ contains
     if (size(data_out,1) /= nlon_out .or. size(data_out,2) /= nlat_out) &
          call mpp_error(FATAL,'horiz_interp_bilinear_mod: size of output array incorrect')
 
-    do n = 1, nlat_out
-       do m = 1, nlon_out
-          is = Interp % i_lon (m,n,1); ie = Interp % i_lon (m,n,2)
-          js = Interp % j_lat (m,n,1); je = Interp % j_lat (m,n,2)
-          wtw = Interp % wti   (m,n,1)
-          wte = Interp % wti   (m,n,2)
-          wts = Interp % wtj   (m,n,1)
-          wtn = Interp % wtj   (m,n,2)
+    if(new_handler) then
+       if( .not. present(missing_value) )  call mpp_error(FATAL, &
+            "horiz_interp_bilinear_mod: misisng_value must be present when new_handle_missing is .true.")
+       if( present(mask_in) ) call mpp_error(FATAL, &
+            "horiz_interp_bilinear_mod: mask_in should not be present when new_handle_missing is .true.")
+       do n = 1, nlat_out
+          do m = 1, nlon_out
+             is = Interp % i_lon (m,n,1); ie = Interp % i_lon (m,n,2)
+             js = Interp % j_lat (m,n,1); je = Interp % j_lat (m,n,2)
+             wtw = Interp % wti   (m,n,1)
+             wte = Interp % wti   (m,n,2)
+             wts = Interp % wtj   (m,n,1)
+             wtn = Interp % wtj   (m,n,2)
 
-          if(present(missing_value) ) then
+             is_missing = .false.
              num_missing = 0
+             set_to_missing = .false.
              if(data_in(is,js) == missing_value) then
                 num_missing = num_missing+1
-                mask(is,js) = 0.0
+                is_missing(1) = .true.
+                if(wtw .GE. 0.5 .AND. wts .GE. 0.5) set_to_missing = .true.
              endif
+
              if(data_in(ie,js) == missing_value) then
                 num_missing = num_missing+1
-                mask(ie,js) = 0.0
+                is_missing(2) = .true.
+                if(wte .GE. 0.5 .AND. wts .GE. 0.5) set_to_missing = .true.
              endif
              if(data_in(ie,je) == missing_value) then
                 num_missing = num_missing+1
-                mask(ie,je) = 0.0
+                is_missing(3) = .true.
+                if(wte .GE. 0.5 .AND. wtn .GE. 0.5) set_to_missing = .true.
              endif
              if(data_in(is,je) == missing_value) then
                 num_missing = num_missing+1
-                mask(is,je) = 0.0
+                is_missing(4) = .true.
+                if(wtw .GE. 0.5 .AND. wtn .GE. 0.5) set_to_missing = .true.
              endif
-          endif
 
-          dwtsum = data_in(is,js)*mask(is,js)*wtw*wts &
-               + data_in(ie,js)*mask(ie,js)*wte*wts &
-               + data_in(ie,je)*mask(ie,je)*wte*wtn &
-               + data_in(is,je)*mask(is,je)*wtw*wtn 
-          wtsum  = mask(is,js)*wtw*wts + mask(ie,js)*wte*wts  &
-               + mask(ie,je)*wte*wtn + mask(is,je)*wtw*wtn
-
-          if(.not. present(mask_in) .and. .not. present(missing_value)) wtsum = 1.0
-
-          if(num_missing .gt. max_missing ) then
-             data_out(m,n) = missing_value
-             if(present(mask_out)) mask_out(m,n) = 0.0
-          else if(wtsum .lt. epsln) then 
-             if(present(missing_value)) then
+             if( num_missing == 4 .OR. set_to_missing ) then
                 data_out(m,n) = missing_value
-             else
-                data_out(m,n) = 0.0
+                if(present(mask_out)) mask_out(m,n) = 0.0
+                 cycle
+             else if(num_missing == 0) then
+                f1 = data_in(is,js)
+                f2 = data_in(ie,js)
+                f3 = data_in(ie,je)
+                f4 = data_in(is,je)
+                w = wtw
+                s = wts
+             else if(num_missing == 3) then  !--- three missing value 
+                if(.not. is_missing(1) ) then
+                   data_out(m,n) = data_in(is,js)
+                else if(.not. is_missing(2) ) then
+                   data_out(m,n) = data_in(ie,js)
+                else if(.not. is_missing(3) ) then
+                   data_out(m,n) = data_in(ie,je)
+                else if(.not. is_missing(4) ) then
+                   data_out(m,n) = data_in(is,je)
+                endif
+                if(present(mask_out) ) mask_out(m,n) = 1.0
+                cycle
+             else   !--- one or two missing value
+                if( num_missing == 1) then
+                   if( is_missing(1) .OR. is_missing(3) ) then
+                      middle = 0.5*(data_in(ie,js)+data_in(is,je))
+                   else
+                      middle = 0.5*(data_in(is,js)+data_in(ie,je))
+                   endif
+                else ! num_missing = 2
+                   if( is_missing(1) .AND. is_missing(2) ) then
+                      middle = 0.5*(data_in(ie,je)+data_in(is,je))
+                   else if( is_missing(1) .AND. is_missing(3) ) then
+                      middle = 0.5*(data_in(ie,js)+data_in(is,je))
+                   else if( is_missing(1) .AND. is_missing(4) ) then
+                      middle = 0.5*(data_in(ie,js)+data_in(ie,je))
+                   else if( is_missing(2) .AND. is_missing(3) ) then
+                      middle = 0.5*(data_in(is,js)+data_in(is,je))
+                   else if( is_missing(2) .AND. is_missing(4) ) then
+                      middle = 0.5*(data_in(is,js)+data_in(ie,je))
+                   else if( is_missing(3) .AND. is_missing(4) ) then
+                      middle = 0.5*(data_in(is,js)+data_in(ie,js))
+                   endif
+                endif
+
+                if( wtw .GE. 0.5 .AND. wts .GE. 0.5 ) then  ! zone 1
+                   w = 2.0*(wtw-0.5)
+                   s = 2.0*(wts-0.5)
+                   f1 = data_in(is,js)
+                   if(is_missing(2)) then
+                      f2 = f1
+                   else
+                      f2 = 0.5*(data_in(is,js)+data_in(ie,js))
+                   endif
+                   f3 = middle
+                   if(is_missing(4)) then
+                      f4 = f1
+                   else
+                      f4 = 0.5*(data_in(is,js)+data_in(is,je))
+                   endif
+                else if( wte .GE. 0.5 .AND. wts .GE. 0.5 ) then  ! zone 2
+                   w = 2.0*(1.0-wte)
+                   s = 2.0*(wts-0.5)
+                   f2 = data_in(ie,js)
+                   if(is_missing(1)) then
+                      f1 = f2
+                   else
+                      f1 = 0.5*(data_in(is,js)+data_in(ie,js))
+                   endif
+                   f4 = middle
+                   if(is_missing(3)) then
+                      f3 = f2
+                   else
+                      f3 = 0.5*(data_in(ie,js)+data_in(ie,je))
+                   endif
+                else if( wte .GE. 0.5 .AND. wtn .GE. 0.5 ) then  ! zone 3
+                   w = 2.0*(1.0-wte)
+                   s = 2.0*(1.0-wtn)
+                   f3 = data_in(ie,je)
+                   if(is_missing(2)) then
+                      f2 = f3
+                   else
+                      f2 = 0.5*(data_in(ie,js)+data_in(ie,je))
+                   endif
+                   f1 = middle
+                   if(is_missing(4)) then
+                      f4 = f3
+                   else
+                      f4 = 0.5*(data_in(ie,je)+data_in(is,je))
+                   endif
+                else if( wtw .GE. 0.5 .AND. wtn .GE. 0.5 ) then  ! zone 4
+                   w = 2.0*(wtw-0.5)
+                   s = 2.0*(1.0-wtn)
+                   f4 = data_in(is,je)
+                   if(is_missing(1)) then
+                      f1 = f4
+                   else
+                      f1 = 0.5*(data_in(is,js)+data_in(is,je))
+                   endif
+                   f2 = middle
+                   if(is_missing(3)) then
+                      f3 = f4
+                   else
+                      f3 = 0.5*(data_in(ie,je)+data_in(is,je))
+                   endif
+                else 
+                   call mpp_error(FATAL, &
+                      "horiz_interp_bilinear_mod: the point should be in one of the four zone")
+                endif
              endif
-             if(present(mask_out)) mask_out(m,n) = 0.0      
-          else
-             data_out(m,n) = dwtsum/wtsum
-             if(present(mask_out)) mask_out(m,n) = wtsum
-          endif
+
+             data_out(m,n) = f3 + (f4-f3)*w + (f2-f3)*s + ((f1-f2)+(f3-f4))*w*s 
+            if(present(mask_out)) mask_out(m,n) = 1.0
+          enddo
+       enddo       
+    else
+       do n = 1, nlat_out
+          do m = 1, nlon_out
+             is = Interp % i_lon (m,n,1); ie = Interp % i_lon (m,n,2)
+             js = Interp % j_lat (m,n,1); je = Interp % j_lat (m,n,2)
+             wtw = Interp % wti   (m,n,1)
+             wte = Interp % wti   (m,n,2)
+             wts = Interp % wtj   (m,n,1)
+             wtn = Interp % wtj   (m,n,2)
+
+             if(present(missing_value) ) then
+                num_missing = 0
+                if(data_in(is,js) == missing_value) then
+                   num_missing = num_missing+1
+                   mask(is,js) = 0.0
+                endif
+                if(data_in(ie,js) == missing_value) then
+                   num_missing = num_missing+1
+                   mask(ie,js) = 0.0
+                endif
+                if(data_in(ie,je) == missing_value) then
+                   num_missing = num_missing+1
+                   mask(ie,je) = 0.0
+                endif
+                if(data_in(is,je) == missing_value) then
+                   num_missing = num_missing+1
+                   mask(is,je) = 0.0
+                endif
+             endif
+
+             dwtsum = data_in(is,js)*mask(is,js)*wtw*wts &
+                  + data_in(ie,js)*mask(ie,js)*wte*wts &
+                  + data_in(ie,je)*mask(ie,je)*wte*wtn &
+                  + data_in(is,je)*mask(is,je)*wtw*wtn 
+             wtsum  = mask(is,js)*wtw*wts + mask(ie,js)*wte*wts  &
+                  + mask(ie,je)*wte*wtn + mask(is,je)*wtw*wtn
+
+             if(.not. present(mask_in) .and. .not. present(missing_value)) wtsum = 1.0
+
+             if(num_missing .gt. max_missing ) then
+                data_out(m,n) = missing_value
+                if(present(mask_out)) mask_out(m,n) = 0.0
+             else if(wtsum .lt. epsln) then 
+                if(present(missing_value)) then
+                   data_out(m,n) = missing_value
+                else
+                   data_out(m,n) = 0.0
+                endif
+                if(present(mask_out)) mask_out(m,n) = 0.0      
+             else
+                data_out(m,n) = dwtsum/wtsum
+                if(present(mask_out)) mask_out(m,n) = wtsum
+             endif
+          enddo
        enddo
-    enddo
+    endif
     !***********************************************************************
     ! compute statistics: minimum, maximum, and mean
     !-----------------------------------------------------------------------

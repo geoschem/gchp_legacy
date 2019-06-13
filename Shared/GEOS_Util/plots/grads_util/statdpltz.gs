@@ -22,7 +22,7 @@ type  = subwrd  (args,2)
 exp1  = subwrd  (args,3)
 exp2  = subwrd  (args,4)
 numf  = subwrd  (args,5)
-cint  = subwrd  (args,6)
+flag  = subwrd  (args,6)
  
 'fixname 'exp1
           tag1 = result
@@ -64,11 +64,11 @@ say 'TDIM: 'tdim
 *******************************************************************************
 *         TVAL = SQRT(N) x NAME_DIFF_MEAN / NAME_DIFF_STD     *
 *                                                             *
-*       astudt (N-1) 0.20  [90% Confidence]                   *
-*       astudt (N-1) 0.10  [95% Confidence]                   *
-*       astudt (N-1) 0.08  [96% Confidence]                   *
-*       astudt (N-1) 0.04  [98% Confidence]                   *
-*       astudt (N-1) 0.02  [99% Confidence]                   *
+*       astudt (N-1) 0.10  [90% Confidence]                   *
+*       astudt (N-1) 0.05  [95% Confidence]                   *
+*       astudt (N-1) 0.04  [96% Confidence]                   *
+*       astudt (N-1) 0.02  [98% Confidence]                   *
+*       astudt (N-1) 0.01  [99% Confidence]                   *
 *                                                             *
 *       q defval astudtout 1 1                                *
 *       critval=subwrd(result,3)                              *
@@ -80,41 +80,99 @@ say 'TDIM: 'tdim
     say 'exp1: 'exp1' tag1: 'tag1
     say 'exp2: 'exp2' tag2: 'tag2
 
+    tipe = type
+if( type = Dres )
+    type = Dmse
+endif
+
+* ----------------------------------------------------------------------------------
+
 'set t 'tdim
-'define diff  = 'field''type''tag2'z'
-       dummy  = getstuff( 'diff' )
+
+'define delDmes = 'field'Dmes'tag2'z'
+'define delDvar = 'field'Dvar'tag2'z'
+'define delDamp = 'field'Damp'tag2'z'
+'define delDphz = 'field'Dphz'tag2'z'
+'define delDmse = 'field'Dmse'tag2'z'
+
+       dummy  = getstuff( 'delDmse' )
    diff_cint  = subwrd(dummy,1)
    diff_scale = subwrd(dummy,2)
         diffm = subwrd(dummy,3)
+
+if( tipe = Dres )
+    if( flag = 1 )
+       'define  delDmse = delDmse - delDmes - delDvar'
+    endif
+    if( flag = 2 )
+       'define  delDmse = delDmse - delDamp - delDphz'
+    endif
+        dummy2  = getstuff( 'delDmse' )
+        diff_cint2  = subwrd(dummy2,1)
+        diff_scale2 = subwrd(dummy2,2)
+        diffm2 = subwrd(dummy2,3)
+        if( diffm2 != diffm )
+            diff_cint  = diff_cint2
+            diff_scale = diff_scale2
+            diffm = diffm2
+        endif
+endif
+
 'set t 'time
+
+'define delDmes = 'field'Dmes'tag2'z'
+'define delDvar = 'field'Dvar'tag2'z'
+'define delDamp = 'field'Damp'tag2'z'
+'define delDphz = 'field'Dphz'tag2'z'
+'define delDmse = 'field'Dmse'tag2'z'
+
+if( tipe = Dres )
+    if( flag = 1 )
+       'define  delDmse = delDmse - delDmes - delDvar'
+    endif
+    if( flag = 2 )
+       'define  delDmse = delDmse - delDamp - delDphz'
+    endif
+endif
+
+'define diff  = del'type
 
 * Compute Confidence Interval
 * ---------------------------
     numfm1 = numf - 1
 
-if( type = dbia ) ; 'define tval = sqrt('numfm1') * 'field'Zbia'tag2'z / sqrt('field'bia'tag2'z)' ; endif
-if( type = drms ) ; 'define tval = sqrt('numfm1') * 'field'Zmse'tag2'z / sqrt('field'mse'tag2'z)' ; endif
-if( type = dstd ) ; 'define tval = sqrt('numfm1') * 'field'Zvar'tag2'z / sqrt('field'var'tag2'z)' ; endif
+if( type = Dmes ) ; 'define tval = sqrt('numfm1') * 'field'Dmes'tag2'z / sqrt('field'DDmse'tag2'z)' ; endif
+if( type = Dvar ) ; 'define tval = sqrt('numfm1') * 'field'Dvar'tag2'z / sqrt('field'DDmse'tag2'z)' ; endif
+if( type = Damp ) ; 'define tval = sqrt('numfm1') * 'field'Damp'tag2'z / sqrt('field'DDmse'tag2'z)' ; endif
+if( type = Dphz ) ; 'define tval = sqrt('numfm1') * 'field'Dphz'tag2'z / sqrt('field'DDmse'tag2'z)' ; endif
+if( type = Dmse ) ; 'define tval = sqrt('numfm1') * 'field'Dmse'tag2'z / sqrt('field'DDmse'tag2'z)' ; endif
 
          ttest = 0.10
-    confidence = 100 * (1-(ttest/2))
+    confidence = 100 * (1-ttest)
    'astudt 'numfm1' 'ttest
    'q defval astudtout 1 1'
       critval=subwrd(result,3)
       say 'critval: 'critval
 
-'define  diff  = 'field''type''tag2'z'
+if( tipe = Dres )
+   'shades 'diff_cint
+else
+   'shades 'diff_cint' -quad'
+            diff_cint = result
+endif
+
 'define  diff0 = maskout( maskout( diff*'diff_scale',abs(diff*'diff_scale')-'diff_cint' ), abs(tval)-'critval')'
 'define  diff1 =          maskout( diff*'diff_scale',abs(diff*'diff_scale')-'diff_cint' )'
 
-'shades 'diff_cint
-'d       diff*'diff_scale
+'d diff*'diff_scale
 
 * Create New File containing Ratio: DIFF/DIFF0 for contouring region of significance
 * ----------------------------------------------------------------------------------
-'define diffr = diff1/diff0'
 'getinfo file'
          curfile = result
+
+if( tipe != Dres )
+'define diffr = diff1/diff0'
 'getinfo undef'
          undef = result
 'set undef 0.0'
@@ -162,56 +220,80 @@ if( type = dstd ) ; 'define tval = sqrt('numfm1') * 'field'Zvar'tag2'z / sqrt('f
 
 'set dfile 'curfile
 'set undef 'undef
+endif
+
 * -------------------------------------------------------------
 
 
-if( type = dbia ) ; 'cbarn -scale 0.55 -xmid 2.9 -ymid 4.1 -scaley 0.8 ' ; endif
-if( type = dstd ) ; 'cbarn -scale 0.55 -xmid 8.4 -ymid 4.1 -scaley 0.8 ' ; endif
-if( type = drms ) ; 'cbarn -scale 0.55 -xmid 5.6 -ymid 0.3 -scaley 0.8 ' ; endif
+if( type = Dmes ) ; 'cbarn -scale 0.55 -xmid 2.9 -ymid 4.2 -scaley 0.8 ' ; endif
+if( type = Damp ) ; 'cbarn -scale 0.55 -xmid 2.9 -ymid 4.2 -scaley 0.8 ' ; endif
+if( type = Dvar ) ; 'cbarn -scale 0.55 -xmid 8.4 -ymid 4.2 -scaley 0.8 ' ; endif
+if( type = Dphz ) ; 'cbarn -scale 0.55 -xmid 8.4 -ymid 4.2 -scaley 0.8 ' ; endif
+if( tipe = Dmse ) ; 'cbarn -scale 0.55 -xmid 2.9 -ymid 0.3 -scaley 0.8 ' ; endif
+if( tipe = Dres ) ; 'cbarn -scale 0.55 -xmid 8.4 -ymid 0.3 -scaley 0.8 ' ; endif
 
-'getinfo month' 
-         month = result
+'run getenv MONTHLAB'
+            month = result
+say 'MONTH_LABEL: 'month
+
 'getinfo year'
          year  = result
 
-if( type = dbia )
+'run uppercase 'field
+                UFIELD = result
+
+if( type = Dmes )
 'set vpage off'
 'set string 1 c 6'
-'set strsiz 0.12'
-'draw string 3.00  7.75 Zonal Mean 'field'  |BIAS`b1`n|-|BIAS`b2`n|  (x10**'diffm')'
+'set strsiz 0.11'
+'draw string 3.00  7.75 (BIAS)`a2`n:  MES`b1`n-MES`b2`n  (x10**'diffm')'
 endif
 
-if( type = dstd )
+if( type = Damp )
 'set vpage off'
 'set string 1 c 6'
-'set strsiz 0.12'
-'draw string 8.355 7.75 Zonal Mean 'field'  (Std_Dev`b1`n-Std_Dev`b2`n)  (x10**'diffm')'
+'set strsiz 0.11'
+'draw string 3.00  7.75 Amplitude Error Difference  (x10**'diffm')'
 endif
 
-if( type = drms )
+if( type = Dvar )
 'set vpage off'
 'set string 1 c 6'
-'set strsiz 0.12'
-'draw string 5.650 3.90 Zonal Mean 'field'  (RMS`b1`n-RMS`b2`n)  (x10**'diffm')'
+'set strsiz 0.11'
+'draw string 8.355  7.75 (Std_Dev)`a2`n:  VAR`b1`n- VAR`b2`n  (x10**'diffm')'
 endif
 
-if( type = dstd )
+if( type = Dphz )
+'set vpage off'
+'set string 1 c 6'
+'set strsiz 0.11'
+'draw string 8.355  7.75 Phase Error Difference  (x10**'diffm')'
+endif
+
+if( tipe = Dmse )
+'set vpage off'
+'set string 1 c 6'
+'set strsiz 0.12'
+'draw string 3.000 3.9 (RMS)`a2`n:  MSE`b1`n-MSE`b2`n  (x10**'diffm')'
+endif
+
+if( tipe = Dres )
+'set vpage off'
+'set string 1 c 6'
+'set strsiz 0.10'
+if( flag = 1 ) ; 'draw string 8.355 3.9 (RMS)`a2`n-[ (BIAS)`a2`n+(STD)`a2`n ] Residual (x10**'diffm')'  ; endif
+if( flag = 2 ) ; 'draw string 8.355 3.9 (RMS)`a2`n-[ AMPLITUDE + PHASE Error ] Residual (x10**'diffm')' ; endif
+endif
+
+if( type = Dvar | type = Dphz)
 'set vpage off'
 'set string 1 c 6'
 
-'set strsiz 0.165'
-'draw string 5.50 8.20 'month' 'year'   Forecast Hour: 'hour
-
-'set string 1 l 6'
-'set strsiz 0.15'
-'draw string 0.38 2.46 1: 'exp2
-'draw string 0.38 2.00 2: 'exp1
+'set strsiz 0.16'
+'draw string 5.50 8.40 Zonal Mean 'UFIELD'   'month' 'year'   Forecast Hour: 'hour
 'set strsiz 0.12'
-'draw string 0.75 2.23 minus'
-'set strsiz 0.13'
-'draw string 0.38 1.50 'numf'-member Ensemble'
-'set strsiz 0.09'
-'draw string 0.40 1.20 (Contour > 'confidence'% Confidence)'
+'draw string 5.50 8.18 1:'exp2' minus 2:'exp1'  'numf'-member Ensemble   (Contour > 'confidence'% Confidence)'
+
 endif
 
 function getstuff( q )

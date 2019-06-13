@@ -267,7 +267,7 @@
 !BOC
 !
 ! !LOCAL VARIABLES:
-      INTEGER  :: I, J, NDims, NPEs, NRuns
+      INTEGER  :: I, J, NPEs, NRuns
 !
       CPP_ENTER_PROCEDURE( "DECOMPCOPY" )
 !

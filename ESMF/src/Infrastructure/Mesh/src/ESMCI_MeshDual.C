@@ -1,7 +1,7 @@
 // $Id: ESMCI_MeshRedist.C,v 1.23 2012/01/06 20:17:51 svasquez Exp $
 //
 // Earth System Modeling Framework
-// Copyright 2002-2018, University Corporation for Atmospheric Research, 
+// Copyright 2002-2019, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -10,18 +10,18 @@
 //
 //==============================================================================
 #include <Mesh/include/ESMCI_MeshRedist.h>
-#include <Mesh/include/ESMCI_MeshTypes.h>
-#include <Mesh/include/ESMCI_MeshObjTopo.h>
-#include <Mesh/include/ESMCI_MeshOBjConn.h>
-#include <Mesh/include/ESMCI_Mapping.h>
-#include <Mesh/include/ESMCI_MeshObj.h>
+#include <Mesh/include/Legacy/ESMCI_MeshTypes.h>
+#include <Mesh/include/Legacy/ESMCI_MeshObjTopo.h>
+#include <Mesh/include/Legacy/ESMCI_MeshObjConn.h>
+#include <Mesh/include/Regridding/ESMCI_Mapping.h>
+#include <Mesh/include/Legacy/ESMCI_MeshObj.h>
 #include <Mesh/include/ESMCI_Mesh.h>
-#include <Mesh/include/ESMCI_MeshUtils.h>
+#include <Mesh/include/Legacy/ESMCI_MeshUtils.h>
 #include <Mesh/include/ESMCI_MathUtil.h>
-#include "Mesh/include/ESMCI_DDir.h" 
-#include <Mesh/include/ESMCI_ParEnv.h>
-#include <Mesh/include/ESMCI_CommReg.h>
-#include <Mesh/include/ESMCI_MeshVTK.h>
+#include "Mesh/include/Legacy/ESMCI_DDir.h" 
+#include <Mesh/include/Legacy/ESMCI_ParEnv.h>
+#include <Mesh/include/Legacy/ESMCI_CommReg.h>
+#include <Mesh/include/Legacy/ESMCI_MeshVTK.h>
 
 #include <iostream>
 #include <fstream>
@@ -134,6 +134,14 @@ namespace ESMCI {
       num_snd++;
     }
 
+    // Load frac2 field
+    MEField<> *psf = src_mesh->GetField("elem_frac2");
+    if (psf != NULL) {
+      snd[num_snd]=psf;
+      rcv[num_snd]=psf;
+      num_snd++;
+    }
+
     // TODO: add elem mask fields and mask_val fields   
     src_mesh->CreateGhost();
     src_mesh->GhostComm().SendFields(num_snd, snd, rcv);
@@ -153,6 +161,7 @@ namespace ESMCI {
   // Set Mesh dimensions
   dual_mesh->set_spatial_dimension(sdim);
   dual_mesh->set_parametric_dimension(pdim);
+  dual_mesh->orig_spatial_dim=src_mesh->orig_spatial_dim;
 
   // Get element coordinates
   MEField<> *elem_coords=src_mesh->GetField("elem_coordinates"); 
@@ -271,8 +280,13 @@ namespace ESMCI {
     // CAN END UP NOT MAKING AN ELEM AS A HOME FOR 
     // A NODE THAT'S NEEDED ON ANOTHER PROC
     //  if (!GetAttr(node).is_locally_owned()) continue;
-    
 
+    // DEBUG
+    //if (GetAttr(node).GetBlock() !=0) {
+    //  printf("node id=%d block=%d\n",node.get_id(),GetAttr(node).GetBlock());
+    //}
+
+       
     // Get list of element ids
     int num_elems_around_node_ids=0;
     get_unique_elems_around_node(&node, src_mesh, tmp_mdss,
@@ -368,10 +382,16 @@ namespace ESMCI {
       //  might also mean it was a split elem, that's not the original elem)
       if (nodes_used[pos]) {
 
+        // Get element block id
+        UInt block=GetAttr(elem).GetBlock();        
+
+        // The pole id is the 100's digit
+        UInt pole_id=block/100;
+
         // Create node  
         MeshObj *node = new MeshObj(MeshObj::NODE, elem_id, data_index);
         node->set_owner(owner);
-        dual_mesh->add_node(node, 0);
+        dual_mesh->add_node(node, pole_id);
         data_index++;
 
         //printf("%d# node=%d owner=%d islocal=%d \n",Par::Rank(),node->get_id(),node->get_owner(),GetAttr(*node).is_locally_owned());

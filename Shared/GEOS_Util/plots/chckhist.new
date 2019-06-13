@@ -19,7 +19,6 @@ set format = NULL
 set scale  = 1.0
 @   ncoll  = 0
 
-
 # Create true comma-separated HISTORY variable
 # --------------------------------------------
 if(! -e HISTORY.T ) then
@@ -119,9 +118,19 @@ while( $n <= $ntemp )
 
                 set dum = `echo $temp[$k] | cut -b1-2`
                 @ k = $k - 1 
-                if( $EXPORT == $QEXPORT && $GC == $QGC ) then
+                set  XEXPORT = `echo $QEXPORT | cut -d';' -f1`
+                set  YEXPORT = `echo $QEXPORT | cut -d';' -f2`
+                set  XALIAS  = `echo $QALIAS  | cut -d';' -f1`
+                set  YALIAS  = `echo $QALIAS  | cut -d';' -f2`
+                if(  $EXPORT == $XEXPORT && $GC == $QGC ) then
                      set found = TRUE
-                     set alias = $QALIAS
+                     set alias = $XALIAS
+                     set scale = $QSCALE
+                     @   ncoll = $m
+                endif
+                if(  $EXPORT == $YEXPORT && $GC == $QGC ) then
+                     set found = TRUE
+                     set alias = $YALIAS
                      set scale = $QSCALE
                      @   ncoll = $m
                 endif
@@ -132,26 +141,99 @@ while( $n <= $ntemp )
 @ n = $n + 1
 end
 
+if(! $?TBEG )      set TBEG = "NULL"
+if(! $?TEND )      set TEND = "NULL"
+if(! $?PLOT_QUAD ) set PLOT_QUAD = "false"
 
 # Find Collection Attributes (Note: Use xdf.tabl when SOURCE points to a CMPEXP)
 # ------------------------------------------------------------------------------
+#
+#  Usage Priority
+#  --------------
+#        1) Use Environment Variable $DDFILE if it exists
+#        2) Use climatological $SEAON.tabl (or $SEASON.ddf) file if it exist .AND. $TBEG = $TEND = NULL .AND. Environment Variable $CLIM = "true"
+#        3) Use collection-based grads.ddf (or grads.ctl) attribute within HISTORY.rc if present
+#        4) Use instantanious   xdf.tabl if it exists .AND. Environment Variable $CLIM = "false"
+#        5) Use climatological clim.tabl if it exists .AND. $TBEG = $TEND = NULL .AND. $PLOT_QUAD == "false"
+#        6) Use instantanious   xdf.tabl if it exists
+#        7) Use climatological clim.tabl
+#
+# ------------------------------------------------------------------------------
+
 if( $ncoll != 0 ) then
-set output = ''
-set format = ''
+    set numseas = `echo $SEASONS`
+    set output  = ''
+    set format  = ''
+
 foreach collection ($collections)
-                          set dummy  = `grep ${collection}.grads_ddf HISTORY.T | cut -d: -f2 | cut -d, -f1 | sed -e "s/'//g"`
-     if( "$dummy" == "" ) set dummy  = `grep ${collection}.grads_ctl HISTORY.T | cut -d: -f2 | cut -d, -f1 | sed -e "s/'//g"`
-     if( "$dummy" == "" ) then
-          if( -e ${source}/${collection}/clim.tabl && ( $TBEG == "NULL" && $TEND == "NULL" && .$3 == "." && $PLOT_QUAD == "false" ) ) then
-                          set dummy  = `echo ${source}/${collection}/clim.tabl`
-          else
-                   if( -e ${source}/${collection}/xdf.tabl ) then
-                          set dummy  = `echo ${source}/${collection}/xdf.tabl`
-                   else
-                          set dummy  = `echo ${source}/${collection}/clim.tabl`
-                   endif
-          endif
-     endif
+
+  if( -e ${source}/${collection}/$DDFFILE ) then
+      set dummy  = `echo ${source}/${collection}/$DDFFILE`
+  else
+
+    # Rules for Source Experiment
+    # ---------------------------
+    if( "$source" == "$SOURCE" ) then
+
+        if(       $#numseas == 1 & ( $TBEG == "NULL" && $TEND == "NULL" )                   & ( -e ${source}/${collection}/`echo $SEASONS | tr "[:upper:]" "[:lower:]"`.tabl ) ) then
+                  set dummy =                                                                      ${source}/${collection}/`echo $SEASONS | tr "[:upper:]" "[:lower:]"`.tabl
+        else if ( $#numseas == 1 & ( $TBEG == "NULL" && $TEND == "NULL" )                   & ( -e ${source}/${collection}/`echo $SEASONS | tr "[:upper:]" "[:lower:]"`.ddf  ) ) then
+                  set dummy =                                                                      ${source}/${collection}/`echo $SEASONS | tr "[:upper:]" "[:lower:]"`.ddf
+        else
+                                 set dummy  = `grep ${collection}.grads_ddf HISTORY.T | cut -d: -f2 | cut -d, -f1 | sed -e "s/'//g"`
+            if( "$dummy" == "" ) set dummy  = `grep ${collection}.grads_ctl HISTORY.T | cut -d: -f2 | cut -d, -f1 | sed -e "s/'//g"`
+            if( "$dummy" == "" ) then
+                 if( -e ${source}/${collection}/xdf.tabl && $CLIM == "false" ) then
+                                 set dummy  = `echo ${source}/${collection}/xdf.tabl`
+     
+                 else 
+                      if( -e ${source}/${collection}/clim.tabl && ( $TBEG == "NULL" && $TEND == "NULL" && .$3 == "." && $PLOT_QUAD == "false" ) ) then
+                                 set dummy  = `echo ${source}/${collection}/clim.tabl`
+                      else
+                               if( -e ${source}/${collection}/xdf.tabl ) then
+                                      set dummy  = `echo ${source}/${collection}/xdf.tabl`
+                               else
+                                      set dummy  = `echo ${source}/${collection}/clim.tabl`
+                               endif
+                      endif
+                 endif
+            endif
+     
+        endif
+
+    else
+
+    # Rules for Comparison Experiment
+    # -------------------------------
+        if(       $#numseas == 1 & ( $TBEG == "NULL" && $TEND == "NULL" ) & $CLIM == "true" & ( -e ${source}/${collection}/`echo $SEASONS | tr "[:upper:]" "[:lower:]"`.tabl ) ) then
+                  set dummy =                                                                      ${source}/${collection}/`echo $SEASONS | tr "[:upper:]" "[:lower:]"`.tabl
+        else if ( $#numseas == 1 & ( $TBEG == "NULL" && $TEND == "NULL" ) & $CLIM == "true" & ( -e ${source}/${collection}/`echo $SEASONS | tr "[:upper:]" "[:lower:]"`.ddf  ) ) then
+                  set dummy =                                                                      ${source}/${collection}/`echo $SEASONS | tr "[:upper:]" "[:lower:]"`.ddf
+        else
+                                 set dummy  = `grep ${collection}.grads_ddf HISTORY.T | cut -d: -f2 | cut -d, -f1 | sed -e "s/'//g"`
+            if( "$dummy" == "" ) set dummy  = `grep ${collection}.grads_ctl HISTORY.T | cut -d: -f2 | cut -d, -f1 | sed -e "s/'//g"`
+            if( "$dummy" == "" ) then
+                 if( -e ${source}/${collection}/xdf.tabl && $CLIM == "false" ) then
+                                 set dummy  = `echo ${source}/${collection}/xdf.tabl`
+     
+                 else 
+                      if( -e ${source}/${collection}/clim.tabl && ( $TBEG == "NULL" && $TEND == "NULL" && .$3 == "." && $PLOT_QUAD == "false" ) ) then
+                                 set dummy  = `echo ${source}/${collection}/clim.tabl`
+                      else
+                               if( -e ${source}/${collection}/xdf.tabl ) then
+                                      set dummy  = `echo ${source}/${collection}/xdf.tabl`
+                               else
+                                      set dummy  = `echo ${source}/${collection}/clim.tabl`
+                               endif
+                      endif
+                 endif
+            endif
+     
+        endif
+
+    endif
+
+  endif
                           set output = `echo $output $dummy`
 
                           set dummy  = `grep ${collection}.format    HISTORY.T | cut -d: -f2 | cut -d, -f1 | sed -e "s/'//g"`
@@ -174,11 +256,13 @@ setenv BASE   $expid
         echo '   '
         echo "Number of History Output Streams: $num_collections"
 if( $EXPORT == $ALIAS ) then 
+        echo "                          Source: $source"
         echo "                           Found: $EXPORT from GC: $GC"
         echo "                      CTL or DDF: ${OUTPUT}"
         echo "                          Format: ${FORMAT}"
         echo "                         Scaling: $scale"
 else
+        echo "                          Source: $source"
         echo "                           Found: $EXPORT (aka: ${ALIAS}) from GC: $GC"
         echo "                      CTL or DDF: ${OUTPUT}"
         echo "                          Format: ${FORMAT}"

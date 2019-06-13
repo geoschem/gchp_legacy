@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2014, University Corporation for Atmospheric Research, 
+// Copyright 2002-2019, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -35,7 +35,8 @@
 
 using namespace ESMCI;
 
-void create_rendez_mbmesh_etop(MBMesh *srcmesh, PointList *dstpl, MBMesh **_srcmesh_rendez, PointList **_dstpl_rendez);
+void create_rendez_mbmesh_etop(MBMesh *srcmesh, PointList *dstpl, 
+    MBMesh **_srcmesh_rendez, PointList **_dstpl_rendez, int *map_type);
 
 #endif // ESMF_MOAB
 

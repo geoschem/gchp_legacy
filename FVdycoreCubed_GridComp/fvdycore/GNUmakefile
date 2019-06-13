@@ -29,6 +29,8 @@ endif
   include $(ESMADIR)/Config/GMAO_base.mk  # System dependencies
   include               FVdycore_arch.mk  # arch dependent flags 
 
+  include $(ESMADIR)/Config/vectorize.mk  # Vectorize
+
 #                  ---------------------
 #                  Standard ESMA Targets
 #                  ---------------------
@@ -77,36 +79,46 @@ DEPS := $(notdir $(addsuffix .d, $(basename $(SRCS))))
 DEPS := $(filter-out nsclock.d threadloc.d, $(DEPS)) # filter these out
 
 INC_DIRS = . $(INC_GFDL_FMS) \
-            $(INC_GMAO_SHARED) $(INC_SDF) $(INC_ESMF) $(INC_MPI)
+            $(INC_GMAO_SHARED) $(INC_SDF) $(INC_ESMF) $(INC_MPI) $(INC_GMAO_pFIO)
 MOD_DIRS = . $(INC_DIRS) 
 SRC_DIRS = $(sort $(dir $(SRCS)))
 
 USER_FINCS  = $(foreach dir,$(INC_DIRS),$(I)$(dir))
 USER_FMODS  = $(foreach dir,$(MOD_DIRS),$(M)$(dir)) 
 
-vpath % $(SRC_DIRS) $(INC_DIRS) $(MOD_DIRS) /usr/include
+vpath % $(SRC_DIRS) $(INC_DIRS) $(MOD_DIRS)
 
-#USER_FFLAGS += $(BIG_ENDIAN) 
-USER_FDEFS   = $(D)MAPL_MODE $(D)SKIP_NO_QUAD_PRECISION $(D)READ_GRID $(D)NO_GRID_G $(D)SPMD $(D)TIMING
+USER_FDEFS   = $(D)MAPL_MODE $(D)SPMD $(D)TIMING
+
+# If Non-Hydrostatic FV3 uncomment this line
+#USER_FDEFS  += $(D)USE_COND $(D)MOIST_CAPPA
+
 USER_CDEFS   = $(USER_FDEFS)
 
 # The FV_PRECISION variable is exported from the parent
-ifeq ($(FV_PRECISION),R4)
 # SINGLE PRECISION FV_CUBED
-FREAL = 
-USER_FDEFS += $(D)SINGLE_FV
+ifeq ($(FV_PRECISION),R4)
+   USER_FDEFS += $(D)SINGLE_FV $(D)OVERLOAD_R4
+   THIS_GFDL_FMS = GFDL_fms_r4
+   FREAL= $(FREAL4)
 else
-# DOUBLE PRECISION FV_CUBED
-FREAL = $(FREAL8)
+   THIS_GFDL_FMS = GFDL_fms_r8
+   FREAL= $(FREAL8)
 endif
 
-# The Following need to be REAL*8
-#--------------------------------
-fv_grid_utils.o : fv_grid_utils.F90
-	$(FC) -c $(F90FLAGS) $(FREAL8) model/$*.F90
+#ifeq ($(IFORT_MAJOR),15)
+#   USER_FFLAGS += -nowarn -sox -align array64byte -xCORE-AVX2 -qno-opt-dynamic-align -qoverride-limits -qopt-prefetch=3
+#endif
+
+#ifeq ($(HYDRO),Y)
+#CPPDEFS += -Duse_libMPI -Duse_netCDF -DSPMD -DUSE_LOG_DIAG_FIELD_INFO -Duse_LARGEFILE -DUSE_GFSL63 -DGFS_PHYS
+#else
+#CPPDEFS += -Duse_libMPI -Duse_netCDF -DSPMD -DUSE_LOG_DIAG_FIELD_INFO -Duse_LARGEFILE -DUSE_GFSL63 -DGFS_PHYS -DMOIST_CAPPA -DUSE_COND
+#endif
 
 $(LIB) lib : $(DEPS) $(OBJS)
 	$(AR) $(AR_FLAGS) $(LIB) $(OBJS)
+	$(RANLIB) $(RANLIB_FLAGS) $(LIB)
 
 #                  --------------------
 #                      Dependencies

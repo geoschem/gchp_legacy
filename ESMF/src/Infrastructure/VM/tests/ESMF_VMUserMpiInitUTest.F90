@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2018, University Corporation for Atmospheric Research,
+! Copyright 2002-2019, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -11,7 +11,7 @@
 !==============================================================================
 #include "ESMF_Macros.inc"
 
-      module ESMF_VMSubrs
+      module ESMF_VMSubrs_UMI
       use ESMF
       use ESMF_TestMod
 
@@ -514,7 +514,7 @@
       use ESMF_TestMod     ! test methods
       use ESMF
 
-      use ESMF_VMSubrs     ! VM specific subroutines
+      use ESMF_VMSubrs_UMI ! VM specific subroutines
 
       implicit none
 

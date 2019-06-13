@@ -80,7 +80,6 @@
       integer       :: incTime      ! time increment of output
       integer       :: curTime=0    ! current time
       integer       :: preTime      ! previous time
-      integer       :: curDaye      ! current date
       logical       :: timeInterp
 
       integer iff                              ! file counter
@@ -88,7 +87,6 @@
       integer iv                               ! variable counter
       integer itest, ii, isp, i, j, k               
       integer          :: in_fmode = 1         ! non-zero for READ-ONLY
-      integer          :: out_fmode = 0        ! 0 for READ-WRITE 
       integer          :: fid1                 ! input file ID
       integer          :: fid2                 ! input file ID
       integer          :: out_fid              ! output file ID
@@ -111,7 +109,6 @@
       character(len=255) :: cvsFile            ! CVS file name containing CVS version
       character(len=255) :: cvsV               ! CVS version
       integer            :: cvsV_yes=0
-      real               :: missing_val
       character(len=255) :: vtitle(mVars)      ! output title
       character(len=255) :: vunits(mVars)      ! output title
       character(len=255) :: vName(mVars)       ! output variable names (nVars)
@@ -153,7 +150,7 @@
 
 !  Get user input
 !  --------------
-   call  Init_ ( mFiles, nFiles, inFiles, outFile, cvsFile,          &
+   call  Init_ ( nFiles, inFiles, outFile, cvsFile,          &
                  km, levNums, nLevs, Levs, mVars, nVars, outVars,    &
                  inVars, begDate, begTime, incTime, xWest, outPrec) 
    if (len(trim(cvsFile)) .ge. 1 ) then
@@ -522,7 +519,7 @@
 
 !  All done
 !  --------
-   call exit(0)
+   stop 0
 
 CONTAINS
 
@@ -535,7 +532,7 @@ CONTAINS
 ! 
 ! !INTERFACE:
 !
-   subroutine Init_ ( mFiles, nFiles, inFiles, outFile, cvsFile,         &
+   subroutine Init_ ( nFiles, inFiles, outFile, cvsFile,         &
                       km, levNums, nLevs, Levs, mVars, nVars, outVars,   &
                       inVars, begDate, begTime, incTime, xWest, outPrec) 
 
@@ -548,8 +545,6 @@ CONTAINS
 ! !INPUT PARAMETERS: 
 !
 
-      integer, intent(in)  :: mFiles           !  Max. number of input files as
-                                               !   declared in calling program
       integer, intent(in)  :: mVars            !  Max. number of variables
 !
 ! !OUTPUT PARAMETERS:
@@ -604,7 +599,7 @@ print *, "subset - subsetting eta files. "
 print *, "-------------------------------------------------------------------"
 print *
 
-   argc = iargc()
+   argc = command_argument_count()
    if ( argc < 1 ) call usage_()
 
 !  Defaults
@@ -628,48 +623,48 @@ print *
       if ( iarg .gt. argc ) then
            exit
       endif
-      call GetArg ( iArg, argv )
+      call Get_Command_Argument ( iArg, argv )
       if(index(argv,'-o') .gt. 0 ) then
          if ( iarg+1 .gt. argc ) call usage_()
          iarg = iarg + 1
-         call GetArg ( iArg, outFile )
+         call Get_Command_Argument ( iArg, outFile )
       else if(index(argv,'-begDate') .gt. 0 ) then
          if ( iarg+1 .gt. argc ) call usage_()
          iarg = iarg + 1
-         call GetArg ( iArg, argv )
+         call Get_Command_Argument ( iArg, argv )
          read(argv,*) begDate
       else if(index(argv,'-begTime') .gt. 0 ) then
          if ( iarg+1 .gt. argc ) call usage_()
          iarg = iarg + 1
-         call GetArg ( iArg, argv )
+         call Get_Command_Argument ( iArg, argv )
          read(argv,*) begTime
       else if(index(argv,'-incTime') .gt. 0 ) then
          if ( iarg+1 .gt. argc ) call usage_()
          iarg = iarg + 1
-         call GetArg ( iArg, argv )
+         call Get_Command_Argument ( iArg, argv )
          read(argv,*) incTime
       else if(index(argv,'-west') .gt. 0 ) then
          if ( iarg+1 .gt. argc ) call usage_()
          iarg = iarg + 1
-         call GetArg ( iArg, argv )
+         call Get_Command_Argument ( iArg, argv )
          read(argv,*) xWest
       else if(index(argv,'-rc') .gt. 0 ) then
          if ( iarg+1 .gt. argc ) call usage_()
          iarg = iarg + 1
-         call GetArg ( iArg, rcfile )
+         call Get_Command_Argument ( iArg, rcfile )
       else if(index(argv,'-cvs') .gt. 0 ) then
          if ( iarg+1 .gt. argc ) call usage_()
          iarg = iarg + 1
-         call GetArg ( iArg, cvsFile )
+         call Get_Command_Argument ( iArg, cvsFile )
       else if(index(argv,'-vars') .gt. 0 ) then
          if ( iarg+1 .gt. argc ) call usage_()
          iarg = iarg + 1
-         call GetArg ( iArg, argv )
+         call Get_Command_Argument ( iArg, argv )
          call split_ ( ',', argv, mVars, Vars, nVars )
       else if(index(argv,'-levels') .gt. 0 ) then
          if ( iarg+1 .gt. argc ) call usage_()
          iarg = iarg + 1
-         call GetArg ( iArg, argv )
+         call Get_Command_Argument ( iArg, argv )
          call split_ ( ',', argv, mLevs, cLevs, nLevs )
          allocate( Levs(nLevs), stat = rc)
          if ( rc /= 0 )  call die (myname, 'wrong in allocating nLevs')
@@ -681,7 +676,7 @@ print *
       else if(index(argv,'-prec') .gt. 0 ) then
          if ( iarg+1 .gt. argc ) call usage_()
          iarg = iarg + 1
-         call GetArg ( iArg, argv )
+         call Get_Command_Argument ( iArg, argv )
          read(argv,*) outPrec
       else if(index(argv,'-d') .gt. 0 ) then
          debug = .true.

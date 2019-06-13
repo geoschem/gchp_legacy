@@ -22,17 +22,17 @@
 
       use m_zeit
       implicit none
-      integer n,i
+      integer n, i
       character*200 fname,out_fname,argin(10)
-      integer*4 iargc
+
       logical dopt,hopt,infile,outfile
       dopt=.false.
       hopt=.false.
       infile=.false.
       outfile=.false.
-      n=iargc()
+      n=command_argument_count()
       do i=1,n
-         call getarg(i,argin(i))
+         call get_command_argument(i,argin(i))
       enddo
       do i=1,n
          if(argin(i).eq.'-d')then

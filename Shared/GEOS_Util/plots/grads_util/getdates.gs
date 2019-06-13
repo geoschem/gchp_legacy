@@ -44,20 +44,37 @@ if( tmin<1 | tmax>tdim )
        '!froot 'desc
        'run getenv FROOT'
             basename = result
-       if(  basename = clim.tabl )
-           'q ctlinfo'
-           title = sublin(result,2)
-           n = 1
-           word = subwrd(title,n)
-           while( word != '' )
-           n = n + 1
-           word = subwrd(title,n)
 
-           if(    word = "Climatology:" )
-               begYYYYMM = subwrd(title,n+1)
-               endYYYYMM = subwrd(title,n+3)
-           endif   
-           endwhile
+        begYYYYMM = 'NULL'
+        endYYYYMM = 'NULL'
+        'q ctlinfo'
+        title = sublin(result,2)
+        n = 1
+        word = subwrd(title,n)
+        while( word != '' )
+        n = n + 1
+        word = subwrd(title,n)
+        if(    word = "Climatology:" )
+            begYYYYMM = subwrd(title,n+1)
+            endYYYYMM = subwrd(title,n+3)
+        endif
+        endwhile
+
+       if( begYYYYMM != 'NULL' & endYYYYMM != 'NULL' )
+*      if(  basename = clim.tabl )
+*          'q ctlinfo'
+*          title = sublin(result,2)
+*          n = 1
+*          word = subwrd(title,n)
+*          while( word != '' )
+*          n = n + 1
+*          word = subwrd(title,n)
+
+*          if(    word = "Climatology:" )
+*              begYYYYMM = subwrd(title,n+1)
+*              endYYYYMM = subwrd(title,n+3)
+*          endif   
+*          endwhile
             
             begyear  = substr(begYYYYMM,1,4)
             begmonth = substr(begYYYYMM,5,2)
@@ -78,6 +95,8 @@ endif
            tmax = result
 
 say 'Setting Time Index: 'tmin' to 'tmax
+say 'Returning begdate: 'begdate
+say '          enddate: 'enddate
 
 return begdate' 'enddate
 

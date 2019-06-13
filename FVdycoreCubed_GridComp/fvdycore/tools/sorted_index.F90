@@ -1,55 +1,58 @@
-!-*- F90 -*-
+!***********************************************************************
+!*                   GNU Lesser General Public License                 
+!*
+!* This file is part of the FV3 dynamical core.
+!*
+!* The FV3 dynamical core is free software: you can redistribute it 
+!* and/or modify it under the terms of the
+!* GNU Lesser General Public License as published by the
+!* Free Software Foundation, either version 3 of the License, or 
+!* (at your option) any later version.
+!*
+!* The FV3 dynamical core is distributed in the hope that it will be 
+!* useful, but WITHOUT ANYWARRANTY; without even the implied warranty 
+!* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+!* See the GNU General Public License for more details.
+!*
+!* You should have received a copy of the GNU Lesser General Public
+!* License along with the FV3 dynamical core.  
+!* If not, see <http://www.gnu.org/licenses/>.
+!***********************************************************************
+!>@brief The module 'sorted_index' sorts cell corner indices in lat-lon
+!! space to ensure the same order of operations regardless of the 
+!! orientation in index space.
+!>@details  i/jinta are indices of b-grid locations needed for line integrals 
+!! around an a-grid cell including ghosting.
+!! i/jintb are indices of a-grid locations needed for line integrals
+!! around a b-grid cell with no ghosting.
 module sorted_index_mod
-  use fv_arrays_mod, only: REAL8
-  !---------------------------------------------------------------------
-  ! <CONTACT EMAIL= "Michael.Herzog@noaa.gov">Michael Herzog </CONTACT>
-  !
-  !<OVERVIEW>
-  ! sort cell corner indices in latlon space to ensure same order of
-  ! operations regardless of orientation in index space
-  !</OVERVIEW>
-  !
-  !<DESCRIPTION>
-  ! i/jinta are indices of b-grid locations needed for line integrals 
-  ! around an a-grid cell including ghosting.
-  !
-  ! i/jintb are indices of a-grid locations needed for line integrals
-  ! around a b-grid cell, no ghosting.
-  !</DESCRIPTION>
-  !---------------------------------------------------------------------
+
+  use fv_arrays_mod, only: R_GRID
 
   implicit none
   private
   public :: sorted_inta, sorted_intb
 
-
 contains
-  !#####################################################################
-  ! <SUBROUTINE NAME="sorted_inta">
-  !
-  ! <DESCRIPTION>
-  ! Sort cell corner indices in latlon space based on grid locations 
-  ! in index space. If not cubed_sphere assume orientations in index 
-  ! and latlon space are identical.
-  !
-  ! i/jinta are indices of b-grid locations needed for line integrals 
-  ! around an a-grid cell including ghosting.
-  !
-  ! i/jintb are indices of a-grid locations needed for line integrals
-  ! around a b-grid cell, no ghosting.
-  ! </DESCRIPTION>
-  !
-  subroutine sorted_inta(isd, ied, jsd, jed, cubed_sphere, bgrid, iinta, jinta)
 
+!>@brief The subroutine 'sorted_inta' sorts cell corner indices in latlon space
+!! based on grid locations in index space..
+!>@details If not the grid is notcubed_sphere, it assumes that
+!! the orientations in index  and latlon space are identical.
+!! i/jinta are indices of b-grid locations needed for line integrals 
+!! around an a-grid cell including ghosting.
+!! i/jintb are indices of a-grid locations needed for line integrals
+!! around a b-grid cell, no ghosting.
+  subroutine sorted_inta(isd, ied, jsd, jed, cubed_sphere, bgrid, iinta, jinta)
     integer, intent(in) :: isd, ied, jsd, jed
-    real(REAL8),    intent(in), dimension(isd:ied+1,jsd:jed+1,2) :: bgrid
+    real(kind=R_GRID),    intent(in), dimension(isd:ied+1,jsd:jed+1,2) :: bgrid
     logical, intent(in) :: cubed_sphere
 
     integer, intent(out), dimension(4,isd:ied,jsd:jed) :: iinta, jinta
     !------------------------------------------------------------------!
     ! local variables                                                  !
     !------------------------------------------------------------------!
-    real(REAL8),    dimension(4) :: xsort, ysort
+    real,    dimension(4) :: xsort, ysort
     integer, dimension(4) :: isort, jsort
     integer :: i, j
     !------------------------------------------------------------------!
@@ -89,7 +92,7 @@ contains
       !----------------------------------------------------------------!
       ! local variables                                                !
       !----------------------------------------------------------------!
-      real(REAL8),    dimension(4) :: xsorted, ysorted
+      real,    dimension(4) :: xsorted, ysorted
       integer, dimension(4) :: isorted, jsorted
       integer :: l, ll, lll
       !----------------------------------------------------------------!
@@ -218,34 +221,26 @@ contains
     end subroutine sort_rectangle
     !------------------------------------------------------------------!
   end subroutine sorted_inta
-  ! </SUBROUTINE> NAME="sorted_inta"
-  !#####################################################################
-  ! <SUBROUTINE NAME="sorted_intb">
-  !
-  ! <DESCRIPTION>
-  ! Sort cell corner indices in latlon space based on grid locations 
-  ! in index space. If not cubed_sphere assume orientations in index 
-  ! and latlon space are identical.
-  !
-  ! i/jinta are indices of b-grid locations needed for line integrals 
-  ! around an a-grid cell including ghosting.
-  !
-  ! i/jintb are indices of a-grid locations needed for line integrals
-  ! around a b-grid cell, no ghosting.
-  ! </DESCRIPTION>
-  !
+
+!>@brief The subroutine 'sorted_intb' sorts cell corner indices in latlon space
+!!  based on grid locations in index space.
+!>@details If not the grid is notcubed_sphere, it assumes that
+!! the orientations in index  and latlon space are identical.
+!! i/jinta are indices of b-grid locations needed for line integrals 
+!! around an a-grid cell including ghosting.
+!! i/jintb are indices of a-grid locations needed for line integrals
+!! around a b-grid cell, no ghosting.
   subroutine sorted_intb(isd, ied, jsd, jed, is, ie, js, je, npx, npy, &
                           cubed_sphere, agrid, iintb, jintb)
-
     integer, intent(in) :: isd, ied, jsd, jed, is, ie, js, je, npx, npy
-    real(REAL8),    intent(in), dimension(isd:ied,jsd:jed,2) :: agrid
+    real(kind=R_GRID),    intent(in), dimension(isd:ied,jsd:jed,2) :: agrid
     logical, intent(in) :: cubed_sphere
 
     integer, dimension(4,is:ie+1,js:je+1), intent(out) :: iintb, jintb
     !------------------------------------------------------------------!
     ! local variables                                                  !
     !------------------------------------------------------------------!
-    real(REAL8),    dimension(4) :: xsort, ysort, xsorted, ysorted 
+    real,    dimension(4) :: xsort, ysort, xsorted, ysorted 
     integer, dimension(4) :: isort, jsort, isorted, jsorted
     integer :: i, j, l, ll, lll
     !------------------------------------------------------------------!
@@ -328,7 +323,7 @@ contains
       !----------------------------------------------------------------!
       ! local variables                                                !
       !----------------------------------------------------------------!
-      real(REAL8),    dimension(4) :: xsorted, ysorted 
+      real,    dimension(4) :: xsorted, ysorted 
       integer, dimension(4) :: isorted, jsorted
       !----------------------------------------------------------------!
       ! sort in east west                                              !
@@ -520,6 +515,5 @@ contains
     end subroutine sort_triangle
     !------------------------------------------------------------------!
   end subroutine sorted_intb
-  ! </SUBROUTINE> NAME="sorted_intb"
-  !#####################################################################
+
 end module sorted_index_mod

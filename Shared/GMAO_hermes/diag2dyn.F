@@ -57,10 +57,6 @@
 
 ! ana variables that are set to undef here
 
-      real, pointer :: phis(:,:)
-      real, pointer :: hs_stdv(:,:)
-      real, pointer :: ts(:,:)
-
 ! others
 
       integer   :: i, j, k, nx, ny, nz
@@ -401,7 +397,7 @@ C-----------------------------------------------------------------------
       implicit none
 C Input arguments
 C
-      integer im, jm, km
+      integer im, jm
       real :: lon(im)        ! longitude
 C
 C Input/output arguments

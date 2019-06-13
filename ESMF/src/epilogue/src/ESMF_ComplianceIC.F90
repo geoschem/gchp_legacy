@@ -47,7 +47,7 @@ module ESMF_ComplianceICMod
         integer :: configrc
         integer :: jsonIsOn
         integer :: textIsOn
-        integer :: traceIsOn
+        integer :: traceIsOn, profileIsOn
         type(ESMF_Config) :: config
         character(10) :: cfgIncludeState
         character(10) :: cfgIncludeVmStats
@@ -82,12 +82,12 @@ module ESMF_ComplianceICMod
           outputJSON = .false.
         endif
 
-        call c_esmc_getComplianceCheckTrace(traceIsOn, rc)
+        call c_esmc_getComplianceCheckTrace(traceIsOn, profileIsOn, rc)
         if (ESMF_LogFoundError(rc, &
             line=__LINE__, &
             file=FILENAME)) &
             return  ! bail out
-        if (traceIsOn == 1) then
+        if (traceIsOn == 1 .or. profileIsOn == 1) then
           outputTrace = .true.
         else
           outputTrace = .false.
@@ -366,7 +366,13 @@ module ESMF_ComplianceICMod
       line=__LINE__, &
       file=FILENAME)) &
       return  ! bail out
-      
+
+    if (outputTrace) then
+      call ESMF_TraceComponentInfo(comp, rc=rc)
+      if (ESMF_LogFoundError(rc, &
+        line=__LINE__, file=FILENAME)) return                              
+    endif
+    
     endif
     ! Stop Compliance Checking
     !---------------------------------------------------------------------------
@@ -434,43 +440,47 @@ module ESMF_ComplianceICMod
       line=__LINE__, &
       file=FILENAME)) &
       return  ! bail out
-      
-    ! compliance check importState
-    call checkState(prefix, referenceName="importState", state=importState, &
-      rc=rc)
-    if (ESMF_LogFoundError(rc, &
-      line=__LINE__, &
-      file=FILENAME)) &
-      return  ! bail out
-    
-    ! compliance check exportState
-    call checkState(prefix, referenceName="exportState", state=exportState, &
-      rc=rc)
-    if (ESMF_LogFoundError(rc, &
-      line=__LINE__, &
-      file=FILENAME)) &
-      return  ! bail out
-      
-    ! compliance check clock usage
-    call clockUsageIncoming(prefix, clock=clock, clockCopy=clockCopy, rc=rc)
-    if (ESMF_LogFoundError(rc, &
-      line=__LINE__, &
-      file=FILENAME)) &
-      return  ! bail out
-      
-    ! check Component statistics
-    call checkComponentStatistics(prefix, comp=comp, rc=rc)
-    if (ESMF_LogFoundError(rc, &
-      line=__LINE__, &
-      file=FILENAME)) &
-      return  ! bail out
 
-    ! compliance check Component metadata
-    call checkComponentMetadata(prefix, comp=comp, rc=rc)
-    if (ESMF_LogFoundError(rc, &
-      line=__LINE__, &
-      file=FILENAME)) &
-      return  ! bail out
+    if (outputText) then
+      
+       ! compliance check importState
+       call checkState(prefix, referenceName="importState", state=importState, &
+            rc=rc)
+       if (ESMF_LogFoundError(rc, &
+            line=__LINE__, &
+            file=FILENAME)) &
+            return  ! bail out
+       
+       ! compliance check exportState
+       call checkState(prefix, referenceName="exportState", state=exportState, &
+            rc=rc)
+       if (ESMF_LogFoundError(rc, &
+            line=__LINE__, &
+            file=FILENAME)) &
+            return  ! bail out
+       
+       ! compliance check clock usage
+       call clockUsageIncoming(prefix, clock=clock, clockCopy=clockCopy, rc=rc)
+       if (ESMF_LogFoundError(rc, &
+            line=__LINE__, &
+            file=FILENAME)) &
+            return  ! bail out
+       
+       ! check Component statistics
+       call checkComponentStatistics(prefix, comp=comp, rc=rc)
+       if (ESMF_LogFoundError(rc, &
+            line=__LINE__, &
+            file=FILENAME)) &
+            return  ! bail out
+
+       ! compliance check Component metadata
+       call checkComponentMetadata(prefix, comp=comp, rc=rc)
+       if (ESMF_LogFoundError(rc, &
+            line=__LINE__, &
+            file=FILENAME)) &
+            return  ! bail out
+       
+    end if
     
     write(output,*) ">STOP InitializePrologue for phase=", phase
     call Compliance_LogWrite(trim(prefix)//trim(output), &
@@ -500,9 +510,9 @@ module ESMF_ComplianceICMod
           if (ESMF_LogFoundError(rc, &
                line=__LINE__, file=FILENAME)) return                              
        endif
-       call ESMF_TraceComponentInfo(comp, rc=rc)
-       if (ESMF_LogFoundError(rc, &
-            line=__LINE__, file=FILENAME)) return                              
+       !call ESMF_TraceComponentInfo(comp, rc=rc)
+       !if (ESMF_LogFoundError(rc, &
+       !     line=__LINE__, file=FILENAME)) return                              
        call ESMF_TracePhaseEnter(comp, rc=rc)
        if (ESMF_LogFoundError(rc, &
             line=__LINE__, file=FILENAME)) return                              
@@ -565,51 +575,53 @@ module ESMF_ComplianceICMod
       line=__LINE__, &
       file=FILENAME)) &
       return  ! bail out
-      
-    ! check Component statistics
-    call checkComponentStatistics(prefix, comp=comp, rc=rc)
-    if (ESMF_LogFoundError(rc, &
-      line=__LINE__, &
-      file=FILENAME)) &
-      return  ! bail out
-
-    ! compliance check Component metadata
-    call checkComponentMetadata(prefix, comp=comp, rc=rc)
-    if (ESMF_LogFoundError(rc, &
-      line=__LINE__, &
-      file=FILENAME)) &
-      return  ! bail out
     
-    ! compliance check importState
-    call checkState(prefix, referenceName="importState", state=importState, &
-      rc=rc)
-    if (ESMF_LogFoundError(rc, &
-      line=__LINE__, &
-      file=FILENAME)) &
-      return  ! bail out
-    
-    ! compliance check exportState
-    call checkState(prefix, referenceName="exportState", state=exportState, &
-      rc=rc)
-    if (ESMF_LogFoundError(rc, &
-      line=__LINE__, &
-      file=FILENAME)) &
-      return  ! bail out
-
-    ! compliance check clock usage
-    call clockUsageOutgoing(prefix, clock=clock, clockCopy=clockCopy, rc=rc)
-    if (ESMF_LogFoundError(rc, &
-      line=__LINE__, &
-      file=FILENAME)) &
-      return  ! bail out
-
-    ! compliance check internal Clock
-    call checkInternalClock(prefix, comp=comp, clock=clock, &
-      mustMatchCurr=.false., mustReachStop=.false., rc=rc)
-    if (ESMF_LogFoundError(rc, &
-      line=__LINE__, &
-      file=FILENAME)) &
-      return  ! bail out
+    if (outputText) then
+  
+       ! check Component statistics
+       call checkComponentStatistics(prefix, comp=comp, rc=rc)
+       if (ESMF_LogFoundError(rc, &
+            line=__LINE__, &
+            file=FILENAME)) &
+            return  ! bail out
+       
+       ! compliance check Component metadata
+       call checkComponentMetadata(prefix, comp=comp, rc=rc)
+       if (ESMF_LogFoundError(rc, &
+            line=__LINE__, &
+            file=FILENAME)) &
+            return  ! bail out
+       
+       ! compliance check importState
+       call checkState(prefix, referenceName="importState", state=importState, &
+            rc=rc)
+       if (ESMF_LogFoundError(rc, &
+            line=__LINE__, &
+            file=FILENAME)) &
+            return  ! bail out
+       
+       ! compliance check exportState
+       call checkState(prefix, referenceName="exportState", state=exportState, &
+            rc=rc)
+       if (ESMF_LogFoundError(rc, &
+            line=__LINE__, &
+            file=FILENAME)) &
+            return  ! bail out
+       
+       ! compliance check clock usage
+       call clockUsageOutgoing(prefix, clock=clock, clockCopy=clockCopy, rc=rc)
+       if (ESMF_LogFoundError(rc, &
+            line=__LINE__, &
+            file=FILENAME)) &
+            return  ! bail out
+       
+       ! compliance check internal Clock
+       call checkInternalClock(prefix, comp=comp, clock=clock, &
+            mustMatchCurr=.false., mustReachStop=.false., rc=rc)
+       if (ESMF_LogFoundError(rc, &
+            line=__LINE__, &
+            file=FILENAME)) &
+            return  ! bail out
     
     ! Component Attributes should be set up -> ready to output
 !    call ESMF_AttributeWrite(comp, convention='CIM 1.5', &
@@ -620,6 +632,7 @@ module ESMF_ComplianceICMod
 !      file=FILENAME)) &
 !      return  ! bail out
     
+    end if
     
     write(output,*) ">STOP InitializeEpilogue for phase=", phase
     call Compliance_LogWrite(trim(prefix)//trim(output), &
@@ -714,43 +727,47 @@ module ESMF_ComplianceICMod
       file=FILENAME)) &
       return  ! bail out
     
-    ! compliance check importState
-    call checkState(prefix, referenceName="importState", state=importState, &
-      rc=rc)
-    if (ESMF_LogFoundError(rc, &
-      line=__LINE__, &
-      file=FILENAME)) &
-      return  ! bail out
-    
-    ! compliance check exportState
-    call checkState(prefix, referenceName="exportState", state=exportState, &
-      rc=rc)
-    if (ESMF_LogFoundError(rc, &
-      line=__LINE__, &
-      file=FILENAME)) &
-      return  ! bail out
-    
-    ! compliance check clock usage
-    call clockUsageIncoming(prefix, clock=clock, clockCopy=clockCopy, rc=rc)
-    if (ESMF_LogFoundError(rc, &
-      line=__LINE__, &
-      file=FILENAME)) &
-      return  ! bail out
-
-    ! compliance check internal Clock
-    call checkInternalClock(prefix, comp=comp, clock=clock, &
-      mustMatchCurr=.true., mustReachStop=.false., rc=rc)
-    if (ESMF_LogFoundError(rc, &
-      line=__LINE__, &
-      file=FILENAME)) &
-      return  ! bail out
-    
-    ! check Component statistics
-    call checkComponentStatistics(prefix, comp=comp, rc=rc)
-    if (ESMF_LogFoundError(rc, &
-      line=__LINE__, &
-      file=FILENAME)) &
-      return  ! bail out
+    if (outputText) then
+       
+       ! compliance check importState
+       call checkState(prefix, referenceName="importState", state=importState, &
+            rc=rc)
+       if (ESMF_LogFoundError(rc, &
+            line=__LINE__, &
+            file=FILENAME)) &
+            return  ! bail out
+       
+       ! compliance check exportState
+       call checkState(prefix, referenceName="exportState", state=exportState, &
+            rc=rc)
+       if (ESMF_LogFoundError(rc, &
+            line=__LINE__, &
+            file=FILENAME)) &
+            return  ! bail out
+       
+       ! compliance check clock usage
+       call clockUsageIncoming(prefix, clock=clock, clockCopy=clockCopy, rc=rc)
+       if (ESMF_LogFoundError(rc, &
+            line=__LINE__, &
+            file=FILENAME)) &
+            return  ! bail out
+       
+       ! compliance check internal Clock
+       call checkInternalClock(prefix, comp=comp, clock=clock, &
+            mustMatchCurr=.true., mustReachStop=.false., rc=rc)
+       if (ESMF_LogFoundError(rc, &
+            line=__LINE__, &
+            file=FILENAME)) &
+            return  ! bail out
+       
+       ! check Component statistics
+       call checkComponentStatistics(prefix, comp=comp, rc=rc)
+       if (ESMF_LogFoundError(rc, &
+            line=__LINE__, &
+            file=FILENAME)) &
+            return  ! bail out
+       
+    end if
 
     write(output,*) ">STOP RunPrologue for phase=", phase
     call Compliance_LogWrite(trim(prefix)//trim(output), &
@@ -780,9 +797,9 @@ module ESMF_ComplianceICMod
           if (ESMF_LogFoundError(rc, &
                line=__LINE__, file=FILENAME)) return                              
        endif
-       call ESMF_TraceComponentInfo(comp, rc=rc)
-       if (ESMF_LogFoundError(rc, &
-            line=__LINE__, file=FILENAME)) return                              
+       !call ESMF_TraceComponentInfo(comp, rc=rc)
+       !if (ESMF_LogFoundError(rc, &
+       !     line=__LINE__, file=FILENAME)) return                              
        call ESMF_TracePhaseEnter(comp, rc=rc)
        if (ESMF_LogFoundError(rc, &
             line=__LINE__, file=FILENAME)) return                              
@@ -847,52 +864,56 @@ module ESMF_ComplianceICMod
       file=FILENAME)) &
       return  ! bail out
     
-    ! check Component statistics
-    call checkComponentStatistics(prefix, comp=comp, rc=rc)
-    if (ESMF_LogFoundError(rc, &
-      line=__LINE__, &
-      file=FILENAME)) &
-      return  ! bail out
-
-    ! compliance check importState
-    call checkState(prefix, referenceName="importState", state=importState, &
-      rc=rc)
-    if (ESMF_LogFoundError(rc, &
-      line=__LINE__, &
-      file=FILENAME)) &
-      return  ! bail out
-    
-    ! compliance check exportState
-    call checkState(prefix, referenceName="exportState", state=exportState, &
-      rc=rc)
-    if (ESMF_LogFoundError(rc, &
-      line=__LINE__, &
-      file=FILENAME)) &
-      return  ! bail out
-
-    ! compliance check clock usage
-    call clockUsageOutgoing(prefix, clock=clock, clockCopy=clockCopy, rc=rc)
-    if (ESMF_LogFoundError(rc, &
-      line=__LINE__, &
-      file=FILENAME)) &
-      return  ! bail out
-
-    ! compliance check internal Clock
-    call checkInternalClock(prefix, comp=comp, clock=clock, &
-      mustMatchCurr=.false., mustReachStop=.true., rc=rc)
-    if (ESMF_LogFoundError(rc, &
-      line=__LINE__, &
-      file=FILENAME)) &
-      return  ! bail out
+    if (outputText) then
+       
+       ! check Component statistics
+       call checkComponentStatistics(prefix, comp=comp, rc=rc)
+       if (ESMF_LogFoundError(rc, &
+            line=__LINE__, &
+            file=FILENAME)) &
+            return  ! bail out
+       
+       ! compliance check importState
+       call checkState(prefix, referenceName="importState", state=importState, &
+            rc=rc)
+       if (ESMF_LogFoundError(rc, &
+            line=__LINE__, &
+            file=FILENAME)) &
+            return  ! bail out
+       
+       ! compliance check exportState
+       call checkState(prefix, referenceName="exportState", state=exportState, &
+            rc=rc)
+       if (ESMF_LogFoundError(rc, &
+            line=__LINE__, &
+            file=FILENAME)) &
+            return  ! bail out
+       
+       ! compliance check clock usage
+       call clockUsageOutgoing(prefix, clock=clock, clockCopy=clockCopy, rc=rc)
+       if (ESMF_LogFoundError(rc, &
+            line=__LINE__, &
+            file=FILENAME)) &
+            return  ! bail out
+       
+       ! compliance check internal Clock
+       call checkInternalClock(prefix, comp=comp, clock=clock, &
+            mustMatchCurr=.false., mustReachStop=.true., rc=rc)
+       if (ESMF_LogFoundError(rc, &
+            line=__LINE__, &
+            file=FILENAME)) &
+            return  ! bail out
+       
+    end if
     
     write(output,*) ">STOP RunEpilogue for phase=", phase
     call Compliance_LogWrite(trim(prefix)//trim(output), &
-      ESMF_LOGMSG_INFO, rc=rc)
+         ESMF_LOGMSG_INFO, rc=rc)
     if (ESMF_LogFoundError(rc, &
-      line=__LINE__, &
-      file=FILENAME)) &
-      return  ! bail out
-
+         line=__LINE__, &
+         file=FILENAME)) &
+         return  ! bail out
+    
     if (outputJSON) then
         call JSON_LogCtrlFlow("stop_epilogue", comp, rc)
         if (ESMF_LogFoundError(rc, &
@@ -976,35 +997,39 @@ module ESMF_ComplianceICMod
       file=FILENAME)) &
       return  ! bail out
     
-    ! compliance check importState
-    call checkState(prefix, referenceName="importState", state=importState, &
-      rc=rc)
-    if (ESMF_LogFoundError(rc, &
-      line=__LINE__, &
-      file=FILENAME)) &
-      return  ! bail out
-    
-    ! compliance check exportState
-    call checkState(prefix, referenceName="exportState", state=exportState, &
-      rc=rc)
-    if (ESMF_LogFoundError(rc, &
-      line=__LINE__, &
-      file=FILENAME)) &
-      return  ! bail out
+    if (outputText) then
 
-    ! compliance check clock usage
-    call clockUsageIncoming(prefix, clock=clock, clockCopy=clockCopy, rc=rc)
-    if (ESMF_LogFoundError(rc, &
-      line=__LINE__, &
-      file=FILENAME)) &
-      return  ! bail out
-
-    ! check Component statistics
-    call checkComponentStatistics(prefix, comp=comp, rc=rc)
-    if (ESMF_LogFoundError(rc, &
-      line=__LINE__, &
-      file=FILENAME)) &
-      return  ! bail out
+       ! compliance check importState
+       call checkState(prefix, referenceName="importState", state=importState, &
+            rc=rc)
+       if (ESMF_LogFoundError(rc, &
+            line=__LINE__, &
+            file=FILENAME)) &
+            return  ! bail out
+       
+       ! compliance check exportState
+       call checkState(prefix, referenceName="exportState", state=exportState, &
+            rc=rc)
+       if (ESMF_LogFoundError(rc, &
+            line=__LINE__, &
+            file=FILENAME)) &
+            return  ! bail out
+       
+       ! compliance check clock usage
+       call clockUsageIncoming(prefix, clock=clock, clockCopy=clockCopy, rc=rc)
+       if (ESMF_LogFoundError(rc, &
+            line=__LINE__, &
+            file=FILENAME)) &
+            return  ! bail out
+       
+       ! check Component statistics
+       call checkComponentStatistics(prefix, comp=comp, rc=rc)
+       if (ESMF_LogFoundError(rc, &
+            line=__LINE__, &
+            file=FILENAME)) &
+            return  ! bail out
+       
+    end if
 
     write(output,*) ">STOP FinalizePrologue for phase=", phase
     call Compliance_LogWrite(trim(prefix)//trim(output), &
@@ -1034,9 +1059,9 @@ module ESMF_ComplianceICMod
           if (ESMF_LogFoundError(rc, &
                line=__LINE__, file=FILENAME)) return                              
        endif
-       call ESMF_TraceComponentInfo(comp, rc=rc)
-       if (ESMF_LogFoundError(rc, &
-            line=__LINE__, file=FILENAME)) return                              
+       !call ESMF_TraceComponentInfo(comp, rc=rc)
+       !if (ESMF_LogFoundError(rc, &
+       !     line=__LINE__, file=FILENAME)) return                              
        call ESMF_TracePhaseEnter(comp, rc=rc)
        if (ESMF_LogFoundError(rc, &
             line=__LINE__, file=FILENAME)) return                              
@@ -1100,35 +1125,39 @@ module ESMF_ComplianceICMod
       file=FILENAME)) &
       return  ! bail out
     
-    ! check Component statistics
-    call checkComponentStatistics(prefix, comp=comp, rc=rc)
-    if (ESMF_LogFoundError(rc, &
-      line=__LINE__, &
-      file=FILENAME)) &
-      return  ! bail out
+    if (outputText) then
 
-    ! compliance check importState
-    call checkState(prefix, referenceName="importState", state=importState, &
-      rc=rc)
-    if (ESMF_LogFoundError(rc, &
-      line=__LINE__, &
-      file=FILENAME)) &
-      return  ! bail out
-    
-    ! compliance check exportState
-    call checkState(prefix, referenceName="exportState", state=exportState, &
-      rc=rc)
-    if (ESMF_LogFoundError(rc, &
-      line=__LINE__, &
-      file=FILENAME)) &
-      return  ! bail out
+       ! check Component statistics
+       call checkComponentStatistics(prefix, comp=comp, rc=rc)
+       if (ESMF_LogFoundError(rc, &
+            line=__LINE__, &
+            file=FILENAME)) &
+            return  ! bail out
+       
+       ! compliance check importState
+       call checkState(prefix, referenceName="importState", state=importState, &
+            rc=rc)
+       if (ESMF_LogFoundError(rc, &
+            line=__LINE__, &
+            file=FILENAME)) &
+            return  ! bail out
+       
+       ! compliance check exportState
+       call checkState(prefix, referenceName="exportState", state=exportState, &
+            rc=rc)
+       if (ESMF_LogFoundError(rc, &
+            line=__LINE__, &
+            file=FILENAME)) &
+            return  ! bail out
+       
+       ! compliance check clock usage
+       call clockUsageOutgoing(prefix, clock=clock, clockCopy=clockCopy, rc=rc)
+       if (ESMF_LogFoundError(rc, &
+            line=__LINE__, &
+            file=FILENAME)) &
+            return  ! bail out
 
-    ! compliance check clock usage
-    call clockUsageOutgoing(prefix, clock=clock, clockCopy=clockCopy, rc=rc)
-    if (ESMF_LogFoundError(rc, &
-      line=__LINE__, &
-      file=FILENAME)) &
-      return  ! bail out
+    end if
 
     write(output,*) ">STOP FinalizeEpilogue for phase=", phase
     call Compliance_LogWrite(trim(prefix)//trim(output), &
@@ -2662,7 +2691,8 @@ module ESMF_ComplianceICMod
       if (startTime /= startTimeCopy) clockModified = .true.
       if (stopTime /= stopTimeCopy) clockModified = .true.
       if (runDuration /= runDurationCopy) clockModified = .true.
-      if (runTimeStepCount /= runTimeStepCountCopy) clockModified = .true.
+      if (abs(runTimeStepCount-runTimeStepCountCopy) >= tiny(runTimeStepCount))&
+        clockModified = .true.
       if (refTime /= refTimeCopy) clockModified = .true.
       if (currTime /= currTimeCopy) clockModified = .true.
       if (advanceCount /= advanceCountCopy) clockModified = .true.

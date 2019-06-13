@@ -61,8 +61,8 @@ endwhile
 
 n = 0
 
-'getresource 'SOURCE'/'rcfile' EXP'n ;  exp.n = result
-'getresource 'SOURCE'/'rcfile' DSC'n ; desc.n = result
+'getresource 'rcfile' EXP'n ;  exp.n = result
+'getresource 'rcfile' DSC'n ; desc.n = result
  if( exp.n != NULL | desc.n  != NULL )
      n = n+1
  else
@@ -72,8 +72,8 @@ n = 0
  endif
 
 while( n >= 0 )
-'getresource 'SOURCE'/'rcfile' EXP'n ;  exp.n = result
-'getresource 'SOURCE'/'rcfile' DSC'n ; desc.n = result
+'getresource 'rcfile' EXP'n ;  exp.n = result
+'getresource 'rcfile' DSC'n ; desc.n = result
  if( exp.n != NULL | desc.n  != NULL )
      n = n+1
  else
@@ -109,6 +109,10 @@ while( k <= ktot )
 * Open Files
 * ----------
 '!'geosutil'/plots/grads_util/make_globl_ctl1 'exp.k' 'DESC.k
+'run getenv MONTHLAB'
+            month = result
+say 'MONTH_LABEL: 'month
+
 'pltsys_open 'desc.k' 'DESC.k
         numfiles = result
 
@@ -173,8 +177,6 @@ numflds = m
 
 'set datawarn off'
 'set t 1'
-'getinfo month'
-         month = result
 
 n = 1
 while ( n<=numflds )
@@ -225,6 +227,10 @@ say '   LEVS = 'levels
 
 'statmak_sys 'field' 'DESC.k
 
+************** 
+
+       flag  = 1
+while( flag <= 2 )
 
 * Horizonal Plots
 * ---------------
@@ -232,14 +238,14 @@ z = 1
 while ( z<=numlevs )
               level = subwrd(levels,z)
            if(level >= 100 )
-'set dfile 1'
-'set lev 'level
- say 'Z: 'z
- say 'LEVEL: 'level
-'c'
-'movie statplt "'field' -desc 'DESC' -nfcst 'numfiles'" -print -rotate 90 -name 'SOURCE'/'DESC'/stats_'name'_all_GLO_'level'_'month
-'c'
-'!sleep 15 ; convert -loop 0 -delay 30 'SOURCE'/'DESC'/stats_'name'_all_GLO_'level'_'month'.*.gif 'SOURCE'/'DESC'/stats_'name'_all_GLO_'level'_'month'.gif &'
+             'set dfile 1'
+             'set lev 'level
+              say 'Z: 'z
+              say 'LEVEL: 'level
+             'c'
+             'movie statplt "'field' -desc 'DESC' -nfcst 'numfiles' -flag 'flag'" -print -rotate 90 -name 'SOURCE'/'DESC'/stats_'name'_all'flag'_GLO_'level'_'month
+             'c'
+             '!sleep 15 ; convert -loop 0 -delay 30 'SOURCE'/'DESC'/stats_'name'_all'flag'_GLO_'level'_'month'.*.gif 'SOURCE'/'DESC'/stats_'name'_all'flag'_GLO_'level'_'month'.gif &'
            endif
 z = z + 1
 endwhile
@@ -247,15 +253,50 @@ endwhile
 * Zonal Mean Plots
 * ----------------
 if( numlevs > 1 )
-'set dfile 1'
-'set x 1'
-'sety'
-'set lev 1000 100'
-'c'
-'movie statpltz "'field' -desc 'DESC' -nfcst 'numfiles'" -print -rotate 90 -name 'SOURCE'/'DESC'/stats_'name'_all_GLO_z_'month
-'c'
-'!sleep 15 ; convert -loop 0 -delay 30 'SOURCE'/'DESC'/stats_'name'_all_GLO_z_'month'.*.gif 'SOURCE'/'DESC'/stats_'name'_all_GLO_z_'month'.gif &'
+   'set dfile 1'
+   'set x 1'
+   'sety'
+   'set lev 1000 100'
+   'c'
+   'movie statpltz "'field' -desc 'DESC' -nfcst 'numfiles' -flag 'flag'" -print -rotate 90 -name 'SOURCE'/'DESC'/stats_'name'_all'flag'_GLO_z_'month
+   'c'
+   '!sleep 15 ; convert -loop 0 -delay 30 'SOURCE'/'DESC'/stats_'name'_all'flag'_GLO_z_'month'.*.gif 'SOURCE'/'DESC'/stats_'name'_all'flag'_GLO_z_'month'.gif &'
 endif
+
+flag = flag + 1
+endwhile
+
+************** 
+
+*  Write Systematic Error File
+*  ---------------------------
+
+'set dfile 1'
+'getinfo undef'
+         undef = result
+'set     undef ' undef
+'setlons'
+'getinfo xmin'
+         xmin = result
+'getinfo xmax'
+         xmax = result - 1
+'sett'
+'set lat -90 90'
+'set x 'xmin' 'xmax
+'set lev 1000 100'
+
+if( field = p   ) ; name = slp  ; scale = 1    ; endif
+if( field = h   ) ; name = hght ; scale = 1    ; endif
+if( field = u   ) ; name = uwnd ; scale = 1    ; endif
+if( field = v   ) ; name = vwnd ; scale = 1    ; endif
+if( field = t   ) ; name = tmpu ; scale = 1    ; endif
+if( field = q   ) ; name = sphu ; scale = 1000 ; endif
+
+'define 'name' = 'field'fma'DESC.k'/'scale
+'set sdfwrite -4d -flt -nc3 'SOURCE'/'DESC'/'field'fma'DESC'.nc3'
+    'sdfwrite 'name
+
+************** 
 
 n = n + 1
 endwhile

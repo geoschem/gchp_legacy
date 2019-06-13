@@ -25,9 +25,16 @@ cd ${curdir}
 if [[ -f ${HOME}/.geoschem/config ]]; then
     source ${HOME}/.geoschem/config
     if [[ ! -d ${GC_DATA_ROOT} ]]; then
-	printf "\nWarning: Default root data directory ${GC_DATA_ROOT} does not exist. Set new path below or edit in ${HOME}/.geoschem/config.\n"
+	printf "\nWarning: Default root data directory does not exist!"
+        printf "\nSet new path below or manually edit ${HOME}/.geoschem/config.\n"
+    fi
+    if [[ ! -d ${GFTL} ]]; then
+	printf "\nWarning: Default Goddard Fortran Template Library (gFTL) does not exist!"
+        printf "\nSet new path below or manually edit ${HOME}/.geoschem/config.\n"
     fi
 else
+    printf "\nDefine paths to ExtData and the Goddard Fortran Template Library (gFTL)."
+    printf "\nThese will be stored in ${HOME}/.geoschem/config for future automatic use.\n"
     mkdir -p ${HOME}/.geoschem
 fi
 
@@ -35,7 +42,7 @@ fi
 # One-time configuration of data root path in ~/.geoschem/config
 #-----------------------------------------------------------------
 if [[ -z "${GC_DATA_ROOT}" ]]; then
-    printf "\nEnter path for ExtData. This will be saved to ${HOME}/.geoschem/config for future automatic use.\n"
+    printf "\nEnter path for ExtData:\n"
     valid_path=0
     while [ "$valid_path" -eq 0 ]
     do
@@ -47,7 +54,40 @@ if [[ -z "${GC_DATA_ROOT}" ]]; then
             printf "\nError: ${extdata} does not exist. Enter a new path or hit q to quit.\n"
 	else
 	    valid_path=1
-	    echo "export GC_DATA_ROOT=${extdata}" > ${HOME}/.geoschem/config
+	    echo "export GC_DATA_ROOT=${extdata}" >> ${HOME}/.geoschem/config
+            source ${HOME}/.geoschem/config
+	fi
+    done
+fi
+
+#-----------------------------------------------------------------
+# One-time configuration of Goddard Fortran template library (gFTL)
+#  path in ~/.geoschem/config
+#-----------------------------------------------------------------
+if [[ -z "${GFTL}" ]]; then
+    printf "\nIf you have not downloaded gFTL then enter q to exit."
+    printf "\nFollow these instructions at the command prompt to install:\n"
+    printf "\n      1. Navigate to directory where you want to download gFTL" 
+    printf "\n      2. Type the following at the command prompt:"
+    printf "\n         $ git clone https://github.com/Goddard-Fortran-Ecosystem/gFTL"
+    printf "\n         $ cd gFTL"
+    printf "\n         $ git checkout v1.0.0"
+    printf "\n         $ cmake . -DCMAKE_INSTALL_PREFIX=."
+    printf "\n         $ make install"
+    printf "\n      3. Verify success by checking that include/templates and include/types exist\n" 
+    printf "\nEnter path for gFTL:\n"
+    valid_path=0
+    while [ "$valid_path" -eq 0 ]
+    do
+	read gftl
+	if [[ ${gftl} = "q" ]]; then
+	    printf "\nExiting.\n"
+	    exit 1
+	elif [[ ! -d ${gftl} ]]; then
+            printf "\nError: ${gftl} does not exist. Enter a new path or hit q to quit.\n"
+	else
+	    valid_path=1
+	    echo "export GFTL=${gftl}" >> ${HOME}/.geoschem/config
             source ${HOME}/.geoschem/config
 	fi
     done
@@ -223,7 +263,7 @@ ln -s ${gcdir}                                  ${rundir}/CodeDir
 # NOTE: CodeDir is set to point to GCHP/..; reset using setCodeDir in rundir.
 ln -s ${GC_DATA_ROOT}/CHEM_INPUTS               ${rundir}/ChemDataDir
 ln -s ${GC_DATA_ROOT}/HEMCO                     ${rundir}/MainDataDir
-ln -s ${GC_DATA_ROOT}/GCHP/TileFiles            ${rundir}/TileFiles
+ln -s ${GFTL}                                   ${rundir}/gFTL
 if [ "${met_name}" == "GEOSFP" ]; then
    ln -s ${GC_DATA_ROOT}/GEOS_0.25x0.3125/GEOS_FP  ${rundir}/MetDir
 else

@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2018, University Corporation for Atmospheric Research, 
+! Copyright 2002-2019, University Corporation for Atmospheric Research, 
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 ! Laboratory, University of Michigan, National Centers for Environmental 
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -1728,9 +1728,17 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !
 ! !DESCRIPTION:
 !   \begin{sloppypar}
-!   Execute a precomputed FieldBundle halo operation for the Fields in FieldBundle.
-!   See {\tt ESMF\_FieldBundleStore()} on how to compute routehandle.
+!   Execute a precomputed halo operation for the Fields in {\tt fieldbundle}.
+!   The FieldBundle must match the respective FieldBundle used during 
+!   {\tt ESMF\_FieldBundleHaloStore()} in {\em type}, {\em kind}, and
+!   memory layout of the {\em gridded} dimensions. However, the size, number, 
+!   and index order of {\em ungridded} dimensions may be different. See section
+!   \ref{RH:Reusability} for a more detailed discussion of RouteHandle 
+!   reusability.
 !   \end{sloppypar}
+!
+!   See {\tt ESMF\_FieldBundleHaloStore()} on how to precompute 
+!   {\tt routehandle}.
 !
 !   \begin{description}
 !   \item [fieldbundle]
@@ -1822,16 +1830,24 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! !IROUTINE: ESMF_FieldBundleHaloRelease - Release resources associated with a FieldBundle halo operation
 !
 ! !INTERFACE:
-  subroutine ESMF_FieldBundleHaloRelease(routehandle, keywordEnforcer, rc)
+  subroutine ESMF_FieldBundleHaloRelease(routehandle, keywordEnforcer, &
+    noGarbage, rc)
 !
 ! !ARGUMENTS:
         type(ESMF_RouteHandle), intent(inout)           :: routehandle
 type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+        logical,                intent(in),   optional  :: noGarbage
         integer,                intent(out),  optional  :: rc
 !
 ! !STATUS:
 ! \begin{itemize}
 ! \item\apiStatusCompatibleVersion{5.2.0r}
+! \item\apiStatusModifiedSinceVersion{5.2.0r}
+! \begin{description}
+! \item[8.0.0] Added argument {\tt noGarbage}.
+!   The argument provides a mechanism to override the default garbage collection
+!   mechanism when destroying an ESMF object.
+! \end{description}
 ! \end{itemize}
 !
 ! !DESCRIPTION:
@@ -1841,6 +1857,24 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !   \begin{description}
 !   \item [routehandle]
 !     Handle to the precomputed Route.
+!   \item[{[noGarbage]}]
+!     If set to {\tt .TRUE.} the object will be fully destroyed and removed
+!     from the ESMF garbage collection system. Note however that under this 
+!     condition ESMF cannot protect against accessing the destroyed object 
+!     through dangling aliases -- a situation which may lead to hard to debug 
+!     application crashes.
+! 
+!     It is generally recommended to leave the {\tt noGarbage} argument
+!     set to {\tt .FALSE.} (the default), and to take advantage of the ESMF 
+!     garbage collection system which will prevent problems with dangling
+!     aliases or incorrect sequences of destroy calls. However this level of
+!     support requires that a small remnant of the object is kept in memory
+!     past the destroy call. This can lead to an unexpected increase in memory
+!     consumption over the course of execution in applications that use 
+!     temporary ESMF objects. For situations where the repeated creation and 
+!     destruction of temporary objects leads to memory issues, it is 
+!     recommended to call with {\tt noGarbage} set to {\tt .TRUE.}, fully 
+!     removing the entire temporary object from memory.
 !   \item [{[rc]}]
 !     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !   \end{description}
@@ -1857,7 +1891,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         ESMF_INIT_CHECK_DEEP_SHORT(ESMF_RouteHandleGetInit, routehandle, rc)
             
         ! Call into the RouteHandle code
-        call ESMF_RouteHandleRelease(routehandle, localrc)
+        call ESMF_RouteHandleRelease(routehandle, noGarbage=noGarbage, &
+          rc=localrc)
         if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
           ESMF_CONTEXT, rcToReturn=rc)) return
         
@@ -1897,18 +1932,13 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !   remain unchanged under halo.
 !
 !   The routine returns an {\tt ESMF\_RouteHandle} that can be used to call 
-!   {\tt ESMF\_FieldBundleHalo()} on any FieldBundle that is weakly congruent
-!   and typekind conform to {\tt fieldbundle}. Congruency for FieldBundles is
-!   given by the congruency of its constituents.
-!   Congruent Fields possess matching DistGrids and the shape of the local
-!   array tiles, i.e. the memory allocation, matches between the Fields for
-!   every DE. For weakly congruent
-!   Fields the sizes of the undistributed dimensions, that vary faster with
-!   memory than the first distributed dimension, are permitted to be different.
-!   This means that the same {\tt routehandle} can be applied to a large class
-!   of similar Fields that differ in the number of elements in the left most
-!   undistributed dimensions.
-!  
+!   {\tt ESMF\_FieldBundleHalo()} on any pair of FieldBundles that matches 
+!   {\tt srcFieldBundle} and {\tt dstFieldBundle} in {\em type}, {\em kind},
+!   and memory layout of the {\em gridded} dimensions. However, the size, 
+!   number, and index order of {\em ungridded} dimensions may be different.
+!   See section \ref{RH:Reusability} for a more detailed discussion of
+!   RouteHandle reusability.
+!
 !   This call is {\em collective} across the current VM.  
 !
 !   \begin{description}
@@ -2305,18 +2335,15 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !
 ! !DESCRIPTION:
 !   \begin{sloppypar}
-!   Execute a precomputed FieldBundle redistribution from {\tt srcFieldBundle} to
-!   {\tt dstFieldBundle}. Both {\tt srcFieldBundle} and {\tt dstFieldBundle} must be
-!   weakly congruent and typekind conform with the respective FieldBundles used during 
-!   {\tt ESMF\_FieldBundleRedistStore()}. Congruency for FieldBundles is
-!   given by the congruency of its constituents.
-!   Congruent Fields possess matching DistGrids and the shape of the local
-!   array tiles, i.e. the memory allocation, matches between the Fields for
-!   every DE. For weakly congruent Fields the sizes of the 
-!   undistributed dimensions, that vary faster with memory than the first distributed 
-!   dimension, are permitted to be different. This means that the same {\tt routehandle} 
-!   can be applied to a large class of similar Fields that differ in the number of 
-!   elements in the left most undistributed dimensions. 
+!   Execute a precomputed redistribution from {\tt srcFieldBundle}
+!   to {\tt dstFieldBundle}. 
+!   Both {\tt srcFieldBundle} and {\tt dstFieldBundle} must match the
+!   respective FieldBundles used during {\tt ESMF\_FieldBundleRedistStore()}
+!   in {\em type}, {\em kind}, and memory layout of the {\em gridded}
+!   dimensions. However, the size, number, 
+!   and index order of {\em ungridded} dimensions may be different. See section
+!   \ref{RH:Reusability} for a more detailed discussion of RouteHandle 
+!   reusability.
 !   \end{sloppypar}
 !
 !   The {\tt srcFieldBundle} and {\tt dstFieldBundle} arguments are optional in support of
@@ -2444,16 +2471,24 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! !IROUTINE: ESMF_FieldBundleRedistRelease - Release resources associated with a FieldBundle redistribution
 !
 ! !INTERFACE:
-  subroutine ESMF_FieldBundleRedistRelease(routehandle, keywordEnforcer, rc)
+  subroutine ESMF_FieldBundleRedistRelease(routehandle, keywordEnforcer, &
+    noGarbage, rc)
 !
 ! !ARGUMENTS:
         type(ESMF_RouteHandle), intent(inout)           :: routehandle
 type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+        logical,                intent(in),   optional  :: noGarbage
         integer,                intent(out),  optional  :: rc
 !
 ! !STATUS:
 ! \begin{itemize}
 ! \item\apiStatusCompatibleVersion{5.2.0r}
+! \item\apiStatusModifiedSinceVersion{5.2.0r}
+! \begin{description}
+! \item[8.0.0] Added argument {\tt noGarbage}.
+!   The argument provides a mechanism to override the default garbage collection
+!   mechanism when destroying an ESMF object.
+! \end{description}
 ! \end{itemize}
 !
 ! !DESCRIPTION:
@@ -2463,6 +2498,24 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !   \begin{description}
 !   \item [routehandle]
 !     Handle to the precomputed Route.
+!   \item[{[noGarbage]}]
+!     If set to {\tt .TRUE.} the object will be fully destroyed and removed
+!     from the ESMF garbage collection system. Note however that under this 
+!     condition ESMF cannot protect against accessing the destroyed object 
+!     through dangling aliases -- a situation which may lead to hard to debug 
+!     application crashes.
+! 
+!     It is generally recommended to leave the {\tt noGarbage} argument
+!     set to {\tt .FALSE.} (the default), and to take advantage of the ESMF 
+!     garbage collection system which will prevent problems with dangling
+!     aliases or incorrect sequences of destroy calls. However this level of
+!     support requires that a small remnant of the object is kept in memory
+!     past the destroy call. This can lead to an unexpected increase in memory
+!     consumption over the course of execution in applications that use 
+!     temporary ESMF objects. For situations where the repeated creation and 
+!     destruction of temporary objects leads to memory issues, it is 
+!     recommended to call with {\tt noGarbage} set to {\tt .TRUE.}, fully 
+!     removing the entire temporary object from memory.
 !   \item [{[rc]}]
 !     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !   \end{description}
@@ -2479,7 +2532,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         ESMF_INIT_CHECK_DEEP_SHORT(ESMF_RouteHandleGetInit, routehandle, rc)
             
         ! Call into the RouteHandle code
-        call ESMF_RouteHandleRelease(routehandle, localrc)
+        call ESMF_RouteHandleRelease(routehandle, noGarbage=noGarbage, &
+          rc=localrc)
         if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
           ESMF_CONTEXT, rcToReturn=rc)) return
         
@@ -2537,18 +2591,13 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! It is erroneous to specify the identical FieldBundle object for srcFieldBundle 
 ! and dstFieldBundle arguments. 
 !  
-! The routine returns an {\tt ESMF\_RouteHandle} that can be used to call 
-! {\tt ESMF\_FieldBundleRedist()} on any pair of FieldBundles that are congruent and typekind 
-! conform with the srcFieldBundle, dstFieldBundle pair. 
-! Congruency for FieldBundles is given by the congruency of its constituents.
-! Congruent Fields possess matching DistGrids and the shape of the local
-! array tiles, i.e. the memory allocation, matches between the Fields for
-! every DE. For weakly congruent Fields the sizes of the 
-! undistributed dimensions, that vary faster with memory than the first distributed 
-! dimension, are permitted to be different. This means that the same {\tt routehandle} 
-! can be applied to a large class of similar Fields that differ in the number of 
-! elements in the left most undistributed dimensions. 
-
+!   The routine returns an {\tt ESMF\_RouteHandle} that can be used to call 
+!   {\tt ESMF\_FieldBundleRedist()} on any pair of FieldBundles that matches 
+!   {\tt srcFieldBundle} and {\tt dstFieldBundle} in {\em type}, {\em kind},
+!   and memory layout of the {\em gridded} dimensions. However, the size, 
+!   number, and index order of {\em ungridded} dimensions may be different.
+!   See section \ref{RH:Reusability} for a more detailed discussion of
+!   RouteHandle reusability.
 !
 ! This method is overloaded for:\newline
 ! {\tt ESMF\_TYPEKIND\_I4}, {\tt ESMF\_TYPEKIND\_I8},\newline 
@@ -2954,17 +3003,13 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! It is erroneous to specify the identical FieldBundle object for srcFieldBundle and dstFieldBundle 
 ! arguments. 
 !  
-! The routine returns an {\tt ESMF\_RouteHandle} that can be used to call 
-! {\tt ESMF\_FieldBundleRedist()} on any pair of Fields that are congruent and typekind 
-! conform with the srcFieldBundle, dstFieldBundle pair. 
-! Congruent Fields possess matching DistGrids and the shape of the local
-! array tiles, i.e. the memory allocation, matches between the Fields for
-! every DE. For weakly congruent Fields the sizes of the 
-!   undistributed dimensions, that vary faster with memory than the first distributed 
-!   dimension, are permitted to be different. This means that the same {\tt routehandle} 
-!   can be applied to a large class of similar Fields that differ in the number of 
-!   elements in the left most undistributed dimensions. 
-
+!   The routine returns an {\tt ESMF\_RouteHandle} that can be used to call 
+!   {\tt ESMF\_FieldBundleRedist()} on any pair of FieldBundles that matches 
+!   {\tt srcFieldBundle} and {\tt dstFieldBundle} in {\em type}, {\em kind},
+!   and memory layout of the {\em gridded} dimensions. However, the size, 
+!   number, and index order of {\em ungridded} dimensions may be different.
+!   See section \ref{RH:Reusability} for a more detailed discussion of
+!   RouteHandle reusability.
 !  
 ! This method is overloaded for:\newline
 ! {\tt ESMF\_TYPEKIND\_I4}, {\tt ESMF\_TYPEKIND\_I8},\newline 
@@ -3119,18 +3164,15 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !
 ! !DESCRIPTION:
 !   \begin{sloppypar}
-!   Execute a precomputed FieldBundle regrid from {\tt srcFieldBundle} to
-!   {\tt dstFieldBundle}. Both {\tt srcFieldBundle} and {\tt dstFieldBundle} must be
-!   congruent and typekind conform with the respective FieldBundles used during 
-!   {\tt ESMF\_FieldBundleRegridStore()}. Congruency for FieldBundles is
-!   given by the congruency of its constituents.
-!   Congruent Fields possess matching DistGrids and the shape of the local
-!   array tiles, i.e. the memory allocation, matches between the Fields for
-!   every DE. For weakly congruent Fields the sizes of the 
-!   undistributed dimensions, that vary faster with memory than the first distributed 
-!   dimension, are permitted to be different. This means that the same {\tt routehandle} 
-!   can be applied to a large class of similar Fields that differ in the number of 
-!   elements in the left most undistributed dimensions. 
+!   Execute a precomputed regrid from {\tt srcFieldBundle}
+!   to {\tt dstFieldBundle}. 
+!   Both {\tt srcFieldBundle} and {\tt dstFieldBundle} must match the
+!   respective FieldBundles used during {\tt ESMF\_FieldBundleRedistStore()}
+!   in {\em type}, {\em kind}, and memory layout of the {\em gridded}
+!   dimensions. However, the size, number, 
+!   and index order of {\em ungridded} dimensions may be different. See section
+!   \ref{RH:Reusability} for a more detailed discussion of RouteHandle 
+!   reusability.
 !   \end{sloppypar}
 !
 !   The {\tt srcFieldBundle} and {\tt dstFieldBundle} arguments are optional in support of
@@ -3226,16 +3268,24 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! !IROUTINE: ESMF_FieldBundleRegridRelease - Release resources associated with a FieldBundle regrid operation
 !
 ! !INTERFACE:
-  subroutine ESMF_FieldBundleRegridRelease(routehandle, keywordEnforcer, rc)
+  subroutine ESMF_FieldBundleRegridRelease(routehandle, keywordEnforcer, &
+    noGarbage, rc)
 !
 ! !ARGUMENTS:
         type(ESMF_RouteHandle), intent(inout)           :: routehandle
 type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+        logical,                intent(in),   optional  :: noGarbage
         integer,                intent(out),  optional  :: rc
 !
 ! !STATUS:
 ! \begin{itemize}
 ! \item\apiStatusCompatibleVersion{5.2.0r}
+! \item\apiStatusModifiedSinceVersion{5.2.0r}
+! \begin{description}
+! \item[8.0.0] Added argument {\tt noGarbage}.
+!   The argument provides a mechanism to override the default garbage collection
+!   mechanism when destroying an ESMF object.
+! \end{description}
 ! \end{itemize}
 !
 ! !DESCRIPTION:
@@ -3245,6 +3295,24 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !   \begin{description}
 !   \item [routehandle]
 !     Handle to the precomputed Route.
+!   \item[{[noGarbage]}]
+!     If set to {\tt .TRUE.} the object will be fully destroyed and removed
+!     from the ESMF garbage collection system. Note however that under this 
+!     condition ESMF cannot protect against accessing the destroyed object 
+!     through dangling aliases -- a situation which may lead to hard to debug 
+!     application crashes.
+! 
+!     It is generally recommended to leave the {\tt noGarbage} argument
+!     set to {\tt .FALSE.} (the default), and to take advantage of the ESMF 
+!     garbage collection system which will prevent problems with dangling
+!     aliases or incorrect sequences of destroy calls. However this level of
+!     support requires that a small remnant of the object is kept in memory
+!     past the destroy call. This can lead to an unexpected increase in memory
+!     consumption over the course of execution in applications that use 
+!     temporary ESMF objects. For situations where the repeated creation and 
+!     destruction of temporary objects leads to memory issues, it is 
+!     recommended to call with {\tt noGarbage} set to {\tt .TRUE.}, fully 
+!     removing the entire temporary object from memory.
 !   \item [{[rc]}]
 !     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !   \end{description}
@@ -3261,7 +3329,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         ESMF_INIT_CHECK_DEEP_SHORT(ESMF_RouteHandleGetInit, routehandle, rc)
 
         ! Call into the RouteHandle code
-        call ESMF_RouteHandleRelease(routehandle, localrc)
+        call ESMF_RouteHandleRelease(routehandle, noGarbage=noGarbage, &
+          rc=localrc)
         if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
           ESMF_CONTEXT, rcToReturn=rc)) return
         
@@ -3339,21 +3408,14 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! !DESCRIPTION:
 !   Store a FieldBundle regrid operation over the data in {\tt srcFieldBundle} and
 !   {\tt dstFieldBundle} pair. 
-!
+!  
 !   The routine returns an {\tt ESMF\_RouteHandle} that can be used to call 
-!   {\tt ESMF\_FieldBundleRegrid()} on any FieldBundle pairs that are weakly congruent
-!   and typekind conform to the FieldBundle pair used here.
-!   Congruency for FieldBundles is
-!   given by the congruency of its constituents.
-!   Congruent Fields possess matching DistGrids, and the shape of the local
-!   array tiles matches between the Fields for every DE. For weakly congruent
-!   Fields the sizes of the undistributed dimensions, that vary faster with
-!   memory than the first distributed dimension, are permitted to be different.
-!   This means that the same {\tt routehandle} can be applied to a large class
-!   of similar Fields that differ in the number of elements in the left most
-!   undistributed dimensions.
-!   Note {\tt ESMF\_FieldBundleRegridStore()} assumes the coordinates used in the Grids 
-!   upon which the FieldBundles are built are in degrees.  
+!   {\tt ESMF\_FieldBundleRegrid()} on any pair of FieldBundles that matches 
+!   {\tt srcFieldBundle} and {\tt dstFieldBundle} in {\em type}, {\em kind},
+!   and memory layout of the {\em gridded} dimensions. However, the size, 
+!   number, and index order of {\em ungridded} dimensions may be different.
+!   See section \ref{RH:Reusability} for a more detailed discussion of
+!   RouteHandle reusability.
 !  
 !   This call is {\em collective} across the current VM.  
 !
@@ -4432,16 +4494,15 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! \end{itemize}
 !
 ! !DESCRIPTION:
-!   Execute a precomputed FieldBundle sparse matrix multiplication from {\tt srcFieldBundle} to
-!   {\tt dstFieldBundle}. Both {\tt srcFieldBundle} and {\tt dstFieldBundle} must be
-!   congruent and typekind conform with the respective FieldBundles used during 
-!   {\tt ESMF\_FieldBundleSMMStore()}. Congruent FieldBundles possess
-!   matching DistGrids and the shape of the local array tiles matches between
-!   the FieldBundles for every DE. For weakly congruent Fields the sizes of the 
-!   undistributed dimensions, that vary faster with memory than the first distributed 
-!   dimension, are permitted to be different. This means that the same {\tt routehandle} 
-!   can be applied to a large class of similar Fields that differ in the number of 
-!   elements in the left most undistributed dimensions. 
+!   Execute a precomputed sparse matrix multiplication from {\tt srcFieldBundle}
+!   to {\tt dstFieldBundle}.
+!   Both {\tt srcFieldBundle} and {\tt dstFieldBundle} must match the
+!   respective FieldBundles used during {\tt ESMF\_FieldBundleRedistStore()}
+!   in {\em type}, {\em kind}, and memory layout of the {\em gridded}
+!   dimensions. However, the size, number, 
+!   and index order of {\em ungridded} dimensions may be different. See section
+!   \ref{RH:Reusability} for a more detailed discussion of RouteHandle 
+!   reusability.
 !
 !   The {\tt srcFieldBundle} and {\tt dstFieldBundle} arguments are optional in support of
 !   the situation where {\tt srcFieldBundle} and/or {\tt dstFieldBundle} are not defined on
@@ -4604,16 +4665,24 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! !IROUTINE: ESMF_FieldBundleSMMRelease - Release resources associated with a FieldBundle sparse matrix multiplication
 !
 ! !INTERFACE:
-  subroutine ESMF_FieldBundleSMMRelease(routehandle, keywordEnforcer, rc)
+  subroutine ESMF_FieldBundleSMMRelease(routehandle, keywordEnforcer, &
+    noGarbage, rc)
 !
 ! !ARGUMENTS:
         type(ESMF_RouteHandle), intent(inout)           :: routehandle
 type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+        logical,                intent(in),   optional  :: noGarbage
         integer,                intent(out),  optional  :: rc
 !
 ! !STATUS:
 ! \begin{itemize}
 ! \item\apiStatusCompatibleVersion{5.2.0r}
+! \item\apiStatusModifiedSinceVersion{5.2.0r}
+! \begin{description}
+! \item[8.0.0] Added argument {\tt noGarbage}.
+!   The argument provides a mechanism to override the default garbage collection
+!   mechanism when destroying an ESMF object.
+! \end{description}
 ! \end{itemize}
 !
 ! !DESCRIPTION:
@@ -4623,6 +4692,24 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !   \begin{description}
 !   \item [routehandle]
 !     Handle to the precomputed Route.
+!   \item[{[noGarbage]}]
+!     If set to {\tt .TRUE.} the object will be fully destroyed and removed
+!     from the ESMF garbage collection system. Note however that under this 
+!     condition ESMF cannot protect against accessing the destroyed object 
+!     through dangling aliases -- a situation which may lead to hard to debug 
+!     application crashes.
+! 
+!     It is generally recommended to leave the {\tt noGarbage} argument
+!     set to {\tt .FALSE.} (the default), and to take advantage of the ESMF 
+!     garbage collection system which will prevent problems with dangling
+!     aliases or incorrect sequences of destroy calls. However this level of
+!     support requires that a small remnant of the object is kept in memory
+!     past the destroy call. This can lead to an unexpected increase in memory
+!     consumption over the course of execution in applications that use 
+!     temporary ESMF objects. For situations where the repeated creation and 
+!     destruction of temporary objects leads to memory issues, it is 
+!     recommended to call with {\tt noGarbage} set to {\tt .TRUE.}, fully 
+!     removing the entire temporary object from memory.
 !   \item [{[rc]}]
 !     Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !   \end{description}
@@ -4639,7 +4726,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         ESMF_INIT_CHECK_DEEP_SHORT(ESMF_RouteHandleGetInit, routehandle, rc)
             
         ! Call into the RouteHandle code
-        call ESMF_RouteHandleRelease(routehandle, localrc)
+        call ESMF_RouteHandleRelease(routehandle, noGarbage=noGarbage, &
+          rc=localrc)
         if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
           ESMF_CONTEXT, rcToReturn=rc)) return
         
@@ -4709,16 +4797,14 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !  
 ! It is erroneous to specify the identical FieldBundle object for srcFieldBundle 
 ! and dstFieldBundle arguments. 
-!
-! The routine returns an {\tt ESMF\_RouteHandle} that can be used to call 
-! {\tt ESMF\_FieldBundleSMM()} on any pair of FieldBundles that are congruent and typekind 
-! conform with the srcFieldBundle, dstFieldBundle pair. Congruent FieldBundles possess matching 
-! DistGrids and the shape of the local array tiles matches between the FieldBundles for 
-! every DE. For weakly congruent Fields the sizes of the 
-!   undistributed dimensions, that vary faster with memory than the first distributed 
-!   dimension, are permitted to be different. This means that the same {\tt routehandle} 
-!   can be applied to a large class of similar Fields that differ in the number of 
-!   elements in the left most undistributed dimensions. 
+!  
+!   The routine returns an {\tt ESMF\_RouteHandle} that can be used to call 
+!   {\tt ESMF\_FieldBundleSMM()} on any pair of FieldBundles that matches 
+!   {\tt srcFieldBundle} and {\tt dstFieldBundle} in {\em type}, {\em kind},
+!   and memory layout of the {\em gridded} dimensions. However, the size, 
+!   number, and index order of {\em ungridded} dimensions may be different.
+!   See section \ref{RH:Reusability} for a more detailed discussion of
+!   RouteHandle reusability.
 !  
 ! This method is overloaded for:\newline
 ! {\tt ESMF\_TYPEKIND\_I4}, {\tt ESMF\_TYPEKIND\_I8},\newline 
@@ -5170,15 +5256,13 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! It is erroneous to specify the identical FieldBundle object for srcFieldBundle and dstFieldBundle 
 ! arguments. 
 !  
-! The routine returns an {\tt ESMF\_RouteHandle} that can be used to call 
-! {\tt ESMF\_FieldBundleSMM()} on any pair of FieldBundles that are congruent and typekind 
-! conform with the srcFieldBundle, dstFieldBundle pair. Congruent FieldBundles possess matching 
-! DistGrids and the shape of the local array tiles matches between the FieldBundles for 
-! every DE. For weakly congruent Fields the sizes of the 
-!   undistributed dimensions, that vary faster with memory than the first distributed 
-!   dimension, are permitted to be different. This means that the same {\tt routehandle} 
-!   can be applied to a large class of similar Fields that differ in the number of 
-!   elements in the left most undistributed dimensions. 
+!   The routine returns an {\tt ESMF\_RouteHandle} that can be used to call 
+!   {\tt ESMF\_FieldBundleSMM()} on any pair of FieldBundles that matches 
+!   {\tt srcFieldBundle} and {\tt dstFieldBundle} in {\em type}, {\em kind},
+!   and memory layout of the {\em gridded} dimensions. However, the size, 
+!   number, and index order of {\em ungridded} dimensions may be different.
+!   See section \ref{RH:Reusability} for a more detailed discussion of
+!   RouteHandle reusability.
 !  
 ! \begin{sloppypar}
 ! This method is overloaded for
@@ -5504,7 +5588,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords for t
 !    \begin{description}
 !    \item[{\tt iofmt} = {\tt ESMF\_IOFMT\_BIN}:]\ All data in the file will
 !      be overwritten with each field's data.
-!    \item[{\tt iofmt} = {\tt ESMF\_IOFMT\_NETCDF}:]\ Only the
+!    \item[{\tt iofmt} = {\tt ESMF\_IOFMT\_NETCDF, ESMF\_IOFMT\_NETCDF\_64BIT\_OFFSET}:]\ Only the
 !      data corresponding to each field's name will be
 !      be overwritten. If the {\tt timeslice} option is given, only data for
 !      the given timeslice may be overwritten.
@@ -5880,7 +5964,7 @@ call ESMF_LogWrite("Aft ESMF_IOWrite", ESMF_LOGMSG_INFO, rc=rc)
 !           updated by this routine and return pointing to the next
 !           unread byte in the buffer.
 !     \item[{[attreconflag]}]
-!           Flag to tell if Attribute serialization is to be done
+!           Flag to tell if Attribute deserialization is to be done
 !     \item [{[rc]}]
 !           Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !     \end{description}
@@ -5892,6 +5976,7 @@ call ESMF_LogWrite("Aft ESMF_IOWrite", ESMF_LOGMSG_INFO, rc=rc)
       type(ESMF_FieldBundleType), pointer :: bp   ! fieldbundle type
       type(ESMF_AttReconcileFlag) :: lattreconflag
       type(ESMF_Grid) :: grid
+      type(ESMF_LocStream) :: locstream
       type(ESMF_GeomType_Flag) :: geomtype
       type(ESMF_Field), pointer :: flist(:)
       type(ESMF_Logical) :: linkChange
@@ -5953,18 +6038,26 @@ call ESMF_LogWrite("Aft ESMF_IOWrite", ESMF_LOGMSG_INFO, rc=rc)
         if (ESMF_LogFoundError(localrc, &
           ESMF_ERR_PASSTHRU, &
           ESMF_CONTEXT, rcToReturn=rc)) return
-        if((geomtype == ESMF_GEOMTYPE_GRID) .or. &
-           (geomtype == ESMF_GEOMTYPE_LOCSTREAM)) then
-          call ESMF_GeomBaseGet(bp%geombase, grid=grid, rc=localrc)
-          if (ESMF_LogFoundError(localrc, &
-            ESMF_ERR_PASSTHRU, &
-            ESMF_CONTEXT, rcToReturn=rc)) return
-          linkChange = ESMF_TRUE
-          call c_ESMC_AttributeLink(bp%base, grid, linkChange, status)
-          if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
-                        ESMF_CONTEXT, rcToReturn=rc))  return
+        if (geomtype == ESMF_GEOMTYPE_GRID) then
+           call ESMF_GeomBaseGet(bp%geombase, grid=grid, rc=localrc)
+           if (ESMF_LogFoundError(localrc, &
+                ESMF_ERR_PASSTHRU, &
+                ESMF_CONTEXT, rcToReturn=rc)) return
+           linkChange = ESMF_TRUE
+           call c_ESMC_AttributeLink(bp%base, grid, linkChange, status)
+           if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+                ESMF_CONTEXT, rcToReturn=rc))  return
+        else if (geomtype == ESMF_GEOMTYPE_LOCSTREAM) then
+           call ESMF_GeomBaseGet(bp%geombase, locstream=locstream, rc=localrc)
+           if (ESMF_LogFoundError(localrc, &
+                ESMF_ERR_PASSTHRU, &
+                ESMF_CONTEXT, rcToReturn=rc)) return
+           linkChange = ESMF_TRUE
+           call c_ESMC_AttributeLink(bp%base, locstream%lstypep%base, linkChange, status)
+           if (ESMF_LogFoundError(status, ESMF_ERR_PASSTHRU, &
+                ESMF_CONTEXT, rcToReturn=rc))  return
         endif
-      endif
+     endif
 
       ! TODO: decide if these need to be sent before or after
       allocate(flist(fieldCount), stat=localrc)

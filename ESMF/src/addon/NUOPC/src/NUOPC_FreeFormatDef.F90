@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2018, University Corporation for Atmospheric Research, 
+! Copyright 2002-2019, University Corporation for Atmospheric Research, 
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 ! Laboratory, University of Michigan, National Centers for Environmental 
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -64,6 +64,8 @@ module NUOPC_FreeFormatDef
   interface NUOPC_FreeFormatCreate
     module procedure NUOPC_FreeFormatCreateDefault
     module procedure NUOPC_FreeFormatCreateRead
+    module procedure NUOPC_FreeFormatCreateReadFile
+    module procedure NUOPC_FreeFormatCreateReadYAML
   end interface
 
   !-----------------------------------------------------------------------------
@@ -74,45 +76,93 @@ module NUOPC_FreeFormatDef
 !BOP
 ! !IROUTINE: NUOPC_FreeFormatAdd - Add lines to a FreeFormat object
 ! !INTERFACE:
-  subroutine NUOPC_FreeFormatAdd(freeFormat, stringList, rc)
+  subroutine NUOPC_FreeFormatAdd(freeFormat, stringList, line, rc)
 ! !ARGUMENTS:
     type(NUOPC_FreeFormat),           intent(inout) :: freeFormat
     character(len=*),                 intent(in)    :: stringList(:)
+    integer,                optional, intent(in)    :: line
     integer,                optional, intent(out)   :: rc
 ! !DESCRIPTION:
 !   Add lines to a FreeFormat object. The capacity of {\tt freeFormat} may 
-!   increase during this operation. The elements in {\tt stringList} are 
-!   added to the end of {\tt freeFormat}.
+!   increase during this operation. The new lines provided in {\tt stringList}
+!   are added starting at position {\tt line}. If {\tt line} is greater than the
+!   current {\tt lineCount} of {\tt freeFormat}, blank lines are inserted to
+!   fill the gap. By default, i.e. without specifying the {\tt line} argument,
+!   the elements in {\tt stringList} are added to the {\em end} of the
+!   {\tt freeFormat} object.
 !EOP
   !-----------------------------------------------------------------------------
-    integer             :: stat, i, j
+    integer             :: stat, i, j, lineOpt
     integer             :: stringCount, availableCount, newCapacity
-    integer, parameter  :: extraCount = 10
+    integer, parameter  :: extraCount = 10 ! resize with additional capacity
+    integer             :: neededCount, gapCount
     character(len=NUOPC_FreeFormatLen), pointer   :: newStringList(:)
 
     if (present(rc)) rc = ESMF_SUCCESS
     
+    if (present(line)) then
+      ! sanity check
+      if (line<1) then
+        call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
+          msg="The 'line' argument must be a positive integer starting at 1.", &
+          line=__LINE__, &
+          file=FILENAME, &
+          rcToReturn=rc)
+        return  ! bail out
+      endif
+      lineOpt = line
+    else
+      lineOpt = freeFormat%count + 1
+    endif
+    
     stringCount = size(stringList)
     availableCount = size(freeFormat%stringList)-freeFormat%count
     
-    if (stringCount >= availableCount) then
-      newCapacity = freeFormat%count + stringCount + extraCount
+    gapCount = lineOpt - (freeFormat%count + 1)
+    neededCount = stringCount ! initialize
+    if (gapCount > 0) neededCount = neededCount + gapCount
+    
+    ! deal with capacity and moving old strings
+    if (neededCount > availableCount) then
+      ! must allocate a new stringList
+      newCapacity = freeFormat%count + neededCount + extraCount
       allocate(newStringList(newCapacity), stat=stat)
       if (ESMF_LogFoundAllocError(statusToCheck=stat, &
         msg="Allocation of new stringList.", &
         line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
-      do i=1, freeFormat%count
-        newStringList(i) = freeFormat%stringList(i)  ! copy the existing entries
+      ! copy lines from old to new allocation
+      do i=1, lineOpt-1
+        newStringList(i) = freeFormat%stringList(i)
       enddo
+      do i=lineOpt, lineOpt+stringCount-1
+        newStringList(i) = ""
+      enddo
+      do i=lineOpt, freeFormat%count
+        newStringList(i+stringCount) = freeFormat%stringList(i)
+      enddo
+      ! replace old with new allocation
       deallocate(freeFormat%stringList, stat=stat)
       if (ESMF_LogFoundDeallocError(statusToCheck=stat, &
         msg="Deallocation of stringList.", &
         line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
       freeFormat%stringList => newStringList ! point to the new stringList
+    else
+      ! the existing stringList has enough capacity -> deal with gap not zero
+      if (gapCount > 0) then
+        ! blank out gap lines
+        do i=freeFormat%count+1, freeFormat%count+gapCount
+          freeFormat%stringList(i) = ""
+        enddo
+      elseif (gapCount < 0) then
+        ! move the existing lines to create space to insert new strings
+        do i=freeFormat%count, lineOpt, -1
+          freeFormat%stringList(i+stringCount) = freeFormat%stringList(i)
+        enddo
+      endif
     endif
     
     ! fill in the new strings
-    i = freeFormat%count + 1
+    i = lineOpt
     do j=1, stringCount
       if (len_trim(stringList(j)) > NUOPC_FreeFormatLen) then
         call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
@@ -126,7 +176,8 @@ module NUOPC_FreeFormatDef
       i=i+1
     enddo
 
-    freeFormat%count = freeFormat%count + stringCount
+    ! finally adjust the new count
+    freeFormat%count = freeFormat%count + neededCount
     
   end subroutine
   !-----------------------------------------------------------------------------
@@ -135,67 +186,64 @@ module NUOPC_FreeFormatDef
 !BOP
 ! !IROUTINE: NUOPC_FreeFormatCreate - Create a FreeFormat object
 ! !INTERFACE:
-  ! call using generic interface: NUOPC_FreeFormatCreate
-  function NUOPC_FreeFormatCreateDefault(stringList, capacity, rc)
+  ! Private name; call using NUOPC_FreeFormatCreate()
+  function NUOPC_FreeFormatCreateDefault(freeFormat, stringList, capacity, rc)
 ! !RETURN VALUE:
     type(NUOPC_FreeFormat) :: NUOPC_FreeFormatCreateDefault
 ! !ARGUMENTS:
-    character(len=*), optional, intent(in)  :: stringList(:)
-    integer,          optional, intent(in)  :: capacity
-    integer,          optional, intent(out) :: rc
+    type(NUOPC_FreeFormat), optional, intent(in)  :: freeFormat
+    character(len=*),       optional, intent(in)  :: stringList(:)
+    integer,                optional, intent(in)  :: capacity
+    integer,                optional, intent(out) :: rc
 ! !DESCRIPTION:
-!   Create a new FreeFormat object. If {\tt stringList} is provided, then the
-!   newly created object will hold the provided strings and the count is that 
-!   of {\tt size(stringList)}. If {\tt capacity} is provided, it is used to set
-!   the capacity of the newly created FreeFormat object. Providing a
-!   {\tt capacity} that is smaller than {\tt size(stringList)} triggers an
-!   error.
+!   Create a new FreeFormat object, which by default is empty. 
+!   If {\tt freeFormat} is provided, then the newly created object starts as
+!   a copy of {\tt freeFormat}. If {\tt stringList} is provided, then it is
+!   added to the end of the newly created object. If {\tt capacity} is provided,
+!   it is used for the {\em initial} creation of the newly created FreeFormat 
+!   object. However, if the {\tt freeFormat} or {\tt stringList} arguments are
+!   present, the final capacity may be larger than specified by {\tt capacity}.
 !EOP
   !-----------------------------------------------------------------------------
-    integer   :: stat, i
-    integer   :: stringCount, capacityOpt
-    
+    integer                                     :: localrc
+    integer                                     :: stat, i
+    integer                                     :: lineCount, capacityOpt
+    character(len=NUOPC_FreeFormatLen), pointer :: stringListOpt(:)    
+
     if (present(rc)) rc = ESMF_SUCCESS
     
-    ! initialize members
+    ! initialize return members
     NUOPC_FreeFormatCreateDefault%stringList => NULL()
     NUOPC_FreeFormatCreateDefault%count      =  0;
     
-    ! determine count
-    if (present(stringList)) then
-      stringCount = size(stringList)
-    else
-      stringCount = 0
-    endif
+    ! determine initial capacity
+    capacityOpt = 10  ! default
+    if (present(capacity)) capacityOpt = capacity
     
-    ! determine capacity
-    if (present(capacity)) then
-      capacityOpt = capacity
-      if (stringCount>capacity) then
-        ! error condition
-        call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
-          msg="Capacity if provided must at least be as large as stringCount", &
-          line=__LINE__, &
-          file=FILENAME, &
-          rcToReturn=rc)
-        return  ! bail out
-      endif
-    else
-      capacityOpt = stringCount
-    endif
-    
-    ! allocate
+    ! create initial allocation
     allocate(NUOPC_FreeFormatCreateDefault%stringList(capacityOpt), stat=stat)
     if (ESMF_LogFoundAllocError(statusToCheck=stat, &
       msg="Allocation of NUOPC_FreeFormat%stringList.", &
       line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
     
-    ! conditionally fill initial strings
+    ! conditionally copy the incoming freeFormat contents
+    if (present(freeFormat)) then
+      call NUOPC_FreeFormatGet(freeFormat, lineCount=lineCount, &
+        stringList=stringListOpt, rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
+      call NUOPC_FreeFormatAdd(NUOPC_FreeFormatCreateDefault, &
+        stringListOpt(1:lineCount), rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
+    endif
+    
+    ! conditionally add the stringList to the end
     if (present(stringList)) then
       call NUOPC_FreeFormatAdd(NUOPC_FreeFormatCreateDefault, stringList, &
-        rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=FILENAME)) return  ! bail out
+        rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
     endif
 
   end function
@@ -205,7 +253,7 @@ module NUOPC_FreeFormatDef
 !BOP
 ! !IROUTINE: NUOPC_FreeFormatCreate - Create a FreeFormat object from Config
 ! !INTERFACE:
-  ! call using generic interface: NUOPC_FreeFormatCreate
+  ! Private name; call using NUOPC_FreeFormatCreate()
   function NUOPC_FreeFormatCreateRead(config, label, relaxedflag, rc)
 ! !RETURN VALUE:
     type(NUOPC_FreeFormat) :: NUOPC_FreeFormatCreateRead
@@ -226,6 +274,7 @@ module NUOPC_FreeFormatDef
 !EOP
   !-----------------------------------------------------------------------------
     logical   :: isPresent
+    integer   :: localrc
     integer   :: stat, i, j
     integer   :: lineCount, columnCount
     integer, allocatable  :: count(:)
@@ -234,17 +283,22 @@ module NUOPC_FreeFormatDef
     
     if (present(rc)) rc = ESMF_SUCCESS
     
-    call ESMF_ConfigFindLabel(config, label=label, isPresent=isPresent, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=FILENAME)) return  ! bail out
+    ! initialize return members
+    NUOPC_FreeFormatCreateRead%stringList => NULL()
+    NUOPC_FreeFormatCreateRead%count      =  0;
+
+    call ESMF_ConfigFindLabel(config, label=label, isPresent=isPresent, &
+      rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
     
     if (.not.isPresent) then
       if (present(relaxedflag)) then
         if (relaxedflag) then
           ! successful relaxed return with empty FreeFormat object
-          NUOPC_FreeFormatCreateRead = NUOPC_FreeFormatCreate(rc=rc)
-          if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-            line=__LINE__, file=FILENAME)) return  ! bail out
+          NUOPC_FreeFormatCreateRead = NUOPC_FreeFormatCreate(rc=localrc)
+          if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+            line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
           return ! early return
         endif
       endif
@@ -257,9 +311,9 @@ module NUOPC_FreeFormatDef
       return  ! bail out
     endif
     
-    call ESMF_ConfigGetDim(config, lineCount, columnCount, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=FILENAME)) return  ! bail out
+    call ESMF_ConfigGetDim(config, lineCount, columnCount, rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
 
     allocate(stringList(lineCount), stat=stat)
     if (ESMF_LogFoundAllocError(statusToCheck=stat, &
@@ -271,31 +325,31 @@ module NUOPC_FreeFormatDef
       msg="count.", &
       line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
 
-    call ESMF_ConfigFindLabel(config, label=label, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=FILENAME)) return  ! bail out
+    call ESMF_ConfigFindLabel(config, label=label, rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
 
     do i=1, lineCount
-      call ESMF_ConfigNextLine(config, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=FILENAME)) return  ! bail out
-      count(i) = ESMF_ConfigGetLen(config, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=FILENAME)) return  ! bail out
+      call ESMF_ConfigNextLine(config, rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
+      count(i) = ESMF_ConfigGetLen(config, rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
     enddo
 
-    call ESMF_ConfigFindLabel(config, label=label, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=FILENAME)) return  ! bail out
+    call ESMF_ConfigFindLabel(config, label=label, rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
 
     do i=1, lineCount
-      call ESMF_ConfigNextLine(config, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=FILENAME)) return  ! bail out
+      call ESMF_ConfigNextLine(config, rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
       allocate(line(count(i)))
-      call ESMF_ConfigGetAttribute(config, line, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-        line=__LINE__, file=FILENAME)) return  ! bail out
+      call ESMF_ConfigGetAttribute(config, line, rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
       stringList(i) = ""
       do j=1, count(i)
         stringList(i)=trim(stringList(i))//" "//trim(adjustl(line(j)))
@@ -303,9 +357,10 @@ module NUOPC_FreeFormatDef
       deallocate(line)
     enddo
     
-    NUOPC_FreeFormatCreateRead = NUOPC_FreeFormatCreate(stringList, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-      line=__LINE__, file=FILENAME)) return  ! bail out
+    NUOPC_FreeFormatCreateRead = NUOPC_FreeFormatCreate(stringList=stringList, &
+      rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
 
     deallocate(stringList, stat=stat)
     if (ESMF_LogFoundAllocError(statusToCheck=stat, &
@@ -316,6 +371,182 @@ module NUOPC_FreeFormatDef
     if (ESMF_LogFoundAllocError(statusToCheck=stat, &
       msg="count.", &
       line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
+
+  end function
+  !-----------------------------------------------------------------------------
+
+  !-----------------------------------------------------------------------------
+!BOPI
+! !IROUTINE: NUOPC_FreeFormatCreate - Create a FreeFormat object from YAML
+! !INTERFACE:
+  ! Private name; call using NUOPC_FreeFormatCreate()
+  function NUOPC_FreeFormatCreateReadYAML(ioyaml, rc)
+! !RETURN VALUE:
+    type(NUOPC_FreeFormat) :: NUOPC_FreeFormatCreateReadYAML
+! !ARGUMENTS:
+    type(ESMF_IO_YAML)                           :: ioyaml
+    integer,               intent(out), optional :: rc
+! !DESCRIPTION:
+!   Create a new FreeFormat object from ESMF\_IO\_YAML object. The object
+!   must exist or an error is returned.
+!
+
+!EOPI
+  !-----------------------------------------------------------------------------
+    integer :: localrc, stat
+    integer :: lineCount
+    character(len=NUOPC_FreeFormatLen), allocatable  :: stringList(:)
+
+    if (present(rc)) rc = ESMF_SUCCESS
+
+    ! initialize return members
+    NUOPC_FreeFormatCreateReadYAML%stringList => NULL()
+    NUOPC_FreeFormatCreateReadYAML%count      =  0;
+
+    ! generate content for FreeFormat object
+    call ESMF_IO_YAMLContentInit(ioyaml, cflag=ESMF_IOYAML_CONTENT_FREEFORM, &
+      rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
+
+    ! get capacity (# lines) of generated FreeFormat object
+    call ESMF_IO_YAMLContentGet(ioyaml, lineCount=lineCount, rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
+
+    ! allocate array containing FreeFormat lines
+    allocate(stringList(lineCount), stat=stat)
+    if (ESMF_LogFoundAllocError(statusToCheck=stat, &
+      msg="stringList.", &
+      line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
+
+    ! initialize array
+    ! -- this is required or the following API won't be able to check its size
+    stringList = ""
+
+    ! retrieve content of FreeFormat object
+    call ESMF_IO_YAMLContentGet(ioyaml, content=stringList, rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
+
+    ! create new FreeFormat object using content from YAML parser
+    NUOPC_FreeFormatCreateReadYAML = &
+      NUOPC_FreeFormatCreateDefault(stringList=stringList, rc=localrc)
+    if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
+
+    ! free up memory
+    deallocate(stringList, stat=stat)
+    if (ESMF_LogFoundAllocError(statusToCheck=stat, &
+      msg="stringList.", &
+      line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
+
+  end function
+  !-----------------------------------------------------------------------------
+
+  !-----------------------------------------------------------------------------
+!BOPI
+! !IROUTINE: NUOPC_FreeFormatCreate - Create a FreeFormat object from file
+! !INTERFACE:
+  ! Private name; call using NUOPC_FreeFormatCreate()
+  function NUOPC_FreeFormatCreateReadFile(fileName, iofmt, label, relaxedflag, rc)
+! !RETURN VALUE:
+    type(NUOPC_FreeFormat) :: NUOPC_FreeFormatCreateReadFile
+! !ARGUMENTS:
+    character(len=*),      intent(in)            :: fileName
+    type(ESMF_IOFmt_flag), intent(in),  optional :: iofmt
+    character(len=*),      intent(in),  optional :: label
+    logical,               intent(in),  optional :: relaxedflag
+    integer,               intent(out), optional :: rc
+! !DESCRIPTION:
+!   Create a new FreeFormat object from a file with given {\tt iofmt}.
+!   Supported values for {\tt iofmt} are: {\tt ESMF\_IOFMT\_CONFIG} 
+!   (ESMF Config file) and {\tt ESMF\_IOFMT\_YAML} (YAML file).
+!   If {\tt ESMF\_IOFMT\_CONFIG} is used, the optional argument {\tt label}
+!   must be provided, and {\tt relaxedflag} may be used.
+!   If I/O format is {\tt ESMF\_IOFMT\_YAML}, both {\tt label} and 
+!   {\tt relaxedflag} are ignored.
+!   If {\tt iofmt} is not provided, it defaults to {\tt ESMF\_IOFMT\_CONFIG}.
+!
+!EOPI
+  !-----------------------------------------------------------------------------
+    integer               :: localrc
+    type(ESMF_IOFmt_flag) :: iofmtOpt
+    type(ESMF_Config)     :: config
+    type(ESMF_IO_YAML)    :: ioyaml
+
+    if (present(rc)) rc = ESMF_SUCCESS
+
+    ! initialize return members
+    NUOPC_FreeFormatCreateReadFile%stringList => NULL()
+    NUOPC_FreeFormatCreateReadFile%count      =  0;
+
+    ! set defaults
+    iofmtOpt = ESMF_IOFMT_CONFIG
+    if (present(iofmt)) iofmtOpt = iofmt
+
+    if (iofmtOpt == ESMF_IOFMT_CONFIG) then
+
+      ! create config object
+      config = ESMF_ConfigCreate(rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
+
+      ! read config from file
+      call ESMF_ConfigLoadFile(config, fileName, rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
+
+      ! create FreeFormat object by parsing config
+      NUOPC_FreeFormatCreateReadFile = &
+        NUOPC_FreeFormatCreateRead(config, label, &
+        relaxedflag=relaxedflag, rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
+
+      ! free up memory
+      call ESMF_ConfigDestroy(config, rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
+
+    else if (iofmtOpt == ESMF_IOFMT_YAML) then
+
+      ! create IO_YAML object
+      ioyaml = ESMF_IO_YAMLCreate(rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
+
+      ! read YAML into IO_YAML object
+      call ESMF_IO_YAMLRead(ioyaml, fileName, rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
+
+      ! parse YAML doc as NUOPC Field Dictionary
+      call ESMF_IO_YAMLParse(ioyaml, parseflag=ESMF_IOYAML_PARSE_NUOPCFD, &
+        rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
+
+      ! create FreeFormat object from parsed content
+      NUOPC_FreeFormatCreateReadFile = &
+        NUOPC_FreeFormatCreateReadYAML(ioyaml, rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
+
+      ! free up memory
+      call ESMF_IO_YAMLDestroy(ioyaml, rc=localrc)
+      if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
+
+    else
+
+      ! I/O format not implemented
+      call ESMF_LogSetError(ESMF_RC_NOT_IMPL, &
+        msg="unsupported iofmt", &
+        line=__LINE__, file=FILENAME, rcToReturn=rc)
+      return  ! bail out
+
+    end if
 
   end function
   !-----------------------------------------------------------------------------
@@ -479,6 +710,7 @@ module NUOPC_FreeFormatDef
 !   Write a FreeFormat object to the default Log.
 !EOP
   !-----------------------------------------------------------------------------
+    integer   :: localrc
     integer   :: i
     
     if (present(rc)) rc = ESMF_SUCCESS
@@ -486,9 +718,9 @@ module NUOPC_FreeFormatDef
     ! loop over lines
     if (associated(freeFormat%stringList)) then
       do i=1, freeFormat%count
-        call ESMF_LogWrite(freeFormat%stringList(i), ESMF_LOGMSG_INFO, rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
-          line=__LINE__, file=FILENAME)) return  ! bail out
+        call ESMF_LogWrite(freeFormat%stringList(i), ESMF_LOGMSG_INFO, rc=localrc)
+        if (ESMF_LogFoundError(rcToCheck=localrc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=FILENAME, rcToReturn=rc)) return  ! bail out
       enddo
     endif
 
@@ -514,7 +746,7 @@ module NUOPC_FreeFormatDef
     ! loop over lines
     if (associated(freeFormat%stringList)) then
       do i=1, freeFormat%count
-        print *, freeFormat%stringList(i)
+        print *, trim(freeFormat%stringList(i))
       enddo
     endif
 

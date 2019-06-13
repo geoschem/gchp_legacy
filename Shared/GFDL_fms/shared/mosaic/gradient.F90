@@ -1,8 +1,9 @@
 module gradient_mod
-! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">
+! <CONTACT EMAIL="Zhi.Liang@noaa.gov">
 !   Zhi Liang
 ! </CONTACT>
 
+! <HISTORY SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/"/>
 
 ! <OVERVIEW>
 !    <TT>gradient_mod</TT> implements some utility routines to calculate gradient.
@@ -23,8 +24,8 @@ private
 public :: gradient_cubic
 public :: calc_cubic_grid_info
 
-character(len=128) :: version = '$Id$'
-character(len=128) :: tagname = '$Name$'
+! Include variable "version" to be written to log file.
+#include<file_version.h>
 
 contains
 

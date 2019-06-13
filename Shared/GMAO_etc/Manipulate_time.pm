@@ -870,6 +870,11 @@ sub get_hours{
         if ( "$syntime" eq "all" ) { @hlist = ( "00$mm","06$mm","12$mm","18$mm" ) }
         else                       { @hlist = ( "$syntime$mm" ) }
     }
+    elsif ( $type eq "bkg03"){
+        if ( "$hm" eq "m" ){ $mm = "00";}
+        if ( "$syntime" eq "all" ) { @hlist = ( "03$mm","09$mm","15$mm","21$mm" ) }
+        else                       { @hlist = ( "$syntime$mm" ) }
+    }
     elsif ($type eq "inst2d") {
         if ( "$hm" eq "m" ){ $mm = "00" }
         if ( $finalize ) { @hlist = ( "21"."$mm") }
@@ -906,7 +911,7 @@ sub get_hours{
             if ( "$syntime" eq "18" )  { @hlist = ( "16$mm","19$mm" ) }
         }
     }
-    elsif ($type eq "tavg1"){
+    elsif (($type eq "tavg1")||($type eq "statD")){
         if ("$hm" eq "m" ){ $mm = "30";}
 
         if ( $finalize ) { @hlist = ( "21$mm","22$mm","23$mm" ) }

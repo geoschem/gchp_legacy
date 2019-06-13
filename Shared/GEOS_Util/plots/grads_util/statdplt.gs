@@ -12,8 +12,19 @@ function stdiff (args)
 ****        Variance           =>  VAR  =   1/N * SUM[ (F-A-BIAS)**2 ]      ****
 ****        Standard Deviation =>  STD  = SQRT[ VAR ]                       ****
 ****                                                                        ****
-****        Mean Square Error  =   Variance + BIAS**2                       ****
-****                      MSE  =   VAR      + MES                           ****
+****        F Mean             =>  FBAR =   1/N * SUM[  F  ]                ****
+****        A Mean             =>  ABAR =   1/N * SUM[  A  ]                ****
+****        F Variance         =>  FVAR =   1/N * SUM[ (F-FBAR)**2 ]        ****
+****        A Variance         =>  AVAR =   1/N * SUM[ (A-ABAR)**2 ]        ****
+****        CoVariance         =>  COV  =   1/N * SUM[ (F-FBAR)*(A-ABAR) ]  ****
+****        Amplitude Error    =>  AMP  = [ FSTD - ASTD ]**2                ****
+****                                    + [ FBAR - ABAR ]**2                ****
+****        Phase     Error    =>  PHZ  = 2*[ FSTD*ASTD - COV ]             ****
+****                                                                        ****
+****        Mean Square Error  =   BIAS**2         + Variance               ****
+****                           =   Amplitude Error + Phase Error            ****
+****                      MSE  =   VAR + MES                                ****
+****                           =   AMP + PHZ                                ****
 ****                                                                        ****
 ********************************************************************************
 
@@ -22,7 +33,7 @@ type  = subwrd  (args,2)
 exp1  = subwrd  (args,3)
 exp2  = subwrd  (args,4)
 numf  = subwrd  (args,5)
-cint  = subwrd  (args,6)
+flag  = subwrd  (args,6)
  
 'fixname 'exp1
           tag1 = result
@@ -71,11 +82,11 @@ if( hour < 100 )    ; hour = 0hour ; endif
 ********************************************************************************
 *         TVAL = SQRT(N) x NAME_DIFF_MEAN / NAME_DIFF_STD     *
 *                                                             *
-*       astudt (N-1) 0.20  [90% Confidence]                   *
-*       astudt (N-1) 0.10  [95% Confidence]                   *
-*       astudt (N-1) 0.08  [96% Confidence]                   *
-*       astudt (N-1) 0.04  [98% Confidence]                   *
-*       astudt (N-1) 0.02  [99% Confidence]                   *
+*       astudt (N-1) 0.10  [90% Confidence]                   *
+*       astudt (N-1) 0.05  [95% Confidence]                   *
+*       astudt (N-1) 0.04  [96% Confidence]                   *
+*       astudt (N-1) 0.02  [98% Confidence]                   *
+*       astudt (N-1) 0.01  [99% Confidence]                   *
 *                                                             *
 *       q defval astudtout 1 1                                *
 *       critval=subwrd(result,3)                              *
@@ -83,64 +94,95 @@ if( hour < 100 )    ; hour = 0hour ; endif
 *       and then CONTOUR TVAL using CLEVS = critval          
 ********************************************************************************
 
+    tipe = type
+if( type = Dres ) 
+    type = Dmse
+endif
+
 'set gxout shaded'
 
-'set t 'tdim
-'define  del'type' = 'field''type''tag2
-'define adel'type' = abs(del'type')'
-'define sign'type' = maskout( del'type'/adel'type',adel'type'-1e-20)'
+* ---------------------------------------------------------------
 
-if( type = mes | type = var | type = mse )
-   'define sqrt'type' = sqrt(adel'type')*sign'type
-   'define diff = regrid2( sqrt'type',.25, .25, bs_p1, 0, -90 )'
-else
-   'define diff = regrid2(  del'type',.25, .25, bs_p1, 0, -90 )'
+'set t 'tdim
+'define delDmes = 'field'Dmes'tag2
+'define delDvar = 'field'Dvar'tag2
+'define delDamp = 'field'Damp'tag2
+'define delDphz = 'field'Dphz'tag2
+'define delDmse = 'field'Dmse'tag2
+
+if( tipe = Dres )
+    if( flag = 1 )
+       'define  delDmse = delDmse - delDmes - delDvar'
+    endif
+    if( flag = 2 )
+       'define  delDmse = delDmse - delDamp - delDphz'
+    endif
 endif
-       dummy  = getstuff( 'diff' )
+
+'define dumm = regrid2(  delDmse,.25, .25, bs_p1, 0, -90 )'
+       dummy  = getstuff( 'dumm' )
    diff_cint  = subwrd(dummy,1)
    diff_scale = subwrd(dummy,2)
         diffm = subwrd(dummy,3)
 
-'set t 'time
-'define  del'type' = 'field''type''tag2
-'define adel'type' = abs(del'type')'
-'define sign'type' = maskout( del'type'/adel'type',adel'type'-1e-20)'
+* ---------------------------------------------------------------
 
-if( type = mes | type = var | type = mse )
-   'define sqrt'type' = sqrt(adel'type')*sign'type
-   'define diff = regrid2( sqrt'type',.25, .25, bs_p1, 0, -90 )'
-else
-   'define diff = regrid2(  del'type',.25, .25, bs_p1, 0, -90 )'
+'set t 'time
+'define delDmes = 'field'Dmes'tag2
+'define delDvar = 'field'Dvar'tag2
+'define delDamp = 'field'Damp'tag2
+'define delDphz = 'field'Dphz'tag2
+'define delDmse = 'field'Dmse'tag2
+
+if( tipe = Dres )
+    if( flag = 1 )
+       'define  delDmse = delDmse - delDmes - delDvar'
+    endif
+    if( flag = 2 )
+       'define  delDmse = delDmse - delDamp - delDphz'
+    endif
 endif
+
+'define diff = regrid2(  del'type',.25, .25, bs_p1, 0, -90 )'
 
 * Compute Confidence Interval
 * ---------------------------
     numfm1 = numf - 1
 
-if( type = dbia ) ; 'define tval = sqrt('numfm1') * 'field'Zbia'tag2' / sqrt('field'bia'tag2')' ; endif
-if( type = drms ) ; 'define tval = sqrt('numfm1') * 'field'Zmse'tag2' / sqrt('field'mse'tag2')' ; endif
-if( type = dstd ) ; 'define tval = sqrt('numfm1') * 'field'Zvar'tag2' / sqrt('field'var'tag2')' ; endif
+if( type = Dmse ) ; 'define tval = sqrt('numfm1') * 'field'Dmse'tag2' / sqrt('field'DDmse'tag2')' ; endif
+if( type = Dmes ) ; 'define tval = sqrt('numfm1') * 'field'Dmes'tag2' / sqrt('field'DDmse'tag2')' ; endif
+if( type = Dvar ) ; 'define tval = sqrt('numfm1') * 'field'Dvar'tag2' / sqrt('field'DDmse'tag2')' ; endif
+if( type = Damp ) ; 'define tval = sqrt('numfm1') * 'field'Damp'tag2' / sqrt('field'DDmse'tag2')' ; endif
+if( type = Dphz ) ; 'define tval = sqrt('numfm1') * 'field'Dphz'tag2' / sqrt('field'DDmse'tag2')' ; endif
 
    'define tval = regrid2( tval,0.25,0.25,bs_p1,0,-90 )'
 
          ttest = 0.10
-    confidence = 100 * (1-(ttest/2))
+    confidence = 100 * (1-ttest)
    'astudt 'numfm1' 'ttest
    'q defval astudtout 1 1'
       critval=subwrd(result,3)
       say 'critval: 'critval
 
+if( tipe = Dres )
+   'shades 'diff_cint
+else
+   'shades 'diff_cint' -quad'
+            diff_cint = result
+endif
+
 'define  diff0 = maskout( maskout( diff*'diff_scale',abs(diff*'diff_scale')-'diff_cint' ), abs(tval)-'critval')'
 'define  diff  =          maskout( diff*'diff_scale',abs(diff*'diff_scale')-'diff_cint' )'
 
-'shades 'diff_cint
-'d       diff'
+'d diff'
 
 * Create New File containing Ratio: DIFF/DIFF0 for contouring region of significance
 * ----------------------------------------------------------------------------------
-'define diffr = diff/diff0'
 'getinfo file'
-         curfile = result
+      curfile = result
+
+if( tipe != Dres )
+'define diffr = diff/diff0'
 'getinfo undef'
          undef = result
 'set undef 0.0'
@@ -184,6 +226,7 @@ if( type = dstd ) ; 'define tval = sqrt('numfm1') * 'field'Zvar'tag2' / sqrt('fi
 'set clevs 0.5'
 'd diffr'
 'close 'diffile
+endif
 
 * Create New File containing DIFF with zeroes rather than UNDEF for Global Mean Metrics
 * -------------------------------------------------------------------------------------
@@ -252,16 +295,21 @@ if( type = rmes ) ; 'cbarn -scale 0.55 -xmid 2.9 -ymid 4.25 -scaley 0.8 ' ; endi
 if( type = std  ) ; 'cbarn -scale 0.55 -xmid 8.4 -ymid 4.25 -scaley 0.8 ' ; endif
 if( type = rms  ) ; 'cbarn -scale 0.55 -xmid 5.6 -ymid 0.30 -scaley 0.8 ' ; endif
 
-if( type = dbia ) ; 'cbarn -scale 0.55 -xmid 2.9 -ymid 4.25 -scaley 0.8 ' ; endif
-if( type = dstd ) ; 'cbarn -scale 0.55 -xmid 8.4 -ymid 4.25 -scaley 0.8 ' ; endif
-if( type = drms ) ; 'cbarn -scale 0.55 -xmid 5.6 -ymid 0.30 -scaley 0.8 ' ; endif
+if( type = Dmes ) ; 'cbarn -scale 0.55 -xmid 2.9 -ymid 4.25 -scaley 0.8 ' ; endif
+if( type = Damp ) ; 'cbarn -scale 0.55 -xmid 2.9 -ymid 4.25 -scaley 0.8 ' ; endif
+if( type = Dvar ) ; 'cbarn -scale 0.55 -xmid 8.4 -ymid 4.25 -scaley 0.8 ' ; endif
+if( type = Dphz ) ; 'cbarn -scale 0.55 -xmid 8.4 -ymid 4.25 -scaley 0.8 ' ; endif
+if( tipe = Dmse ) ; 'cbarn -scale 0.55 -xmid 2.9 -ymid 0.30 -scaley 0.8 ' ; endif
+if( tipe = Dres ) ; 'cbarn -scale 0.55 -xmid 8.4 -ymid 0.30 -scaley 0.8 ' ; endif
 
-'getinfo month' 
-         month = result
+'run getenv MONTHLAB'
+            month = result
+say 'MONTH_LABEL: 'month
+
 'getinfo year'
          year  = result
 
-if( type = dbia )
+if( type = Dmes )
 'set vpage off'
 'set string 1 l 5'
 'set strsiz 0.08'
@@ -270,16 +318,34 @@ if( type = dbia )
 y2 = y1 - 0.15
 y3 = y2 - 0.15
 y4 = y3 - 0.15
-'draw string 'x1' 'y1' NHEM: 'NHEM
-'draw string 'x1' 'y2' SHEM: 'SHEM
-'draw string 'x1' 'y3' GLOB: 'GLOB
-'draw string 'x1' 'y4' TROP: 'TROP
+*'draw string 'x1' 'y1' NHEM: 'NHEM
+*'draw string 'x1' 'y2' SHEM: 'SHEM
+*'draw string 'x1' 'y3' GLOB: 'GLOB
+*'draw string 'x1' 'y4' TROP: 'TROP
 'set string 1 c 6'
-'set strsiz 0.13'
-'draw string 3.00  7.9 'level'-mb 'field'  |BIAS`b1`n|-|BIAS`b2`n|  (x10**'diffm')'
+'set strsiz 0.11'
+'draw string 3.00  7.9 (BIAS)`a2`n:  MES`b1`n-MES`b2`n  (x10**'diffm')'
 endif
 
-if( type = dstd )
+if( type = Damp )
+'set vpage off'
+'set string 1 l 5'
+'set strsiz 0.08'
+     x1 = 0.70
+     y1 = 3.70
+y2 = y1 - 0.15
+y3 = y2 - 0.15
+y4 = y3 - 0.15
+*'draw string 'x1' 'y1' NHEM: 'NHEM
+*'draw string 'x1' 'y2' SHEM: 'SHEM
+*'draw string 'x1' 'y3' GLOB: 'GLOB
+*'draw string 'x1' 'y4' TROP: 'TROP
+'set string 1 c 6'
+'set strsiz 0.11'
+'draw string 3.00  7.9 AMPL Error Difference  (x10**'diffm')'
+endif
+
+if( type = Dvar )
 'set vpage off'
 'set string 1 l 5'
 'set strsiz 0.08'
@@ -288,16 +354,34 @@ if( type = dstd )
 y2 = y1 - 0.15
 y3 = y2 - 0.15
 y4 = y3 - 0.15
-'draw string 'x1' 'y1' NHEM: 'NHEM
-'draw string 'x1' 'y2' SHEM: 'SHEM
-'draw string 'x1' 'y3' GLOB: 'GLOB
-'draw string 'x1' 'y4' TROP: 'TROP
+*'draw string 'x1' 'y1' NHEM: 'NHEM
+*'draw string 'x1' 'y2' SHEM: 'SHEM
+*'draw string 'x1' 'y3' GLOB: 'GLOB
+*'draw string 'x1' 'y4' TROP: 'TROP
 'set string 1 c 6'
-'set strsiz 0.13'
-'draw string 8.355 7.9 'level'-mb 'field'  (Std_Dev`b1`n-Std_Dev`b2`n)  (x10**'diffm')'
+'set strsiz 0.11'
+'draw string 8.355  7.9 (Std_Dev)`a2`n:  VAR`b1`n- VAR`b2`n  (x10**'diffm')'
 endif
 
-if( type = drms )
+if( type = Dphz )
+'set vpage off'
+'set string 1 l 5'
+'set strsiz 0.08'
+     x1 = 9.40
+     y1 = 3.70
+y2 = y1 - 0.15
+y3 = y2 - 0.15
+y4 = y3 - 0.15
+*'draw string 'x1' 'y1' NHEM: 'NHEM
+*'draw string 'x1' 'y2' SHEM: 'SHEM
+*'draw string 'x1' 'y3' GLOB: 'GLOB
+*'draw string 'x1' 'y4' TROP: 'TROP
+'set string 1 c 6'
+'set strsiz 0.11'
+'draw string 8.355  7.9 PHASE Error Difference  (x10**'diffm')'
+endif
+
+if( tipe = Dmse )
 'set vpage off'
 'set string 1 l 5'
 'set strsiz 0.08'
@@ -306,13 +390,32 @@ if( type = drms )
 y2 = y1 - 0.15
 y3 = y2 - 0.15
 y4 = y3 - 0.15
-'draw string 'x1' 'y1' NHEM: 'NHEM
-'draw string 'x1' 'y2' SHEM: 'SHEM
-'draw string 'x1' 'y3' GLOB: 'GLOB
-'draw string 'x1' 'y4' TROP: 'TROP
+*'draw string 'x1' 'y1' NHEM: 'NHEM
+*'draw string 'x1' 'y2' SHEM: 'SHEM
+*'draw string 'x1' 'y3' GLOB: 'GLOB
+*'draw string 'x1' 'y4' TROP: 'TROP
 'set string 1 c 6'
 'set strsiz 0.13'
-'draw string 5.650 3.9 (RMS`b1`n-RMS`b2`n)  (x10**'diffm')'
+'draw string 3.000 3.9 (RMS)`a2`n:  MSE`b1`n-MSE`b2`n  (x10**'diffm')'
+endif
+
+if( tipe = Dres )
+'set vpage off'
+'set string 1 l 5'
+'set strsiz 0.08'
+     x1 = 8.40
+     y1 = 1.62
+y2 = y1 - 0.15
+y3 = y2 - 0.15
+y4 = y3 - 0.15
+*'draw string 'x1' 'y1' NHEM: 'NHEM
+*'draw string 'x1' 'y2' SHEM: 'SHEM
+*'draw string 'x1' 'y3' GLOB: 'GLOB
+*'draw string 'x1' 'y4' TROP: 'TROP
+'set string 1 c 6'
+'set strsiz 0.10'
+if( flag = 1 ) ; 'draw string 8.355 3.9 (RMS)`a2`n-[ (BIAS)`a2`n+(STD)`a2`n ] Residual (x10**'diffm')'  ; endif
+if( flag = 2 ) ; 'draw string 8.355 3.9 (RMS)`a2`n-[ AMPLITUDE + PHASE Error ] Residual (x10**'diffm')' ; endif
 endif
 
 if( type = var)
@@ -324,23 +427,17 @@ if( type = var)
 'draw string 5.650 3.9 SQRT[ RMS`a2`n`b1`n-RMS`a2`n`b2`n ]'
 endif
 
-if( type = std | type = var | type = dstd )
+if( type = std | type = var | type = Dvar | type = Dphz )
 'set vpage off'
 'set string 1 c 6'
 
-'set strsiz 0.165'
-'draw string 5.50 8.30 'month' 'year'   Forecast Hour: 'hour
-
-'set string 1 l 6'
-'set strsiz 0.15'
-'draw string 0.38 2.46 1: 'exp2
-'draw string 0.38 2.00 2: 'exp1
+'set strsiz 0.16'
+'run uppercase 'field
+                UFIELD = result
+'draw string 5.50 8.40 'level'-mb 'UFIELD'   'month' 'year'   Forecast Hour: 'hour
 'set strsiz 0.12'
-'draw string 0.75 2.23 minus'
-'set strsiz 0.13'
-'draw string 0.38 1.50 'numf'-member Ensemble'
-'set strsiz 0.09'
-'draw string 0.40 1.20 (Contour > 'confidence'% Confidence)'
+'draw string 5.50 8.18 1:'exp2' minus 2:'exp1'  'numf'-member Ensemble   (Contour > 'confidence'% Confidence)'
+
 endif
 
 return

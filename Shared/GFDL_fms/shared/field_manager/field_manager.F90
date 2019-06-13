@@ -4,23 +4,24 @@ module field_manager_mod
 #endif
 
 #ifndef MAXFIELDMETHODS_
-#define MAXFIELDMETHODS_ 150
+#define MAXFIELDMETHODS_ 300
 #endif
 
 !
-! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> William Cooke
+! <CONTACT EMAIL="William.Cooke@noaa.gov"> William Cooke
 ! </CONTACT>
 ! 
-! <REVIEWER EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Richard D. Slater
+! <REVIEWER EMAIL="Richard.Slater@noaa.gov"> Richard D. Slater
 ! </REVIEWER>
 !
-! <REVIEWER EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Matthew Harrison
+! <REVIEWER EMAIL="Matthew.Harrison@noaa.gov"> Matthew Harrison
 ! </REVIEWER>
 !
-! <REVIEWER EMAIL="GFDL.Climate.Model.Info@noaa.gov"> John P. Dunne
+! <REVIEWER EMAIL="John.Dunne@noaa.gov"> John P. Dunne
 ! </REVIEWER>
 !
 ! <HISTORY
+!  SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/shared/field_manager/field_manager.F90"/>
 
 ! <OVERVIEW>
 
@@ -180,9 +181,8 @@ use    fms_mod, only : lowercase,   &
 implicit none
 private
 
-
-character(len=128) :: version = '$Id$'
-character(len=128) :: tagname = '$Name$'
+! Include variable "version" to be written to log file.
+#include<file_version.h>
 logical            :: module_is_initialized  = .false.
 
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -462,12 +462,12 @@ integer,           parameter :: MAX_FIELD_METHODS = MAXFIELDMETHODS_
 !        Private type definitions
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
-type, private :: fld_type !{
+type, private :: field_mgr_type !{
   character(len=fm_field_name_len)                    :: field_type
   character(len=fm_string_len)                    :: field_name
   integer                                             :: model, num_methods
   type(method_type)                                   :: methods(MAX_FIELD_METHODS)
-end type fld_type !}
+end type field_mgr_type !}
 
 type, private :: field_names_type !{
   character(len=fm_field_name_len)                    :: fld_type
@@ -502,7 +502,7 @@ end type field_def  !}
 !        Private types
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
-type(fld_type), private :: fields(MAX_FIELDS)
+type(field_mgr_type), private :: fields(MAX_FIELDS)
 
 
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -613,6 +613,16 @@ if (module_is_initialized) then
    if(present(nfields)) nfields = num_fields
    return
 endif
+
+#ifdef PRESERVE_UNIT_CASE
+! <ERROR MSG="Preserving the unit's case is experimental." STATUS="NOTE">
+!   The case of the units in the field_table is preserved.  This option is
+!   still experimental.  It is possible other model components expect the units
+!   to be lowercase.  Please notify the developers if any issues are discovered.
+! </ERROR>
+call mpp_error(NOTE,trim(note_header)//"Preserving the unit's case is experimental.")
+#endif
+
 num_fields = 0
 call initialize
 
@@ -641,7 +651,7 @@ endif
 
 call mpp_open(iunit,file=trim(tbl_name), form=MPP_ASCII, action=MPP_RDONLY)
 !write_version_number should precede all writes to stdlog from field_manager
-call write_version_number (version, tagname)
+call write_version_number("FIELD_MANAGER_MOD", version)
 log_unit = stdlog()
 do while (.TRUE.)
    read(iunit,'(a)',end=89,err=99) record
@@ -803,8 +813,22 @@ do while (.TRUE.)
         case(4)
 ! If there is no control string then the last string can be omitted and there are only 4 '"' in the record.
           read(record,*,end=99,err=99) text_method_short
-          fields(num_fields)%methods(m)%method_type = lowercase(trim(text_method_short%method_type))
-          fields(num_fields)%methods(m)%method_name = lowercase(trim(text_method_short%method_name))
+          fields(num_fields)%methods(m)%method_type =&
+               & lowercase(trim(text_method_short%method_type))
+#ifdef PRESERVE_UNIT_CASE
+
+          if ( trim(fields(num_fields)%methods(m)%method_type) == 'units' ) then
+             ! Do not lowercase if units
+             fields(num_fields)%methods(m)%method_name =&
+                  & trim(text_method_short%method_name)
+          else
+             fields(num_fields)%methods(m)%method_name =&
+                  & lowercase(trim(text_method_short%method_name))
+          end if
+#else
+          fields(num_fields)%methods(m)%method_name =&
+               & lowercase(trim(text_method_short%method_name))
+#endif
           fields(num_fields)%methods(m)%method_control = " "
 
           type_str    = text_method_short%method_type
@@ -1272,16 +1296,12 @@ subroutine field_manager_end
 !        local parameters
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 character(len=17), parameter :: sub_name     = 'field_manager_end'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
 character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
                                                '(' // trim(sub_name) // '): '
 
 integer :: unit 
 
-call write_version_number (version, tagname)
+call write_version_number("FIELD_MANAGER_MOD", version)
 if ( mpp_pe() == mpp_root_pe() ) then
    unit = stdlog()
    write (unit,'(/,(a))') trim(note_header), 'Exiting field_manager, have a nice day ...'
@@ -1314,13 +1334,6 @@ character(len=*), intent(inout) :: name
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local parameters
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-character(len=18), parameter :: sub_name     = 'strip_front_blanks'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
-                                               '(' // trim(sub_name) // '): '
 
 integer :: i, j
 
@@ -1372,13 +1385,6 @@ character(len=*), intent(in) :: field_name
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local parameters
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-character(len=16), parameter :: sub_name     = 'find_field_index'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
-                                               '(' // trim(sub_name) // '): '
 integer :: i
 
 find_field_index_old = NO_FIELD
@@ -1407,13 +1413,6 @@ character(len=*), intent(in) :: field_name
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local parameters
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-character(len=16), parameter :: sub_name     = 'find_field_index'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
-                                               '(' // trim(sub_name) // '): '
 integer :: i
 
 find_field_index_new = NO_FIELD
@@ -1469,10 +1468,6 @@ integer, intent(out) :: model, num_methods
 character(len=14), parameter :: sub_name     = 'get_field_info'
 character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
                                                '(' // trim(sub_name) // '): '
-character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
-                                               '(' // trim(sub_name) // '): '
 
 !   <ERROR MSG="invalid field index" STATUS="FATAL">
 !     The field index is invalid because it is less than 1 or greater than the 
@@ -1523,10 +1518,6 @@ type(method_type) ,intent(inout) :: method
 character(len=16), parameter :: sub_name     = 'get_field_method'
 character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
                                                '(' // trim(sub_name) // '): '
-character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
-                                               '(' // trim(sub_name) // '): '
 
 !   <ERROR MSG="invalid field index" STATUS="FATAL">
 !     The field index is invalid because it is less than 1 or greater than the 
@@ -1576,10 +1567,6 @@ type(method_type),intent(inout) :: methods(:)
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 character(len=17), parameter :: sub_name     = 'get_field_methods'
 character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
                                                '(' // trim(sub_name) // '): '
 
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -1764,8 +1751,6 @@ character(len=64), parameter :: error_header = '==>Error from ' // trim(module_n
                                                '(' // trim(sub_name) // '): '
 character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
                                                '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
-                                               '(' // trim(sub_name) // '): '
 integer                      :: ier
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local variables
@@ -1902,8 +1887,6 @@ integer, intent(in)                 :: depth
 integer,                  parameter :: max_depth    = 128
 character(len=max_depth), parameter :: blank        = '    '
 character(len=9),  parameter :: sub_name     = 'dump_list'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
 character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
                                                '(' // trim(sub_name) // '): '
 character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
@@ -2155,16 +2138,6 @@ character(len=*), intent(out) :: path
 character(len=*), intent(out) :: base
 
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-!        local parameters
-!+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-character(len=9),  parameter :: sub_name     = 'find_base'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
-                                               '(' // trim(sub_name) // '): '
-!+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local variables
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
@@ -2268,16 +2241,6 @@ character(len=*), intent(in) :: name
 type (field_def), pointer    :: this_list_p
 
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-!        local parameters
-!+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-character(len=10), parameter :: sub_name     = 'find_field'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
-                                               '(' // trim(sub_name) // '): '
-!+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local variables
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 type (field_def), pointer, save    :: temp_p 
@@ -2358,16 +2321,6 @@ character(len=*), intent(in)  :: name
 character(len=*), intent(out) :: head
 character(len=*), intent(out) :: rest
 
-!+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-!        local parameters
-!+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-character(len=9),  parameter :: sub_name     = 'find_head'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
-                                               '(' // trim(sub_name) // '): '
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local variables
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -2464,8 +2417,6 @@ logical,          intent(in)     :: create
 !        local parameters
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 character(len=9),  parameter :: sub_name     = 'find_list'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
 character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
                                                '(' // trim(sub_name) // '): '
 character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
@@ -2621,16 +2572,6 @@ logical        :: success
 character(len=*), intent(in)  :: name
 
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-!        local parameters
-!+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-character(len=14), parameter :: sub_name     = 'fm_change_list'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
-                                               '(' // trim(sub_name) // '): '
-!+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local variables
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 type (field_def), pointer, save :: temp_p 
@@ -2700,11 +2641,7 @@ character(len=*), intent(in)  :: name
 !        local parameters
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 character(len=14), parameter :: sub_name     = 'fm_change_root'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
 character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
                                                '(' // trim(sub_name) // '): '
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local variables
@@ -2821,11 +2758,7 @@ logical,          intent(in), optional :: recursive
 !        local parameters
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 character(len=12), parameter :: sub_name     = 'fm_dump_list'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
 character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
                                                '(' // trim(sub_name) // '): '
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local variables
@@ -2921,16 +2854,6 @@ logical        :: success
 character(len=*), intent(in) :: name
 
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-!        local parameters
-!+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-character(len=9),  parameter :: sub_name     = 'fm_exists'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
-                                               '(' // trim(sub_name) // '): '
-!+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local variables
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 type (field_def), pointer, save :: dummy_p 
@@ -2989,11 +2912,7 @@ character(len=*), intent(in) :: name
 !        local parameters
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 character(len=12), parameter :: sub_name     = 'fm_get_index'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
 character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
                                                '(' // trim(sub_name) // '): '
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local variables
@@ -3070,16 +2989,6 @@ character(len=fm_path_name_len) :: path
 !        arguments
 !
 
-!+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-!        local parameters
-!+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-character(len=19), parameter :: sub_name     = 'fm_get_current_list'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
-                                               '(' // trim(sub_name) // '): '
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local variables
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -3171,11 +3080,7 @@ character(len=*), intent(in) :: name
 !        local parameters
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 character(len=13), parameter :: sub_name     = 'fm_get_length'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
 character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
                                                '(' // trim(sub_name) // '): '
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local variables
@@ -3268,11 +3173,7 @@ character(len=*), intent(in) :: name
 !        local parameters
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 character(len=11), parameter :: sub_name     = 'fm_get_type'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
 character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
                                                '(' // trim(sub_name) // '): '
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local variables
@@ -3370,11 +3271,7 @@ integer,          intent(in), optional :: index
 !        local parameters
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 character(len=20), parameter :: sub_name     = 'fm_get_value_integer'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
 character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
                                                '(' // trim(sub_name) // '): '
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local variables
@@ -3497,11 +3394,7 @@ integer,          intent(in), optional :: index
 !        local parameters
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 character(len=20), parameter :: sub_name     = 'fm_get_value_logical'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
 character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
                                                '(' // trim(sub_name) // '): '
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local variables
@@ -3627,11 +3520,7 @@ integer,          intent(in), optional :: index
 !        local parameters
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 character(len=17), parameter :: sub_name     = 'fm_get_value_real'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
 character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
                                                '(' // trim(sub_name) // '): '
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local variables
@@ -3760,11 +3649,7 @@ integer,          intent(in), optional :: index
 !        local parameters
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 character(len=19), parameter :: sub_name     = 'fm_get_value_string'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
 character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
                                                '(' // trim(sub_name) // '): '
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local variables
@@ -3921,8 +3806,6 @@ character(len=15), parameter :: sub_name     = 'fm_intersection'
 character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
                                                '(' // trim(sub_name) // '): '
 character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
                                                '(' // trim(sub_name) // '): '
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local variables
@@ -4130,11 +4013,7 @@ integer,                         intent(out) :: index
 !        local parameters
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 character(len=17), parameter :: sub_name     = 'fm_loop_over_list'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
 character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
                                                '(' // trim(sub_name) // '): '
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local variables
@@ -4271,11 +4150,7 @@ logical,          intent(in), optional :: keep
 !        local parameters
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 character(len=11), parameter :: sub_name     = 'fm_new_list'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
 character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
                                                '(' // trim(sub_name) // '): '
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local variables
@@ -4427,11 +4302,7 @@ logical,          intent(in), optional :: append
 !        local parameters
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 character(len=20), parameter :: sub_name     = 'fm_new_value_integer'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
 character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
                                                '(' // trim(sub_name) // '): '
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local variables
@@ -4660,11 +4531,7 @@ logical,          intent(in), optional :: append
 !        local parameters
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 character(len=20), parameter :: sub_name     = 'fm_new_value_logical'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
 character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
                                                '(' // trim(sub_name) // '): '
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local variables
@@ -4899,11 +4766,7 @@ logical,          intent(in), optional :: append
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 character(len=17), parameter :: sub_name     = 'fm_new_value_real'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
 character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
                                                '(' // trim(sub_name) // '): '
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local variables
@@ -5126,11 +4989,7 @@ logical,          intent(in), optional :: append
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 character(len=19), parameter :: sub_name     = 'fm_new_value_string'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
 character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
                                                '(' // trim(sub_name) // '): '
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local variables
@@ -5367,17 +5226,6 @@ subroutine  fm_reset_loop
 !        arguments
 !
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-!        local parameters
-!+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-
-character(len=13), parameter :: sub_name     = 'fm_reset_loop'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
-                                               '(' // trim(sub_name) // '): '
-!+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local variables
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
@@ -5419,17 +5267,6 @@ subroutine  fm_return_root  !{
 !
 !        arguments
 !
-!+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-!        local parameters
-!+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-
-character(len=14), parameter :: sub_name     = 'fm_return_root'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
-                                               '(' // trim(sub_name) // '): '
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local variables
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -5494,16 +5331,6 @@ type (field_def), pointer        :: list_p
 !
 character(len=*), intent(in)     :: name
 type (field_def), pointer        :: this_list_p
-!+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-!        local parameters
-!+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-character(len=9),  parameter :: sub_name     = 'get_field'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
-                                               '(' // trim(sub_name) // '): '
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local variables
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -5574,16 +5401,6 @@ logical                          :: success
 character(len=*), intent(in)     :: oldname
 character(len=*), intent(in)     :: newname
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-!        local parameters
-!+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-character(len=14), parameter :: sub_name     = 'fm_modify_name'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
-                                               '(' // trim(sub_name) // '): '
-!+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local variables
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 character(len=fm_path_name_len)  :: path
@@ -5642,16 +5459,6 @@ subroutine initialize  !{
 !
 !        arguments
 !
-!+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-!        local parameters
-!+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-character(len=10), parameter :: sub_name     = 'initialize'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
-                                               '(' // trim(sub_name) // '): '
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local variables
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -5744,11 +5551,7 @@ character(len=*), intent(in) :: name
 !        local parameters
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 character(len=9),  parameter :: sub_name     = 'make_list'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
 character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
                                                '(' // trim(sub_name) // '): '
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local variables
@@ -5851,11 +5654,7 @@ character(len=*), intent(out) :: method_control
 !        local parameters
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 character(len=15), parameter :: sub_name     = 'fm_query_method'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
 character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
                                                '(' // trim(sub_name) // '): '
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local variables
@@ -5973,14 +5772,8 @@ character(len=*), intent(out) :: method_name, method_control
 !        local parameters
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 character(len=12), parameter :: sub_name     = 'query_method'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
 character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
                                                '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
-                                               '(' // trim(sub_name) // '): '
-integer,                  parameter :: max_depth = 64
-character(len=max_depth), parameter :: blank = '    '
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local variables
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -6127,8 +5920,6 @@ character(len=12), parameter :: sub_name     = 'fm_copy_list'
 character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
                                                '(' // trim(sub_name) // '): '
 character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
                                                '(' // trim(sub_name) // '): '
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local variables
@@ -6287,11 +6078,7 @@ character(len=*), intent(out), dimension(:) :: control
 !        local parameters
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 character(len=15), parameter :: sub_name     = 'fm_find_methods'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
 character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
                                                '(' // trim(sub_name) // '): '
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local variables
@@ -6403,17 +6190,8 @@ character(len=*), intent(out), dimension(:) :: control
 !        local parameters
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 character(len=11), parameter :: sub_name     = 'find_method'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
 character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
                                                '(' // trim(sub_name) // '): '
-character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
-                                               '(' // trim(sub_name) // '): '
-!+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-!        local parameters
-!+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-integer, parameter                          :: max_depth = 64
-character(len=max_depth), parameter         :: blank = '    '
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 !        local variables
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -6558,10 +6336,6 @@ integer, intent(in), optional :: verbosity
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 character(len=16), parameter :: sub_name     = 'fm_set_verbosity'
-character(len=64), parameter :: error_header = '==>Error from ' // trim(module_name)   //  &
-                                               '(' // trim(sub_name) // '): '
-character(len=64), parameter :: warn_header  = '==>Warning from ' // trim(module_name) //  &
-                                               '(' // trim(sub_name) // '): '
 character(len=64), parameter :: note_header  = '==>Note from ' // trim(module_name)    //  &
                                                '(' // trim(sub_name) // '): '
 !+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+

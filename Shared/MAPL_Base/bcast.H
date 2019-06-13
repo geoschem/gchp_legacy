@@ -1,7 +1,11 @@
-! $Id: bcast.H,v 1.4 2015-03-03 17:00:48 atrayano Exp $
+! $Id$
 
 #ifdef NAME_
 #undef NAME_
+#endif
+
+#ifdef NAMESTR_
+#  undef NAMESTR_
 #endif
 
 #define NAME_ MAPL_CommsBcast_
@@ -27,20 +31,22 @@
     type(ESMF_VM)                         :: vm
 
     call ESMF_DELayoutGet(layout, vm=vm, rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call ESMF_VMGet(vm, mpiCommunicator=COMM, rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MPI_Bcast(DATA, N, MPITYPE_, ROOT, COMM, STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
   END SUBROUTINE SUB_
 
 #undef NAME_
+#undef NAMESTR_
 
 #define NAME_ MAPL_CommsBcastVm_
+#define NAMESTR_ 'MAPL_CommsBcastVm_'
 
   subroutine SUB_ ( vm, DATA, N, ROOT, RC)
 
@@ -60,18 +66,20 @@
     integer                               :: comm
 
     call ESMF_VMGet(vm, mpiCommunicator=COMM, rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MPI_Bcast(DATA, N, MPITYPE_, ROOT, COMM, STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
   END SUBROUTINE SUB_
 
 #undef NAME_
+#undef NAMESTR_
 
 #undef DIMENSIONS_
 #undef RANK_
+#undef RANKSTR_
 #undef VARTYPE_
 
 

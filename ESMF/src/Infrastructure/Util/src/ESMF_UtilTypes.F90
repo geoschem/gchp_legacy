@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2018, University Corporation for Atmospheric Research,
+! Copyright 2002-2019, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -68,7 +68,7 @@
       integer, parameter :: ESMF_SUCCESS = 0, ESMF_FAILURE = -1
 
 ! General non-specific string length
-      integer, parameter :: ESMF_MAXSTR = 128
+      integer, parameter :: ESMF_MAXSTR = 256
 
 ! Maximum length of a file name, including its path.
       integer, parameter :: ESMF_MAXPATHLEN = 1024
@@ -80,14 +80,14 @@
      
 !EOPI
 
-      integer, parameter :: ESMF_VERSION_MAJOR        = 7
-      integer, parameter :: ESMF_VERSION_MINOR        = 1
+      integer, parameter :: ESMF_VERSION_MAJOR        = 8
+      integer, parameter :: ESMF_VERSION_MINOR        = 0
       integer, parameter :: ESMF_VERSION_REVISION     = 0
       integer, parameter :: ESMF_VERSION_PATCHLEVEL   = 0
-      logical, parameter :: ESMF_VERSION_PUBLIC       = .true.
-      logical, parameter :: ESMF_VERSION_BETASNAPSHOT = .false.
+      logical, parameter :: ESMF_VERSION_PUBLIC       = .false.
+      logical, parameter :: ESMF_VERSION_BETASNAPSHOT = .true.
 
-      character(*), parameter :: ESMF_VERSION_STRING  = "7.1.0r"
+      character(*), parameter :: ESMF_VERSION_STRING  = "8.0.0 beta snapshot"
 
 #if defined (ESMF_NETCDF)
       logical, parameter :: ESMF_IO_NETCDF_PRESENT = .true.
@@ -422,6 +422,24 @@
 
 !------------------------------------------------------------------------------
 !
+!     ! Typed proxy flag
+
+!     ! WARNING: must match corresponding values in ../include/ESMC_Util.h
+
+      type ESMF_ProxyFlag
+#ifndef ESMF_NO_SEQUENCE
+      sequence
+#endif
+      private
+          integer :: flag
+      end type
+
+      type(ESMF_ProxyFlag), parameter :: ESMF_PROXYYES = ESMF_ProxyFlag (1),  &
+                                         ESMF_PROXYNO  = ESMF_ProxyFlag (2),  &
+                                         ESMF_PROXYANY = ESMF_ProxyFlag (3)
+
+!------------------------------------------------------------------------------
+!
 !     ! Typed reduction operations
 
 !     ! WARNING: must match corresponding values in ../include/ESMC_Util.h
@@ -502,7 +520,8 @@
 
       type(ESMF_Pin_Flag), parameter:: &
         ESMF_PIN_DE_TO_PET        = ESMF_Pin_Flag(1), &
-        ESMF_PIN_DE_TO_VAS        = ESMF_Pin_Flag(2)
+        ESMF_PIN_DE_TO_VAS        = ESMF_Pin_Flag(2), &
+        ESMF_PIN_DE_TO_SSI        = ESMF_Pin_Flag(3)
 
 !------------------------------------------------------------------------------
 !
@@ -538,7 +557,9 @@
                            ESMF_IOFMT_NETCDF_64BIT_OFFSET = ESMF_IOFmt_Flag(2), &
                            ESMF_IOFMT_NETCDF4  = ESMF_IOFmt_Flag(3), &
                            ESMF_IOFMT_NETCDF4P = ESMF_IOFmt_Flag(4), &
-                           ESMF_IOFMT_NETCDF4C = ESMF_IOFmt_Flag(5)
+                           ESMF_IOFMT_NETCDF4C = ESMF_IOFmt_Flag(5), &
+                           ESMF_IOFMT_CONFIG   = ESMF_IOFmt_Flag(6), &
+                           ESMF_IOFMT_YAML     = ESMF_IOFmt_Flag(7)
 
 !------------------------------------------------------------------------------
 !     ! ESMF_Index_Flag
@@ -750,7 +771,8 @@
       type(ESMF_ExtrapMethod_Flag), parameter :: &
            ESMF_EXTRAPMETHOD_NONE    = ESMF_ExtrapMethod_Flag(0), &
            ESMF_EXTRAPMETHOD_NEAREST_STOD = ESMF_ExtrapMethod_Flag(1), &
-           ESMF_EXTRAPMETHOD_NEAREST_IDAVG = ESMF_ExtrapMethod_Flag(2)
+           ESMF_EXTRAPMETHOD_NEAREST_IDAVG = ESMF_ExtrapMethod_Flag(2), &
+           ESMF_EXTRAPMETHOD_CREEP = ESMF_ExtrapMethod_Flag(3)
 
 !------------------------------------------------------------------------------
       type ESMF_LineType_Flag
@@ -878,7 +900,7 @@
         ESMF_FILEFORMAT_CFGRID = ESMF_FileFormat_Flag(6), &
         ESMF_FILEFORMAT_GRIDSPEC = ESMF_FileFormat_Flag(6), &
         ESMF_FILEFORMAT_MOSAIC = ESMF_FileFormat_Flag(7), &
-        ESMF_FILEFORMAT_TILE = ESMF_FileFormat_Flag(7)
+        ESMF_FILEFORMAT_TILE = ESMF_FileFormat_Flag(8)
 
 
 !------------------------------------------------------------------------------
@@ -1010,11 +1032,15 @@
       public ESMF_InquireFlag
       public ESMF_INQUIREONLY, ESMF_NOINQUIRE
 
+      public ESMF_ProxyFlag
+      public ESMF_PROXYYES, ESMF_PROXYNO, ESMF_PROXYANY
+
       public ESMF_Direction_Flag, ESMF_DIRECTION_FORWARD, ESMF_DIRECTION_REVERSE
 
       public ESMF_IOFmt_Flag, ESMF_IOFMT_BIN, ESMF_IOFMT_NETCDF, &
              ESMF_IOFMT_NETCDF_64BIT_OFFSET, ESMF_IOFMT_NETCDF4,  &
-             ESMF_IOFMT_NETCDF4P, ESMF_IOFMT_NETCDF4C
+             ESMF_IOFMT_NETCDF4P, ESMF_IOFMT_NETCDF4C, &
+             ESMF_IOFMT_CONFIG, ESMF_IOFMT_YAML
 
       public ESMF_Index_Flag
       public ESMF_INDEX_DELOCAL, ESMF_INDEX_GLOBAL, ESMF_INDEX_USER
@@ -1031,7 +1057,7 @@
              ESMF_SYNC_NONBLOCKING
       public ESMF_Context_Flag, ESMF_CONTEXT_OWN_VM, ESMF_CONTEXT_PARENT_VM
       public ESMF_End_Flag, ESMF_END_NORMAL, ESMF_END_KEEPMPI, ESMF_END_ABORT
-      public ESMF_Pin_Flag, ESMF_PIN_DE_TO_PET, ESMF_PIN_DE_TO_VAS
+      public ESMF_Pin_Flag, ESMF_PIN_DE_TO_PET, ESMF_PIN_DE_TO_VAS, ESMF_PIN_DE_TO_SSI
       public ESMF_AttCopy_Flag, ESMF_ATTCOPY_HYBRID, ESMF_ATTCOPY_REFERENCE, &
                                ESMF_ATTCOPY_VALUE
       public ESMF_AttGetCountFlag, ESMF_ATTGETCOUNT_ATTRIBUTE, ESMF_ATTGETCOUNT_ATTPACK, &
@@ -1050,7 +1076,8 @@
 
        public ESMF_ExtrapMethod_Flag, ESMF_EXTRAPMETHOD_NONE, & 
                                       ESMF_EXTRAPMETHOD_NEAREST_STOD, &
-                                      ESMF_EXTRAPMETHOD_NEAREST_IDAVG
+                                      ESMF_EXTRAPMETHOD_NEAREST_IDAVG, &
+                                      ESMF_EXTRAPMETHOD_CREEP
 
        public ESMF_LineType_Flag,   ESMF_LINETYPE_CART, &
                                    ESMF_LINETYPE_GREAT_CIRCLE
@@ -1182,6 +1209,7 @@ interface operator (==)
   module procedure ESMF_FileFormatEq
   module procedure ESMF_FileStatusEq
   module procedure ESMF_RegridMethodEq
+  module procedure ESMF_ExtrapMethodEq
   module procedure ESMF_CoordSysEqual
   module procedure ESMF_LineTypeEqual
   module procedure ESMF_NormTypeEqual
@@ -1203,6 +1231,7 @@ interface operator (/=)
   module procedure ESMF_FileFormatNe
   module procedure ESMF_FileStatusNe
   module procedure ESMF_RegridMethodNe
+  module procedure ESMF_ExtrapMethodNe
   module procedure ESMF_CoordSysNotEqual
   module procedure ESMF_LineTypeNotEqual
   module procedure ESMF_NormTypeNotEqual
@@ -1443,29 +1472,41 @@ subroutine ESMF_dkas_string(string, dkval)
  character(len=*), intent(out) :: string
  type(ESMF_TypeKind_Flag), intent(in) :: dkval
 
+ string = '(UNKNOWN)'
 #ifndef ESMF_NO_INTEGER_1_BYTE 
  if (dkval == ESMF_TYPEKIND_I1) then
-   write(string,'(a)') 'ESMF_TYPEKIND_I1'
+   string = 'ESMF_TYPEKIND_I1'
  endif
 #endif
 #ifndef ESMF_NO_INTEGER_2_BYTE 
  if (dkval == ESMF_TYPEKIND_I2) then
-   write(string,'(a)') 'ESMF_TYPEKIND_I2'
+   string = 'ESMF_TYPEKIND_I2'
  endif
 #endif
  if (dkval == ESMF_TYPEKIND_I4) then
-   write(string,'(a)') 'ESMF_TYPEKIND_I4'
+   string = 'ESMF_TYPEKIND_I4'
  elseif (dkval == ESMF_TYPEKIND_I8) then
-   write(string,'(a)') 'ESMF_TYPEKIND_I8'
+   string = 'ESMF_TYPEKIND_I8'
  elseif (dkval == ESMF_TYPEKIND_R4) then
-   write(string,'(a)') 'ESMF_TYPEKIND_R4'
+   string = 'ESMF_TYPEKIND_R4'
  elseif (dkval == ESMF_TYPEKIND_R8) then
-   write(string,'(a)') 'ESMF_TYPEKIND_R8'
+   string = 'ESMF_TYPEKIND_R8'
  elseif (dkval == ESMF_TYPEKIND_C8) then
-   write(string,'(a)') 'ESMF_TYPEKIND_C8'
+   string = 'ESMF_TYPEKIND_C8'
  elseif (dkval == ESMF_TYPEKIND_C16) then
-   write(string,'(a)') 'ESMF_TYPEKIND_C16'
+   string = 'ESMF_TYPEKIND_C16'
+ elseif (dkval == ESMF_TYPEKIND_LOGICAL) then
+   string = 'ESMF_TYPEKIND_LOGICAL'
+ elseif (dkval == ESMF_TYPEKIND_CHARACTER) then
+   string = 'ESMF_TYPEKIND_CHARACTER'
+ elseif (dkval == ESMF_TYPEKIND_I) then
+   string = 'ESMF_TYPEKIND_I'
+ elseif (dkval == ESMF_TYPEKIND_R) then
+   string = 'ESMF_TYPEKIND_R'
+ elseif (dkval == ESMF_NOKIND) then
+   string = 'ESMF_NOKIND'
  endif
+   
 end subroutine
 
 
@@ -1811,6 +1852,23 @@ function ESMF_RegridMethodNe(rp1, rp2)
  ESMF_RegridMethodNe = (rp1%regridmethod /= rp2%regridmethod)
 end function
 
+!------------------------------------------------------------------------------
+! function to compare two ESMF_ExtrapMethod types
+
+function ESMF_ExtrapMethodEq(ep1, ep2)
+ logical ESMF_ExtrapMethodEq
+ type(ESMF_ExtrapMethod_Flag), intent(in) :: ep1, ep2
+
+ ESMF_ExtrapMethodEq = (ep1%extrapmethod == ep2%extrapmethod)
+end function
+
+function ESMF_ExtrapMethodNe(ep1, ep2)
+ logical ESMF_ExtrapMethodNe
+ type(ESMF_ExtrapMethod_Flag), intent(in) :: ep1, ep2
+
+ ESMF_ExtrapMethodNe = (ep1%extrapmethod /= ep2%extrapmethod)
+end function
+
 
 !------------------------------------------------------------------------------
 #undef  ESMF_METHOD
@@ -2127,6 +2185,8 @@ end function
 
       end function ESMF_TermOrderEq
 
+
+
 !------------------------------------------------------------------------- 
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_UtilVersionPrint"
@@ -2185,7 +2245,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         print *, ""
         print *, "Earth System Modeling Framework"
         print *, ""
-        print *, "Copyright (c) 2002-2018 University Corporation for Atmospheric Research,"
+        print *, "Copyright (c) 2002-2019 University Corporation for Atmospheric Research,"
         print *, "Massachusetts Institute of Technology, Geophysical Fluid Dynamics Laboratory,"
         print *, "University of Michigan, National Centers for Environmental Prediction,"
         print *, "Los Alamos National Laboratory, Argonne National Laboratory,"

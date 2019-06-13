@@ -17,6 +17,7 @@ TESTS_BUILD   = $(ESMF_TESTDIR)/ESMCI_IntegrateUTest \
                $(ESMF_TESTDIR)/ESMC_MBMesh_BilinearParUTest \
                $(ESMF_TESTDIR)/ESMC_MBMesh_BilinearSingleElemUTest \
                $(ESMF_TESTDIR)/ESMC_MBMesh_BilinearEdgeCasesUTest \
+               $(ESMF_TESTDIR)/ESMC_MBMesh_BilinearEdgeCases3DUTest \
                $(ESMF_TESTDIR)/ESMC_MBMesh_CreateUTest \
                $(ESMF_TESTDIR)/ESMC_MBMesh_CreateParUTest \
                $(ESMF_TESTDIR)/ESMC_MBMesh_RendezvousUTest \
@@ -27,6 +28,11 @@ TESTS_BUILD   = $(ESMF_TESTDIR)/ESMCI_IntegrateUTest \
                $(ESMF_TESTDIR)/ESMF_MeshOpUTest \
                $(ESMF_TESTDIR)/ESMF_MeshUTest
 
+# not quite ready for primetime
+               # $(ESMF_TESTDIR)/ESMC_MBMesh_DualUTest \
+
+# TESTS_BUILD   = $(ESMF_TESTDIR)/ESMC_MeshMOABGhostUTest
+
 TESTS_RUN     = RUN_ESMCI_IntegrateUTest \
                 RUN_ESMC_MeshUTest \
                 RUN_ESMC_MeshMOABUTest \
@@ -36,15 +42,20 @@ TESTS_RUN     = RUN_ESMCI_IntegrateUTest \
                 RUN_ESMC_MBMesh_BilinearParUTest \
                 RUN_ESMC_MBMesh_BilinearSingleElemUTest \
                 RUN_ESMC_MBMesh_BilinearEdgeCasesUTest \
+                RUN_ESMC_MBMesh_BilinearEdgeCases3DUTest \
                 RUN_ESMC_MBMesh_CreateUTest \
                 RUN_ESMC_MBMesh_CreateParUTest \
-                RUN_ESMC_MBMesh_RendezvousUTest \
-                RUN_ESMC_MBMesh_RendezvousParUTest \
+                RUN_ESMC_MBMesh_DualUTest \
                 RUN_ESMC_MBMesh_SearchUTest \
                 RUN_ESMC_MBMesh_UtilUTest \
                 RUN_ESMC_MBMesh_UtilParUTest \
                 RUN_ESMF_MeshOpUTest \
                 RUN_ESMF_MeshUTest
+
+# this test is not complete, should test both elem and node rendezvous 
+#   current version fails in uni on electra intel
+#                RUN_ESMC_MBMesh_RendezvousUTest \
+#                RUN_ESMC_MBMesh_RendezvousParUTest \
 
 TESTS_RUN_UNI = RUN_ESMCI_IntegrateUTestUNI \
                 RUN_ESMC_MeshUTestUNI \
@@ -53,12 +64,18 @@ TESTS_RUN_UNI = RUN_ESMCI_IntegrateUTestUNI \
                 RUN_ESMC_MBMesh_BilinearUTestUNI \
                 RUN_ESMC_MBMesh_BilinearSingleElemUTestUNI \
                 RUN_ESMC_MBMesh_BilinearEdgeCasesUTestUNI \
+                RUN_ESMC_MBMesh_BilinearEdgeCases3DUTestUNI \
                 RUN_ESMC_MBMesh_CreateUTestUNI \
-                RUN_ESMC_MBMesh_RendezvousUTestUNI \
+                RUN_ESMC_MBMesh_DualUTestUNI \
                 RUN_ESMC_MBMesh_SearchUTestUNI \
                 RUN_ESMC_MBMesh_UtilUTestUNI \
                 RUN_ESMF_MeshOpUTestUNI \
                 RUN_ESMF_MeshUTestUNI
+
+# this test is not complete, should test both elem and node rendezvous 
+#   current version fails in uni on electra intel
+#                RUN_ESMC_MBMesh_RendezvousUTestUNI \
+
 
 include ${ESMF_DIR}/makefile
 
@@ -66,6 +83,10 @@ CLEANDIRS   =
 CLEANFILES  = $(TESTS_BUILD)
 CLOBBERDIRS =
 
+
+ESMF_CXXCOMPILECPPFLAGS += -I$(ESMF_DIR)/$(LOCDIR)/../include \
+                           -I$(ESMF_DIR)/$(LOCDIR)/../include/Legacy \
+                           -I$(ESMF_DIR)/$(LOCDIR)/../include/Regridding
 
 ifeq ($(ESMF_MOAB),internal)
 ESMF_CXXCOMPILECPPFLAGS += -I$(ESMF_DIR)/$(LOCDIR)/../src/Moab \
@@ -148,6 +169,13 @@ RUN_ESMC_MBMesh_BilinearEdgeCasesUTest:
 	$(MAKE) TNAME=MBMesh_BilinearEdgeCases NP=1 ctest
 
 
+RUN_ESMC_MBMesh_BilinearEdgeCases3DUTestUNI:
+	$(MAKE) TNAME=MBMesh_BilinearEdgeCases3D NP=1 ctest
+
+RUN_ESMC_MBMesh_BilinearEdgeCases3DUTest:
+	$(MAKE) TNAME=MBMesh_BilinearEdgeCases3D NP=1 ctest
+
+
 RUN_ESMC_MBMesh_CreateUTestUNI:
 	$(MAKE) TNAME=MBMesh_Create NP=1 ctest
 
@@ -156,6 +184,16 @@ RUN_ESMC_MBMesh_CreateUTest:
 
 RUN_ESMC_MBMesh_CreateParUTest:
 	$(MAKE) TNAME=MBMesh_CreatePar NP=4 ctest
+
+
+RUN_ESMC_MBMesh_DualUTestUNI:
+	$(MAKE) TNAME=MBMesh_Dual NP=1 ctest
+
+RUN_ESMC_MBMesh_DualUTest:
+	$(MAKE) TNAME=MBMesh_Dual NP=4 ctest
+
+RUN_ESMC_MBMesh_DualParUTest:
+	$(MAKE) TNAME=MBMesh_DualPar NP=4 ctest
 
 
 RUN_ESMC_MBMesh_RendezvousUTest:

@@ -1,5 +1,5 @@
 
-!  $Id: MAPL_HeapMod.F90,v 1.2 2014-12-12 16:32:00 bmauer Exp $
+!  $Id$
 
 #include "MAPL_ErrLog.h"
 #define ADDRS_POSITION 1
@@ -16,7 +16,8 @@
 
   use ESMF
   use MAPL_BaseMod
-
+  use MAPL_ErrorHandlingMod
+  use, intrinsic :: iso_fortran_env, only: INT64
   implicit none
   private
 
@@ -72,15 +73,15 @@
       character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_Heapset"
       integer :: status
 
-      ASSERT_(.not.associated(HEAP%BUFFER))
+      _ASSERT(.not.associated(HEAP%BUFFER),'needs informative message')
 
       if(present(HeapSize)) then
-         ASSERT_(HeapSize > 0)
+         _ASSERT(HeapSize > 0,'needs informative message')
          allocate(HEAP%BUFFER(1:HeapSize), STAT=STATUS)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
       end if
 
-      RETURN_(ESMF_SUCCESS)
+      _RETURN(ESMF_SUCCESS)
     
     end subroutine MAPL_HeapSet
 
@@ -91,13 +92,12 @@
       integer, optional, intent(OUT  ) :: RC
 
       character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_HeapGet"
-      integer :: status
 
       if(present(HeapSize)) then
          HeapSize = size(heap%buffer)
       end if
 
-      RETURN_(ESMF_SUCCESS)
+      _RETURN(ESMF_SUCCESS)
     
     end subroutine MAPL_HeapGet
     
@@ -126,7 +126,7 @@
 
       if(.not.associated(heap%buffer)) then
          call MAPL_HeapSet(HeapSize=DefaultSize,RC=status)
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
       end if
 
       len = im*jm
@@ -145,7 +145,7 @@
 
       if(I>=NumSegments) then
          print *, 'MAPL_Alloc: Out of Segments. Need: ', I
-         ASSERT_(.false.)
+         _ASSERT(.false.,'needs informative message')
       end if
 
 ! If we are filling a gap, move trailing segments down
@@ -180,7 +180,7 @@
          do i=1,NumSegments
             print *,  i, heap%HP_start(i),  heap%HP_end(i)
          end do
-         ASSERT_(.false.)
+         _ASSERT(.false.,'needs informative message')
       end if
  
       heap%ptrs(i)%a => heap%buffer(heap%HP_start(i):heap%HP_end(i))
@@ -188,7 +188,7 @@
       a => loadr2d(heap%buffer(heap%HP_start(i)),im,jm)
 
 
-      RETURN_(ESMF_SUCCESS)
+      _RETURN(ESMF_SUCCESS)
     end subroutine MAPL_Alloc_R_2D
 
 
@@ -213,7 +213,6 @@
       integer :: i
 
       character(len=ESMF_MAXSTR), parameter :: IAm="MAPL_DeAlloc_R_2D"
-      integer :: status
 
 ! Look for the pointer in the list of allocated segments
 !-------------------------------------------------------
@@ -223,7 +222,7 @@
          i = i+1
          if(i==NumSegments) then
             print *, 'MAPL_DeAlloc: Bad Pointer'
-            ASSERT_(.false.)
+            _ASSERT(.false.,'needs informative message')
          end if
       end do
 
@@ -237,7 +236,7 @@
          i = i+1
          if(i==NumSegments-1) then
             print *, 'MAPL_DeAlloc: Something wrong. Missed bottom mark'
-            ASSERT_(.false.)
+            _ASSERT(.false.,'needs informative message')
          end if
       end do
 
@@ -247,7 +246,7 @@
       heap%HP_start(I) = -1
       heap%HP_end  (I) = -1
 
-      RETURN_(ESMF_SUCCESS)
+      _RETURN(ESMF_SUCCESS)
     end subroutine MAPL_DeAlloc_R_2D
 
 
@@ -255,21 +254,24 @@
   end module MAPL_HeapMod
 
 
-  integer(kind=8) function ival1(i)
+  integer(kind=INT64) function ival1(i)
+    use, intrinsic :: iso_fortran_env, only: INT64
     implicit none
-    integer(kind=8), intent(IN) :: I(ADDRS_POSITION)
+    integer(kind=INT64), intent(IN) :: I(ADDRS_POSITION)
     ival1 = i(ADDRS_POSITION)
   end function ival1
 
-  integer(kind=8) function ival2(i)
+  integer(kind=INT64) function ival2(i)
+    use, intrinsic :: iso_fortran_env, only: INT64
     implicit none
-    integer(kind=8), intent(IN) :: I(ADDRS_POSITION)
+    integer(kind=INT64), intent(IN) :: I(ADDRS_POSITION)
     ival2 = i(ADDRS_POSITION)
   end function ival2
 
-  integer(kind=8) function ival3(i)
+  integer(kind=INT64) function ival3(i)
+    use, intrinsic :: iso_fortran_env, only: INT64
     implicit none
-    integer(kind=8), intent(IN) :: I(ADDRS_POSITION)
+    integer(kind=INT64), intent(IN) :: I(ADDRS_POSITION)
     ival3 = i(ADDRS_POSITION)
   end function ival3
 

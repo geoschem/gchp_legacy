@@ -19,11 +19,11 @@ module coupler_types_mod  !{
 ! or see:   http://www.gnu.org/licenses/gpl.html                      
 !-----------------------------------------------------------------------
 !
-!<CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">
+!<CONTACT EMAIL="Richard.Slater@noaa.gov">
 ! Richard D. Slater 
 !</CONTACT>
 !
-! <REVIEWER EMAIL="GFDL.Climate.Model.Info@noaa.gov">
+! <REVIEWER EMAIL="John.Dunne@noaa.gov">
 ! John Dunne
 ! </REVIEWER>
 !
@@ -166,13 +166,14 @@ module coupler_types_mod  !{
 !                                    'mol/m^3'
 !
 
+use fms_mod,           only: write_version_number
 use field_manager_mod, only: fm_field_name_len, fm_string_len, fm_dump_list
 
 implicit none
 !
 !-----------------------------------------------------------------------
-  character(len=128) :: version = '$Id$'
-  character(len=128) :: tag = '$Name$'
+! Include variable "version" to be written to log file.
+#include<file_version.h>
 !-----------------------------------------------------------------------
 real, parameter :: bound_tol = 1e-7
 
@@ -253,7 +254,7 @@ type, public    :: coupler_3d_field_type  !{
   logical                                               :: use_atm_pressure
   logical                                               :: use_10m_wind_speed
   logical                                               :: pass_through_ice
-  real							:: mol_wt = 0.0
+  real                                                  :: mol_wt = 0.0
 end type coupler_3d_field_type
 
 type, public    :: coupler_3d_bc_type  !{
@@ -289,7 +290,7 @@ type, public    :: coupler_2d_field_type  !{
   logical                                               :: use_atm_pressure
   logical                                               :: use_10m_wind_speed
   logical                                               :: pass_through_ice
-  real							:: mol_wt = 0.0
+  real                                                  :: mol_wt = 0.0
 end type coupler_2d_field_type
 
 type, public    :: coupler_2d_bc_type  !{
@@ -325,7 +326,7 @@ type, public    :: coupler_1d_field_type  !{
   logical                                               :: use_atm_pressure
   logical                                               :: use_10m_wind_speed
   logical                                               :: pass_through_ice
-  real							:: mol_wt = 0.0
+  real                                                  :: mol_wt = 0.0
 end type coupler_1d_field_type
 
 type, public    :: coupler_1d_bc_type  !{
@@ -439,10 +440,6 @@ implicit none
 character(len=64), parameter    :: sub_name = 'coupler_types_init'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
 !
 !-----------------------------------------------------------------------
@@ -467,6 +464,10 @@ if (module_is_initialized) then  !{
   return
 endif  !}
 
+!
+!       Write out the version of the file to the log file
+!
+call write_version_number(trim(mod_name), version)
 !
 !       Set other defaults for the fm_util_set_value routines
 !
@@ -976,10 +977,6 @@ character(len=*), intent(in), optional  :: suffix
 character(len=64), parameter    :: sub_name = 'coupler_type_copy_1d_2d'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
 !
 !-----------------------------------------------------------------------
@@ -1156,10 +1153,6 @@ character(len=*), intent(in), optional  :: suffix
 character(len=64), parameter    :: sub_name = 'coupler_type_copy_1d_3d'
 character(len=256), parameter   :: error_header =                               &
      '==>Error from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: warn_header =                                &
-     '==>Warning from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
-character(len=256), parameter   :: note_header =                                &
-     '==>Note from ' // trim(mod_name) // '(' // trim(sub_name) // '):'
 
 !
 !-----------------------------------------------------------------------

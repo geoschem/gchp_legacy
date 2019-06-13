@@ -112,7 +112,7 @@ else
 
 
 'set dfile 'obsfil1
-'count "'season'"'
+'count "'season'" 'begdateo' 'enddateo
  nobs = result
 
 'set dfile 'modfil1

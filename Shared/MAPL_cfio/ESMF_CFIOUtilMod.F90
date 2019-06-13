@@ -1,3 +1,4 @@
+#include "unused_dummy.H"
 !==============================================================================
 !BOP
 ! !MODULE: ESMF_CFIOUtil.F90 - utility subroutines for CFIO
@@ -24,6 +25,8 @@
 
       use ESMF_CFIOBaseMod
       use netcdf
+      use, intrinsic :: iso_fortran_env, only: INT16, INT32, INT64
+      use, intrinsic :: iso_fortran_env, only: REAL32, REAL64
       implicit none
 
 #if defined(HDFEOS) || defined(HDFSD)
@@ -47,7 +50,6 @@
       integer, parameter :: PACK_FILL = 32767
       integer, parameter :: MLEN = 1024     ! Max. length of an attribute
       integer, parameter :: MVARLEN = 256   ! Max. length of a variable name
-      integer, parameter :: ModLong=selected_int_kind(13)
 
 ! Define a new data type "List" -- private data type for variable and 
 ! global attributes
@@ -96,13 +98,10 @@
 	'JAN','FEB','MAR','APR','MAY','JUN',	&
 	'JUL','AUG','SEP','OCT','NOV','DEC'	/)
 
-! !METHOD OVERLOADING:
-
   interface GetDate
      module procedure GetDateInt8
      module procedure GetDateInt4
   end interface
-
 !------------------------------------------------------------------------------
 
       contains
@@ -280,7 +279,6 @@
            integer :: maxLen            ! length of a list
            integer :: cnt               ! max number of data in nodes
            integer :: i
-           integer :: rtcode
 
            maxLen = 0
            cnt = 0
@@ -449,11 +447,11 @@
       integer     lm     ! Number of times 
       integer     nvars  ! Number of variables
       integer     ngatts ! Number of global attributes
-      integer     vdir   ! Positive vertical direction. If "-1", level 1 in
+      integer, optional :: vdir   ! Positive vertical direction. If "-1", level 1 in
                          !   the file is TOA. If "1", level 1 in the file is
                          !   the surface. If 0, the file has no vertical
                          !   co-ordinate (default).
-      integer     rc     ! Error return code:
+      integer, optional :: rc     ! Error return code:
 
                          !  rc = 0    all is well
                          !  rc = -19  unable to identify coordinate variable
@@ -482,8 +480,7 @@
 !EOP
 !-------------------------------------------------------------------------
 
-      integer timeid, dimId, i
-      integer attType, attLen
+      integer dimId, i
       character*(MAXCHR) dimName
       character*(MAXCHR) stdName
       character*(MAXCHR) dimUnits
@@ -496,12 +493,14 @@
       integer myIndex
       integer varType, nvDims, vDims(MAXVDIMS), nvAtts
       integer tmpNvar
+      logical :: cs_found
+      integer :: vdir_
 
 ! Initialize variables
 
       surfaceOnly = .FALSE.
       stationFile = .false.
-      vdir        = -1 ! Assume 3D and same orientation
+      vdir_       = -1 ! Assume 3D and same orientation
 
 ! Check FID here.
 
@@ -521,6 +520,7 @@
 
 ! Subtract dimension variables from the variable count.
 
+      cs_found = .false.
       tmpNvar = nvars
       do i=1,nvars
         rc = NF90_INQUIRE_VARIABLE (fid,i,vname,varType,nvDims,vDims,nvAtts)
@@ -529,7 +529,12 @@
         if (nvDims .EQ. 1 .or. trim(vname) .eq. 'time_bnds') then
           tmpNvar = tmpNvar - 1
         endif
+        if (vname == 'cubed_sphere') then
+           cs_found = .true.
+           tmpNvar = tmpNvar - 1
+        end if
       enddo
+      if (cs_found) tmpNvar = tmpNvar - 3
       nvars = tmpNvar
 
 ! Extract dimension information
@@ -544,39 +549,45 @@
            cycle
         end if
         if (trim(dimName) .eq. 'nv') cycle 
+        if (trim(dimName) .eq. 'nf') cycle 
+        if (trim(dimName) .eq. 'ncontact') cycle 
+        if (trim(dimName) .eq. 'orientationStrLen') cycle 
 
         rc = NF90_INQ_VARID (fid, dimName, dimId)
         if (err("DimInqure: NF90_INQ_VARID failed",rc,-40) .NE. 0) return
         ! If it has the standard_name attribute, use that instead
         rc = NF90_GET_ATT(fid,dimId,'standard_name',stdName)
         if (rc .ne. 0) stdName = Trim(dimName)
+        dimunits = ''
         rc = NF90_GET_ATT(fid,dimId,'units',dimUnits)
-        if (err("DimInqure: could not get units for dimension",rc,-53)&
-            .NE. 0) return
-        myIndex = IdentifyDim (stdName, dimUnits)
+        if (.not. cs_found) then !ALT: the new cubed-sphere format might be missing some units
+           if (err("DimInqure: could not get units for dimension",rc,-53)&
+                .NE. 0) return
+        end if
+        myIndex = IdentifyDim (dimName, dimUnits)
         if ( myIndex .EQ. 0 ) then
           im = dimSize
         else if ( myIndex .EQ. 1 ) then
           jm = dimSize
+          if(cs_found) jm = jm*6
         else if ( myIndex .EQ. 2 ) then
           km = dimSize
           if (km.eq.1) then
              ! 2D
-             vdir = 0
+             vdir_ = 0
           else
-             ! SDE 2017-02-27: Try to read "positive" attribute. If it's not
-             ! found, do not overwrite the current value
              rc = NF90_GET_ATT(fid,dimId,'positive',posStr)
              if (rc.eq.0) then
                 if ((Trim(posStr)=="up").or.(Trim(posStr)=="Up")) then
                    ! Level 1 = surface
-                   vdir = 1
+                   vdir_ = 1
                 elseif ((Trim(posStr)=="down").or.(Trim(posStr)=="Down")) then
                    ! Level 1 = TOA
-                   vdir = -1
+                   vdir_ = -1
                 endif
              endif
           endif
+
         else if ( myIndex .EQ. 3 ) then
           lm = dimSize
 !print *, "dimUnits: ", trim(dimUnits)
@@ -590,19 +601,20 @@
         endif
       enddo
 
+      if (cs_found .and. nDims == 6) surfaceOnly = .TRUE.
       if (nDims .EQ. 3 .and. .NOT. stationFile) then
         surfaceOnly = .TRUE.
       endif
 
       if (surfaceOnly) then
         km = 0
-        vdir = 0
+        vdir_ = 0
       endif
 
+      if (present(vdir)) vdir = vdir_
       rc=0
       return
       end subroutine CFIO_DimInquire
-
 
 !-------------------------------------------------------------------------
 !         NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
@@ -629,7 +641,7 @@
 !
       integer               :: begDate   ! Beginning date
       integer               :: begTime   ! Beginning time
-      integer(Kind=ModLong) :: incVec(:) ! Vector of offsets (seconds)
+      integer(Kind=INT64) :: incVec(:) ! Vector of offsets (seconds)
       integer               :: rc        ! error return code
 !
 ! !REVISION HISTORY:
@@ -659,12 +671,11 @@
       integer   t1, t2, tMult, newDate, newTime
 
 !     We now have the possibility of a very large interval
-      integer(Kind=ModLong) :: t1Long, t2Long, tMax, tMultLong, incSecsLong
-      integer(Kind=ModLong),allocatable :: incVecLong(:) ! Vector of offsets (seconds)
+      integer(Kind=INT64) :: t1Long, t2Long, tMax, tMultLong, incSecsLong
+      integer(Kind=INT64),allocatable :: incVecLong(:) ! Vector of offsets (seconds)
 
 !     Get the starting date and time
 !     ---------------------------------------------------------
-      !Call GetDateTimeVec ( fid, begDate, begTime, incSecs, rc )
 
 !     Start by determing the ID of the time coordinate variable
 !     ---------------------------------------------------------
@@ -677,6 +688,12 @@
         if (index(dimName,'station')  .gt. 0) cycle
         if (trim(dimName) .eq. 'nv') cycle
         if ( index(dimName,'edges') .gt. 0 ) cycle
+
+        if (trim(dimName) .eq. 'nv') cycle
+        if (trim(dimName) .eq. 'nf') cycle
+        if (trim(dimName) .eq. 'ncontact') cycle
+        if (trim(dimName) .eq. 'orientationStrLen') cycle
+
         rc = NF90_INQ_VARID (fid, dimName, dimId)
         if (err("GetDateTimeVec: NF90_INQ_VARID failed",rc,-40) .NE. 0) return
         ! If it has the standard_name attribute, use that instead
@@ -729,22 +746,22 @@
                 corner(1) = i
                 rc = NF90_GET_VAR(fid,timeID,rtime_array,corner,(/1/))
                 rtime = rtime_array(1)
-                incVecLong(i) = int(rtime,8) 
+                incVecLong(i) = int(rtime,INT64) 
            else if ( type .eq. NF90_DOUBLE ) then
                 corner(1) = i
                 rc = NF90_GET_VAR(fid,timeID,dtime_array,corner,(/1/))
                 dtime = dtime_array(1)
-                incVecLong(i) = int(dtime,8)
+                incVecLong(i) = int(dtime,INT64)
            else if ( type .eq. NF90_SHORT  ) then
                 corner(1) = i
                 rc = NF90_GET_VAR(fid,timeID,itime_array,corner,(/1/))
                 itime = itime_array(1)
-                incVecLong(i) = int(itime,8)
+                incVecLong(i) = int(itime,INT64)
            else if ( type .eq. NF90_INT   ) then
                 corner(1) = i
                 rc = NF90_GET_VAR(fid,timeID,ltime_array,corner,(/1/))
                 ltime = ltime_array(1)
-                incVecLong(i) = int(ltime,8)
+                incVecLong(i) = int(ltime,INT64)
            else
                 if (err("GetDateTimeVec: invalid time data type",&
                    1,-44) .NE. 0) return
@@ -798,6 +815,7 @@
 
 
 
+
 !-------------------------------------------------------------------------
 !         NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
 !-------------------------------------------------------------------------
@@ -841,17 +859,17 @@
 
       integer i, timeId, hour, min, sec, corner(1), timInc
       integer year, month, day
-      character(len=MAXCHR) timeUnits, strTmp, dimUnits
+      character(len=MAXCHR) timeUnits, dimUnits, stdName
 
-      character*(MAXCHR) varName, dimName, stdName
+      character*(MAXCHR) varName, dimName
       integer type, nvDims, vdims(MAXVDIMS), nvAtts, dimSize
       integer nDims, nvars, ngatts, dimId
 
 !     Time conversion local variables
-      real*4    rtime, rtime_array(1) 
-      real*8    dtime, dtime_array(1)
-      integer*2 itime, itime_array(1)
-      integer*4 ltime, ltime_array(1)
+      real(kind=REAL32) ::   rtime, rtime_array(1) 
+      real(kind=REAL64) ::   dtime, dtime_array(1)
+      integer(kind=INT16) :: itime, itime_array(1)
+      integer(kind=INT32) :: ltime, ltime_array(1)
       integer   t1, t2, tMult, newDate, newTime
 
 
@@ -866,6 +884,9 @@
         if (index(dimName,'station')  .gt. 0) cycle
         if (trim(dimName) .eq. 'nv') cycle
         if ( index(dimName,'edges') .gt. 0 ) cycle
+        if (dimName=='nf') cycle
+        if (dimName=='orientationStrLen') cycle
+        if (dimName=='ncontact') cycle
         rc = NF90_INQ_VARID (fid, dimName, dimId)
         if (err("GetBegDateTime: NF90_INQ_VARID failed",rc,-40) .NE. 0) return
         ! If it has the standard_name attribute, use that instead
@@ -976,6 +997,7 @@
            if (err("GetBegDateTime: invalid time data type",&
               1,-44) .NE. 0) return
       endif
+
 
 !     Convert time increment to seconds if necessary
 !     ----------------------------------------------
@@ -1363,12 +1385,12 @@
 !EOP
 !-------------------------------------------------------------------------
 
-      integer*4 dummy32
-      integer*8 dummy64
+      integer(kind=INT32) dummy32
+      integer(kind=INT64) dummy64
       integer i
 
-      integer*4, allocatable :: buf32(:)
-      integer*8, allocatable :: buf64(:)
+      integer(kind=INT32), allocatable :: buf32(:)
+      integer(kind=INT64), allocatable :: buf64(:)
 
       rc = NF90_REDEF ( fid )
       if (err("PutIntAtt: could not enter define mode",rc,-55) .NE. 0) &
@@ -1461,12 +1483,12 @@
 !EOP
 !-------------------------------------------------------------------------
 
-      real*4 dummy32
-      real*8 dummy64
+      real(kind=REAL32) dummy32
+      real(kind=REAL64) dummy64
       real r
       integer i
-      real*4, allocatable :: buf32(:)
-      real*8, allocatable :: buf64(:)
+      real(kind=REAL32), allocatable :: buf32(:)
+      real(kind=REAL64), allocatable :: buf64(:)
 
       rc = NF90_REDEF ( fid )
       if (err("PutRealAtt: could not enter define mode",rc,-55) .NE. 0) &
@@ -1553,6 +1575,8 @@
 !
 !EOP
 !-------------------------------------------------------------------------
+
+      _UNUSED_DUMMY(count)
 
       rc = NF90_REDEF ( fid )
       if (err("PutCharAtt: could not enter define mode",rc,-55) .NE. 0) &
@@ -1788,10 +1812,11 @@
 
       integer length, type
       integer i
-      integer*4 dummy32
-      integer*8 dummy64
-      integer*4, allocatable :: buf32(:)
-      integer*8, allocatable :: buf64(:)
+      integer(kind=INT32) dummy32
+      integer(kind=INT64) dummy64
+      integer(kind=INT32), allocatable :: buf32(:)
+      integer(kind=INT64), allocatable :: buf64(:)
+
 
       rc = NF90_INQUIRE_ATTRIBUTE (fid, NF90_GLOBAL, name, type, length)
       if (err("GetIntAtt: error reading attribute info",rc,-58) &
@@ -1896,10 +1921,11 @@
       integer length, type
       real r
       integer i
-      real*4 dummy32
-      real*8 dummy64
-      real*4, allocatable :: buf32(:)
-      real*8, allocatable :: buf64(:)
+      real(kind=REAL32) dummy32
+      real(kind=REAL64) dummy64
+      real(kind=REAL32), allocatable :: buf32(:)
+      real(kind=REAL64), allocatable :: buf64(:)
+
 
       rc = NF90_INQUIRE_ATTRIBUTE (fid, NF90_GLOBAL, name, type, length)
       if (err("GetRealAtt: error reading attribute info",rc,-58) &
@@ -2080,7 +2106,7 @@
 ! !INTERFACE:
 !
 
-       integer(kind=ModLong) function DiffDate (yyyymmhh_1,hhmmss_1,yyyymmhh_2,hhmmss_2)
+       integer(kind=INT64) function DiffDate (yyyymmhh_1,hhmmss_1,yyyymmhh_2,hhmmss_2)
 
 ! 
 ! !USES:
@@ -2128,9 +2154,7 @@
 
        integer year1,mon1,day1,hour1,min1,sec1
        integer year2,mon2,day2,hour2,min2,sec2
-       integer(kind=ModLong) julian1, julian2, julsec1, julsec2
-
-       character*8 dateString
+       integer(INT64) julian1, julian2, julsec1, julsec2
 
 ! Error checking.
 
@@ -2202,7 +2226,7 @@
 !C   TO CONVERT MODIFIED JULIAN DAY, CALL THIS ROUTINE WITH              
 !C     JULIAN = MJD + 2400001                              
 !C                                                          
-      integer(kind=ModLong) JULIAN
+      integer(INT64) JULIAN
       integer IGREG
       integer JALPHA, JA, JB, JC, JD, JE, ID, MM, IYYY
       PARAMETER (IGREG=2299161)                             
@@ -2227,7 +2251,7 @@
 
       integer function err ( outstring, iret, ec ) 
       character *(*) outstring
-      integer ec, rc, iret
+      integer ec, iret
 
       if (iret .EQ. 0) then
         err = iret
@@ -2287,13 +2311,11 @@
  
       ! Local variables
  
-      character*(MAXCHR)  NewUnits
       integer ypos(2), mpos(2), dpos(2), hpos(2), minpos(2), spos(2)
-      integer i, j, inew, strlen
+      integer inew, strlen
       integer firstdash, lastdash
       integer firstcolon, lastcolon
       integer lastspace
-      real fTemp
  
       strlen = LEN_TRIM (TimeUnits)
        
@@ -2360,9 +2382,7 @@
           spos(2) = lastcolon + 2
           read (TimeUnits(hpos(1):hpos(2)), * ) hour
           read (TimeUnits(mpos(1):mpos(2)), * ) min
-          !read (TimeUnits(spos(1):spos(2)), * ) sec
-          read (TimeUnits(spos(1):spos(2)), * ) fTemp
-          sec = Int(fTemp)
+          read (TimeUnits(spos(1):spos(2)), * ) sec
         endif
       endif
         
@@ -2458,26 +2478,25 @@
 !EOP
 !-------------------------------------------------------------------------
 
-      integer timeid, timeDimId, dimSize, dimId, timeType
+      integer timeid, timeDimId, dimSize, timeType
       character*(MAXCHR) dimName
       integer corner(3), edges(3)
       integer vid
-      integer(Kind=ModLong) seconds
+      integer(INT64) seconds
       integer timeIndex
       integer minutes                       ! added as a work-around
-      integer idx, i, j, k
+      integer i, k
       integer begDate, begTime, timInc
-      character*8 strBuf
       integer hour,min,sec,incSecs
       integer, allocatable ::  allTimes(:)
       integer fillTime
 
 ! Variables for dealing with precision
 
-      real*4, allocatable :: grid_32(:,:)
-      real*8, allocatable :: grid_64(:,:)
-      real*4 dummy32
-      real*8 dummy64
+      real(kind=REAL32), allocatable :: grid_32(:,:)
+      real(kind=REAL64), allocatable :: grid_64(:,:)
+      real(kind=REAL32) dummy32
+      real(kind=REAL64) dummy64
       real   dummy
 
 ! Variables for NF90_INQUIRE_VARIABLE
@@ -2488,11 +2507,13 @@
 ! Variables for packing and range checking
 
       integer*2, allocatable :: grid_16(:,:)
-      real*4, allocatable :: fminutes_32(:)
-      real*4 high_32, low_32, amiss_32
-      real*4 scale_32, offset_32
+      real(kind=REAL32), allocatable :: fminutes_32(:)
+      real(kind=REAL32) high_32, low_32, amiss_32
+      real(kind=REAL32) scale_32, offset_32
       logical outRange
       logical outPRange
+
+      _UNUSED_DUMMY(jm)
 
 ! Variable initialization
 
@@ -2840,14 +2861,13 @@
 !EOP
 !-------------------------------------------------------------------------
 
-      integer timeId, begDate, begTime, seconds, minutes, timInc
+      integer timeId, begDate, begTime, seconds, minutes
       integer corner(3), edges(3), timeIndex
       integer vid
       integer i,j,k
-      character*8 strBuf
-      integer hour,min,sec,incSecs
+      integer incSecs
       logical stationFile
-      integer(KIND=ModLong), allocatable :: incVec(:)
+      integer(INT64), allocatable :: incVec(:)
 
 ! Variables for working with dimensions
 
@@ -2862,10 +2882,11 @@
 
 ! Variables for dealing with precision
 
-      real*4, allocatable :: grid_32(:,:)
-      real*8, allocatable :: grid_64(:,:)
-      real*4 dummy32
-      real*8 dummy64
+
+      real(kind=REAL32), allocatable :: grid_32(:,:)
+      real(kind=REAL64), allocatable :: grid_64(:,:)
+      real(kind=REAL32) dummy32
+      real(kind=REAL64) dummy64
       real   dummy
 
 ! Variables for NF90_INQUIRE_VARIABLE
@@ -2876,8 +2897,8 @@
 
       integer*2, allocatable :: grid_16(:,:)
       integer*2 amiss_16
-      real*4 amiss_32
-      real*4 scale_32, offset_32
+      real(kind=REAL32) amiss_32
+      real(kind=REAL32) scale_32, offset_32
 
 
 ! Check to make sure max string lengths are large enough.  NetCDF defines
@@ -2965,10 +2986,7 @@
 !ams     if (err("GetVar: missing begin_time",rc,-44) .NE. 0) return
 
       allocate(incVec(lm))
-      call GetDateTimeVec ( fID, begDate, begTime, incVec, rc )
-
-      ! Old method - assumes constant increment
-      !call GetBegDateTime ( fid, begDate, begTime, incSecs, rc )
+      call GetDateTimeVec( fID, begDate, begTime, incVec, rc )
       if (err("GetVar: could not determine begin_date/begin_time",rc,-44)& 
          .NE. 0) return
 
@@ -3027,42 +3045,6 @@
          end if
       End Do
       deallocate(incVec)
-
-      ! Old method - assumes constant increment
-! Determine the time index from the offset and time increment.
-
-!ams      rc = NF90_GET_ATT(fid,timeId,'time_increment',timInc)
-!ams      if (err("GetVar: missing time increment",rc,-44) .NE. 0) return
-
-! Convert time increment to seconds.
-
-!ams      write (strBuf,203) timinc
-!ams 203   format (I6)
-!ams      read (strBuf,204) hour, min, sec
-!ams 204   format (3I2)
-!ams       incSecs = hour*3600 + min*60 + sec
-
-      !if ( MOD (seconds, incSecs) .ne. 0 ) then
-      !  print *, 'CFIO_getvar: Absolute time of ',seconds,' not ',&
-      !          'possible with an interval of ',incSecs
-      !  rc = -2
-      !  return
-      !else
-      !  timeIndex = seconds/incSecs + 1
-      !endif
-
-! Wrap time index around if time dimension is periodic
-
-!ams  print *, '--- Time Index: ', timeIndex
-
-      !if ( cyclic ) then
-      !   timeShift = mod ( timeIndex, lm )
-      !   if ( timeShift > 0 ) then
-      !      timeIndex = timeShift 
-      !   else 
-      !      timeIndex = lm + timeShift
-      !   end if
-      !end if
 
 !ams  print *, '+++ Time Index, timeShift: ', timeIndex, timeShift
 
@@ -3192,7 +3174,8 @@
 ! !INTERFACE:
 !
       subroutine CFIO_GetVar ( fid, vname, yyyymmdd, hhmmss,&
-                              im, jm, kbeg, kount, lm, grid, cyclic, rc )
+                              im, jm, kbeg, kount, lm, grid, cyclic, &
+                              useFaceDim, rc )
 !
 ! !USES:
 !
@@ -3211,6 +3194,7 @@
       integer         kount           ! number of levels to read
       integer         lm              ! number of time steps
       logical cyclic     !  input file is cyclic or not
+      logical ::      useFaceDim
 
 !
 ! !OUTPUT PARAMETERS:
@@ -3255,14 +3239,13 @@
 !EOP
 !-------------------------------------------------------------------------
 
-      integer timeId, begDate, begTime, seconds, minutes, timInc
+      integer begDate, begTime, seconds, minutes
       integer timeShift
-      integer corner(4), edges(4), timeIndex
+      integer corner(5), edges(5), timeIndex
       integer vid
       integer i,j,k
-      character*8 strBuf
-      integer hour,min,sec,incSecs
-      integer(Kind=ModLong), allocatable :: incVec(:)
+      integer incSecs
+      integer(INT64), allocatable :: incVec(:)
 
 ! Variables for working with dimensions
 
@@ -3271,14 +3254,14 @@
       character*(MAXCHR) varName
       integer dimSize, dimId
       integer nDims,nvars,ngatts
-      integer varType, myIndex
+      integer varType
 
 ! Variables for dealing with precision
 
-      real*4, allocatable :: grid_32(:,:,:)
-      real*8, allocatable :: grid_64(:,:,:)
-      real*4 dummy32
-      real*8 dummy64
+      real(kind=REAL32), allocatable :: grid_32(:,:,:)
+      real(kind=REAL64), allocatable :: grid_64(:,:,:)
+      real(kind=REAL32) dummy32
+      real(kind=REAL64) dummy64
       real   dummy
 
 ! Variables for NF90_INQUIRE_VARIABLE
@@ -3289,8 +3272,8 @@
 
       integer*2, allocatable :: grid_16(:,:,:)
       integer*2 amiss_16
-      real*4 amiss_32
-      real*4 scale_32, offset_32
+      real(kind=REAL32) amiss_32
+      real(kind=REAL32) scale_32, offset_32
 
 ! Initialize these, just in case
 
@@ -3329,6 +3312,9 @@
         if (trim(dimName) .eq. 'nv' ) cycle
         if (index(dimName,'edges') .gt. 0 ) cycle
         if (index(dimName,'station') .gt. 0 ) cycle
+        if (dimName=='nf') cycle
+        if (dimName=='orientationStrLen') cycle
+        if (dimName=='ncontact') cycle
         rc = NF90_INQ_VARID (fid, dimName, dimId)
         if (err("DimInqure: NF90_INQ_VARID failed",rc,-40) .NE. 0) return
         rc = NF90_GET_ATT(fid,dimId,'units',dimUnits)
@@ -3375,11 +3361,9 @@
 !ams     rc = NF90_GET_ATT(fid,timeId,'begin_time',begTime)
 !ams     if (err("GetVar: missing begin_time",rc,-44) .NE. 0) return
 
+
       allocate(incVec(lm))
       call GetDateTimeVec ( fID, begDate, begTime, incVec, rc )
-      ! Old method - assumes constant increment
-      !call GetBegDateTime ( fid, begDate, begTime, incSecs, rc )
-
       if (err("GetVar: could not determine begin_date/begin_time",rc,-44) &
          .NE. 0) return
 
@@ -3392,9 +3376,6 @@
 
       if ( .not. cyclic ) then
          if (seconds .LT. 0) then
-            ! SDE DEBUG
-            Write(6,'(a,2(x,I0.8,x,I0.6),x,I0.12)') 'BD/BT/TD/TT/S:',&
-                  begDate,begTime,yyyymmdd,hhmmss,seconds
             print *, 'CFIO_GetVar: Error code from diffdate.  Problem with', &
                 ' date/time.'
             rc = -7
@@ -3442,62 +3423,42 @@
       End Do
       deallocate(incVec)
 
-      ! Old method - assumes constant increment
-! Determine the time index from the offset and time increment.
-
-!ams  rc = NF90_GET_ATT(fid,timeId,'time_increment',timInc)
-!ams      if (err("GetVar: missing time increment",rc,-44) .NE. 0) return
-
-! Convert time increment to seconds.
-
-!ams      write (strBuf,203) timinc
-!ams 203   format (I6)
-!ams      read (strBuf,204) hour, min, sec
-!ams 204   format (3I2)
-!ams       incSecs = hour*3600 + min*60 + sec
-
-      !if ( MOD (seconds, incSecs) .ne. 0 ) then
-      !  print *, 'CFIO_getvar: Absolute time of ',seconds,' not ',&
-      !          'possible with an interval of ',incSecs
-      !  rc = -2
-      !  return
-      !else
-      !  timeIndex = seconds/incSecs + 1
-      !endif
-
-! Wrap time index around if time dimension is periodic
-
-!ams  print *, '--- Time Index: ', timeIndex
-
-      !if ( cyclic ) then
-      !   timeShift = mod ( timeIndex, lm )
-      !   if ( timeShift > 0 ) then
-      !      timeIndex = timeShift 
-      !   else 
-      !      timeIndex = lm + timeShift
-      !   end if
-      !end if
-
 !ams  print *, '+++ Time Index, timeShift: ', timeIndex, timeShift
 
 ! Load starting indicies.
 
-      if ( kbeg .eq. 0 ) then
-        corner(1)=1
-        corner(2)=1
-        corner(3)=timeIndex
-        edges(1)=im
-        edges(2)=jm
-        edges(3)=1
+      if (useFaceDim) then
+         if ( kbeg .eq. 0 ) then
+            corner(4)=timeIndex
+            edges(1)=im
+            edges(2)=jm/6
+            edges(3)=6
+         else
+            corner(4)=kbeg
+            corner(5)=timeIndex
+            edges(1)=im
+            edges(2)=jm/6
+            edges(3)=6
+            edges(4)=kount
+         end if
       else
-        corner(1)=1
-        corner(2)=1
-        corner(3)=kbeg
-        corner(4)=timeIndex
-        edges(1)=im
-        edges(2)=jm
-        edges(3)=kount
-        edges(4)=1
+         if ( kbeg .eq. 0 ) then
+            corner(1)=1
+            corner(2)=1
+            corner(3)=timeIndex
+            edges(1)=im
+            edges(2)=jm
+            edges(3)=1
+         else
+            corner(1)=1
+            corner(2)=1
+            corner(3)=kbeg
+            corner(4)=timeIndex
+            edges(1)=im
+            edges(2)=jm
+            edges(3)=kount
+            edges(4)=1
+         end if
       endif
 
 ! Determine data type.
@@ -3624,6 +3585,7 @@
 !
       subroutine CFIO_PutVar ( fid, vname, yyyymmdd, hhmmss, &
                               im, jm, kbeg, kount, grid,     &
+                              useFaceDim,                    &
                               rc )  
 !
 ! !USES:
@@ -3643,6 +3605,7 @@
                                          !   use kbeg = 0.
       integer         kount              ! number of levels to write
       real            grid(im,jm,kount)  ! Gridded data to write at this time
+      logical ::      useFaceDim
                                      
 
 ! !OUTPUT PARAMETERS:
@@ -3692,26 +3655,25 @@
 !EOP
 !-------------------------------------------------------------------------
 
-      integer timeid, timeDimId, dimSize, dimId, timeType
+      integer timeid, timeDimId, dimSize, timeType
       character*(MAXCHR) dimName
-      integer corner(4), edges(4)
+      integer corner(5), edges(5)
       integer vid
-      integer(Kind=ModLong) seconds
+      integer(INT64) seconds
       integer timeIndex
       integer minutes                       ! added as a work-around
-      integer idx, i, j, k
+      integer i, j, k
       integer begDate, begTime, timInc
-      character*8 strBuf
       integer hour,min,sec,incSecs
       integer, allocatable ::  allTimes(:)
       integer fillTime
 
 ! Variables for dealing with precision
 
-      real*4, allocatable :: grid_32(:,:,:)
-      real*8, allocatable :: grid_64(:,:,:)
-      real*4 dummy32
-      real*8 dummy64
+      real(kind=REAL32), allocatable :: grid_32(:,:,:)
+      real(kind=REAL64), allocatable :: grid_64(:,:,:)
+      real(kind=REAL32) dummy32
+      real(kind=REAL64) dummy64
       real   dummy
 
 ! Variables for NF90_INQUIRE_VARIABLE
@@ -3722,9 +3684,9 @@
 ! Variables for packing and range checking
 
       integer*2, allocatable :: grid_16(:,:,:)
-      real*4, allocatable :: fminutes_32(:)
-      real*4 high_32, low_32, amiss_32
-      real*4 scale_32, offset_32
+      real(kind=REAL32), allocatable :: fminutes_32(:)
+      real(kind=REAL32) high_32, low_32, amiss_32
+      real(kind=REAL32) scale_32, offset_32
       logical outRange
       logical outPRange
 
@@ -3800,22 +3762,32 @@
 
 ! Load starting indicies.
 
+      corner = 1
+      edges = 1
       if ( kbeg .eq. 0 ) then
-        corner(1)=1
-        corner(2)=1
-        corner(3)=timeIndex
         edges(1)=im
-        edges(2)=jm
-        edges(3)=1
+        if (useFaceDim) then
+           edges(2)=jm/6
+           edges(3)=6
+           corner(4)=timeIndex
+        else
+           edges(2)=jm
+           corner(3)=timeIndex
+        end if
       else
-        corner(1)=1
-        corner(2)=1
-        corner(3)=kbeg
-        corner(4)=timeIndex
         edges(1)=im
-        edges(2)=jm
-        edges(3)=kount
-        edges(4)=1
+        if (useFaceDim) then
+           corner(4)=kbeg
+           corner(5)=timeIndex
+           edges(2)=jm/6
+           edges(3)=6
+           edges(4)=kount
+        else
+           corner(3)=kbeg
+           corner(4)=timeIndex
+           edges(2)=jm
+           edges(3)=kount
+        end if
       endif
 
 ! Check variable against valid range.
@@ -4045,14 +4017,13 @@
 !
 
        implicit none
-
 !
 ! !INPUT PARAMETERS:
 !
-       
+
        integer         yyyymmdd_1       ! Initial date in YYYYYMMDD format
        integer         hhmmss_1         ! Initial time in HHMMSS format
-       integer(kind=ModLong) offset           ! Offset to add (in seconds)
+       integer(kind=INT64) offset           ! Offset to add (in seconds)
 
 !
 ! !OUTPUT PARAMETERS:
@@ -4076,12 +4047,11 @@
 !
 !EOP
 !-------------------------------------------------------------------------
-
       integer year1,mon1,day1,hour1,min1,sec1
       integer year2,mon2,day2,hour2,min2,sec2
       integer seconds1, seconds2
-      integer(kind=ModLong) julian1, julian2
-      integer(kind=ModLong) julsec, remainder
+      integer(kind=INT64) julian1, julian2
+      integer(kind=INT64) julsec, remainder
       character*8 dateString
 
 ! Error checking.
@@ -4110,9 +4080,9 @@
       call CFIO_parseIntTime ( hhmmss_1, hour1, min1, sec1 )
 
 ! Get Julian Day and subtract off a constant (Julian days since 7/14/66)
- 
+
       julian1 = julday (mon1, day1, year1)
-       
+
 ! Calculcate Julian seconds
 
       julsec = (julian1-1)*86400 + hour1*3600 + min1*60 + sec1
@@ -4121,18 +4091,17 @@
 
       julsec = julsec + offset
       julian1 = INT(julsec/86400) + 1
-      remainder = MOD(julsec,86400)
- 
+      remainder = MOD(julsec,86400_INT64)
+
 ! Convert julian day to YYYYMMDD.
 
       call caldat (julian1, mon2, day2, year2)
 
 ! Calculate HHMMSS from the remainder.
-
       hour2 = INT(remainder/3600)
-      remainder = MOD(remainder,3600)
+      remainder = MOD(remainder,3600_INT64)
       min2 = INT(remainder/60)
-      sec2 = MOD(remainder,60)
+      sec2 = MOD(remainder,60_INT64)
 
 ! Build YYYYMMDD and HHMMSS variables.
 
@@ -4166,7 +4135,7 @@
 !
 ! !INPUT PARAMETERS:
 !
-       
+
        integer yyyymmdd_1               ! Initial date in YYYYYMMDD format
        integer hhmmss_1                 ! Initial time in HHMMSS format
        integer offset                   ! Offset to add (in seconds)
@@ -4194,76 +4163,12 @@
 !EOP
 !-------------------------------------------------------------------------
 
-       integer(Kind=ModLong) offsetLong
+       integer(Kind=INT64) offsetLong
 
-       offsetLong = INT(offset,Kind=ModLong)
+       offsetLong = INT(offset,Kind=INT64)
        call GetDateInt8(yyyymmdd_1,hhmmss_1,offsetLong,yyyymmdd_2,hhmmss_2,rc)
        return
 
-!      integer year1,mon1,day1,hour1,min1,sec1
-!      integer year2,mon2,day2,hour2,min2,sec2
-!      integer seconds1, seconds2
-!      integer(kind=ModLong) julian1, julian2
-!      integer(kind=ModLong) julsec, remainder
-!      character*8 dateString
-!
-!! Error checking.
-!
-!      if (yyyymmdd_1 .lt. 19000000 .or. yyyymmdd_1 .gt. 21000000 ) then
-!         rc=-1
-!         return
-!      endif
-!      if (hhmmss_1 .lt. 0 .or. hhmmss_1 .ge. 240000 ) then
-!         rc=-1
-!         return
-!      endif
-!
-!! Convert Date/Time strings to integer variables.
-!
-!!ams       write (dateString, 200) yyyymmdd_1
-!!ams 200   format (I8)
-!!ams       read (dateString, 201) year1, mon1, day1
-!!ams 201   format (I4,2I2)
-!!ams       write (dateString, 202) hhmmss_1
-!!ams 202   format (I6)
-!!ams       read (dateString, 203) hour1, min1, sec1
-!!ams 203   format (3I2)
-!
-!      call CFIO_parseIntTime ( yyyymmdd_1, year1, mon1, day1 )
-!      call CFIO_parseIntTime ( hhmmss_1, hour1, min1, sec1 )
-!
-!! Get Julian Day and subtract off a constant (Julian days since 7/14/66)
-! 
-!      julian1 = julday (mon1, day1, year1)
-!       
-!! Calculcate Julian seconds
-!
-!      julsec = (julian1-1)*86400 + hour1*3600 + min1*60 + sec1
-!
-!! Add offset and calculate new julian day.
-!
-!      julsec = julsec + offset
-!      julian1 = INT(julsec/86400) + 1
-!      remainder = MOD(julsec,86400)
-! 
-!! Convert julian day to YYYYMMDD.
-!
-!      call caldat (julian1, mon2, day2, year2)
-!
-!! Calculate HHMMSS from the remainder.
-!
-!      hour2 = INT(remainder/3600)
-!      remainder = MOD(remainder,3600)
-!      min2 = INT(remainder/60)
-!      sec2 = MOD(remainder,60)
-!
-!! Build YYYYMMDD and HHMMSS variables.
-!
-!      yyyymmdd_2 = year2*10000 + mon2*100 + day2
-!      hhmmss_2 = hour2*10000 + min2*100 + sec2
-
-      rc = 0
-      return
       end subroutine GetDateInt4
 
 !-------------------------------------------------------------------------
@@ -4297,20 +4202,16 @@
 !EOP
 !-------------------------------------------------------------------------
 
-      integer nDims, recdim, ngatts, seconds
+      integer nDims, recdim, ngatts
       integer varType, nvDims, vDims(MAXVDIMS), nvAtts
-      character*8 strBuf
-      character*(MAXCHR) dimName
-      character*(MAXCHR) dimUnits
       character*(MAXCHR) vnameTemp
-      integer dimSize
       integer i
       logical surfaceOnly
       logical noTimeInfo
       integer attType, attLen
       integer allVars            ! all variables - includes dimension vars
 
-      real*4 amiss_32
+      real(kind=REAL32) amiss_32
 
 ! Get basic information from the file
 
@@ -4406,7 +4307,6 @@
 ! !INTERFACE:
 
     subroutine strTemplate_(str,tmpl,class,xid,nymd,nhms,stat)
-!      use m_chars, only : uppercase
       implicit none
 
       character(len=*),intent(out) :: str	! the output
@@ -4475,8 +4375,6 @@ end subroutine strTemplate_
 ! !INTERFACE:
 
     subroutine GX_(str,tmpl,xid,nymd,nhms,stat)
-!!!      use m_stdio,only : stderr
-!!!      use m_die,  only : die,perr
       implicit none
       character(len=*),intent(out) :: str
       character(len=*),intent(in ) :: tmpl
@@ -4856,7 +4754,7 @@ subroutine genv_(tmpl,lnt,i,istp,str,lns,k,ier)
 
   istp=j-i
 
-  call getenv(tmpl(jb:je),env)
+  call get_environment_variable(tmpl(jb:je),env)
   l=len_trim(env)
   m=min(k+l-1,lns)
   str(k:m)=env
@@ -4971,12 +4869,12 @@ end subroutine die
 !EOP
 !-------------------------------------------------------------------------
 
-      integer*4 dummy32
-      integer*8 dummy64
+      integer(kind=INT32) dummy32
+      integer(kind=INT64) dummy64
       integer i
 
-      integer*4, allocatable :: buf32(:)
-      integer*8, allocatable :: buf64(:)
+      integer(kind=INT32), allocatable :: buf32(:)
+      integer(kind=INT64), allocatable :: buf64(:)
       integer rct
 
 #if defined(HDFEOS)
@@ -5086,12 +4984,13 @@ end subroutine die
 !EOP
 !-------------------------------------------------------------------------
 
-      real*4 dummy32
-      real*8 dummy64
+
+      real(kind=REAL32) dummy32
+      real(kind=REAL64) dummy64
       real r
       integer i
-      real*4, allocatable :: buf32(:)
-      real*8, allocatable :: buf64(:)
+      real(kind=REAL32), allocatable :: buf32(:)
+      real(kind=REAL64), allocatable :: buf64(:)
       integer rct
 
 #if defined(HDFEOS)
@@ -5313,15 +5212,13 @@ end subroutine die
 
       integer timeid, dimSize, dimId
       character*(MAXCHR) dimName
-      character*(MAXCHR) stdName
       character*(MAXCHR) attrName
       character*(MAXCHR) dimUnits
       integer attrType, attrCount
       integer corner(4), edges(4), stride(4)
       integer dim_chunk(4), origin(4)
       integer vid
-      integer(Kind=ModLong) seconds
-      integer timeIndex
+      integer seconds, timeIndex
       integer minutes                       ! added as a work-around
       integer idx, i, j, k
       integer begDate, begTime, timInc
@@ -5331,10 +5228,11 @@ end subroutine die
 
 ! Variables for dealing with precision
 
-      real*4, allocatable :: grid_32(:,:,:)
-      real*8, allocatable :: grid_64(:,:,:)
-      real*4 dummy32
-      real*8 dummy64
+
+      real(kind=REAL32), allocatable :: grid_32(:,:,:)
+      real(kind=REAL64), allocatable :: grid_64(:,:,:)
+      real(kind=REAL32) dummy32
+      real(kind=REAL64) dummy64
       real   dummy
 
 ! Variables for NF90_INQUIRE_VARIABLE
@@ -5345,16 +5243,16 @@ end subroutine die
 ! Variables for packing and range checking
 
       integer*2, allocatable :: grid_16(:,:,:)
-      real*4 high_32, low_32, amiss_32
-      real*4 scale_32, offset_32
+      real(kind=REAL32) high_32, low_32, amiss_32
+      real(kind=REAL32) scale_32, offset_32
       logical outRange, outPRange
 
 ! Variables for SD interface
 
       integer sdsId, sdsIndex, attrIdx, dsdsId
       integer dataType, numAttr
-      real*8, allocatable :: timeScale(:)
-      real*8, allocatable :: eosTimeScale(:)
+      real(kind=REAL64), allocatable :: timeScale(:)
+      real(kind=REAL64), allocatable :: eosTimeScale(:)
       integer numTimes, fillTime
 
 ! Functions for SD interface
@@ -5462,11 +5360,7 @@ end subroutine die
         ! try to identify the dimension based on the name and the units
         ! then do appropriate error checking
 
-        ! If it has the standard_name attribute, use that instead
-        rc = NF90_GET_ATT(fid,dimId,'standard_name',stdName)
-        if (rc .ne. 0) stdName = Trim(dimName)
-
-        idx = IdentifyDim (stdName, dimUnits)
+        idx = IdentifyDim (dimName, dimUnits)
         if (idx .EQ. 0) then
           if (dimSize .ne. im) then
             rc = -4

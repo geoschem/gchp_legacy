@@ -1,6 +1,6 @@
 // $Id$
 // Earth System Modeling Framework
-// Copyright 2002-2018, University Corporation for Atmospheric Research,
+// Copyright 2002-2019, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -12,14 +12,15 @@
 #ifndef ESMCI_Mesh_h
 #define ESMCI_Mesh_h
 
-#include <Mesh/include/ESMCI_MeshDB.h>
-#include <Mesh/include/ESMCI_CommRel.h>
-#include <Mesh/include/ESMCI_FieldReg.h>
-#include <Mesh/include/ESMCI_CommReg.h>
+#include <Mesh/include/Legacy/ESMCI_MeshDB.h>
+#include <Mesh/include/Legacy/ESMCI_CommRel.h>
+#include <Mesh/include/Legacy/ESMCI_FieldReg.h>
+#include <Mesh/include/Legacy/ESMCI_CommReg.h>
+
+#include "Util/include/ESMCI_CoordSys.h"
 #include "Util/include/ESMCI_F90Interface.h"
 #include "PointList/include/ESMCI_PointList.h"
- #include "ESMCI_Field.h"
-#include "ESMCI_CoordSys.h"
+#include "Field/include/ESMCI_Field.h"
 
 #include <map>
 #include <mpi.h>

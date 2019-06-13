@@ -132,7 +132,7 @@
 
       character*4, parameter :: myname = 'init'
 
-      integer nfiles, iret, i, iarg, argc, iargc
+      integer nfiles, i, iarg, argc, iargc
       integer ires
       character(len=255) :: etafile, argv, res
       character*10 str
@@ -324,7 +324,7 @@
    real,    intent(out) :: lwi(im,jm)        
    real,    intent(out) :: ts (im,jm)        
 
-   integer :: i, j, lu, irec
+   integer :: i,j, lu, irec
 
    lu = luavail()
    open ( unit=lu, file = phyfile, form = 'unformatted' )
@@ -347,7 +347,7 @@
    real,    intent(out) :: phis   (im,jm)
    real,    intent(out) :: hs_stdv(im,jm)
 
-   integer :: i, j, lu
+   integer :: j, lu
 
    lu = luavail()
    open ( unit=lu, file = bcsfile, form = 'unformatted' )

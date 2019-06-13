@@ -7,6 +7,7 @@
 
       use ESMF
       use MAPL_Mod
+      use MAPL_CommsMod
 
       implicit none
 
@@ -36,12 +37,10 @@
       real  vintdivb(im,jm)
       real  vintdivc(im,jm)
 
-      integer index(lm),ierror
-
-      real, allocatable ::  uglo(:,:,:)
-      real, allocatable ::  vglo(:,:,:)
-      real, allocatable ::  dglo(:,:,:)
-      real, allocatable :: dpglo(:,:,:)
+      real, pointer ::  uglo(:,:,:) => null()
+      real, pointer ::  vglo(:,:,:) => null()
+      real, pointer ::  dglo(:,:,:) => null()
+      real, pointer :: dpglo(:,:,:) => null()
 
       real, allocatable ::   sum1(:,:)
       real, allocatable ::   sum2(:,:)
@@ -55,41 +54,32 @@
 
       integer L, comm, myid, npes
       integer img, jmg, imjmg
-      integer imax,jmax,msgn
+      integer msgn
+      integer k, kmax
       real    undef
 
       Iam   = "WINDFIX"
-      imax  = 576  ! Maximum IMG size for Laplacian Solver
-      jmax  = 361  ! Maximum JMG size for Laplacian Solver
       msgn  = 0    ! Scalar  Flag
       undef = 1e15
 
       call ESMF_VMGet (VM, localpet=myid, petcount=NPES,  RC=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       call ESMF_VmGet (VM, mpicommunicator=comm, rc=status)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
 
       call  MAPL_GridGet(GRIDana, globalCellCountPerDim=DIMS, RC=STATUS)
       img = DIMS(1) ! global grid dim
       jmg = DIMS(2) ! global grid dim
       imjmg = img*jmg
 
-      do L=1,lm
-      index(L) = mod(L-1,npes)
-      enddo
- 
-      allocate (  uglo(img,jmg,lm) )
-      allocate (  vglo(img,jmg,lm) )
-      allocate (  dglo(img,jmg,lm) )
-      allocate ( dpglo(img,jmg,lm) )
-      allocate (   chi(img,jmg)    )
-      allocate (  uchi(img,jmg)    )
-      allocate (  vchi(img,jmg)    )
+      allocate (   chi(img,jmg) )
+      allocate (  uchi(img,jmg) )
+      allocate (  vchi(img,jmg) )
 
-      allocate (   sum1(im,jm)    )
-      allocate (   sum2(im,jm)    )
-      allocate (   sum3(im,jm)    )
-      allocate ( lambda(im,jm)    )
+      allocate (   sum1(im,jm)  )
+      allocate (   sum2(im,jm)  )
+      allocate (   sum3(im,jm)  )
+      allocate ( lambda(im,jm)  )
 
 ! Compute Pressure Thickness
 ! --------------------------
@@ -100,73 +90,61 @@
 
 ! Gather Winds for Background
 ! ---------------------------
-      do L=1,lm
-         call ArrayGather (local_array= ub(:,:,L),global_array= uglo(:,:,L), grid=GRIDana, rc=status)
-         VERIFY_(STATUS)
-         call ArrayGather (local_array= vb(:,:,L),global_array= vglo(:,:,L), grid=GRIDana, rc=status)
-         VERIFY_(STATUS)
-         call ArrayGather (local_array=dpb(:,:,L),global_array=dpglo(:,:,L), grid=GRIDana, rc=status)
-         VERIFY_(STATUS)
-
-         call MAPL_CommsBcast (VM, DATA= uglo(:,:,L), N=imjmg, Root=MAPL_Root, RC=status)
-         VERIFY_(STATUS)
-         call MAPL_CommsBcast (VM, DATA= vglo(:,:,L), N=imjmg, Root=MAPL_Root, RC=status)
-         VERIFY_(STATUS)
-         call MAPL_CommsBcast (VM, DATA=dpglo(:,:,L), N=imjmg, Root=MAPL_Root, RC=status)
-         VERIFY_(STATUS)
-      enddo
-
+      call MAPL_CollectiveGather3D(gridAna,ub,uglo,rc=status)
+      _VERIFY(status)
+      call MAPL_CollectiveGather3D(gridAna,vb,vglo,rc=status)
+      _VERIFY(status)
+      call MAPL_CollectiveGather3D(gridAna,dpb,dpglo,rc=status)
+      _VERIFY(status)
+      if (size(dpglo)>1) then
+         allocate(dglo(img,jmg,size(dpglo,3)),stat=status)
+         _VERIFY(status)
+      end if
 
 ! Compute Vorticity and Divergence
 ! --------------------------------
-      do L=1,lm
-      if( index(L).eq.myid ) call getdiv (uglo(1,1,L),vglo(1,1,L),dpglo(1,1,L),dglo(1,1,L),img,jmg )               
-      enddo
-      call mpi_barrier (comm,ierror)
-      do L=1,lm
-         call MAPL_CommsBcast(VM, DATA=dglo(:,:,L), N=imjmg, Root=index(L), RC=status)
-         VERIFY_(STATUS)
-      enddo
-      call mpi_barrier (comm,ierror)
-      do L=1,lm
-         call ArrayScatter(local_array=divb(:,:,L), global_array=dglo(:,:,L), grid=GRIDana, rc=status)
-      enddo
-
+      if (size(uglo)>1) then
+         do l=1,size(uglo,3)
+            call getdiv (uglo(1,1,l),vglo(1,1,l),dpglo(1,1,l),dglo(1,1,l),img,jmg )
+         enddo
+      end if
+         
+      call MAPL_CollectiveScatter3d(gridAna,dglo,divb,rc=status)
+      _VERIFY(status)
+      deallocate(uglo,vglo,dpglo)
+      nullify(uglo,vglo,dpglo)
+      if (associated(dglo)) then
+         deallocate(dglo)
+         nullify(dglo)
+      end if
 
 ! Gather Winds for Analysis
 ! -------------------------
-      do L=1,lm
-         call ArrayGather (local_array= ua(:,:,L),global_array= uglo(:,:,L), grid=GRIDana, rc=status)
-         VERIFY_(STATUS)
-         call ArrayGather (local_array= va(:,:,L),global_array= vglo(:,:,L), grid=GRIDana, rc=status)
-         VERIFY_(STATUS)
-         call ArrayGather (local_array=dpa(:,:,L),global_array=dpglo(:,:,L), grid=GRIDana, rc=status)
-         VERIFY_(STATUS)
-
-         call MAPL_CommsBcast (VM, DATA= uglo(:,:,L), N=imjmg, Root=MAPL_Root, RC=status)
-         VERIFY_(STATUS)
-         call MAPL_CommsBcast (VM, DATA= vglo(:,:,L), N=imjmg, Root=MAPL_Root, RC=status)
-         VERIFY_(STATUS)
-         call MAPL_CommsBcast (VM, DATA=dpglo(:,:,L), N=imjmg, Root=MAPL_Root, RC=status)
-         VERIFY_(STATUS)
-      enddo
+      call MAPL_CollectiveGather3D(gridAna,ua,uglo,rc=status)
+      _VERIFY(status)
+      call MAPL_CollectiveGather3D(gridAna,va,vglo,rc=status)
+      _VERIFY(status)
+      call MAPL_CollectiveGather3D(gridAna,dpa,dpglo,rc=status)
+      _VERIFY(status)
+      if (size(dpglo)>1) then
+         allocate(dglo(img,jmg,size(dpglo,3)),stat=status)
+         _VERIFY(status)
+      end if
 
 ! Compute Vorticity and Divergence
 ! --------------------------------
-      do L=1,lm
-      if( index(L).eq.myid ) call getdiv (uglo(1,1,L),vglo(1,1,L),dpglo(1,1,L),dglo(1,1,L),img,jmg )               
-      enddo
-      call mpi_barrier (comm,ierror)
-      do L=1,lm
-         call MAPL_CommsBcast(VM, DATA=dglo(:,:,L), N=imjmg, Root=index(L), RC=status)
-         VERIFY_(STATUS)
-      enddo
-      call mpi_barrier (comm,ierror)
-      do L=1,lm
-         call ArrayScatter(local_array=diva(:,:,L), global_array=dglo(:,:,L), grid=GRIDana, rc=status)
-         VERIFY_(STATUS)
-      enddo
+      if (size(dpglo)>1) then
+         do l=1,size(uglo,3)
+            call getdiv (uglo(1,1,l),vglo(1,1,l),dpglo(1,1,l),dglo(1,1,l),img,jmg )
+         enddo
+      end if
 
+      call MAPL_CollectiveScatter3d(gridAna,dglo,diva,rc=status)
+      _VERIFY(status)
+      if (associated(dglo)) then
+         deallocate(dglo)
+         nullify(dglo)
+      end if
 
 ! Compute Divergence Increment (to force vanishing vertical integral)
 ! -------------------------------------------------------------------
@@ -227,58 +205,33 @@
 
 ! Gather and Broadcast Divergence Increment
 ! -----------------------------------------
-      do L=1,lm
-         call ArrayGather (local_array=diva(:,:,L),global_array=dglo(:,:,L), grid=GRIDana, rc=status)
-         VERIFY_(STATUS)
-         call MAPL_CommsBcast(VM, DATA= dglo(:,:,L), N=imjmg, Root=MAPL_Root, RC=status)
-         VERIFY_(STATUS)
-      enddo
-
+      call MAPL_CollectiveGather3D(gridAna,diva,dglo,rc=status)
+      _VERIFY(status)
 
 ! Compute Wind Increments Associated with Divergence Increment
 ! ------------------------------------------------------------
-      do L=1,lm
-      if( index(L).eq.myid ) then
-
-         !if( img.gt.imax .or. jmg.gt.jmax ) then
-         !    allocate( dumdiv(imax,jmax) )
-         !    allocate( dumchi(imax,jmax) )
-         !    call regrid ( dglo(1,1,L),img,jmg,dumdiv,imax,jmax,undef,msgn )
-         !    call VELPOT (dumdiv,dumchi,imax,jmax)
-         !    call regrid ( dumchi,imax,jmax,chi,img,jmg,undef,msgn )
-         !    deallocate( dumdiv )
-         !    deallocate( dumchi )
-         !else
-         !    call VELPOT (dglo(1,1,L),chi,img,jmg)
-         !endif
-              call VELPOT_SP (dglo(1,1,L),chi,img,jmg)
-
-          call gradq  (chi,  uchi,vchi,img,jmg)
-          uglo(:,:,L) = uglo(:,:,L) + uchi(:,:)/dpglo(:,:,L)
-          vglo(:,:,L) = vglo(:,:,L) + vchi(:,:)/dpglo(:,:,L)
-      endif
-      enddo
-      call mpi_barrier (comm,ierror)
-      do L=1,lm
-         call MAPL_CommsBcast(VM, DATA= uglo(:,:,L), N=imjmg, Root=index(L), RC=status)
-         VERIFY_(STATUS)
-         call MAPL_CommsBcast(VM, DATA= vglo(:,:,L), N=imjmg, Root=index(L), RC=status)
-         VERIFY_(STATUS)
-      enddo
-      call mpi_barrier (comm,ierror)
+      if (size(dpglo)>1) then
+         do l=1,size(dglo,3)
+             call VELPOT_SP (dglo(1,1,l),chi,img,jmg)
+             call gradq     (chi,  uchi,vchi,img,jmg)
+             uglo(:,:,l) = uglo(:,:,l) + uchi(:,:)/dpglo(:,:,l)
+             vglo(:,:,l) = vglo(:,:,l) + vchi(:,:)/dpglo(:,:,l)
+         end do
+      end if
 
 ! Scatter Winds
 ! -------------
-      do L=1,lm
-         call ArrayScatter (local_array=ua(:,:,L), global_array=uglo(:,:,L), grid=GRIDana, rc=status)
-         VERIFY_(STATUS)
-         call ArrayScatter (local_array=va(:,:,L), global_array=vglo(:,:,L), grid=GRIDana, rc=status)
-         VERIFY_(STATUS)
-      enddo
+      call MAPL_CollectiveScatter3d(gridAna,uglo,ua,rc=status)
+      _VERIFY(status)
+      call MAPL_CollectiveScatter3d(gridAna,vglo,va,rc=status)
+      _VERIFY(status)
+      if (associated(dglo)) then
+         deallocate(dglo,uglo,vglo,dpglo)
+         nullify(dglo,uglo,vglo,dpglo)
+      end if
 
       deallocate ( sum1,sum2,sum3,lambda )
       deallocate ( chi,uchi,vchi         )
-      deallocate ( uglo,vglo,dglo,dpglo  )
       return
       end
 

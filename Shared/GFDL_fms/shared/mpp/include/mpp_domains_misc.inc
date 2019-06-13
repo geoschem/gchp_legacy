@@ -45,7 +45,7 @@
       module_is_initialized = .TRUE.
       pe = mpp_root_pe()
       unit = stdlog()
-      if( mpp_pe() .EQ.mpp_root_pe() ) write( unit,'(/a)' )'MPP_DOMAINS module '//trim(version)//trim(tagname)
+      if( mpp_pe() .EQ.mpp_root_pe() ) write( unit,'(/a)' )'MPP_DOMAINS module '//trim(version)
 
       if( PRESENT(flags) )then
           debug   = flags.EQ.MPP_DEBUG
@@ -54,6 +54,9 @@
       end if
 
       !--- namelist 
+#ifdef INTERNAL_FILE_NML
+      read (input_nml_file, mpp_domains_nml, iostat=io_status)
+#else
       unit_begin = 103
       unit_end   = 512
       do unit_nml = unit_begin, unit_end
@@ -64,6 +67,12 @@
       open(unit_nml,file='input.nml', iostat=io_status)
       read(unit_nml,mpp_domains_nml,iostat=io_status)
       close(unit_nml)
+#endif
+
+      if (io_status > 0) then
+         call mpp_error(FATAL,'=>mpp_domains_init: Error reading input.nml')
+      endif
+
 
       select case(lowercase(trim(debug_update_domain)))
       case("none")
@@ -84,8 +93,7 @@
          call init_nonblock_type(nonblock_data(n))
       enddo
 
-      !call mpp_domains_set_stack_size(32768) !default, pretty arbitrary
-      call mpp_domains_set_stack_size(8388606) !MAT Larger. Actually useful.
+      call mpp_domains_set_stack_size(32768) !default, pretty arbitrary
 #ifdef use_libSMA
       call mpp_malloc( ptr_info, 16, l )
 #endif 
@@ -100,8 +108,7 @@
           recv_clock          = mpp_clock_id( 'Halo recv' )
           unpk_clock          = mpp_clock_id( 'Halo unpk' )
           wait_clock          = mpp_clock_id( 'Halo wait' )
-          pack_clock_nonblock = mpp_clock_id( 'Halo pack nonblock' )
-          send_clock_nonblock = mpp_clock_id( 'Halo send nonblock' )
+          send_pack_clock_nonblock = mpp_clock_id( 'Halo pack and send nonblock' )
           recv_clock_nonblock = mpp_clock_id( 'Halo recv nonblock' )
           unpk_clock_nonblock = mpp_clock_id( 'Halo unpk nonblock' )
           wait_clock_nonblock = mpp_clock_id( 'Halo wait nonblock' )
@@ -110,6 +117,16 @@
           nest_recv_clock     = mpp_clock_id( 'nest recv' )
           nest_unpk_clock     = mpp_clock_id( 'nest unpk' )
           nest_wait_clock     = mpp_clock_id( 'nest wait' )
+          group_pack_clock     = mpp_clock_id( 'group pack' )
+          group_send_clock     = mpp_clock_id( 'group send' )
+          group_recv_clock     = mpp_clock_id( 'group recv' )
+          group_unpk_clock     = mpp_clock_id( 'group unpk' )
+          group_wait_clock     = mpp_clock_id( 'group wait' )
+          nonblock_group_pack_clock     = mpp_clock_id( 'nonblock group pack' )
+          nonblock_group_send_clock     = mpp_clock_id( 'nonblock group send' )
+          nonblock_group_recv_clock     = mpp_clock_id( 'nonblock group recv' )
+          nonblock_group_unpk_clock     = mpp_clock_id( 'nonblock group unpk' )
+          nonblock_group_wait_clock     = mpp_clock_id( 'nonblock group wait' )
       end if
       return
     end subroutine mpp_domains_init
@@ -141,6 +158,8 @@ subroutine init_nonblock_type( nonblock_obj )
    nonblock_obj%request_send(:)    = 0
    nonblock_obj%request_recv(:)    = 0
 #endif
+   nonblock_obj%buffer_pos_send(:) = 0
+   nonblock_obj%buffer_pos_recv(:) = 0
    nonblock_obj%nfields            = 0
    nonblock_obj%field_addrs(:)     = 0
    nonblock_obj%field_addrs2(:)    = 0
@@ -1434,113 +1453,120 @@ end subroutine init_nonblock_type
 !              MPP_UPDATE_DOMAINS_AD: adjoint fill halos for 2D decomposition !
 !                                                                             !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!$#undef VECTOR_FIELD_
-!!$#define VECTOR_FIELD_
-!!$#undef MPP_TYPE_
-!!$#define MPP_TYPE_ real(DOUBLE_KIND)
-!!$#undef MPP_UPDATE_DOMAINS_AD_2D_
-!!$#define MPP_UPDATE_DOMAINS_AD_2D_ mpp_update_domain2D_ad_r8_2D
-!!$#undef MPP_UPDATE_DOMAINS_AD_3D_
-!!$#define MPP_UPDATE_DOMAINS_AD_3D_ mpp_update_domain2D_ad_r8_3D
-!!$#undef MPP_UPDATE_DOMAINS_AD_4D_
-!!$#define MPP_UPDATE_DOMAINS_AD_4D_ mpp_update_domain2D_ad_r8_4D
-!!$#undef MPP_UPDATE_DOMAINS_AD_5D_
-!!$#define MPP_UPDATE_DOMAINS_AD_5D_ mpp_update_domain2D_ad_r8_5D
-!!$#ifdef  VECTOR_FIELD_
-!!$#undef MPP_UPDATE_DOMAINS_AD_2D_V_
-!!$#define MPP_UPDATE_DOMAINS_AD_2D_V_ mpp_update_domain2D_ad_r8_2Dv
-!!$#undef MPP_UPDATE_DOMAINS_AD_3D_V_
-!!$#define MPP_UPDATE_DOMAINS_AD_3D_V_ mpp_update_domain2D_ad_r8_3Dv
-!!$#undef MPP_UPDATE_DOMAINS_AD_4D_V_
-!!$#define MPP_UPDATE_DOMAINS_AD_4D_V_ mpp_update_domain2D_ad_r8_4Dv
-!!$#undef MPP_UPDATE_DOMAINS_AD_5D_V_
-!!$#define MPP_UPDATE_DOMAINS_AD_5D_V_ mpp_update_domain2D_ad_r8_5Dv
-!!$#endif
-!!$#include <mpp_update_domains2D_ad.h>
-!!$#undef  VECTOR_FIELD_
-!!$
-!!$#ifdef OVERLOAD_C8
-!!$#undef MPP_TYPE_
-!!$#define MPP_TYPE_ complex(DOUBLE_KIND)
-!!$#undef MPP_UPDATE_DOMAINS_AD_2D_
-!!$#define MPP_UPDATE_DOMAINS_AD_2D_ mpp_update_domain2D_ad_c8_2D
-!!$#undef MPP_UPDATE_DOMAINS_AD_3D_
-!!$#define MPP_UPDATE_DOMAINS_AD_3D_ mpp_update_domain2D_ad_c8_3D
-!!$#undef MPP_UPDATE_DOMAINS_AD_4D_
-!!$#define MPP_UPDATE_DOMAINS_AD_4D_ mpp_update_domain2D_ad_c8_4D
-!!$#undef MPP_UPDATE_DOMAINS_AD_5D_
-!!$#define MPP_UPDATE_DOMAINS_AD_5D_ mpp_update_domain2D_ad_c8_5D
-!!$#include <mpp_update_domains2D_ad.h>
-!!$#endif
-!!$
-!!$#ifndef no_8byte_integers
-!!$#undef MPP_TYPE_
-!!$#define MPP_TYPE_ integer(LONG_KIND)
-!!$#undef MPP_UPDATE_DOMAINS_AD_2D_
-!!$#define MPP_UPDATE_DOMAINS_AD_2D_ mpp_update_domain2D_ad_i8_2D
-!!$#undef MPP_UPDATE_DOMAINS_AD_3D_
-!!$#define MPP_UPDATE_DOMAINS_AD_3D_ mpp_update_domain2D_ad_i8_3D
-!!$#undef MPP_UPDATE_DOMAINS_AD_4D_
-!!$#define MPP_UPDATE_DOMAINS_AD_4D_ mpp_update_domain2D_ad_i8_4D
-!!$#undef MPP_UPDATE_DOMAINS_AD_5D_
-!!$#define MPP_UPDATE_DOMAINS_AD_5D_ mpp_update_domain2D_ad_i8_5D
-!!$#include <mpp_update_domains2D_ad.h>
-!!$#endif
-!!$
-!!$#ifdef OVERLOAD_R4
-!!$#undef VECTOR_FIELD_
-!!$#define VECTOR_FIELD_
-!!$#undef MPP_TYPE_
-!!$#define MPP_TYPE_ real(FLOAT_KIND)
-!!$#undef MPP_UPDATE_DOMAINS_AD_2D_
-!!$#define MPP_UPDATE_DOMAINS_AD_2D_ mpp_update_domain2D_ad_r4_2D
-!!$#undef MPP_UPDATE_DOMAINS_AD_3D_
-!!$#define MPP_UPDATE_DOMAINS_AD_3D_ mpp_update_domain2D_ad_r4_3D
-!!$#undef MPP_UPDATE_DOMAINS_AD_4D_
-!!$#define MPP_UPDATE_DOMAINS_AD_4D_ mpp_update_domain2D_ad_r4_4D
-!!$#undef MPP_UPDATE_DOMAINS_AD_5D_
-!!$#define MPP_UPDATE_DOMAINS_AD_5D_ mpp_update_domain2D_ad_r4_5D
-!!$#ifdef  VECTOR_FIELD_
-!!$#undef MPP_UPDATE_DOMAINS_AD_2D_V_
-!!$#define MPP_UPDATE_DOMAINS_AD_2D_V_ mpp_update_domain2D_ad_r4_2Dv
-!!$#undef MPP_UPDATE_DOMAINS_AD_3D_V_
-!!$#define MPP_UPDATE_DOMAINS_AD_3D_V_ mpp_update_domain2D_ad_r4_3Dv
-!!$#undef MPP_UPDATE_DOMAINS_AD_4D_V_
-!!$#define MPP_UPDATE_DOMAINS_AD_4D_V_ mpp_update_domain2D_ad_r4_4Dv
-!!$#undef MPP_UPDATE_DOMAINS_AD_5D_V_
-!!$#define MPP_UPDATE_DOMAINS_AD_5D_V_ mpp_update_domain2D_ad_r4_5Dv
-!!$#endif
-!!$#include <mpp_update_domains2D_ad.h>
-!!$#endif
-!!$
-!!$#ifdef OVERLOAD_C4
-!!$#undef  VECTOR_FIELD_
-!!$#undef MPP_TYPE_
-!!$#define MPP_TYPE_ complex(FLOAT_KIND)
-!!$#undef MPP_UPDATE_DOMAINS_AD_2D_
-!!$#define MPP_UPDATE_DOMAINS_AD_2D_ mpp_update_domain2D_ad_c4_2D
-!!$#undef MPP_UPDATE_DOMAINS_AD_3D_
-!!$#define MPP_UPDATE_DOMAINS_AD_3D_ mpp_update_domain2D_ad_c4_3D
-!!$#undef MPP_UPDATE_DOMAINS_AD_4D_
-!!$#define MPP_UPDATE_DOMAINS_AD_4D_ mpp_update_domain2D_ad_c4_4D
-!!$#undef MPP_UPDATE_DOMAINS_AD_5D_
-!!$#define MPP_UPDATE_DOMAINS_AD_5D_ mpp_update_domain2D_ad_c4_5D
-!!$#include <mpp_update_domains2D_ad.h>
-!!$#endif
-!!$
-!!$#undef MPP_TYPE_
-!!$#define MPP_TYPE_ integer(INT_KIND)
-!!$#undef MPP_UPDATE_DOMAINS_AD_2D_
-!!$#define MPP_UPDATE_DOMAINS_AD_2D_ mpp_update_domain2D_ad_i4_2D
-!!$#undef MPP_UPDATE_DOMAINS_AD_3D_
-!!$#define MPP_UPDATE_DOMAINS_AD_3D_ mpp_update_domain2D_ad_i4_3D
-!!$#undef MPP_UPDATE_DOMAINS_AD_4D_
-!!$#define MPP_UPDATE_DOMAINS_AD_4D_ mpp_update_domain2D_ad_i4_4D
-!!$#undef MPP_UPDATE_DOMAINS_AD_5D_
-!!$#define MPP_UPDATE_DOMAINS_AD_5D_ mpp_update_domain2D_ad_i4_5D
-!!$#include <mpp_update_domains2D_ad.h>
+#undef VECTOR_FIELD_
+#define VECTOR_FIELD_
+#undef MPP_TYPE_
+#define MPP_TYPE_ real(DOUBLE_KIND)
+#undef MPP_UPDATE_DOMAINS_AD_2D_
+#define MPP_UPDATE_DOMAINS_AD_2D_ mpp_update_domains_ad_2D_r8_2D
+#undef MPP_UPDATE_DOMAINS_AD_3D_
+#define MPP_UPDATE_DOMAINS_AD_3D_ mpp_update_domains_ad_2D_r8_3D
+#undef MPP_UPDATE_DOMAINS_AD_4D_
+#define MPP_UPDATE_DOMAINS_AD_4D_ mpp_update_domains_ad_2D_r8_4D
+#undef MPP_UPDATE_DOMAINS_AD_5D_
+#define MPP_UPDATE_DOMAINS_AD_5D_ mpp_update_domains_ad_2D_r8_5D
+#ifdef  VECTOR_FIELD_
+#undef MPP_UPDATE_DOMAINS_AD_2D_V_
+#define MPP_UPDATE_DOMAINS_AD_2D_V_ mpp_update_domains_ad_2D_r8_2Dv
+#undef MPP_UPDATE_DOMAINS_AD_3D_V_
+#define MPP_UPDATE_DOMAINS_AD_3D_V_ mpp_update_domains_ad_2D_r8_3Dv
+#undef MPP_UPDATE_DOMAINS_AD_4D_V_
+#define MPP_UPDATE_DOMAINS_AD_4D_V_ mpp_update_domains_ad_2D_r8_4Dv
+#undef MPP_UPDATE_DOMAINS_AD_5D_V_
+#define MPP_UPDATE_DOMAINS_AD_5D_V_ mpp_update_domains_ad_2D_r8_5Dv
+#endif
+#include <mpp_update_domains2D_ad.h>
+
+#ifdef OVERLOAD_R4
+#undef VECTOR_FIELD_
+#define VECTOR_FIELD_
+#undef MPP_TYPE_
+#define MPP_TYPE_ real(FLOAT_KIND)
+#undef MPP_UPDATE_DOMAINS_AD_2D_
+#define MPP_UPDATE_DOMAINS_AD_2D_ mpp_update_domains_ad_2D_r4_2D
+#undef MPP_UPDATE_DOMAINS_AD_3D_
+#define MPP_UPDATE_DOMAINS_AD_3D_ mpp_update_domains_ad_2D_r4_3D
+#undef MPP_UPDATE_DOMAINS_AD_4D_
+#define MPP_UPDATE_DOMAINS_AD_4D_ mpp_update_domains_ad_2D_r4_4D
+#undef MPP_UPDATE_DOMAINS_AD_5D_
+#define MPP_UPDATE_DOMAINS_AD_5D_ mpp_update_domains_ad_2D_r4_5D
+#ifdef  VECTOR_FIELD_
+#undef MPP_UPDATE_DOMAINS_AD_2D_V_
+#define MPP_UPDATE_DOMAINS_AD_2D_V_ mpp_update_domains_ad_2D_r4_2Dv
+#undef MPP_UPDATE_DOMAINS_AD_3D_V_
+#define MPP_UPDATE_DOMAINS_AD_3D_V_ mpp_update_domains_ad_2D_r4_3Dv
+#undef MPP_UPDATE_DOMAINS_AD_4D_V_
+#define MPP_UPDATE_DOMAINS_AD_4D_V_ mpp_update_domains_ad_2D_r4_4Dv
+#undef MPP_UPDATE_DOMAINS_AD_5D_V_
+#define MPP_UPDATE_DOMAINS_AD_5D_V_ mpp_update_domains_ad_2D_r4_5Dv
+#endif
+#include <mpp_update_domains2D_ad.h>
+#endif
+
+
 !!$
 !!$!*******************************************************
+#undef VECTOR_FIELD_
+#define VECTOR_FIELD_
+#undef MPP_TYPE_
+#define MPP_TYPE_ real(DOUBLE_KIND)
+#undef MPP_DO_UPDATE_AD_3D_
+#define MPP_DO_UPDATE_AD_3D_ mpp_do_update_ad_r8_3d
+#ifdef  VECTOR_FIELD_
+#undef MPP_DO_UPDATE_AD_3D_V_
+#define MPP_DO_UPDATE_AD_3D_V_ mpp_do_update_ad_r8_3dv
+#endif
+#include <mpp_do_update_ad.h>
+#include <mpp_do_updateV_ad.h>
+
+#ifdef OVERLOAD_C8
+#undef  VECTOR_FIELD_
+#undef MPP_TYPE_
+#define MPP_TYPE_ complex(DOUBLE_KIND)
+#undef MPP_DO_UPDATE_AD_3D_
+#define MPP_DO_UPDATE_AD_3D_ mpp_do_update_ad_c8_3d
+#include <mpp_do_update_ad.h>
+#define VECTOR_FIELD_
+#endif
+
+#ifndef no_8byte_integers
+#undef MPP_TYPE_
+#define MPP_TYPE_ integer(LONG_KIND)
+#undef MPP_DO_UPDATE_AD_3D_
+#define MPP_DO_UPDATE_AD_3D_ mpp_do_update_ad_i8_3d
+#include <mpp_do_update_ad.h>
+#endif
+
+#ifdef OVERLOAD_R4
+#undef VECTOR_FIELD_
+#define VECTOR_FIELD_
+#undef MPP_TYPE_
+#define MPP_TYPE_ real(FLOAT_KIND)
+#undef MPP_DO_UPDATE_AD_3D_
+#define MPP_DO_UPDATE_AD_3D_ mpp_do_update_ad_r4_3d
+#ifdef  VECTOR_FIELD_
+#undef MPP_DO_UPDATE_AD_3D_V_
+#define MPP_DO_UPDATE_AD_3D_V_ mpp_do_update_ad_r4_3dv
+#endif
+#include <mpp_do_update_ad.h>
+#include <mpp_do_updateV_ad.h>
+#endif
+
+#ifdef OVERLOAD_C4
+#undef  VECTOR_FIELD_
+#undef MPP_TYPE_
+#define MPP_TYPE_ complex(FLOAT_KIND)
+#undef MPP_DO_UPDATE_AD_3D_
+#define MPP_DO_UPDATE_AD_3D_ mpp_do_update_ad_c4_3d
+#include <mpp_do_update_ad.h>
+#define VECTOR_FIELD_
+#endif
+
+#undef MPP_TYPE_
+#define MPP_TYPE_ integer(INT_KIND)
+#undef MPP_DO_UPDATE_AD_3D_
+#define MPP_DO_UPDATE_AD_3D_ mpp_do_update_ad_i4_3d
+#include <mpp_do_update_ad.h>
 !!$#undef VECTOR_FIELD_
 !!$#define VECTOR_FIELD_
 !!$#undef MPP_TYPE_
@@ -1669,19 +1695,31 @@ end subroutine init_nonblock_type
 #define MPP_GET_BOUNDARY_2D_ mpp_get_boundary_r8_2d
 #undef MPP_GET_BOUNDARY_3D_
 #define MPP_GET_BOUNDARY_3D_ mpp_get_boundary_r8_3d
-#undef MPP_GET_BOUNDARY_4D_
-#define MPP_GET_BOUNDARY_4D_ mpp_get_boundary_r8_4d
-#undef MPP_GET_BOUNDARY_5D_
-#define MPP_GET_BOUNDARY_5D_ mpp_get_boundary_r8_5d
+!#undef MPP_GET_BOUNDARY_4D_
+!#define MPP_GET_BOUNDARY_4D_ mpp_get_boundary_r8_4d
+!#undef MPP_GET_BOUNDARY_5D_
+!#define MPP_GET_BOUNDARY_5D_ mpp_get_boundary_r8_5d
 #undef MPP_GET_BOUNDARY_2D_V_
 #define MPP_GET_BOUNDARY_2D_V_ mpp_get_boundary_r8_2dv
 #undef MPP_GET_BOUNDARY_3D_V_
 #define MPP_GET_BOUNDARY_3D_V_ mpp_get_boundary_r8_3dv
-#undef MPP_GET_BOUNDARY_4D_V_
-#define MPP_GET_BOUNDARY_4D_V_ mpp_get_boundary_r8_4dv
-#undef MPP_GET_BOUNDARY_5D_V_
-#define MPP_GET_BOUNDARY_5D_V_ mpp_get_boundary_r8_5dv
+!#undef MPP_GET_BOUNDARY_4D_V_
+!#define MPP_GET_BOUNDARY_4D_V_ mpp_get_boundary_r8_4dv
+!#undef MPP_GET_BOUNDARY_5D_V_
+!#define MPP_GET_BOUNDARY_5D_V_ mpp_get_boundary_r8_5dv
 #include <mpp_get_boundary.h>
+
+#undef MPP_TYPE_
+#define MPP_TYPE_ real(DOUBLE_KIND)
+#undef MPP_GET_BOUNDARY_AD_2D_
+#define MPP_GET_BOUNDARY_AD_2D_ mpp_get_boundary_ad_r8_2d
+#undef MPP_GET_BOUNDARY_AD_3D_
+#define MPP_GET_BOUNDARY_AD_3D_ mpp_get_boundary_ad_r8_3d
+#undef MPP_GET_BOUNDARY_AD_2D_V_
+#define MPP_GET_BOUNDARY_AD_2D_V_ mpp_get_boundary_ad_r8_2dv
+#undef MPP_GET_BOUNDARY_AD_3D_V_
+#define MPP_GET_BOUNDARY_AD_3D_V_ mpp_get_boundary_ad_r8_3dv
+#include <mpp_get_boundary_ad.h>
 
 #ifdef OVERLOAD_R4
 #undef MPP_TYPE_
@@ -1690,19 +1728,33 @@ end subroutine init_nonblock_type
 #define MPP_GET_BOUNDARY_2D_ mpp_get_boundary_r4_2d
 #undef MPP_GET_BOUNDARY_3D_
 #define MPP_GET_BOUNDARY_3D_ mpp_get_boundary_r4_3d
-#undef MPP_GET_BOUNDARY_4D_
-#define MPP_GET_BOUNDARY_4D_ mpp_get_boundary_r4_4d
-#undef MPP_GET_BOUNDARY_5D_
-#define MPP_GET_BOUNDARY_5D_ mpp_get_boundary_r4_5d
+!#undef MPP_GET_BOUNDARY_4D_
+!#define MPP_GET_BOUNDARY_4D_ mpp_get_boundary_r4_4d
+!#undef MPP_GET_BOUNDARY_5D_
+!#define MPP_GET_BOUNDARY_5D_ mpp_get_boundary_r4_5d
 #undef MPP_GET_BOUNDARY_2D_V_
 #define MPP_GET_BOUNDARY_2D_V_ mpp_get_boundary_r4_2dv
 #undef MPP_GET_BOUNDARY_3D_V_
 #define MPP_GET_BOUNDARY_3D_V_ mpp_get_boundary_r4_3dv
-#undef MPP_GET_BOUNDARY_4D_V_
-#define MPP_GET_BOUNDARY_4D_V_ mpp_get_boundary_r4_4dv
-#undef MPP_GET_BOUNDARY_5D_V_
-#define MPP_GET_BOUNDARY_5D_V_ mpp_get_boundary_r4_5dv
+!#undef MPP_GET_BOUNDARY_4D_V_
+!#define MPP_GET_BOUNDARY_4D_V_ mpp_get_boundary_r4_4dv
+!#undef MPP_GET_BOUNDARY_5D_V_
+!#define MPP_GET_BOUNDARY_5D_V_ mpp_get_boundary_r4_5dv
 #include <mpp_get_boundary.h>
+#endif
+
+#ifdef OVERLOAD_R4
+#undef MPP_TYPE_
+#define MPP_TYPE_ real(FLOAT_KIND)
+#undef MPP_GET_BOUNDARY_AD_2D_
+#define MPP_GET_BOUNDARY_AD_2D_ mpp_get_boundary_ad_r4_2d
+#undef MPP_GET_BOUNDARY_AD_3D_
+#define MPP_GET_BOUNDARY_AD_3D_ mpp_get_boundary_ad_r4_3d
+#undef MPP_GET_BOUNDARY_AD_2D_V_
+#define MPP_GET_BOUNDARY_AD_2D_V_ mpp_get_boundary_ad_r4_2dv
+#undef MPP_GET_BOUNDARY_AD_3D_V_
+#define MPP_GET_BOUNDARY_AD_3D_V_ mpp_get_boundary_ad_r4_3dv
+#include <mpp_get_boundary_ad.h>
 #endif
 
 #undef MPP_TYPE_
@@ -1713,6 +1765,14 @@ end subroutine init_nonblock_type
 #define MPP_DO_GET_BOUNDARY_3D_V_ mpp_do_get_boundary_r8_3dv
 #include <mpp_do_get_boundary.h>
 
+#undef MPP_TYPE_
+#define MPP_TYPE_ real(DOUBLE_KIND)
+#undef MPP_DO_GET_BOUNDARY_AD_3D_
+#define MPP_DO_GET_BOUNDARY_AD_3D_ mpp_do_get_boundary_ad_r8_3d
+#undef MPP_DO_GET_BOUNDARY_AD_3DV_
+#define MPP_DO_GET_BOUNDARY_AD_3D_V_ mpp_do_get_boundary_ad_r8_3dv
+#include <mpp_do_get_boundary_ad.h>
+
 #ifdef OVERLOAD_R4
 #undef MPP_TYPE_
 #define MPP_TYPE_ real(FLOAT_KIND)
@@ -1722,3 +1782,85 @@ end subroutine init_nonblock_type
 #define MPP_DO_GET_BOUNDARY_3D_V_ mpp_do_get_boundary_r4_3dv
 #include <mpp_do_get_boundary.h>
 #endif
+
+#ifdef OVERLOAD_R4
+#undef MPP_TYPE_
+#define MPP_TYPE_ real(FLOAT_KIND)
+#undef MPP_DO_GET_BOUNDARY_AD_3D_
+#define MPP_DO_GET_BOUNDARY_AD_3D_ mpp_do_get_boundary_ad_r4_3d
+#undef MPP_DO_GET_BOUNDARY_AD_3D_V_
+#define MPP_DO_GET_BOUNDARY_AD_3D_V_ mpp_do_get_boundary_ad_r4_3dv
+#include <mpp_do_get_boundary_ad.h>
+#endif
+
+#undef MPP_TYPE_
+#define MPP_TYPE_ real(DOUBLE_KIND)
+#undef MPI_TYPE_
+#define MPI_TYPE_ MPI_REAL8
+#undef MPP_CREATE_GROUP_UPDATE_2D_
+#define MPP_CREATE_GROUP_UPDATE_2D_ mpp_create_group_update_r8_2d
+#undef MPP_CREATE_GROUP_UPDATE_3D_
+#define MPP_CREATE_GROUP_UPDATE_3D_ mpp_create_group_update_r8_3d
+#undef MPP_CREATE_GROUP_UPDATE_4D_
+#define MPP_CREATE_GROUP_UPDATE_4D_ mpp_create_group_update_r8_4d
+#undef MPP_CREATE_GROUP_UPDATE_2D_V_
+#define MPP_CREATE_GROUP_UPDATE_2D_V_ mpp_create_group_update_r8_2dv
+#undef MPP_CREATE_GROUP_UPDATE_3D_V_
+#define MPP_CREATE_GROUP_UPDATE_3D_V_ mpp_create_group_update_r8_3dv
+#undef MPP_CREATE_GROUP_UPDATE_4D_V_
+#define MPP_CREATE_GROUP_UPDATE_4D_V_ mpp_create_group_update_r8_4dv
+#undef MPP_DO_GROUP_UPDATE_
+#define MPP_DO_GROUP_UPDATE_ mpp_do_group_update_r8
+#undef MPP_START_GROUP_UPDATE_
+#define MPP_START_GROUP_UPDATE_ mpp_start_group_update_r8
+#undef MPP_COMPLETE_GROUP_UPDATE_
+#define MPP_COMPLETE_GROUP_UPDATE_ mpp_complete_group_update_r8
+#undef MPP_RESET_GROUP_UPDATE_FIELD_2D_
+#define MPP_RESET_GROUP_UPDATE_FIELD_2D_ mpp_reset_group_update_field_r8_2d
+#undef MPP_RESET_GROUP_UPDATE_FIELD_3D_
+#define MPP_RESET_GROUP_UPDATE_FIELD_3D_ mpp_reset_group_update_field_r8_3d
+#undef MPP_RESET_GROUP_UPDATE_FIELD_4D_
+#define MPP_RESET_GROUP_UPDATE_FIELD_4D_ mpp_reset_group_update_field_r8_4d
+#undef MPP_RESET_GROUP_UPDATE_FIELD_2D_V_
+#define MPP_RESET_GROUP_UPDATE_FIELD_2D_V_ mpp_reset_group_update_field_r8_2dv
+#undef MPP_RESET_GROUP_UPDATE_FIELD_3D_V_
+#define MPP_RESET_GROUP_UPDATE_FIELD_3D_V_ mpp_reset_group_update_field_r8_3dv
+#undef MPP_RESET_GROUP_UPDATE_FIELD_4D_V_
+#define MPP_RESET_GROUP_UPDATE_FIELD_4D_V_ mpp_reset_group_update_field_r8_4dv
+#include <mpp_group_update.h>
+
+#undef MPP_TYPE_
+#define MPP_TYPE_ real(FLOAT_KIND)
+#undef MPI_TYPE_
+#define MPI_TYPE_ MPI_REAL4
+#undef MPP_CREATE_GROUP_UPDATE_2D_
+#define MPP_CREATE_GROUP_UPDATE_2D_ mpp_create_group_update_r4_2d
+#undef MPP_CREATE_GROUP_UPDATE_3D_
+#define MPP_CREATE_GROUP_UPDATE_3D_ mpp_create_group_update_r4_3d
+#undef MPP_CREATE_GROUP_UPDATE_4D_
+#define MPP_CREATE_GROUP_UPDATE_4D_ mpp_create_group_update_r4_4d
+#undef MPP_CREATE_GROUP_UPDATE_2D_V_
+#define MPP_CREATE_GROUP_UPDATE_2D_V_ mpp_create_group_update_r4_2dv
+#undef MPP_CREATE_GROUP_UPDATE_3D_V_
+#define MPP_CREATE_GROUP_UPDATE_3D_V_ mpp_create_group_update_r4_3dv
+#undef MPP_CREATE_GROUP_UPDATE_4D_V_
+#define MPP_CREATE_GROUP_UPDATE_4D_V_ mpp_create_group_update_r4_4dv
+#undef MPP_DO_GROUP_UPDATE_
+#define MPP_DO_GROUP_UPDATE_ mpp_do_group_update_r4
+#undef MPP_START_GROUP_UPDATE_
+#define MPP_START_GROUP_UPDATE_ mpp_start_group_update_r4
+#undef MPP_COMPLETE_GROUP_UPDATE_
+#define MPP_COMPLETE_GROUP_UPDATE_ mpp_complete_group_update_r4
+#undef MPP_RESET_GROUP_UPDATE_FIELD_2D_
+#define MPP_RESET_GROUP_UPDATE_FIELD_2D_ mpp_reset_group_update_field_r4_2d
+#undef MPP_RESET_GROUP_UPDATE_FIELD_3D_
+#define MPP_RESET_GROUP_UPDATE_FIELD_3D_ mpp_reset_group_update_field_r4_3d
+#undef MPP_RESET_GROUP_UPDATE_FIELD_4D_
+#define MPP_RESET_GROUP_UPDATE_FIELD_4D_ mpp_reset_group_update_field_r4_4d
+#undef MPP_RESET_GROUP_UPDATE_FIELD_2D_V_
+#define MPP_RESET_GROUP_UPDATE_FIELD_2D_V_ mpp_reset_group_update_field_r4_2dv
+#undef MPP_RESET_GROUP_UPDATE_FIELD_3D_V_
+#define MPP_RESET_GROUP_UPDATE_FIELD_3D_V_ mpp_reset_group_update_field_r4_3dv
+#undef MPP_RESET_GROUP_UPDATE_FIELD_4D_V_
+#define MPP_RESET_GROUP_UPDATE_FIELD_4D_V_ mpp_reset_group_update_field_r4_4dv
+#include <mpp_group_update.h>

@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2018, University Corporation for Atmospheric Research,
+! Copyright 2002-2019, University Corporation for Atmospheric Research,
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 ! Laboratory, University of Michigan, National Centers for Environmental
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -1039,8 +1039,8 @@ contains
     end if
 
     if (needs_count /= ubound (vm_ids, 1)) then
-      print *, ESMF_METHOD, ': pet', mypet,  &
-          ':: WARNING - size mismatch between needs_count and vm_ids', needs_count, ubound (vm_ids, 1)
+      write (errstring, '(a,i0,a,i0)') 'size mismatch: needs_count = ', needs_count, ', vm_ids =', ubound (vm_ids, 1)
+      call ESMF_LogWrite (msg=errstring, logmsgFlag=ESMF_LOGMSG_ERROR, ESMF_CONTEXT)
       if (ESMF_LogFoundError(ESMF_RC_INTNRL_INCONS, msg='needs_count /= ubound (vm_ids, 1)', &
           ESMF_CONTEXT,  &
           rcToReturn=rc)) return
@@ -2401,6 +2401,7 @@ contains
     integer :: lbufsize
     integer :: pass
 
+    character(ESMF_MAXSTR) :: errstring
     integer :: i
     integer :: mypet, npets, pet
 
@@ -2417,9 +2418,10 @@ contains
 ! Sanity check: siwrap and needs list must be the same size.
 
     if (ubound (siwrap, 1) /= ubound (needs_list, 1)) then
-      print *, ESMF_METHOD,  &
-          ': error - siwrap ubound =', ubound (siwrap, 1),  &
-          '/= needs_list =', ubound (needs_list, 1)
+      write (errstring, '(a,i0,a,i0)')  &
+          'siwrap ubound =', ubound (siwrap, 1),  &
+          '/= needs_list ubound =', ubound (needs_list, 1)
+      call ESMF_LogWrite (msg=errstring, logmsgFlag=ESMF_LOGMSG_ERROR, ESMF_CONTEXT)
       if (ESMF_LogFoundError(ESMF_RC_INTNRL_INCONS, &
           msg="ubound (siwrap) /= ubound (needs_list)", &
           ESMF_CONTEXT,  &
@@ -2978,6 +2980,7 @@ contains
     end if
 
     if (present (text)) then
+#if 0
       call ESMF_UtilIOUnitFlush (ESMF_UtilIOStdout)
       call ESMF_VMBarrier (vm)
       if (mypet == 0) then
@@ -2987,12 +2990,19 @@ contains
         call ESMF_UtilIOUnitflush (ESMF_UtilIOStdout)
       end if
       call ESMF_VMBarrier (vm)
+#else
+      call ESMF_LogWrite(trim(text), ESMF_LOGMSG_INFO, rc=rc)
+#endif
     end if
 
     if (present (multitext)) then
+#if 0
       write (ESMF_UtilIOStdout,*) multitext
       call ESMF_UtilIOUnitFlush (ESMF_UtilIOStdout)
       call ESMF_VMBarrier (vm)
+#else
+      call ESMF_LogWrite(trim(multitext), ESMF_LOGMSG_INFO, rc=rc)
+#endif
     end if
 
     if (localask) then

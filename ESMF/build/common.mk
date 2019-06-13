@@ -244,6 +244,9 @@ ifndef ESMF_ACC_SOFTWARE_STACK
 export ESMF_ACC_SOFTWARE_STACK = none
 endif
 
+ifndef ESMF_CXXSTD
+export ESMF_CXXSTD = default
+endif
 
 #-------------------------------------------------------------------------------
 # For some variables having the literal string "default" is ok; 
@@ -315,6 +318,10 @@ export ESMF_ABI = 64
 endif
 ifeq ($(ESMF_MACHINE),ppc64)
 # and ppc64
+export ESMF_ABI = 64
+endif
+ifeq ($(ESMF_MACHINE),ppc64le)
+# and ppc64 little endian
 export ESMF_ABI = 64
 endif
 endif
@@ -668,6 +675,13 @@ ESMF_CPPFLAGS += -DESMF_NO_INTEGER_2_BYTE
 endif           
 #-------------------------------------------------------------------------------
 
+ifeq ($(shell $(ESMF_DIR)/scripts/available git),git)
+export ESMF_VERSION_STRING_GIT := $(shell $(ESMF_DIR)/scripts/esmfversiongit)
+endif
+
+ifdef ESMF_VERSION_STRING_GIT
+ESMF_CPPFLAGS += -DESMFVERSIONGIT='"$(ESMF_VERSION_STRING_GIT)"'
+endif
 
 #-------------------------------------------------------------------------------
 # default settings for common.mk
@@ -1362,6 +1376,35 @@ endif
 endif
 
 #-------------------------------------------------------------------------------
+# yaml-cpp C++ YAML API
+#-------------------------------------------------------------------------------
+ifeq ($(ESMF_YAMLCPP),standard)
+ifneq ($(origin ESMF_YAMLCPP_LIBS), environment)
+ESMF_YAMLCPP_LIBS = -lyaml-cpp
+endif
+endif
+
+ifdef ESMF_YAMLCPP
+ESMF_CPPFLAGS                += -DESMF_YAMLCPP=1 -DESMF_YAML=1
+ifdef ESMF_YAMLCPP_INCLUDE
+ESMF_CXXCOMPILEPATHSTHIRD    += -I$(ESMF_YAMLCPP_INCLUDE)
+ESMF_F90COMPILEPATHSTHIRD    += -I$(ESMF_YAMLCPP_INCLUDE)
+endif
+ifdef ESMF_YAMLCPP_LIBS
+ESMF_CXXLINKLIBS          += $(ESMF_YAMLCPP_LIBS)
+ESMF_CXXLINKRPATHSTHIRD   += $(addprefix $(ESMF_CXXRPATHPREFIX),$(subst -L,,$(filter -L%,$(ESMF_YAMLCPP_LIBS))))
+ESMF_F90LINKLIBS          += $(ESMF_YAMLCPP_LIBS)
+ESMF_F90LINKRPATHSTHIRD   += $(addprefix $(ESMF_F90RPATHPREFIX),$(subst -L,,$(filter -L%,$(ESMF_YAMLCPP_LIBS))))
+endif
+ifdef ESMF_YAMLCPP_LIBPATH
+ESMF_CXXLINKPATHSTHIRD    += -L$(ESMF_YAMLCPP_LIBPATH)
+ESMF_F90LINKPATHSTHIRD    += -L$(ESMF_YAMLCPP_LIBPATH)
+ESMF_CXXLINKRPATHSTHIRD   += $(ESMF_CXXRPATHPREFIX)$(ESMF_YAMLCPP_LIBPATH)
+ESMF_F90LINKRPATHSTHIRD   += $(ESMF_F90RPATHPREFIX)$(ESMF_YAMLCPP_LIBPATH)
+endif
+endif
+
+#-------------------------------------------------------------------------------
 # PIO
 #-------------------------------------------------------------------------------
 ifneq ($(origin ESMF_PIO), environment)
@@ -1543,6 +1586,12 @@ ESMF_CPPFLAGS       += -DESMF_TESTEXHAUSTIVE
 endif
 
 #-------------------------------------------------------------------------------
+# ESMF_BOPT is passed (by CPP) into test programs to control any differences
+# between the different BOPT modes.
+#-------------------------------------------------------------------------------
+ESMF_CPPFLAGS       += -DESMF_BOPT_$(ESMF_BOPT)
+
+#-------------------------------------------------------------------------------
 # ESMF_TESTCOMPTUNNEL is passed (by CPP) into test programs to control the
 # dependency on ESMF-threading.
 #-------------------------------------------------------------------------------
@@ -1559,6 +1608,20 @@ ESMF_CPPFLAGS       += -DESMF_TESTWITHTHREADS
 endif
 
 #-------------------------------------------------------------------------------
+# Add C++ standard string to compile options if the non-default is chosen.
+# Dependencies requiring a specific C++ standard should update the standard here
+#-------------------------------------------------------------------------------
+ifneq ($(ESMF_YAMLCPP),)
+ifeq ($(ESMF_CXXSTD),default)
+ESMF_CXXSTD = 11
+endif
+endif
+
+ifneq ($(ESMF_CXXSTD),default)
+ESMF_CXXCOMPILEOPTS  += -std=c++$(ESMF_CXXSTD)
+endif
+
+#-------------------------------------------------------------------------------
 # Add ESMF_ABISTRING to preprocessor flags
 #-------------------------------------------------------------------------------
 
@@ -1569,6 +1632,18 @@ ESMF_CPPFLAGS        +=-DS$(ESMF_ABISTRING)=1
 #-------------------------------------------------------------------------------
 
 ESMF_CPPFLAGS        +=-DESMF_OS_$(ESMF_OS)=1
+
+#-------------------------------------------------------------------------------
+# Add ESMF_COMM to preprocessor flags
+#-------------------------------------------------------------------------------
+
+ESMF_CPPFLAGS        +=-DESMF_COMM=$(ESMF_COMM)
+
+#-------------------------------------------------------------------------------
+# Add ESMF_DIR to preprocessor flags
+#-------------------------------------------------------------------------------
+
+ESMF_CPPFLAGS        +=-DESMF_DIR=$(ESMF_DIR)
 
 #-------------------------------------------------------------------------------
 # construct precompiler flags to be used on Fortran sources
@@ -1616,6 +1691,78 @@ ESMF_CXXCOMPILEOPTS   += -DESMF_TESTEXHAUSTIVE
 endif
 
 endif
+
+#-------------------------------------------------------------------------------
+# Build variables for static wrapping and preloading functions for ESMF trace
+#-------------------------------------------------------------------------------
+
+ESMF_TRACE_BUILD_SHARED := ON
+
+ifeq ($(strip $(ESMF_SL_LIBS_TO_MAKE)),)
+ESMF_TRACE_BUILD_SHARED := OFF
+endif
+ifneq (,$(findstring ESMF_NO_DLFCN,$(ESMF_CXXCOMPILECPPFLAGS)))
+ESMF_TRACE_BUILD_SHARED := OFF
+endif
+ifeq ($(ESMF_OS),Cygwin)
+# Cygwin does not support RTLD_NEXT needed by dlsym
+ESMF_TRACE_BUILD_SHARED := OFF
+endif
+
+ifeq ($(ESMF_TRACE_BUILD_SHARED),ON)
+ESMF_TRACE_LDPRELOAD := $(ESMF_LIBDIR)/libesmftrace_preload.$(ESMF_SL_SUFFIX)
+ESMF_PRELOADSCRIPT = $(ESMF_LIBDIR)/preload.sh
+
+ifneq ($(ESMF_OS),Darwin)
+ESMF_ENV_PRELOAD = LD_PRELOAD
+else
+ESMF_ENV_PRELOAD = DYLD_INSERT_LIBRARIES
+endif
+
+# MPT implementations do not pick up LD_PRELOAD
+# so we pass a small script to each MPI task
+ifneq (,$(findstring mpich,$(ESMF_COMM)))
+ESMF_PRELOAD_SH = $(ESMF_PRELOADSCRIPT)
+endif
+ifeq ($(ESMF_COMM),mpi)
+ESMF_PRELOAD_SH = $(ESMF_PRELOADSCRIPT)
+endif
+ifeq ($(ESMF_COMM),mpt)
+ESMF_PRELOAD_SH = $(ESMF_PRELOADSCRIPT)
+endif
+
+endif
+
+build_preload_script:
+	-@echo "#!/bin/sh" > $(ESMF_PRELOADDIR)/preload.sh
+	-@echo "# Script to preload ESMF dynamic trace library" >> $(ESMF_PRELOADDIR)/preload.sh
+	-@echo 'env LD_PRELOAD="$$LD_PRELOAD $(ESMF_PRELOADDIR)/libesmftrace_preload.$(ESMF_SL_SUFFIX)" $$*' >> $(ESMF_PRELOADDIR)/preload.sh
+	chmod 755 $(ESMF_PRELOADDIR)/preload.sh
+
+ESMF_TRACE_STATICLINKLIBS := -lesmftrace_static
+
+ESMF_TRACE_WRAPPERS_IO  := write writev pwrite read open
+ESMF_TRACE_WRAPPERS_MPI := MPI_Allgather MPI_Allgatherv MPI_Allreduce MPI_Alltoall
+ESMF_TRACE_WRAPPERS_MPI += MPI_Alltoallv MPI_Alltoallw MPI_Barrier MPI_Bcast
+ESMF_TRACE_WRAPPERS_MPI += MPI_Gather MPI_Gatherv MPI_Recv MPI_Reduce
+ESMF_TRACE_WRAPPERS_MPI += MPI_Scatter MPI_Send MPI_Sendrecv MPI_Wait
+ESMF_TRACE_WRAPPERS_MPI += MPI_Waitall MPI_Waitany MPI_Waitsome
+ESMF_TRACE_WRAPPERS_MPI += mpi_allgather_ mpi_allgather__ mpi_allgatherv_ mpi_allgatherv__
+ESMF_TRACE_WRAPPERS_MPI += mpi_allreduce_ mpi_allreduce__ mpi_alltoall_ mpi_alltoall__
+ESMF_TRACE_WRAPPERS_MPI += mpi_alltoallv_ mpi_alltoallv__ mpi_alltoallw_ mpi_alltoallw__
+ESMF_TRACE_WRAPPERS_MPI += mpi_barrier_ mpi_barrier__ mpi_bcast_ mpi_bcast__
+ESMF_TRACE_WRAPPERS_MPI += mpi_exscan_ mpi_exscan__ mpi_gather_ mpi_gather__
+ESMF_TRACE_WRAPPERS_MPI += mpi_gatherv_ mpi_gatherv__ mpi_recv_ mpi_recv__
+ESMF_TRACE_WRAPPERS_MPI += mpi_reduce_ mpi_reduce__ mpi_reduce_scatter_ mpi_reduce_scatter__
+ESMF_TRACE_WRAPPERS_MPI += mpi_scatter_ mpi_scatter__ mpi_scatterv_ mpi_scatterv__
+ESMF_TRACE_WRAPPERS_MPI += mpi_scan_ mpi_scan__ mpi_send_ mpi_send__
+ESMF_TRACE_WRAPPERS_MPI += mpi_wait_ mpi_wait__ mpi_waitall_ mpi_waitall__
+ESMF_TRACE_WRAPPERS_MPI += mpi_waitany_ mpi_waitany__
+
+COMMA := ,
+ESMF_TRACE_STATICLINKOPTS := -static -Wl,--wrap=c_esmftrace_notify_wrappers -Wl,--wrap=c_esmftrace_isinitialized
+ESMF_TRACE_STATICLINKOPTS += $(addprefix -Wl$(COMMA)--wrap=, $(ESMF_TRACE_WRAPPERS_IO))
+ESMF_TRACE_STATICLINKOPTS += $(addprefix -Wl$(COMMA)--wrap=, $(ESMF_TRACE_WRAPPERS_MPI))
 
 #-------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------
@@ -1836,6 +1983,7 @@ endif
 # subdir and it will go up to the top dir and build from there.
 lib: info
 	@$(MAKE) build_libs
+	@$(MAKE) build_tracelibs
 	@$(MAKE) info_mk
 	@echo "ESMF library built successfully on "`date`
 	@echo "To verify, build and run the unit and system tests with: $(MAKE) check"
@@ -1849,6 +1997,16 @@ endif
 	cd $(ESMF_DIR) ; $(MAKE) ranlib
 ifneq ($(strip $(ESMF_SL_LIBS_TO_MAKE)),)
 	cd $(ESMF_DIR) ; $(MAKE) shared
+endif
+
+build_tracelibs:
+ifeq ($(ESMF_TESTTRACE),ON)
+	cd $(ESMF_DIR)/src/Infrastructure/Trace/preload ;\
+	$(MAKE) tracelib_static
+ifeq ($(ESMF_TRACE_BUILD_SHARED),ON)
+	cd $(ESMF_DIR)/src/Infrastructure/Trace/preload ;\
+	$(MAKE) tracelib_preload
+endif
 endif
 
 # Build only stuff in and below the current dir.
@@ -2897,6 +3055,36 @@ ftest:
 	  $(ESMF_MPIRUN) -np $(NP) $(ESMF_TOOLRUN) ./ESMF_$(TNAME)UTest 1> ./ESMF_$(TNAME)UTest.stdout 2>&1 ; \
 	fi ; \
 	cat ./PET*$(TNAME)UTest.Log > ./ESMF_$(TNAME)UTest.Log ; \
+	$(ESMF_RM) ./PET*$(TNAME)UTest.Log
+
+
+# same as ftest target above, except turns on profiling
+# region timings appear at the end of the log files and a trace is generated
+ftest_profile: 
+	-@cd $(ESMF_TESTDIR) ; \
+	$(ESMF_RM) ./PET*$(TNAME)UTest.Log ; \
+	$(ESMF_RM) -rf ./ESMF_$(TNAME)UTest_traceout ; \
+	echo env ESMF_RUNTIME_TRACE=ON $(ESMF_MPIRUN) -np $(NP) ./ESMF_$(TNAME)UTest 1\> ./ESMF_$(TNAME)UTest.stdout 2\>\&1 ; \
+	env ESMF_RUNTIME_TRACE=ON $(ESMF_MPIRUN) -np $(NP) ./ESMF_$(TNAME)UTest 1> ./ESMF_$(TNAME)UTest.stdout 2>&1 ; \
+	cat ./PET*$(TNAME)UTest.Log > ./ESMF_$(TNAME)UTest.Log ; \
+	$(ESMF_MV) ./traceout ./ESMF_$(TNAME)UTest_traceout ; \
+	$(ESMF_RM) ./PET*$(TNAME)UTest.Log
+
+# same as ftest_profile target above, except also uses
+# LD_PRELOAD to override MPI/IO symbols and time them
+ftest_profile_preload: 
+	-@cd $(ESMF_TESTDIR) ; \
+	$(ESMF_RM) ./PET*$(TNAME)UTest.Log ; \
+	$(ESMF_RM) -rf ./ESMF_$(TNAME)UTest_traceout ; \
+	if [ -z $(ESMF_PRELOAD_SH) ] ; then \
+	  echo env ESMF_RUNTIME_TRACE=ON $(ESMF_ENV_PRELOAD)=$(ESMF_TRACE_LDPRELOAD) $(ESMF_MPIRUN) -np $(NP) ./ESMF_$(TNAME)UTest 1\> ./ESMF_$(TNAME)UTest.stdout 2\>\&1 ; \
+	  env ESMF_RUNTIME_TRACE=ON $(ESMF_ENV_PRELOAD)=$(ESMF_TRACE_LDPRELOAD) $(ESMF_MPIRUN) -np $(NP) ./ESMF_$(TNAME)UTest 1> ./ESMF_$(TNAME)UTest.stdout 2>&1 ; \
+	else \
+	  echo env ESMF_RUNTIME_TRACE=ON $(ESMF_MPIRUN) -np $(NP) $(ESMF_PRELOAD_SH) ./ESMF_$(TNAME)UTest 1\> ./ESMF_$(TNAME)UTest.stdout 2\>\&1 ; \
+	  env ESMF_RUNTIME_TRACE=ON $(ESMF_MPIRUN) -np $(NP) $(ESMF_PRELOAD_SH) ./ESMF_$(TNAME)UTest 1> ./ESMF_$(TNAME)UTest.stdout 2>&1 ; \
+	fi ; \
+	cat ./PET*$(TNAME)UTest.Log > ./ESMF_$(TNAME)UTest.Log ; \
+	$(ESMF_MV) ./traceout ./ESMF_$(TNAME)UTest_traceout ; \
 	$(ESMF_RM) ./PET*$(TNAME)UTest.Log
 
 htest:

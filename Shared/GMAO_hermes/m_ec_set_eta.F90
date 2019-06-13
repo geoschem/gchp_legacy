@@ -20,7 +20,7 @@
       real              :: a_tmp(62),atmp(92)
       real              :: b_interface(:)
       real              :: b_tmp(62),btmp(92)
-      real              :: ptop,pint
+      real              :: ptop
       integer ilev
                                                                                                          
 !     if ( n_interface .ne. 61 .or.  n_interface .ne. 91) then

@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2018, University Corporation for Atmospheric Research, 
+! Copyright 2002-2019, University Corporation for Atmospheric Research, 
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 ! Laboratory, University of Michigan, National Centers for Environmental 
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -63,6 +63,7 @@ module NUOPC
   public NUOPC_CompAttributeSet           ! method
   public NUOPC_CompCheckSetClock          ! method
   public NUOPC_CompDerive                 ! method
+  public NUOPC_CompGet                    ! method
   public NUOPC_CompFilterPhaseMap         ! method
   public NUOPC_CompSearchPhaseMap         ! method
   public NUOPC_CompSearchRevPhaseMap      ! method
@@ -80,14 +81,18 @@ module NUOPC
   public NUOPC_CheckSetClock              ! method
   public NUOPC_GetAttribute               ! method
   public NUOPC_GetStateMemberLists        ! method
+  public NUOPC_GetTimestamp               ! method
   public NUOPC_InitAttributes             ! method, internal use only
   public NUOPC_IsAtTime                   ! method
   public NUOPC_IsConnected                ! method
   public NUOPC_IsUpdated                  ! method
+  public NUOPC_LogIntro                   ! method, internal use only
+  public NUOPC_LogExtro                   ! method, internal use only
   public NUOPC_NoOp                       ! method
   public NUOPC_Realize                    ! method
   public NUOPC_Reconcile                  ! method, internal use only 
   public NUOPC_SetAttribute               ! method
+  public NUOPC_SetTimestamp               ! method
   public NUOPC_UpdateTimestamp            ! method, internal use only
 
   ! public Auxiliary API

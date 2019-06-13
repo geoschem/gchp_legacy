@@ -1,6 +1,7 @@
 #if !defined(STAND_ALONE)
 #endif
 #define _SMEMORY 1
+#include "unused_dummy.H"
 !-----------------------------------------------------------------------
 !         Nasa/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS
 !-----------------------------------------------------------------------
@@ -313,7 +314,6 @@
 !     This routine is the very {\em last} thing which is executed!
 !
 ! !LOCAL VARIABLES:
-      INTEGER Ierror
 !
 ! !SYSTEM ROUTINES:
 !     MPI_BARRIER, MPI_FINALIZE
@@ -897,8 +897,6 @@
       INTEGER GroupSize, Iam, Ierror, DataType
       INTEGER OldPe, TotalPtsA, NpesA, TotalPtsB, NpesB
       INTEGER              :: method
-      INTEGER              :: nCount,maxCount,ierr,sz
-      INTEGER              :: lenBjmd,nNeigh,maxLenB,maxNeigh
 #ifdef _SMEMORY
       TYPE (ParInfoType) :: Info
 #endif
@@ -1232,7 +1230,6 @@
       INTEGER GlobalSizeB, LocalSizeB, BorderSizeB, NpesB
       INTEGER DataType
       INTEGER              :: method
-      INTEGER              :: nCount, maxCount, ierr
 #ifdef _SMEMORY
       TYPE (ParInfoType) :: Info
 #endif
@@ -1562,7 +1559,6 @@
       INTEGER Ptr                                ! Pointer type
       INTEGER  DataType
       INTEGER              :: method
-      INTEGER              :: nCount, maxCount, ierr
 #ifdef _SMEMORY
       TYPE (ParInfoType) :: Info
 #endif
@@ -1890,7 +1886,6 @@
       INTEGER Ptr                                ! Pointer type
       INTEGER  DataType
       INTEGER              :: method
-      INTEGER              :: nCount, maxCount, ierr
 #ifdef _SMEMORY
       TYPE (ParInfoType) :: Info
 #endif
@@ -2201,10 +2196,11 @@
 !-----------------------------------------------------------------------
 !BOC
 ! !LOCAL VARIABLES:
-      INTEGER  ipe, GroupSize, Pointer, Ierror, method
+      INTEGER  ipe, Pointer, Ierror, method
 
       CPP_ENTER_PROCEDURE( "PARPATTERNFREE" )
 
+      _UNUSED_DUMMY(InComm)
       method = Pattern%RecvDesc(1)%method
 
 !
@@ -2301,6 +2297,7 @@
 !
       CPP_ENTER_PROCEDURE( "PARSCATTERREAL" )
 !
+
       CALL MPI_COMM_RANK( InComm, Iam, Ierror )
       CALL MPI_COMM_SIZE( InComm, GroupSize, Ierror )
 
@@ -3016,7 +3013,7 @@
 !BOC
 
 ! !LOCAL VARIABLES:
-      INTEGER Iam, GroupSize, Nr, Icnt, Packet, I, Ierr
+      INTEGER Iam, GroupSize, Nr, Icnt, Packet, Ierr
 
       CPP_ENTER_PROCEDURE( "PARBEGINTRANSFERREAL" )
       CPP_ASSERT_F90( NrInPackets .LE. SIZE( Dest ) )
@@ -3421,12 +3418,18 @@
 !-----------------------------------------------------------------------
 !BOC
 ! !LOCAL VARIABLES:
-      INTEGER Iam, GroupSize, J, Offset, Packet, Ierr
+      INTEGER Ierr
       INTEGER InStats(NrInPackets*MPI_STATUS_SIZE)
       INTEGER OutStats(NrOutPackets*MPI_STATUS_SIZE)
 
       CPP_ENTER_PROCEDURE( "PARENDTRANSFERREAL" )
 
+      _UNUSED_DUMMY(Dest)
+      _UNUSED_DUMMY(Src)
+      _UNUSED_DUMMY(InBuf)
+      _UNUSED_DUMMY(InIA)
+      _UNUSED_DUMMY(OutBuf)
+      _UNUSED_DUMMY(OutIA)
 !
 ! Increment the receiver 
       EndTrf = MOD(EndTrf,MAX_TRF)+1
@@ -3772,7 +3775,7 @@
 !BOC
 !
 ! !LOCAL VARIABLES:
-      INTEGER :: i, iscnt, ircnt, nr, pe, icnt, Nsize, Iam, Ierr
+      INTEGER :: nr, pe, icnt, Nsize, Iam, Ierr
       INTEGER :: Status(MPI_STATUS_SIZE)
       Integer, allocatable :: Reqs(:), Stats(:)
 
@@ -3899,7 +3902,7 @@
 !BOC
 !
 ! !LOCAL VARIABLES:
-      INTEGER :: i, iscnt, ircnt, nr, pe, icnt, Nsize, Iam, Ierr
+      INTEGER :: nr, pe, icnt, Nsize, Iam, Ierr
       INTEGER :: Status(MPI_STATUS_SIZE)
       Integer, allocatable :: Reqs(:), Stats(:)
 
@@ -4027,7 +4030,7 @@
 !BOC
 !
 ! !LOCAL VARIABLES:
-      INTEGER :: i, iscnt, ircnt, nr, pe, icnt, Nsize, Iam, Ierr
+      INTEGER :: nr, pe, icnt, Nsize, Iam, Ierr
       INTEGER :: Status(MPI_STATUS_SIZE)
       Integer, allocatable :: Reqs(:), Stats(:)
 
@@ -4679,8 +4682,7 @@
 !BOC
 !
 ! !LOCAL VARIABLES:
-      INTEGER :: i, iscnt, ircnt, nr, pe, icnt, Nsize, Iam, Ierr
-      INTEGER :: Status(MPI_STATUS_SIZE)
+      INTEGER :: Nsize, Iam, Ierr
       Integer, allocatable :: Reqs(:), Stats(:)
 
       CPP_ENTER_PROCEDURE( "PAREXCHANGELENGTH" )
@@ -4860,7 +4862,7 @@
 !BOC
 ! !LOCAL VARIABLES:
       integer :: nCount,npes,iam,ierr
-      integer :: nTags,oldpe,oldlocal,sTag,eTag
+      integer :: nTags,oldpe,sTag,eTag
       integer :: j,pe,local,tag,tmpA,tmpB,npesA,npesB
       integer, allocatable :: sCount(:),rCount(:)
 

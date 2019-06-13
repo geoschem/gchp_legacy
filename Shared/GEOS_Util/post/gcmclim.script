@@ -42,6 +42,7 @@ endif
      set source      = 'NULL' 
      set collections = 'ALL' 
      set NCPUS       = 'NULL' 
+     set expid       = 'NULL' 
      set filetype    = 'monthly'
      set diurnal     = ''
 @        MM          = -99
@@ -60,6 +61,9 @@ while( $n <= $nargs )
        endif
        if( "$argv[$n]" == "-ncpus"      ) then
                                           set       NCPUS = $argv[$m]
+       endif
+       if( "$argv[$n]" == "-expid" ) then
+                                          set       expid = $argv[$m]
        endif
        if( "$argv[$n]" == "-diurnal"    ) then
                                           set    filetype = 'diurnal'
@@ -126,15 +130,27 @@ if( $MM > 0 & $MM < 10 ) then
 endif
 
 
-# Extract EXPID from SOURCE (assuming last node)
-# -----------------------------------------------
-set expid = `basename $source`
+# Extract EXPID
+# -------------
+if( $expid == "NULL" ) then
+    if( -e $homdir/HISTORY.rc ) then
+        set expid = `grep EXPID: $homdir/HISTORY.rc | cut -d':' -f2`
+    else
+        set expid = `basename $source`
+    endif
+endif
+
 set fname = $expid.$collection.$filetype
 
 
 # Extract Extension (last node) from Monthly Mean Files
 # -----------------------------------------------------
+if( $MM != -99 ) then
+set files = `/bin/ls -1 $fname.*$MM.nc4 | grep -v clim`
+else
 set files = `/bin/ls -1 $fname.* | grep -v clim`
+endif
+
 set   num = $#files
 if(  $num == 0 ) then
       echo " "
@@ -275,10 +291,19 @@ foreach MON (01 02 03 04 05 06 07 08 09 10 11 12)
               if( $MON1 == "10" ) set month = OCT
               if( $MON1 == "11" ) set month = NOV
               if( $MON1 == "12" ) set month = DEC
-              echo DSET $climdir/$fname.clim.$SEASON.$ext              >  $season.tabl
-              echo TITLE $expdsc Climatology: ${begdate} to ${enddate} >> $season.tabl
-              echo OPTIONS template                                    >> $season.tabl
-              echo TDEF time 1 LINEAR  00:00Z01${month}${year} 1mo     >> $season.tabl
+
+              set  files_begdate = `/bin/ls -1 $fname.*$MON1.nc4 | grep -v clim`
+              set   file_begdate = `$GEOSUTIL/post/getdates $files_begdate[1]`
+              set season_begdate =  `echo $file_begdate[1] | cut -c1-6`
+
+              set  files_enddate = `/bin/ls -1 $fname.*$MON3.nc4 | grep -v clim`
+              set   file_enddate = `$GEOSUTIL/post/getdates $files_enddate[$#files_enddate]`
+              set season_enddate =  `echo $file_enddate[1] | cut -c1-6`
+
+              echo DSET $climdir/$fname.clim.$SEASON.$ext                            >  $season.tabl
+              echo TITLE $expdsc Climatology: ${season_begdate} to ${season_enddate} >> $season.tabl
+              echo OPTIONS template                                                  >> $season.tabl
+              echo TDEF time 1 LINEAR  00:00Z01${month}${year} 1mo                   >> $season.tabl
           endif
 
       endif

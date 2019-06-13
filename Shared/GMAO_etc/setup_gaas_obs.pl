@@ -32,7 +32,7 @@ my ($workdir, $modis, $avhrr, %flags, $verbose);
 
     init();
     if ($modis) {
-        foreach $file (<$workdir/M?D04_L2.*.NRT.hdf>) {
+        foreach $file (<$workdir/M?D04_L2.*.*.hdf>) {
             $base = basename $file;
             ($label, $Adate, $time, $version) = split /[\.]/, $base;
 
@@ -40,7 +40,7 @@ my ($workdir, $modis, $avhrr, %flags, $verbose);
             $year = substr($Adate, 1, 4);
             $jdoy = substr($Adate, 5, 3);
 
-            $subdir = "$workdir/$type/$version/$year/$jdoy";
+            $subdir = "$workdir/$version/$type/$year/$jdoy";
             unless (-d $subdir) {
                 mkpath($subdir, \%flags) or die "Error making dir: $subdir;";
                 system("touch $subdir/.no_archiving");

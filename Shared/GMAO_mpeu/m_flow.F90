@@ -138,11 +138,11 @@ end subroutine co_
 
   if(mxdep == 0 .and. iname == -1) return
 
-  write(lu,'(2a,i4,$)') myname,': depth =',mxdep
+  write(lu,'(2a,i4)',ADVANCE='NO') myname,': depth =',mxdep
 
   if(.not.balanced .or. iname < -1) then
 
-    write(lu,'(4a,$)') 		&
+    write(lu,'(4a)',ADVANCE='NO') 		&
 	', ci/co unbalanced at ',trim(ciname),'/',trim(coname)
 
     write(lu,'(a,i4)') ', level =',iname+1
@@ -151,11 +151,11 @@ end subroutine co_
   endif
 
   if(iname >= 0) then
-    write(lu,'(a,$)') ', '
+    write(lu,'(a)',ADVANCE='NO') ', '
     do i=0,iname-1
-      write(lu,'(2a,$)') trim(tname(modulo(i,MX_TNAME))),'>'
+      write(lu,'(2a)',ADVANCE='NO') trim(tname(modulo(i,MX_TNAME))),'>'
     end do
-    write(lu,'(a,$)') trim(tname(modulo(iname,MX_TNAME)))
+    write(lu,'(a)',ADVANCE='NO') trim(tname(modulo(iname,MX_TNAME)))
   endif
   write(lu,*)
 
@@ -179,7 +179,6 @@ end subroutine flush_
 !EOP
 !_______________________________________________________________________
   character(len=*),parameter :: myname_=myname//'::reset_'
-  integer :: i
 
   mxdep=0
   iname=-1

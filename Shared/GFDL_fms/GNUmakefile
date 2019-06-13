@@ -1,31 +1,26 @@
 #
+# Makefile for ESMA components.
 #
 # REVISION HISTORY:
 #
-# 09Jun2003  da Silva  First crack.
-# 07Aug2003  Sawyer    Modified for FVdycore
-# 27Aug2003  Sawyer    Added a2d3d and d2a3d
-# 22Sep2004  Sawyer    Modifications for merge with current code
-# 06Oct2004  Sawyer    Removed spmd_dyn
-# 17Feb2005  Sawyer    Added epvd and ppme
-# 17May2005  Sawyer    Added FVdycore_wrapper
-# 18oct2005  da Silva  Moved ALTIX specific flags to FVdycore.mk
-# 18Jan2006  Putman    Added mfz_comp
-# 17May2006  Sawyer    Added diag_module.F90
+# 20oct2004  da Silva  First ESMA version.
 #
 
 # Make sure ESMADIR is defined
 # ----------------------------
 ifndef ESMADIR
-       ESMADIR := $(PWD)/..
+       ESMADIR := $(PWD)/../..
 endif
+
+THIS := $(shell basename `pwd`)
 
 # Compilation rules, flags, etc
 # -----------------------------
   include $(ESMADIR)/Config/ESMA_base.mk  # Generic stuff
   include $(ESMADIR)/Config/ESMA_arch.mk  # System dependencies
-  include $(ESMADIR)/Config/GMAO_base.mk  # System dependencies
-  include                    FMS_arch.mk  # arch dependent flags 
+  include $(ESMADIR)/Config/GMAO_base.mk
+  include FMS_arch.mk
+
 
 #                  ---------------------
 #                  Standard ESMA Targets
@@ -42,108 +37,61 @@ esma_help help:
 	@echo "      ESMADIR = $(ESMADIR)"
 	@echo "      BASEDIR = $(BASEDIR)"
 	@echo "         ARCH = $(ARCH)"
-	@echo "         SITE = $(SITE)"
+	@echo "         SITE = $(SITE) "
+	@echo "         THIS = $(THIS) "
 
-THIS := $(shell basename `pwd`)
-LIB  = lib$(THIS).a
 
-esma_install install: $(LIB)
-	$(MKDIR) $(ESMALIB) $(ESMAETC) $(ESMAINC)/$(THIS)
-	$(CP) -p *.a            $(ESMALIB)
-	$(CP) -p *.[Mm][Oo][Dd] $(ESMAINC)/$(THIS)
-	$(CP) -p shared/include/*.h $(ESMAINC)/$(THIS)
-	$(CP) -p shared/mpp/include/*.h $(ESMAINC)/$(THIS)
-	$(CP) -p shared/mpp/include/*.inc $(ESMAINC)/$(THIS)
-#	$(CP) -p *.rc   $(ESMAETC)
+#                  --------------------------------
+#                   Recurse Make in Sub-directories
+#                  --------------------------------
 
-esma_clean clean:
-	-$(RM) *~ *.[aox] *.[Mm][Oo][Dd] 
+SUBDIRS = r4 r8
+
+TARGETS = esma_install esma_clean esma_doc \
+          install clean doc
+
+$(TARGETS):
+	@ t=$@; argv="$(SUBDIRS)" ;\
+	  for d in $$argv; do			 \
+	    ( $(MKDIR) $$d            		;\
+	      $(MAKE) -C $$d -f ../GNUmakefile_r4r8 -e $$t NTHIS=$(THIS) RN=$$d ) \
+	  done
+	$(MAKE) local_$@
+
+local_esma_install local_install: $(LIB)
+	@echo No local install in here
+
+local_esma_clean local_clean:
+	-$(RM) *~ *.[aox] *.mod *.pyf *.so
+
+local_esma_doc local_doc:
+	@echo No doc to build here
 
 esma_distclean distclean:
-	-$(RM) *~ *.[aoxd] *.[Mm][Oo][Dd]
-
-esma_doc doc:
-	@$(PROTEX) $(PROTEX_FLAGS) *GridComp*.[fF]* > $(ESMADOC)/$(THIS).tex
-
+	-$(RM) -r *~ *.[aoxd] *.mod *.pyf *.so $(SUBDIRS)
 
 #                  --------------------
 #                  User Defined Targets
 #                  --------------------
-.SUFFIXES: .inc
-ALLSRCS := $(shell cat path_names)
-HEADERS = $(shell cat path_names |grep "\.h")
-INCFILES = $(shell cat path_names |grep "\.inc")
-SRCS := $(filter-out $(HEADERS) $(INCFILES), $(ALLSRCS))
-OBJS := $(notdir $(addsuffix .o, $(basename $(SRCS)))) 
-DEPS := $(notdir $(addsuffix .d, $(basename $(ALLSRCS))))
 
-DEPS := $(filter-out nsclock.d threadloc.d, $(DEPS)) # filter these out
+r4_install: 
+	$(MKDIR) r4
+	echo Making install for r4 in $(PWD)
+	$(MAKE) -C r4 -f ../GNUmakefile_r4r8 -e install NTHIS=$(THIS) RN=r4
 
-INC_DIRS = . ./shared/include ./shared/mpp/include  \
-            $(INC_GMAO_SHARED) $(INC_SDF) $(INC_ESMF) $(INC_MPI)
-MOD_DIRS = . $(INC_DIRS) 
-SRC_DIRS = $(sort $(dir $(SRCS)))
+r8_install:
+	$(MKDIR) r8
+	echo Making install for r8 in $(PWD)
+	$(MAKE) -C r8 -f ../GNUmakefile_r4r8 -e install NTHIS=$(THIS) RN=r8
 
-USER_FINCS  = $(foreach dir,$(INC_DIRS),$(I)$(dir))
-USER_FMODS  = $(foreach dir,$(MOD_DIRS),$(M)$(dir)) 
+dist:
+	$(MAKE) distclean
+	( cd ..  ;\
+          $(TAR)  cvf evac-`date '+%d%b%Y'`.tar src ;\
+          $(GZIP) evac-`date '+%d%b%Y'`.tar )
 
-vpath % $(SRC_DIRS) $(INC_DIRS) $(MOD_DIRS) /usr/include
-
-USER_FFLAGS += $(BIG_ENDIAN) 
-USER_FDEFS  = $(D)OVERLOAD_R4 $(D)MAPL_MODE $(D)EIGHT_BYTE $(D)SPMD $(D)TIMING \
-              $(D)use_libMPI $(D)use_netCDF
-USER_CDEFS  = $(USER_FDEFS)
-USER_CINCS  += $(foreach dir,$(INC_SDF), $(I)$(dir)) $(I)$(INC_MPI)
-
-FREAL = $(FREAL8)
-
-# There seems to be a bug with oda_core and PGI using
-# -fast. O3 works
-ifeq ($(ESMA_FC),pgfortran)
-.NOTPARALLEL:
-
- ifneq ("$(BOPT)","g")
-    oda_core.o: FOPT := -O3 -Kieee $(GPU_TARGET)
- endif
-endif
-
-# There seems to be a bug with oda_core and PGI using
-# -fast. O3 works
-ifeq ($(ESMA_FC),gfortran)
-
- ifeq ("$(BOPT)","Og")
-    diag_axis.o: FOPT := -Og
- endif
-endif
-
-$(LIB) lib : $(DEPS) $(OBJS)
-	$(AR) $(AR_FLAGS) $(LIB) $(OBJS)
-
-#                  --------------------
-#                      Dependencies
-#                  --------------------
-echo:
-	@echo HDRS=$(HEADERS)
-# Make sure dep files are not remade during cleaning
-# --------------------------------------------------
-  ifneq ($(findstring clean,$(MAKECMDGOALS)),clean)
-    -include $(DEPS)
-  endif
-
-.inc.d:
-	-@$(CPP) $(FPPFLAGS) $< > $*___.f90
-	@$(PERL) $(FDP) -i $< $(FDP_FLAGS) -c $*___.f90
-	@$(RM) $*___.f90
-
-.h.d:
-	-@$(CPP) $(FPPFLAGS) $< > $*___.f90
-	@$(PERL) $(FDP) -i $< $(FDP_FLAGS) -c $*___.f90
-	@$(RM) $*___.f90
-
-
-#.
+#...............................................................
 
   -include $(ESMADIR)/Config/ESMA_post.mk  # ESMA additional targets, macros
 
-
-
+#.

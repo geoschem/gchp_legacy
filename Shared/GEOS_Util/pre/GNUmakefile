@@ -24,7 +24,7 @@ endif
 # Make sure ESMADIR is defined
 # -----------------------------
 ifndef ESMADIR
-   ESMADIR := $(PWD)/../..
+   ESMADIR := $(PWD)/../../../..
 endif
 
 #-------------------------------
@@ -95,7 +95,7 @@ subdirs:
 # User Defined Targets
 #----------------------
 
-vpath % $(INC_LIST) /usr/include
+vpath % $(INC_LIST)
 
 #----------------------------------------------------
 # Hack to prevent remaking dep files during cleaning

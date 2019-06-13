@@ -54,6 +54,7 @@ MODULE MAPL_NewArthParserMod
   use ESMF
   use MAPL_BaseMod
   use MAPL_CommsMod
+  use MAPL_ErrorHandlingMod
 
   IMPLICIT NONE
   !------- -------- --------- --------- --------- --------- --------- --------- -------
@@ -134,7 +135,6 @@ CONTAINS
 
      integer      :: i
      character(len=ESMF_MAXSTR), parameter :: Iam = "bytecode_dealloc"
-     integer      :: status
 
      do i=1,comp%StackSize
         if (associated(comp%stack(i)%Q2D)) deallocate(comp%Stack(i)%Q2D)
@@ -143,7 +143,7 @@ CONTAINS
      deallocate(comp%Stack)
      deallocate(comp%ByteCode)
      deallocate(comp%Immed)
-     RETURN_(ESMF_SUCCESS)
+     _RETURN(ESMF_SUCCESS)
 
   end subroutine bytecode_dealloc
 
@@ -166,33 +166,33 @@ CONTAINS
     integer :: status
     
     call ESMF_StateGet(state,ITEMCOUNT=varCount,rc=status)
-    VERIFY_(STATUS)   
+    _VERIFY(STATUS)   
     allocate(fieldnames(varCount),needed(varCount))   
     call ESMF_StateGet(state,itemnamelist=fieldNames,rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     ! confirm that each needed field is conformal
     call CheckSyntax(expression,fieldNames,needed,rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     do i=1,varCount
        if (needed(i)) then
           call ESMF_StateGet(state,fieldNames(i),field=state_field,rc=status)
-          VERIFY_(STATUS)
+          _VERIFY(STATUS)
 
           isConformal = CheckIfConformal(field,state_field,rc=status)
-          VERIFY_(STATUS)
+          _VERIFY(STATUS)
           if (.not.isConformal) then
-             ASSERT_(.FALSE.)
+             _ASSERT(.FALSE.,'needs informative message')
           end if
        end if
     end do
 
     call parsef (pcode, expression, fieldNames, field, rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call evalf(pcode,state,fieldNames,field,rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call bytecode_dealloc(pcode,rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     deallocate(fieldNames,needed)
         
@@ -210,19 +210,18 @@ CONTAINS
     TYPE(ESMF_Field)               , INTENT(inout) :: Field     ! resultant field, use to get rank, etc . . .
     INTEGER, OPTIONAL              , INTENT(out  ) :: rc
 
-    INTEGER,   DIMENSION(:),  ALLOCATABLE :: ipos              ! Associates function strings
     CHARACTER(len=LEN(FuncStr))           :: Func
     character(len=ESMF_MAXSTR), parameter :: Iam="parsef"
     integer :: status
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     CALL CheckSyntax (FuncStr,Var,rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     Func = FuncStr                                           ! Local copy of function string
     CALL Replace ('**','^ ',Func)                            ! Exponent into 1-Char. format
     CALL RemoveSpaces (Func)                                 ! Condense function string
     CALL Compile (comp,Func,Var,field,rc=status)             ! Compile into bytecode
-    VERIFY_(STATUS)
-    RETURN_(ESMF_SUCCESS)
+    _VERIFY(STATUS)
+    _RETURN(ESMF_SUCCESS)
   END SUBROUTINE parsef
   !
   SUBROUTINE evalf (Comp, State, FieldNames, ResField, rc)
@@ -250,35 +249,35 @@ CONTAINS
        if (CurrByte == cImmed) then
           SP=SP+1
           call CopyScalarToField(Comp%Stack(SP),Comp%Immed(DP),rc=status)
-          VERIFY_(STATUS)
+          _VERIFY(STATUS)
           DP=DP+1
        end if
        if (CurrByte == cNeg) then
           call UnaryFuncField(Comp%Stack(SP),CurrByte,rc=status)
-          VERIFY_(STATUS)
+          _VERIFY(STATUS)
        end if
        if (CurrByte >= cAdd .and. CurrByte <= cPow) then
           call ArthFieldToField(Comp%Stack(SP),Comp%Stack(SP-1),CurrByte,rc=status)
-          VERIFY_(STATUS)
+          _VERIFY(STATUS)
           SP=SP-1
        end if
        if (CurrByte >= cAbs .and. CurrByte <= cHeav) then
           call UnaryFuncField(Comp%Stack(SP),CurrByte,rc=status)
-          VERIFY_(STATUS)
+          _VERIFY(STATUS)
        end if
        if (CurrByte > cHeav) then
           SP=SP+1
           ValNumber = CurrByte-VarBegin+1
           call ESMF_StateGet(state,FieldNames(ValNumber),state_field,rc=status)
-          VERIFY_(STATUS)
+          _VERIFY(STATUS)
           call CopyFieldToPtr(state_field,Comp%Stack(SP),rc=status)
-          VERIFY_(STATUS)
+          _VERIFY(STATUS)
        end if
     END DO
     call CopyPtrToField(Comp%Stack(1),ResField,rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
   END SUBROUTINE evalf
 
   FUNCTION CheckIfConformal(field_1,field_2,rc) result(res)
@@ -299,20 +298,20 @@ CONTAINS
      integer                               :: i
 
      call ESMF_FieldGet(field_1,array=array_1,rc=status)
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
      call ESMF_ArrayGet(array_1, localarrayList=larrayList, rc=status)
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
      larray_1 => lArrayList(1) ! alias
      call ESMF_LocalArrayGet(larray_1,rank=rank_1,totalLBound=lbnds_1,totalUBound=ubnds_1,rc=status)
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
      call ESMF_FieldGet(field_2,array=array_2,rc=status)
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
      call ESMF_ArrayGet(array_2, localarrayList=larrayList, rc=status)
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
      larray_2 => lArrayList(1) ! alias
      call ESMF_LocalArrayGet(larray_2,rank=rank_2,totalLBound=lbnds_2,totalUBound=ubnds_2,rc=status)
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
      if (rank_1 == 2 .and.  rank_2 == 2) then
         do i=1,2
@@ -359,7 +358,7 @@ CONTAINS
         end do
      end if
 
-     RETURN_(ESMF_SUCCESS)
+     _RETURN(ESMF_SUCCESS)
 
   END FUNCTION CheckIfConformal
 
@@ -373,33 +372,31 @@ CONTAINS
      real, pointer        :: var2d(:,:), var3d(:,:,:)
 
      type(ESMF_Array)      :: array
-     type(ESMF_LocalArray) :: larray
      integer               :: rank
-     integer               :: lbnds(ESMF_MAXDIM), ubnds(ESMF_MAXDIM)
      character(len=ESMF_MAXSTR), parameter :: Iam="CopyFieldtoField"
      integer :: status
      integer :: i
 
      call ESMF_FieldGet(field,array=array,rc=status)
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
      call ESMF_ArrayGet(array,rank=rank,rc=status)
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
      if (rank == 3 .and. ptrs%rank ==3) then
         call ESMF_FieldGet(field,0,var3d,rc=status)
-        VERIFY_(STATUS)
+        _VERIFY(STATUS)
         ptrs%Q3D=var3d
      else if (rank == 2 .and. ptrs%rank ==2) then
         call ESMF_FieldGet(field,0,var2d,rc=status)
-        VERIFY_(STATUS)
+        _VERIFY(STATUS)
         ptrs%Q2D=var2d
      else if (rank == 2 .and. ptrs%rank ==3) then
         call ESMF_FieldGet(field,0,var2d,rc=status)
-        VERIFY_(STATUS)
+        _VERIFY(STATUS)
         do i=ptrs%lb(3),ptrs%ub(3)
            ptrs%Q3D(:,:,i)=var2d
         end do
      end if
-     RETURN_(ESMF_SUCCESS)
+     _RETURN(ESMF_SUCCESS)
 
   END SUBROUTINE CopyFieldToPtr
 
@@ -413,27 +410,24 @@ CONTAINS
      real, pointer        :: var2d(:,:), var3d(:,:,:)
 
      type(ESMF_Array)      :: array
-     type(ESMF_LocalArray) :: larray
      integer               :: rank
-     integer               :: lbnds(ESMF_MAXDIM), ubnds(ESMF_MAXDIM)
      character(len=ESMF_MAXSTR), parameter :: Iam="CopyFieldtoField"
      integer :: status
-     integer :: i
 
      call ESMF_FieldGet(field,array=array,rc=status)
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
      call ESMF_ArrayGet(array,rank=rank,rc=status)
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
      if (rank == 3 .and. ptrs%rank ==3) then
         call ESMF_FieldGet(field,0,var3d,rc=status)
-        VERIFY_(STATUS)
+        _VERIFY(STATUS)
         var3d=ptrs%Q3D
      else if (rank == 2 .and. ptrs%rank ==2) then
         call ESMF_FieldGet(field,0,var2d,rc=status)
-        VERIFY_(STATUS)
+        _VERIFY(STATUS)
         var2d=ptrs%Q2D
      end if
-     RETURN_(ESMF_SUCCESS)
+     _RETURN(ESMF_SUCCESS)
 
   END SUBROUTINE CopyPtrToField
 
@@ -446,7 +440,6 @@ CONTAINS
      integer,               intent(in   ) :: arthcode
      integer, optional,     intent(out  ) :: rc
      Character(len=ESMF_MAXSTR), parameter    :: Iam="ArthFieldToField"
-     integer                                  :: status
 
      if (ptrs_1%rank == 3 .and. ptrs_2%rank ==3) then
         select case(arthcode)
@@ -516,7 +509,7 @@ CONTAINS
         end select
 !    maybe put in 2d + 3d, not needed for now
      end if
-     RETURN_(ESMF_SUCCESS)
+     _RETURN(ESMF_SUCCESS)
    
   END SUBROUTINE ArthFieldToField
 
@@ -528,7 +521,6 @@ CONTAINS
      integer, optional,     intent(out  ) :: rc
 
      character(len=ESMF_MAXSTR), parameter :: Iam="UnaryFuncField"
-     integer :: status
 
      if (ptrs%rank == 3) then
         select case(funcCode)
@@ -729,7 +721,7 @@ CONTAINS
               end where
         end select
      end if
-     RETURN_(ESMF_SUCCESS)
+     _RETURN(ESMF_SUCCESS)
    
   END SUBROUTINE UnaryFuncField
 
@@ -740,14 +732,13 @@ CONTAINS
      integer, optional,     intent(out  ) :: rc
 
      character(len=ESMF_MAXSTR), parameter :: Iam="CopyScalarToField"
-     integer :: status
 
      if (ptrs%rank == 2) then
         ptrs%Q2D=rn
      else if (ptrs%rank == 3) then
         ptrs%Q3D=rn
      end if
-     RETURN_(ESMF_SUCCESS)
+     _RETURN(ESMF_SUCCESS)
 
   END SUBROUTINE CopyScalarToField
   !
@@ -769,7 +760,7 @@ CONTAINS
                                                    j,ib,in,lFunc
     LOGICAL                                     :: isUndef
     INTEGER                                     :: status
-    character(len=ESMF_MAXSTR)                  :: func
+    character(len=ESMF_MAXPATHLEN)              :: func
     integer, allocatable                        :: ipos(:)
     character(len=ESMF_MAXSTR), parameter       :: IAm="CheckSyntax"
     !----- -------- --------- --------- --------- --------- --------- --------- -------
@@ -791,12 +782,12 @@ CONTAINS
           j = j+1
           IF (j > lFunc) THEN 
              CALL ParseErrMsg (j, FuncStr, ipos, 'Missing operand')
-             ASSERT_(.FALSE.)
+             _ASSERT(.FALSE.,'needs informative message')
           END IF
           c = Func(j:j)
           IF (ANY(c == Ops)) THEN
              CALL ParseErrMsg (j, FuncStr, ipos, 'Multiple operators')
-             ASSERT_(.FALSE.)
+             _ASSERT(.FALSE.,'needs informative message')
           END IF
        END IF
        n = MathFunctionIndex (Func(j:))
@@ -804,12 +795,12 @@ CONTAINS
           j = j+LEN_TRIM(Funcs(n))
           IF (j > lFunc) THEN 
              CALL ParseErrMsg (j, FuncStr, ipos, 'Missing function argument')
-             ASSERT_(.FALSE.)
+             _ASSERT(.FALSE.,'needs informative message')
           END IF
           c = Func(j:j)
           IF (c /= '(') THEN 
              CALL ParseErrMsg (j, FuncStr, ipos, 'Missing opening parenthesis')
-             ASSERT_(.FALSE.)
+             _ASSERT(.FALSE.,'needs informative message')
           END IF
        END IF
        IF (c == '(') THEN                                    ! Check for opening parenthesis
@@ -821,7 +812,7 @@ CONTAINS
           r = RealNum (Func(j:),ib,in,err)
           IF (err) THEN
              CALL ParseErrMsg (j, FuncStr, ipos, 'Invalid number format:  '//Func(j+ib-1:j+in-2))
-             ASSERT_(.FALSE.)
+             _ASSERT(.FALSE.,'needs informative message')
           END IF
           j = j+in-1
           IF (j > lFunc) EXIT
@@ -840,7 +831,7 @@ CONTAINS
                    ExtVar = trim(ExtVar)//Func(j+ib-1:j+in-2)//","
                 ELSE
                    CALL ParseErrMsg (j, FuncStr, ipos, 'Invalid element: '//Func(j+ib-1:j+in-2))
-                   ASSERT_(.FALSE.)
+                   _ASSERT(.FALSE.,'needs informative message')
                 ENDIF
              END IF
              j = j+in-1
@@ -852,11 +843,11 @@ CONTAINS
           ParCnt = ParCnt-1
           IF (ParCnt < 0) THEN
              CALL ParseErrMsg (j, FuncStr, ipos, 'Mismatched parenthesis')
-             ASSERT_(.FALSE.)
+             _ASSERT(.FALSE.,'needs informative message')
           END IF
           IF (Func(j-1:j-1) == '(') THEN
              CALL ParseErrMsg (j-1, FuncStr, ipos, 'Empty parentheses')
-             ASSERT_(.FALSE.)
+             _ASSERT(.FALSE.,'needs informative message')
           END IF
           j = j+1
           IF (j > lFunc) EXIT
@@ -869,15 +860,15 @@ CONTAINS
        IF (ANY(c == Ops)) THEN                               ! Check for multiple operators
           IF (j+1 > lFunc) THEN
              CALL ParseErrMsg (j, FuncStr, ipos)
-             ASSERT_(.FALSE.)
+             _ASSERT(.FALSE.,'needs informative message')
           END IF
           IF (ANY(Func(j+1:j+1) == Ops)) THEN
              CALL ParseErrMsg (j+1, FuncStr, ipos, 'Multiple operators')
-             ASSERT_(.FALSE.)
+             _ASSERT(.FALSE.,'needs informative message')
           END IF
        ELSE                                                  ! Check for next operand
           CALL ParseErrMsg (j, FuncStr, ipos, 'Missing operator')
-          ASSERT_(.FALSE.)
+          _ASSERT(.FALSE.,'needs informative message')
        END IF
        !-- -------- --------- --------- --------- --------- --------- --------- -------
        ! Now, we have an operand and an operator: the next loop will check for another 
@@ -887,10 +878,10 @@ CONTAINS
     END DO step
     IF (ParCnt > 0) THEN
        CALL ParseErrMsg (j, FuncStr, ipos, 'Missing )')
-       ASSERT_(.FALSE.)
+       _ASSERT(.FALSE.,'needs informative message')
     END IF
     DEALLOCATE(ipos)
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
   END SUBROUTINE CheckSyntax
 
   SUBROUTINE ParseErrMsg (j, FuncStr, ipos, Msg)
@@ -996,7 +987,7 @@ CONTAINS
     LOGICAL                                     :: isUndef   ! Index of variable
     INTEGER, OPTIONAL,              INTENT(out) :: ibegin, & ! Start position of variable name
                                                    inext     ! Position of character after name
-    INTEGER                                     :: j,ib,in,lstr
+    INTEGER                                     :: ib,in,lstr
     CHARACTER (LEN=ESMF_MAXSTR)                 :: fun
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     isUndef = .false.
@@ -1089,12 +1080,12 @@ CONTAINS
                STAT = istat                      )
 
     call ESMF_FieldGet(field,array=array,rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call ESMF_ArrayGet(array,localarrayList=larrayList,rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     lArray => lArrayList(1)
     call ESMF_LocalArrayGet(larray,rank=ResRank,totallbound=lb,totalubound=ub,rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     DO i=1,Comp%StackSize
        Comp%Stack(i)%rank = ResRank
        Comp%Stack(i)%lb = lb
@@ -1112,7 +1103,7 @@ CONTAINS
     Comp%StackPtr     = 0
     CALL CompileSubstr (Comp,F,1,LEN_TRIM(F),Var)            ! Compile string into bytecode
 
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
 
   END SUBROUTINE Compile
   !

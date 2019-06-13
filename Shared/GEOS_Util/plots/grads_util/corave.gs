@@ -191,11 +191,11 @@ endif
 'define rL   = (exp(2*(zave-zstd))-1)/(exp(2*(zave-zstd))+1)'
 
 
-* Estimate Statistically Significant Range (based on 30 Forecasts and 95% confidence)
-* -----------------------------------------------------------------------------------
- dof = numfiles-1
-'astudt 'dof' 0.2'  ;* 90% Confidence
-'astudt 'dof' 0.1'  ;* 95% Confidence
+* Estimate Statistically Significant Range (based on two-tailed Students T-Test)
+* ------------------------------------------------------------------------------
+ dof = numfiles-1    ;* Degrees of Freedom (dof)
+'astudt 'dof' 0.05'  ;* 95% Confidence
+'astudt 'dof' 0.10'  ;* 90% Confidence
 'q defval astudtout 1 1'
 critval=subwrd(result,3)
 

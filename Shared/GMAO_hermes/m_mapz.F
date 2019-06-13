@@ -1,3 +1,4 @@
+#include "unused_dummy.H"
 !---------------------------------------------------------------------------
 ! NASA/GSFC, Global Modeling and Assimilation Office, Code 900.3, GEOS/DAS !
 !---------------------------------------------------------------------------
@@ -1123,6 +1124,7 @@ c Define cosine at edges..
       real  dpd
       integer ic
 
+      _UNUSED_DUMMY(bk)
 ! Check global maximum/minimum
       PSMO = gmean(im,jm,jfirst,jlast,ps)
       write(6,*) 
@@ -1568,6 +1570,114 @@ c Define cosine at edges..
 
       return
       end subroutine kmppm
+
+      subroutine p_to_p_ ( q1,pk1,lm1,
+     .                     q2,pk2,lm2, pz,ptop,qs,im,jm )
+!***********************************************************************
+!
+! PURPOSE
+!   To interpolate an arbitrary quantity from Pressure_1 to Pressure_2
+!
+! INPUT
+!   q1 ..... q1 (im,jm,lm1) Arbitrary Quantity at Pressure_1
+!   pk1 .... pk1(im,jm,lm1) Pressure to the Kappa for quantity q1
+!   lm1 .... Number of Levels for quantity q1
+!   pk2 .... pk2(im,jm,lm2) Pressure to the Kappa for quantity q2
+!   lm2 .... Number of Levels for quantity q2
+!   pz ..... Model Surface Pressure - Ptop
+!   ptop ... Model Top     Pressure
+!   qs ..... Value of q1 at lower boundary (surface)
+!   IM ..... Longitude Dimension
+!   JM ..... Latitude  Dimension
+!
+! OUTPUT
+!   q2 .... q2 (im,jm,lm2) Arbitrary Quantity at Pressure_2
+!
+! NOTE
+!   Quantity is interpolated Linear in P**Kappa.
+!   Above pk1(1),  quantity is held constant
+!   Between ps**Kappa and pk1(lm1), quantity is interpolated using qs
+!
+! HISTORY:
+!             Takacs  - Initial code.
+!  09May2018  Todling - Adapted from original (GEOS-3).
+!
+!***********************************************************************
+!*                  GODDARD LABORATORY FOR ATMOSPHERES                 *
+!***********************************************************************
+ 
+      use m_const, only: undef
+      use m_const, only: kappa
+      implicit none
+      integer  i,j,l,l1,l2,im,jm,lm1,lm2
+ 
+! Input Variables
+! ---------------
+      real     q1(im,jm,lm1)
+      real     q2(im,jm,lm2)
+      real    pk1(im,jm,lm1)
+      real    pk2(im,jm,lm2)
+      real     pz(im,jm),ptop
+      real     qs(im,jm)
+ 
+! Local Dynamic Variables
+! -----------------------
+      real  ps(im,jm)
+      real pks(im,jm)
+ 
+      real  temp
+ 
+!     Initialization
+!     --------------
+      do j=1,jm
+         do i=1,im
+            ps (i,j) = pz(i,j)+ptop
+            pks(i,j) = ps(i,j)**kappa
+         enddo
+      enddo
+      do l=1,lm2
+         do j=1,jm
+            do i=1,im
+               q2(i,j,l) = undef
+            enddo
+         enddo
+      enddo
+
+!     Interpolate from one pressure to the other
+!     ------------------------------------------
+!#if (multitask && SGI)
+!_$doacross   local (l1,l2,i,temp)
+!#endif
+      do l2 = 1,lm2
+         do l1 = 1,lm1-1
+            do i = 1,im*jm
+               if( pk2(i,1,l2).le.pk1(i,1,l1+1) .and.
+     .             pk2(i,1,l2).ge.pk1(i,1,l1) )  then
+                   temp  = ( pk1(i,1,l1)-pk2(i,1,l2)   )
+     .                   / ( pk1(i,1,l1)-pk1(i,1,l1+1) )
+                   q2(i,1,l2) = q1(i,1,l1+1)*temp + q1(i,1,l1)*(1.-temp)
+               endif
+            enddo
+         enddo
+
+!        Set upper and lower levels
+!        --------------------------
+         do i=1,im*jm
+            if( pk2(i,1,l2).le.pk1(i,1,1) ) q2(i,1,l2) = q1(i,1,1)
+   
+            if( pk2(i,1,l2).le.pks(i,1)      .and.
+     .          pk2(i,1,l2).ge.pk1(i,1,lm1) ) then
+                temp  = ( pk1(i,1,lm1)-pk2(i,1,l2) )
+     .                / ( pk1(i,1,lm1)-pks(i,1)    )
+                q2(i,1,l2) = qs(i,1)*temp + q1(i,1,lm1)*(1.-temp)
+            endif
+   
+            if( pk2(i,1,l2).gt.pks(i,1) ) q2(i,1,l2) = q1(i,1,lm1)
+         enddo
+      enddo ! l2
+
+      return
+      end subroutine p_to_p_
 
       end module m_mapz
      

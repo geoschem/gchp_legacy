@@ -212,6 +212,7 @@ baselibs_esmf:
 ifeq ($(wildcard $(ESMF_DIR)/esmf.install),)
 	$(MAKE) -C $(ESMF_DIR)
 	$(MAKE) -C $(ESMF_DIR) install
+	cp -f  $(ESMF_DIR)/src/include/*.inc $(ESMF_INSTALL_HEADERDIR)
 	@touch $(ESMF_DIR)/esmf.install
 endif
 
@@ -318,7 +319,7 @@ wipeout_mapl:
 	@echo '%%%%%  Wiping out the MAPL installation    %%%%%'
 	@echo '%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%'
 	rm -f $(ESMADIR)/mapl.install
-	rm -f $(ESMADIR)/$(ARCH)/lib/*.a
+	rm -rf $(ESMADIR)/$(ARCH)
 	rm -f $(ESMADIR)/Config/bin/*.x
 	rm -f ./*___.*
 	@$(MAKE) -C $(ESMADIR) distclean

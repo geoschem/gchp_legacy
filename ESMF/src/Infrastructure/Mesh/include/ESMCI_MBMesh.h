@@ -1,6 +1,6 @@
 // $Id$
 // Earth System Modeling Framework
-// Copyright 2002-2018, University Corporation for Atmospheric Research, 
+// Copyright 2002-2019, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -18,15 +18,24 @@
 using namespace moab;
 #endif
 
+#include "ESMCI_Macros.h"
+#include "ESMCI_LogErr.h"
+
 #include <map>
 
 namespace ESMCI {
+
+#define MBMESH_CHECK_ERR(merr, localrc) {\
+  if (merr != MB_SUCCESS) \
+    if(ESMC_LogDefault.MsgFoundError(ESMC_RC_MOAB_ERROR, \
+      moab::ErrorCodeStr[merr], ESMC_CONTEXT,&localrc)) throw localrc; }\
 
   class MBMesh {
 #if defined ESMF_MOAB
 
   public:
     int sdim, pdim; // dimensions MAYBE I SHOULD NAME THESE MORE SIMILAR TO WHAT IN OTHER MESH
+    int orig_sdim;
     Interface *mesh; // Moab mesh  MAYBE I SHOULD NAME ThIS SOMETHING ELSE????
 
     int num_verts;
@@ -67,6 +76,8 @@ namespace ESMCI {
     int max_non_split_id;
     std::map<int,int> split_to_orig_id;
     std::map<int,double> split_id_to_frac;
+
+    void CreateGhost();
 
 #endif
 

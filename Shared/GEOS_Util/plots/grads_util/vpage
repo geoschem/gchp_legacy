@@ -32,7 +32,7 @@ pagex = subwrd(result,1)
 pagey = subwrd(result,2)-ytop
 
 
- 'set mproj latlon'
+*'set mproj latlon'
 *'set mproj scaled'
 *diff  = (pagex-pagey/1.75)*0.5
 *pagex = pagey/1.65

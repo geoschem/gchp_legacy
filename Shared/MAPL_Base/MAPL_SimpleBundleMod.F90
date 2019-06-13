@@ -28,7 +28,7 @@
    use MAPL_MaxMinMod
    use MAPL_CommsMod, only: MAPL_AM_I_ROOT
    use MAPL_ConstantsMod, only: MAPL_PI
-   use m_StrTemplate
+   use MAPL_ErrorHandlingMod
 
    implicit NONE
    private
@@ -171,13 +171,15 @@ CONTAINS
     type(ESMF_TypeKind_Flag) :: typeKind
     real(ESMF_KIND_R8), pointer :: LonsRad(:,:), LatsRad(:,:)
 
-    integer :: arrayRank, I, n, n1d, n2d, n3d, NumVars, myKind_
+    integer :: arrayRank, I, n, n1d, n2d, n3d, NumVars
     integer :: im, jm, km, dims(3)
     type(ESMF_FieldStatus_Flag) :: fieldStatus
     
 
     logical :: strict_match
     logical :: isPresent
+    logical :: isPresentBundle
+    logical :: haveDelp
     integer :: n_vars
     character(len=ESMF_MAXSTR) :: message
     logical, allocatable       :: isRequested(:)
@@ -223,7 +225,7 @@ CONTAINS
 
     if (present(only_vars)) then
        n_vars = csv_tokens_count_(only_vars)
-       ASSERT_(n_vars <= NumVars)
+       _ASSERT(n_vars <= NumVars,'needs informative message')
 
        allocate(var_list(n_vars), __STAT__)
 
@@ -285,7 +287,7 @@ CONTAINS
          self%coords%Levs(:) = Levs(:)
       else
          STATUS = 77
-         VERIFY_(STATUS)
+         _VERIFY(STATUS)
       end if
    else
       self%coords%Levs(:) = (/ (i, i = 1, km) /)
@@ -304,11 +306,25 @@ CONTAINS
       self%coords%lcv%delp => delp
    else ! Look inside bundle for delp or DELP
       self%coords%lcv%delp => NULL() 
-      call ESMF_FieldBundleGet (Bundle, fieldName='DELP', field=Field, RC=STATUS)
-      if ( STATUS /= 0 ) then
-           call ESMF_FieldBundleGet (Bundle, fieldName='delp', field=Field, RC=STATUS)
+
+      haveDelp = .FALSE.
+      call ESMF_FieldBundleGet (Bundle, fieldName='DELP', isPresent=isPresentBundle, RC=STATUS)
+      _VERIFY(STATUS)
+      if (isPresentBundle) then
+         call ESMF_FieldBundleGet (Bundle, fieldName='DELP', field=Field, RC=STATUS)
+         _VERIFY(STATUS)
+         haveDelp = .TRUE.
+      else
+         call ESMF_FieldBundleGet (Bundle, fieldName='delp', isPresent=isPresentBundle, RC=STATUS)
+         _VERIFY(STATUS)
+         if (isPresentBundle) then
+            call ESMF_FieldBundleGet (Bundle, fieldName='delp', field=Field, RC=STATUS)
+            _VERIFY(STATUS)
+            haveDelp = .TRUE.
+         end if
       end if
-      if ( STATUS == 0 ) then
+
+      if (haveDelp) then
          call ESMF_FieldGet(Field, status=fieldStatus, __RC__)
          if (fieldStatus == ESMF_FIELDSTATUS_COMPLETE) then
             call ESMF_FieldGet(Field, 0, self%coords%lcv%delp, __RC__)
@@ -365,7 +381,7 @@ CONTAINS
              self%r3(n3d)%q => self%r3(n3d)%qr4 ! convenience alias
           else
              STATUS = 77
-             VERIFY_(STATUS)
+             _VERIFY(STATUS)
           end if
 
 !      Real*8
@@ -388,14 +404,14 @@ CONTAINS
              self%r3(n3d)%myKind = ESMF_KIND_R8
           else
              STATUS = 77
-             VERIFY_(STATUS)
+             _VERIFY(STATUS)
           end if
 
 !      Unknown kind
 !      ------------
        else
           STATUS = 88
-          VERIFY_(STATUS)
+          _VERIFY(STATUS)
        end if
 
     end do 
@@ -615,7 +631,7 @@ CONTAINS
 ! !INTERFACE:
 !
 
-  Function MAPL_SimpleBundleRead (filename, grid, time, verbose, &
+  Function MAPL_SimpleBundleRead (filename, bundle_name, grid, time, verbose, &
                                   only_vars, expid, rc ) result (self)
 
 ! !ARGUMENTS:
@@ -623,6 +639,7 @@ CONTAINS
     type(MAPL_SimpleBundle)                    :: self ! Simple Bundle
 
     character(len=*),            intent(in)    :: filename
+    character(len=*),            intent(in)    :: bundle_name
     type(ESMF_Time),             intent(inout) :: Time
     type(ESMF_Grid),             intent(in)    :: Grid
     logical, OPTIONAL,           intent(in)    :: verbose
@@ -640,27 +657,11 @@ CONTAINS
 
     __Iam__('MAPL_SimpleBundleRead')
     type(ESMF_FieldBundle),  pointer :: Bundle
-    integer                          :: k,n
-    character(len=ESMF_MAXSTR)       :: fname
 
     allocate(Bundle, stat=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
-!ALT: ESMF object name cannot exceed length of ESMF_MAXSTR(=128) 
-    k = len_trim(filename)
-    if (k > ESMF_MAXSTR) then
-       n = index(filename,'/',back=.true.)
-       ! An attempt to trim the absolute path
-       if (n >= k) then ! n+1 has potential to overflow
-          fname = filename
-       else
-          fname = filename(n+1+max(0,k-n-ESMF_MAXSTR):k)
-       end if
-    else
-       fname = filename
-    end if
-
-    Bundle = ESMF_FieldBundleCreate ( name=fname, __RC__ )
+    Bundle = ESMF_FieldBundleCreate ( name=bundle_name, __RC__ )
     call ESMF_FieldBundleSet ( bundle, grid=Grid, __RC__ )
     call MAPL_CFIORead  ( filename, Time, Bundle, verbose=verbose, &
                           ONLY_VARS=only_vars, expid=expid, __RC__ )
@@ -863,7 +864,7 @@ end subroutine MAPL_SimpleBundlePrint
     logical :: quiet_
     integer :: i
 
-                     __Iam__("MAPL_SimpleBundleGetIndex")
+                     _Iam_("MAPL_SimpleBundleGetIndex")
 
     if ( present(quiet) ) then
        quiet_ = quiet
@@ -910,7 +911,7 @@ end subroutine MAPL_SimpleBundlePrint
              __raise__(MAPL_RC_ERROR,message)
           end if
        else
-          RETURN_(ESMF_SUCCESS)
+          _RETURN(ESMF_SUCCESS)
        end if
     end if
 

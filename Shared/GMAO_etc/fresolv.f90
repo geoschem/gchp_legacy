@@ -13,8 +13,8 @@
 
     integer nymd, nhms
     logical caching, dryrun
-    integer i, iarg, argc, iargc
-    character(len=255) expid, argv, template, fname
+    integer i, iarg, argc
+    character(len=255) expid, argv, fname
 
     caching = .true.
     dryrun = .false.
@@ -25,23 +25,23 @@
 
 !   Parse command line
 !   ------------------
-    argc =  iargc()
+    argc =  command_argument_count()
     if ( argc .lt. 1 ) call usage()
     
     iarg = 0
     do i = 1, 32767
        iarg = iarg + 1
        if ( iarg .gt. argc ) exit
-       call GetArg ( iArg, argv )
+       call Get_Command_Argument ( iArg, argv )
        if (index(argv,'-nocache' ) .gt. 0 ) then
           caching = .false.
        else if (index(argv,'-d' ) .gt. 0 ) then
           dryrun = .true.
        else if (index(argv,'-t' ) .gt. 0 ) then
           if ( iarg+3 .gt. argc ) call usage()
-          call GetArg ( iarg+1, expid )
-          call GetArg ( iarg+2, argv  ); read(argv,*) nymd
-          call GetArg ( iarg+3, argv  ); read(argv,*) nhms
+          call Get_Command_Argument ( iarg+1, expid )
+          call Get_Command_Argument ( iarg+2, argv  ); read(argv,*) nymd
+          call Get_Command_Argument ( iarg+3, argv  ); read(argv,*) nhms
           iarg = iarg + 3
        else
           if ( dryrun ) then
@@ -109,7 +109,7 @@
     print *, '      Arlindo da Silva (dasilva@gsfc.nasa.gov)'
     print *
 
-    call exit(1)
+    stop 1
  
     stop
     end

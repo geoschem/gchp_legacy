@@ -218,7 +218,7 @@ where
 
 options
    -h                print usage information
-   -i                edit file "in place", i.e. overwrite input file with output
+   -i                edit file \"in place\", i.e. overwrite input file with output
    -o outfl          name of output file; defaults to STDOUT
    -vv varname=val   set or substitute variable "varname" with value "val"
    -v                verbose; warn if undefined environment variables are found

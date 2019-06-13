@@ -52,9 +52,9 @@ CONTAINS
 ! !INTERFACE:
 !
 
-   subroutine WetRemovalGOCART ( i1, i2, j1, j2, km, n1, n2, cdt, &
-                                 qa, ple, tmpu, rhoa, dqcond, precc, precl, &
-                                 fluxout, rc )
+   subroutine WetRemovalGOCART ( i1, i2, j1, j2, km, n1, n2, cdt, aero_type, kin, &
+                                 qa, ple, tmpu, rhoa, pfllsan, pfilsan, &
+                                 precc, precl, fluxout, rc )
 
 ! !USES:
 
@@ -63,8 +63,11 @@ CONTAINS
 ! !INPUT PARAMETERS:
    integer, intent(in) :: i1, i2, j1, j2, n1, n2, km
    real, intent(in)    :: cdt
+   character(len=*)    :: aero_type
+   LOGICAL, INTENT(INOUT)   :: KIN  ! true for aerosol
    TYPE(Chem_Array), pointer           :: qa(:)          ! tracer array will go here
-   real, pointer, dimension(:,:,:)     :: ple, tmpu, rhoa, dqcond
+   real, pointer, dimension(:,:,:)     :: ple, tmpu, rhoa
+   real, pointer, dimension(:,:,:)     :: pfllsan, pfilsan
    real, pointer, dimension(:,:)       :: precc, precl
    TYPE(Chem_Array), pointer           :: fluxout        ! tracer loss flux [kg m-2 s-1]
 
@@ -87,14 +90,18 @@ CONTAINS
 
 ! !Local Variables
    character(len=*), parameter :: myname = 'WetRemovalGOCART'
-   integer  ::  i, j, k, iit, n, nbins, LH, kk, ios
+   integer  ::  i, j, k, n, nbins, LH, kk, ios
    real :: pdog(i1:i2,j1:j2,km)      ! air mass factor dp/g [kg m-2]
+   real :: delz(i1:i2,j1:j2,km)      ! box height  dp/g/rhoa [m]
    real :: pls, pcv, pac             ! ls, cv, tot precip [mm day-1]
-   real :: qls(km), qcv(km)          ! ls, cv portion dqcond [kg m-3 s-1]
+   real :: qls(km), qcv(km)          ! ls, cv portion of moisture tendency[kg m-3 s-1]
    real :: qmx, qd, A                ! temporary variables on moisture
    real :: F, B, BT                  ! temporary variables on cloud, freq.
+   real :: WASHFRAC, WASHFRAC_F_14
    real, allocatable :: fd(:,:)      ! flux across layers [kg m-2]
+   real, allocatable :: dpfli(:,:,:) ! vertical gradient of LS ice+rain precip flux 
    real, allocatable :: DC(:)        ! scavenge change in mass mixing ratio
+   real :: c_h2o(i1:i2,j1:j2,km), cldliq(i1:i2,j1:j2,km), cldice(i1:i2,j1:j2,km)
 
 !  Rain parameters from Liu et al.
    real, parameter :: B0_ls = 1.0e-4
@@ -103,10 +110,17 @@ CONTAINS
    real, parameter :: B0_cv = 1.5e-3
    real, parameter :: F0_cv = 0.3
    real, parameter :: XL_cv = 2.0e-3
+   real, parameter :: k_wash = 1.d0  ! first order washout rate, constant, [cm^-1]
 !  Duration of rain: ls = model timestep, cv = 1800 s (<= cdt)
    real            :: Td_ls
    real, parameter :: Td_cv = 1800.
+   REAL*8,  PARAMETER   :: R = 8.2057d-2  ! universal gas constant [L*atm/moles/K]
+   REAL*8,  PARAMETER   :: INV_T0 = 1d0 / 298d0
+   REAL*8,  PARAMETER   :: conv_NH3 = 5.69209978831d-1 ! 0.6*SQRT(0.9) for ice to gas ratio
+   REAL*8  :: k_rain, Kstar298, H298_R, I2G, L2G, C_TOT, F_L, F_I
+   REAL*8  :: PP, LP
 
+   logical :: snow_scavenging
 
 !  Efficiency of dust wet removal (since dust is really not too hygroscopic)
 !  Applied only to in-cloud scavenging
@@ -116,6 +130,17 @@ CONTAINS
 
 !  Initialize local variables
 !  --------------------------
+!  c_h2o, cldliq, and cldice are respectively intended to be the 
+!  water mixing ratio (liquid or vapor?, in or out of cloud?)
+!  cloud liquid water mixing ratio
+!  cloud ice water mixing ratio
+   c_h2o  = (10d0**(-2663.5d0/tmpu(:,:,:) + 12.537d0 ) ) /  &
+                   (ple(:,:,0:km-1)+ple(:,:,1:km)) /2d0   
+   cldliq = 0.d0
+   where(tmpu >  248.) cldliq = 1.d-6 * ( ( tmpu - 248.d0) / 20.d0 )
+   where(tmpu >= 268.) cldliq = 1.d-6
+   cldice = 1.d-6 - cldliq
+
    Td_ls = cdt
    nbins = n2-n1+1
    if( associated(fluxout%data2d) ) fluxout%data2d(i1:i2,j1:j2) = 0.0
@@ -125,9 +150,39 @@ CONTAINS
    if(ios .ne. 0) stop
    allocate(dc(nbins),stat=ios)
    if(ios .ne. 0) stop
+   allocate(dpfli(i1:i2, j1:j2, km),stat=ios)
+   if(ios .ne. 0) stop
 
 !  Accumulate the 3-dimensional arrays of rhoa and pdog
    pdog = (ple(:,:,1:km)-ple(:,:,0:km-1)) / grav
+   delz = pdog / rhoa
+   dpfli = pfllsan(:,:,1:km)-pfllsan(:,:,0:km-1)+pfilsan(:,:,1:km)-pfilsan(:,:,0:km-1)
+   if (.not. KIN) then              ! Gases
+    if (aero_type == 'NH3') then  ! Only for NH3 at present
+    ! values adopted in Umich/IMPACT and GMI, effective Henry's law coefficient at pH=5
+      Kstar298 = 1.05d6
+      H298_R = -4.2d3
+    else
+      if (MAPL_AM_I_ROOT()) print *, 'stop in WetRemoval, need Kstar298 and H298_R'
+      stop 
+    endif
+   endif
+
+!  Snow scavenging flag
+   snow_scavenging = .true.
+
+   if ( (aero_type == 'OC'      ) .or. &
+        (aero_type == 'sea_salt') .or. &
+        (aero_type == 'sulfur'  ) .or. &
+        (aero_type == 'seasalt' ) .or. &
+        (aero_type == 'sulfate' ) .or. &
+        (aero_type == 'NH3'     ) .or. &
+        (aero_type == 'NH4a'    ) .or. &
+        (aero_type == 'nitrate' ) .or. &
+        (aero_type == 'bromine' ) .or. &
+        (aero_type == 'dust'    ) ) then
+     snow_scavenging = .false.
+   end if
 
 !  Loop over spatial indices
    do j = j1, j2
@@ -149,7 +204,7 @@ CONTAINS
 !    scavenging if T < 258 K
      LH = 0
      do k = 1, km
-      if(dqcond(i,j,k) .lt. 0. .and. tmpu(i,j,k) .gt. 258.) then
+      if(dpfli(i,j,k) .gt. 0. ) then
        LH = k
        goto 15
       endif
@@ -157,11 +212,8 @@ CONTAINS
  15  continue
      if(LH .lt. 1) goto 100
 
-!    convert dqcond from kg water/kg air/s to kg water/m3/s and reverse
-!    sign so that dqcond < 0. (positive precip) means qls and qcv > 0.
      do k = LH, km
-      qls(k) = -dqcond(i,j,k)*pls/pac*rhoa(i,j,k)
-!      qcv(k) = -dqcond(i,j,k)*pcv/pac*rhoa(i,j,k)
+      qls(k) = dpfli(i,j,k)/pdog(i,j,k)*rhoa(i,j,k)
      end do
 
 !    Loop over vertical to do the scavenging!
@@ -178,11 +230,41 @@ CONTAINS
 !-----------------------------------------------------------------------------
       if (qls(k) .gt. 0.) then
        F  = F0_ls / (1. + F0_ls*B0_ls*XL_ls/(qls(k)*cdt/Td_ls))
-       B  = B0_ls/F0_ls +1./(F0_ls*XL_ls/qls(k)) 
+       k_rain  = B0_ls/F0_ls +1./(F0_ls*XL_ls/qls(k)) 
+       if ( kin ) then     ! Aerosols
+          B = k_rain
+       else                ! Gases
+        ! ice to gas ratio
+          if ( c_h2o(i,j,k) > 0.d0) then
+             I2G = (cldice(i,j,k) / c_h2o(i,j,k)) * conv_NH3
+          else
+             I2G = 0.d0
+          endif
+          L2G = cldliq(i,j,k) * R * tmpu(i,j,k) * &
+                  Kstar298 * EXP( -H298_R * ( ( 1d0 / tmpu(i,j,k) ) - INV_T0 ) )
+        ! fraction of NH3 in liquid & ice phases
+          C_TOT = 1d0 + L2G + I2G
+          F_L = L2G / C_TOT
+          F_I = I2G / C_TOT
+        ! compute kg, the retention factor for liquid NH3 is 0 at T < 248K and
+        ! 0.05 at 248K < T < 268K
+          if (tmpu(i,j,k) >=268d0) then
+             B = k_rain * ( F_L+F_I )
+          elseif ( (248d0 < tmpu(i,j,k)) .and. (tmpu(i,j,k) < 268d0) ) then
+             B = k_rain * ( (0.05*F_L)+F_I )
+          else
+             B = k_rain * F_I
+          endif
+       endif ! kin
        BT = B * Td_ls
        if (BT.gt.10.) BT = 10.               !< Avoid overflow >
 !      Adjust du level:
        do n = 1, nbins
+! supress scavenging at cold T except for HNO3
+        if (tmpu(i,j,k) < 258d0 .and. .not.snow_scavenging) then
+            F = 0.d0
+        endif
+
         effRemoval = qa(n1+n-1)%fwet
         DC(n) = qa(n1+n-1)%data3d(i,j,k) * F * effRemoval *(1.-exp(-BT))
         if (DC(n).lt.0.) DC(n) = 0.
@@ -216,6 +298,9 @@ CONTAINS
 
  333    continue
         F = F0_ls / (1. + F0_ls*B0_ls*XL_ls/(Qmx*cdt/Td_ls))
+     ! if (MAPL_AM_I_ROOT()) then
+     !    print *, 'hbianwdep WASHFmax =',F
+     ! endif
         if (F.lt.0.01) F = 0.01
 !-----------------------------------------------------------------------------
 !  The following is to convert Q(k) from kgH2O/m3/sec to mm/sec in order
@@ -225,6 +310,7 @@ CONTAINS
 !  units of mm/s (omit the multiply and divide by 1000).
 !-----------------------------------------------------------------------------
 
+!       Aerosols
         Qd = Qmx /rhoa(i,j,k)*pdog(i,j,k)
         if (Qd.ge.50.) then
          B = 0.
@@ -234,9 +320,45 @@ CONTAINS
         BT = B * cdt
         if (BT.gt.10.) BT = 10.
 
+!       Gases
+        if ( .not. KIN ) then
+           IF ( tmpu(i,j,k) >= 268d0 ) THEN
+            !------------------------
+            ! T >= 268K: Do washout
+            !------------------------
+            ! Rainwater content in the grid box (Eq. 17, Jacob et al, 2000)
+            PP = (PFLLSAN(i,j,k)/1000d0 + PFILSAN(i,j,k)/917d0 )*100d0 ! from kg H2O/m2/s to cm3 H2O/cm2/s
+            LP = ( PP * cdt ) / ( F * delz(i,j,k)*100.d0 )  ! DZ*100.d0 in cm
+            ! Compute liquid to gas ratio for H2O2, using the appropriate 
+            ! parameters for Henry's law -- also use rainwater content Lp
+            ! (Eqs. 7, 8, and Table 1, Jacob et al, 2000)
+            !CALL COMPUTE_L2G( Kstar298, H298_R, tmpu(i,j,k), LP, L2G )
+            L2G = Kstar298 * EXP( -H298_R*((1d0/tmpu(i,j,k))-INV_T0) ) &
+                  * LP * R * tmpu(i,j,k)
+            ! Washout fraction from Henry's law (Eq. 16, Jacob et al, 2000)
+            WASHFRAC = L2G / ( 1d0 + L2G )
+            ! Washout fraction / F from Eq. 14, Jacob et al, 2000
+            ! Note: WASHFRAC_F_14 should match what's used for HNO3 (hma, 13aug2011)
+            WASHFRAC_F_14 = 1d0 - EXP( -K_WASH * ( PP / F ) * cdt )
+            ! Do not let the Henry's law washout fraction exceed
+            IF ( WASHFRAC > WASHFRAC_F_14 ) THEN
+              WASHFRAC = WASHFRAC_F_14
+            ENDIF
+           ELSE
+            !------------------------
+            ! T < 268K: No washout
+            !------------------------
+            WASHFRAC = 0d0
+           ENDIF
+        endif
+
 !       Adjust du level:
         do n = 1, nbins
-         DC(n) = qa(n1+n-1)%data3d(i,j,k) * F * (1.-exp(-BT))
+         if ( KIN ) then
+            DC(n) = qa(n1+n-1)%data3d(i,j,k) * F * (1.-exp(-BT))
+         else
+            DC(n) = qa(n1+n-1)%data3d(i,j,k) * F * WASHFRAC
+         endif
          if (DC(n).lt.0.) DC(n) = 0.
          qa(n1+n-1)%data3d(i,j,k) = qa(n1+n-1)%data3d(i,j,k)-DC(n)
          if (qa(n1+n-1)%data3d(i,j,k) .lt. 1.0E-32) & 
@@ -341,12 +463,11 @@ CONTAINS
        end do
 
 !      Is there evaporation in the currect layer?
-       if (-dqcond(i,j,k) .lt. 0.) then
+       if (dpfli(i,j,k) .lt. 0.) then
 !       Fraction evaporated = H2O(k)evap / H2O(next condensation level).
-        if (-dqcond(i,j,k-1) .gt. 0.) then
+        if (dpfli(i,j,k-1) .gt. 0.) then
 
-          A =  abs(  dqcond(i,j,k) * pdog(i,j,k)    &
-            /      ( dqcond(i,j,k-1) * pdog(i,j,k-1))  )
+          A =  abs(  dpfli(i,j,k) /  dpfli(i,j,k-1)  )
           if (A .gt. 1.) A = 1.
 
 !         Adjust tracer in the level
@@ -373,7 +494,7 @@ CONTAINS
     end do   ! i
    end do    ! j
 
-   deallocate(fd,DC,stat=ios)
+   deallocate(fd,DC,dpfli,stat=ios)
 
    end subroutine WetRemovalGOCART
 

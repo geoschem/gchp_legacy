@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2018, University Corporation for Atmospheric Research,
+// Copyright 2002-2019, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -139,7 +139,7 @@ class Attribute
     static const char GRIDS_PURP[];
 
     // Print
-    void attprint(char *msgbuf, int strsize, bool tofile, std::ofstream &fp) const \
+    void attprint(char *msgbuf, bool tofile, std::ofstream &fp) const \
       {if (tofile) { std::string str(msgbuf); fp << str;} else printf("%s", msgbuf);}
     int ESMC_Print(bool tofile, const char *filename, bool append) const;
     int print_to_file(bool tofile, std::ofstream &fp, unsigned int level) const;

@@ -1,5 +1,6 @@
       program  main
       use MAPL_ConstantsMod
+      use m_set_eta, only: set_eta
       implicit none
 
 c **********************************************************************
@@ -11,7 +12,7 @@ c **********************************************************************
 c **********************************************************************
 
       integer  im,jm,lm
-      real     pbelow,pabove,ptop
+      real     pbelow,pabove,ptop,pint
       real     rgas,eps,rvap
 
       real dum
@@ -103,6 +104,7 @@ c ------------------
       real, allocatable ::    logpl(:,:,:)
       real, allocatable ::    qdum (:,:,:)
       integer id,rc
+      integer ks
       integer imax,jmax
       integer nvars, ngatts, ntime
 
@@ -252,7 +254,7 @@ C **********************************************************************
       pl(:,:,L) = (ple(:,:,L+1)+ple(:,:,L))*0.5
       enddo
 
-c     call set_eta ( lm,ptop,ak,bk )
+c     call set_eta ( lm,ks,ptop,pint,ak,bk )
 c     do L=1,lm+1
 c     ple(:,:,L) = ak(L) + ps(:,:)*bk(L)
 c     enddo
@@ -1353,6 +1355,7 @@ C*                  GODDARD LABORATORY FOR ATMOSPHERES                 *
 C***********************************************************************
 
       use MAPL_ConstantsMod
+      use m_set_eta, only: set_eta
       implicit none
       integer  im,jm,nq,lm1,lm2
 
@@ -1391,9 +1394,9 @@ c ---------------
       real  pke2(im,jm,lm2+1)
       real  phi2(im,jm,lm2+1)
 
-      real    kappa,cp,ptop,pbelow,pabove,pl,alf
+      real    kappa,cp,ptop,pbelow,pabove,pl,alf,pint
       real    rgas,pref,tref,pkref,tstar,eps,rvap,grav
-      integer i,j,L,n
+      integer i,j,L,n,ks
 
       kappa = MAPL_KAPPA
       rgas  = MAPL_RGAS
@@ -1402,7 +1405,7 @@ c ---------------
       cp    = MAPL_CP
       eps   = rvap/rgas-1.0
 
-      call set_eta ( lm1,ptop,ak,bk )
+      call set_eta ( lm1,ks,ptop,pint,ak,bk )
 
 c Compute edge-level pressures
 c ----------------------------

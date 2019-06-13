@@ -1,3 +1,4 @@
+#include "unused_dummy.H"
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 !       NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
 !-----------------------------------------------------------------------
@@ -204,6 +205,7 @@ end subroutine set_
 
   character(len=*),parameter :: myname_=myname//'::ciI0_'
 
+  _UNUSED_DUMMY(marg)
   if(mall_on) call ci_(1,thread)
 
 end subroutine ciI0_
@@ -335,6 +337,7 @@ end subroutine ciI4_
 
   character(len=*),parameter :: myname_=myname//'::ciR0_'
 
+  _UNUSED_DUMMY(marg)
   if(mall_on) call ci_(1,thread)
 
 end subroutine ciR0_
@@ -470,6 +473,7 @@ end subroutine ciR4_
 
   character(len=*),parameter :: myname_=myname//'::ciD0_'
 
+  _UNUSED_DUMMY(marg)
   if(mall_on) call ci_(2,thread)
 
 end subroutine ciD0_
@@ -604,6 +608,7 @@ end subroutine ciD4_
 
   character(len=*),parameter :: myname_=myname//'::ciL0_'
 
+  _UNUSED_DUMMY(marg)
   if(mall_on) call ci_(1,thread)
 
 end subroutine ciL0_
@@ -930,6 +935,7 @@ end subroutine ci_
 
   character(len=*),parameter :: myname_=myname//'::coI0_'
 
+  _UNUSED_DUMMY(marg)
   if(mall_on) call co_(1,thread)
 
 end subroutine coI0_
@@ -1061,6 +1067,7 @@ end subroutine coI4_
 
   character(len=*),parameter :: myname_=myname//'::coR0_'
 
+  _UNUSED_DUMMY(marg)
   if(mall_on) call co_(1,thread)
 
 end subroutine coR0_
@@ -1196,6 +1203,7 @@ end subroutine coR4_
 
   character(len=*),parameter :: myname_=myname//'::coD0_'
 
+  _UNUSED_DUMMY(marg)
   if(mall_on) call co_(2,thread)
 
 end subroutine coD0_
@@ -1330,6 +1338,7 @@ end subroutine coD4_
 
   character(len=*),parameter :: myname_=myname//'::coL0_'
 
+  _UNUSED_DUMMY(marg)
   if(mall_on) call co_(1,thread)
 
 end subroutine coL0_

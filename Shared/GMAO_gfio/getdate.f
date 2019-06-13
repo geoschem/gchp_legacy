@@ -30,6 +30,7 @@
 ! 
 ! !USES:
 !
+       use, intrinsic :: iso_fortran_env, only: INT64
 
        implicit none
 
@@ -68,10 +69,8 @@
 
       integer year1,mon1,day1,hour1,min1,sec1
       integer year2,mon2,day2,hour2,min2,sec2
-      integer seconds1, seconds2
-      integer(kind=8) julian1, julian2
-      integer(kind=8) julsec, remainder
-      character*8 dateString
+      integer(kind=INT64) julian1
+      integer(kind=INT64) julsec, remainder
 
 ! Error checking.
 

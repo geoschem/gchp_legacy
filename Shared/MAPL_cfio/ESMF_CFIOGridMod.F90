@@ -1,3 +1,4 @@
+#include "unused_dummy.H"
 !==============================================================================
 !BOP
 ! !MODULE: ESMF_CFIOGridMod.F90 - Source file for CFIO Grid
@@ -16,7 +17,7 @@
 !------------------------------------------------------------------------------
 ! !USES:
       use ESMF_CFIOUtilMod, only : MLEN, MVARLEN
-
+      use, intrinsic :: ISO_FORTRAN_ENV, only: REAL64
       implicit none
 
 !------------------------------------------------------------------------------
@@ -130,6 +131,7 @@
       subroutine ESMF_CFIOGridSet (grid, gName, im, jm, km, tm, lat, lon, lev,&
                                    coordinate, standardName, formulaTerm,   &
                                    levUnit, ak, bk, sigma, ptop, ptopUnit,  &
+                                   lat2, lon2, & 
                                    twoDimLat, reduceGrid, stnGrid, rc)
 !
 ! !ARGUMENTS:
@@ -144,6 +146,8 @@
       real, intent(in), OPTIONAL :: lon(:) ! longitude 
       real, intent(in), OPTIONAL :: lat(:) ! latitude 
       real, intent(in), OPTIONAL :: lev(:) ! Level   
+      real(KIND=REAL64), pointer, OPTIONAL :: lon2(:) ! longitude 2d 
+      real(KIND=REAL64), pointer, OPTIONAL :: lat2(:) ! latitude 2d
       character(len=*), intent(in), OPTIONAL :: levUnit   
                                  ! units of level dimension, e.g., "hPa".
       character(len=*), intent(in), OPTIONAL :: coordinate
@@ -189,6 +193,9 @@
        integer :: i, j
        integer :: sz
 
+       _UNUSED_DUMMY(sigma)
+       _UNUSED_DUMMY(reduceGrid)
+
        if ( present(gName) ) grid%gName = gName
        if ( present(im) ) grid%im = im
        if ( present(jm) ) grid%jm = jm
@@ -197,21 +204,23 @@
 
        if (present(twoDimLat)) then
           grid%twoDimLat = twoDimLat
-          if (.not. (present(im) .or. present(jm) .or. &
-                     present(lon) .or. present(lat))) then
+          if (.not. (present(im) .and. present(jm) .and. &
+                     present(lon2) .and. present(lat2))) then
              rtcode = -1
           else
-             sz = im*jm
-             allocate(grid%lon(sz), grid%lat(sz), stat = rtcode)
-             grid%lon = lon
-             grid%lat = lat
+             !sz = im*jm
+             ! ALT: for "true" 2d coordinates we save memory
+             ! and just point to the original coordinate arrays
+             !allocate(grid%lon(sz), grid%lat(sz), stat = rtcode)
+             grid%lon => lon2
+             grid%lat => lat2
           end if
-          if (rtcode .ne. 0) then 
-             print *, "problem in setting ESMF_CFIOGridSet:lat"
-             rtcode = -2
-             if ( present(rc) ) rc = rtcode
-             return
-          end if
+          !if (rtcode .ne. 0) then 
+          !   print *, "problem in setting ESMF_CFIOGridSet:lat"
+          !   rtcode = -2
+          !   if ( present(rc) ) rc = rtcode
+          !   return
+          !end if
        else
           if ( present(lon) ) then
              grid%im = size(lon)
@@ -453,8 +462,10 @@
 !------------------------------------------------------------------------------
       integer :: rtcode = 0
 
-      if ( associated(grid%lon) ) deallocate(grid%lon, stat=rtcode)
-      if ( associated(grid%lat) ) deallocate(grid%lat, stat=rtcode)
+      if (.not. grid%twoDimLat) then
+         if ( associated(grid%lon) ) deallocate(grid%lon, stat=rtcode)
+         if ( associated(grid%lat) ) deallocate(grid%lat, stat=rtcode)
+      end if
       if ( associated(grid%lev) ) deallocate(grid%lev, stat=rtcode)
 
       if ( associated(grid%ak) ) deallocate(grid%ak, stat=rtcode)

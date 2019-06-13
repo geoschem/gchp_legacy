@@ -314,7 +314,7 @@ CCCCC IF (NCHECK(N)-2) 108,119,108
       SUBROUTINE PWSSS1 (INTL,TS,TF,M,MBDCND,BDTS,BDTF,PS,PF,N,NBDCND,
      1                   BDPS,BDPF,ELMBDA,F,IDIMF,PERTRB,AM,BM,CM,SN,
      2                   SS,SINT,D)
-      REAL       F(IDIMF,1) ,BDTS(*)    ,BDTF(*)    ,BDPS(*)    ,
+      REAL       F(IDIMF,*) ,BDTS(*)    ,BDTF(*)    ,BDPS(*)    ,
      1                BDPF(*)    ,AM(*)      ,BM(*)      ,CM(*)      ,
      2                SS(*)      ,SN(*)      ,D(*)       ,SINT(*)
 C
@@ -1243,6 +1243,7 @@ C
 C     PARAMETER NPSTOP IS NOT USED IN THIS SUBROUTINE.
 C
 C
+      call unused_dummy(NPSTOP)
 C     MACHINE DEPENDENT CONSTANT
 C
 C     PI=3.1415926535897932384626433832795028841971693993751058209749446
@@ -1371,6 +1372,11 @@ C
          K = K+2*NP
   128 CONTINUE
   129 RETURN
+      contains
+      subroutine unused_dummy(x)
+      class (*) :: x
+      if (.false.) print*, shape(x)
+      end subroutine unused_dummy
       END
       SUBROUTINE TRIDD (KSTART,KSTOP,ISING,M,MM1,A,B,C,Y,TWOCOS,D,W)
       REAL       A(1)       ,B(1)       ,C(1)       ,Y(1)       ,
@@ -1380,6 +1386,7 @@ C     SUBROUTINE TO SOLVE TRIDIAGONAL SYSTEMS
 C
 C
 C     PARAMETER W NOT USED IN THIS SUBROUTINE.
+      call unused_dummy(W(1))
 C
       DO 103 K=KSTART,KSTOP
          X = -TWOCOS(K)
@@ -1414,6 +1421,11 @@ C
          Y(I) = Y(I)-D(I)*Y(I+1)
   107 CONTINUE
       RETURN
+      contains
+      subroutine unused_dummy(x)
+      class (*) :: x
+      if (.false.) print*, shape(x)
+      end subroutine unused_dummy
       END
       SUBROUTINE TRIDP (KSTART,KSTOP,ISING,M,MM1,A,B,C,Y,TWOCOS,D,W)
       REAL       A(1)       ,B(1)       ,C(1)       ,Y(1)       ,

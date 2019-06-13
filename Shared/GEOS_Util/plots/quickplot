@@ -33,12 +33,14 @@ if( $nmax == 0 ) then
       echo "         [-plotsdir PLOTSDIR]"
       echo "         [-hist     HISTORY_DIRECTORY]"
       echo "         [-rc       HISTORY.rc]"
+      echo "         [-ddf      DDF_FILE]"
       echo "         [-clim     CLIM]"
       echo "         [-taylor   TAYLOR]"
       echo "         [-ana      ANALYSIS]"
       echo "         [-std      STD_DEV ]"
       echo "         [-gradsx   GRADSX]"
       echo "         [-cmpexp_only  CMPEXP_ONLY]"
+      echo "         [-cmpops_only  CMPOPS_ONLY]"
       echo " "
       echo "where:    SOURCE_DIRECTORY: is the source directory for experiment"
       echo "                    SEASON: is the season to plot (eg. DJF, JAN)"
@@ -58,12 +60,14 @@ if( $nmax == 0 ) then
       echo "         HISTORY_DIRECTORY: is the directory containing the HISTORY.rc file (Default: SOURCE_DIRECTORY)"
       echo "                HISTORY.rc: is the full path (including filename) "
       echo "                            of the desired rc file to use                   (Default: SOURCE_DIRECTORY/HISTORY.rc)"
+      echo "                  DDF_FILE: is the ddf filename (including full path) to use"
       echo "                      CLIM: Logical for using Climatology or Actual Dates   (Default: CLIM     = TRUE)"
       echo "                    TAYLOR: Logical for producing Taylor Plots              (Default: TAYLOR   = TRUE)"
       echo "                  ANALYSIS: Logical for producing Analysis Contour Levels   (Default: ANALYSIS = FALSE)"
       echo "                   STD_DEV: Logical for producing Standard Deviation Plots  (Default: STD_DEV  = FALSE)"
       echo "                    GRADSX: GrADS executable to use for processing          (Default: GRADSX   = gradsnc4)"
       echo "               CMPEXP_ONLY: Logical for producing ONLY CMPEXP plots         (Default: CMPEXP_ONLY = FALSE)"
+      echo "               CMPOPS_ONLY: Logical for producing ONLY CMPOPS plots         (Default: CMPOPS_ONLY = FALSE)"
       echo " "
       exit 1
 endif
@@ -94,7 +98,10 @@ set latend   =  90
 set lonbeg   =   0
 set lonend   = 360
 set cintdiff = NULL
+set ddffile  = NULL
+set seasons  = NULL
 set cmpexp_only = FALSE
+set cmpops_only = FALSE
 
 # Parse command line
 # ------------------
@@ -169,6 +176,10 @@ while( $n <= $nmax )
                     @ n = $n + 1
              set taylor = $argv[$n]
        endif
+       if( "$argv[$n]" == "-ddf"   ) then
+                    @ n = $n + 1
+             set ddffile = $argv[$n]
+       endif
        if( "$argv[$n]" == "-gradsx"   ) then
                     @ n = $n + 1
              set gradsx = $argv[$n]
@@ -178,6 +189,7 @@ while( $n <= $nmax )
        if( "$argv[$n]" == "-debug"  ) set debug    = true
        if( "$argv[$n]" == "-move"   ) set move     = true
        if( "$argv[$n]" == "-cmpexp_only" ) set cmpexp_only = TRUE
+       if( "$argv[$n]" == "-cmpops_only" ) set cmpops_only = TRUE
        if( "$argv[$n]" == "-cmpexp" ) then
                     @ n = $n + 1
                                       set cmpexp  = ""
@@ -252,6 +264,8 @@ end
 # Prepare Environment
 # ---------------------
 
+if( $cmpops_only == TRUE ) set cmpexp_only = TRUE
+
 setenv SOURCE         $source
 setenv CLIM           $clim
 setenv TAYLOR         $taylor
@@ -260,7 +274,10 @@ setenv STD_DEV        $std_dev
 setenv TBEG           $begdate
 setenv TEND           $enddate
 setenv GRADSX         $gradsx 
+setenv DDFFILE        $ddffile
+setenv SEASONS       "$seasons"
 setenv CMPEXP_ONLY    $cmpexp_only
+setenv CMPOPS_ONLY    $cmpops_only
  
 if( $lonbeg < 0 ) then
    @ lonbeg = $lonbeg + 360
@@ -509,9 +526,10 @@ if( $plotsdir != NULL ) then
 else
       set plots_dir = $source/plots
 endif
+setenv PLOTS_DIR ${plots_dir}
 if( ! -e ${plots_dir}/misc ) mkdir -p ${plots_dir}/misc
 if ( -e /usr/bin/lfs) then
-  /usr/bin/lfs setstripe -c 1 -s 262144 -i -1 ${plots_dir}
+  /usr/bin/lfs setstripe -c 1 ${plots_dir}
 endif
 
 
@@ -544,8 +562,7 @@ if( $cmpexp[1] != "NULL" ) then
          setenv CMPEXP "$cmpexp $cmpops NULL"
     endif
 else
-echo $cmpops
-    if( $cmpexp_only == TRUE ) then
+    if( $cmpexp_only == TRUE & $cmpops_only == FALSE ) then
          setenv CMPEXP "$cmpexp"
     else
     echo setenv CMPEXP "$cmpops $cmpexp"

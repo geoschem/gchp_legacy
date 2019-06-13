@@ -1,7 +1,7 @@
 ! $Id$
 !
 ! Earth System Modeling Framework
-! Copyright 2002-2018, University Corporation for Atmospheric Research, 
+! Copyright 2002-2019, University Corporation for Atmospheric Research, 
 ! Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 ! Laboratory, University of Michigan, National Centers for Environmental 
 ! Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -48,6 +48,7 @@ module ESMF_FieldRegridMod
   use ESMF_PointListMod
   use ESMF_LocStreamMod
   use ESMF_IOScripMod
+  use ESMF_TraceMod
   
   implicit none
   private
@@ -141,23 +142,12 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !   precompute the {\tt routehandle}. 
 !  
 !   \begin{sloppypar}
-!   Both {\tt srcField} and {\tt dstField} must be
-!   weakly congruent with the respective Fields used during 
-!   {\tt ESMF\_FieldRegridStore()}. Congruent Fields possess matching DistGrids and the shape of the 
-!   local array tiles matches between the Fields for every DE. For weakly congruent Fields the sizes 
-!   of the undistributed dimensions, that vary faster with memory than the first distributed dimension,
-!   are permitted to be different. This means that the same routehandle can be applied to a large class 
-!   of similar Fields that differ in the number of elements in the left most undistributed dimensions.
-!   You can apply the routehandle between any set of Fields weakly congruent to the original Fields used
-!   to create the routehandle without incurring an error. However, if you want                                     
-!   the routehandle to be the same interpolation between the grid objects upon which the Fields are build as was calculated
-!   with the original {\tt ESMF\_FieldRegridStore()} call, then there
-!   are additional constraints on the grid objects. To be the same interpolation, the grid objects upon which the 
-!   Fields are build must contain the same coordinates at the stagger locations involved in the regridding as 
-!   the original source and destination Fields used in the {\tt ESMF\_FieldRegridStore()} call.  
-!   The routehandle represents the interpolation between the grid objects as they were during the {\tt ESMF\_FieldRegridStore()} call.  
-!   So if the coordinates at the stagger location in the grid objects change, a new call to {\tt ESMF\_FieldRegridStore()} 
-!   is necessary to compute the interpolation between that new set of coordinates.
+!   Both {\tt srcField} and {\tt dstField} must match the respective Fields
+!   used during {\tt ESMF\_FieldRegridStore()} in {\em type}, {\em kind}, and 
+!   memory layout of the {\em gridded} dimensions. However, the size, number, 
+!   and index order of {\em ungridded} dimensions may be different. See section
+!   \ref{RH:Reusability} for a more detailed discussion of RouteHandle 
+!   reusability.
 !   \end{sloppypar}
 !
 !   The {\tt srcField} and {\tt dstField} arguments are optional in support of
@@ -294,16 +284,24 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 ! !IROUTINE: ESMF_FieldRegridRelease - Free resources used by a regridding operation
 !
 ! !INTERFACE:
-      subroutine ESMF_FieldRegridRelease(routehandle, keywordEnforcer, rc)
+      subroutine ESMF_FieldRegridRelease(routehandle, keywordEnforcer, &
+        noGarbage, rc)
 !
 ! !ARGUMENTS:
       type(ESMF_RouteHandle), intent(inout)         :: routehandle
 type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
+      logical,                intent(in),  optional :: noGarbage
       integer,                intent(out), optional :: rc 
 !
 ! !STATUS:
 ! \begin{itemize}
 ! \item\apiStatusCompatibleVersion{5.2.0r}
+! \item\apiStatusModifiedSinceVersion{5.2.0r}
+! \begin{description}
+! \item[8.0.0] Added argument {\tt noGarbage}.
+!   The argument provides a mechanism to override the default garbage collection
+!   mechanism when destroying an ESMF object.
+! \end{description}
 ! \end{itemize}
 !
 ! !DESCRIPTION:
@@ -313,6 +311,24 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !     \begin{description}
 !     \item [routehandle]
 !           Handle carrying the sparse matrix
+!     \item[{[noGarbage]}]
+!     If set to {\tt .TRUE.} the object will be fully destroyed and removed
+!     from the ESMF garbage collection system. Note however that under this 
+!     condition ESMF cannot protect against accessing the destroyed object 
+!     through dangling aliases -- a situation which may lead to hard to debug 
+!     application crashes.
+! 
+!     It is generally recommended to leave the {\tt noGarbage} argument
+!     set to {\tt .FALSE.} (the default), and to take advantage of the ESMF 
+!     garbage collection system which will prevent problems with dangling
+!     aliases or incorrect sequences of destroy calls. However this level of
+!     support requires that a small remnant of the object is kept in memory
+!     past the destroy call. This can lead to an unexpected increase in memory
+!     consumption over the course of execution in applications that use 
+!     temporary ESMF objects. For situations where the repeated creation and 
+!     destruction of temporary objects leads to memory issues, it is 
+!     recommended to call with {\tt noGarbage} set to {\tt .TRUE.}, fully 
+!     removing the entire temporary object from memory.
 !     \item [{[rc]}]
 !           Return code; equals {\tt ESMF\_SUCCESS} if there are no errors.
 !     \end{description}
@@ -320,7 +336,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !EOP
         integer :: localrc
 
-        call ESMF_RouteHandleRelease(routehandle=routehandle, rc=localrc)
+        call ESMF_RouteHandleRelease(routehandle, noGarbage=noGarbage, &
+          rc=localrc)
         if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
           ESMF_CONTEXT, rcToReturn=rc)) return
 
@@ -347,6 +364,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
                     extrapMethod, &
                     extrapNumSrcPnts, &
                     extrapDistExponent, &
+                    extrapNumLevels, &
+                    extrapNumInputLevels, &
                     unmappedaction, ignoreDegenerate, &
                     srcTermProcessing, & 
                     pipeLineDepth, &
@@ -372,6 +391,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       type(ESMF_ExtrapMethod_Flag),   intent(in),    optional :: extrapMethod
       integer,                        intent(in),    optional :: extrapNumSrcPnts
       real(ESMF_KIND_R4),             intent(in),    optional :: extrapDistExponent
+      integer,                        intent(in),    optional :: extrapNumLevels
+      integer,                        intent(in),    optional :: extrapNumInputLevels
       type(ESMF_UnmappedAction_Flag), intent(in),    optional :: unmappedaction
       logical,                        intent(in),    optional :: ignoreDegenerate
       integer,                        intent(inout), optional :: srcTermProcessing
@@ -512,6 +533,13 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !           The exponent to raise the distance to when calculating weights for 
 !           the {\tt ESMF\_EXTRAPMETHOD\_NEAREST\_IDAVG} extrapolation method. A higher value reduces the influence 
 !           of more distant points. If not specified, defaults to 2.0.
+!     \item [{[extrapNumLevels]}] 
+!           The number of levels to output for the extrapolation methods that fill levels
+!           (e.g. {\tt ESMF\_EXTRAPMETHOD\_CREEP}). When a method is used that requires this, then an error will be returned, if it 
+!           is not specified.
+!     \item [{[extrapNumInputLevels]}] 
+!           The number of levels to use as input for the extrapolation methods that use levels
+!           (e.g. {\tt ESMF\_EXTRAPMETHOD\_CREEP}). If not specified, defaults to 1.
 !     \item [{[unmappedaction]}]
 !           Specifies what should happen if there are destination points that
 !           can't be mapped to a source cell. Please see Section~\ref{const:unmappedaction} for a 
@@ -643,7 +671,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         type(ESMF_Array)     :: dstArray
         type(ESMF_Array)     :: fracArray
         type(ESMF_Mesh)      :: srcMesh, srcMeshDual
-        type(ESMF_Mesh)      :: dstMesh, tempMesh
+        type(ESMF_Mesh)      :: dstMesh, dstMeshDual
+        type(ESMF_Mesh)      :: tempMesh
         type(ESMF_MeshLoc)   :: srcMeshloc,dstMeshloc,fracMeshloc
         type(ESMF_StaggerLoc) :: srcStaggerLoc,dstStaggerLoc
         type(ESMF_StaggerLoc) :: srcStaggerLocG2M,dstStaggerLocG2M
@@ -661,7 +690,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         type(ESMF_LineType_Flag):: localLineType
         type(ESMF_NormType_Flag):: localNormType
         type(ESMF_ExtrapMethod_Flag):: localExtrapMethod
-        logical :: srcDual, src_pl_used, dst_pl_used
+        logical :: srcDual, dstDual
+        logical :: src_pl_used, dst_pl_used
         type(ESMF_PointList) :: dstPointList, srcPointList
         type(ESMF_LocStream) :: dstLocStream, srcLocStream
         logical :: hasStatusArray
@@ -670,10 +700,14 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         integer :: tileCount
         integer :: localExtrapNumSrcPnts
         real(ESMF_KIND_R8) :: localExtrapDistExponent
+        integer :: localExtrapNumLevels
+        integer :: localExtrapNumInputLevels
+
 
 !        real(ESMF_KIND_R8) :: beg_time, end_time
 !        call ESMF_VMWtime(beg_time)
 
+        ! ESMF_METHOD_ENTER(localrc)
 
         ! Initialize return code; assume failure until success is certain
         localrc = ESMF_SUCCESS
@@ -745,7 +779,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
 
         ! Init variables
-         srcDual=.false.
+        srcDual=.false.
+        dstDual=.false.
         src_pl_used=.false.
         dst_pl_used=.false.
 
@@ -774,6 +809,25 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
            localExtrapDistExponent=REAL(extrapDistExponent,ESMF_KIND_R8)
         else     
            localExtrapDistExponent=2.0_ESMF_KIND_R8
+        endif
+
+        ! Handle optional extrapNumInputLevels
+        if (present(extrapNumLevels)) then
+           localExtrapNumLevels=extrapNumLevels
+        else     
+           if (localExtrapMethod==ESMF_EXTRAPMETHOD_CREEP) then 
+              call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
+                   msg=" If extrapMethod is ESMF_EXTRAPMETHOD_CREEP, then extrapNumLevels must be specified.", & 
+                   ESMF_CONTEXT, rcToReturn=rc) 
+              return
+           endif
+        endif
+
+        ! Handle optional extrapNumInputLevels
+        if (present(extrapNumInputLevels)) then
+           localExtrapNumInputLevels=extrapNumInputLevels
+        else     
+           localExtrapNumInputLevels=1
         endif
 
         ! TODO: If lineType is present then do error checking here
@@ -990,11 +1044,13 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
             if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
               ESMF_CONTEXT, rcToReturn=rc)) return
 
+            ! ESMF_REGION_ENTER("gridToMesh", localrc)
             ! Convert Grid to Mesh
             srcMesh = ESMF_GridToMesh(srcGrid, srcStaggerLocG2M, srcIsSphere, srcIsLatLonDeg, &
                         maskValues=srcMaskValues, regridConserve=regridConserveG2M, rc=localrc)
             if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
               ESMF_CONTEXT, rcToReturn=rc)) return
+            ! ESMF_REGION_EXIT("gridToMesh", localrc)
           endif
 
         else if (srcgeomtype .eq. ESMF_GEOMTYPE_MESH) then
@@ -1185,7 +1241,13 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
             dst_pl_used=.true.
           endif
 
-
+          ! If we're doing creep fill, then also need Mesh
+          if (localExtrapMethod .eq. ESMF_EXTRAPMETHOD_CREEP) then
+               dstMesh = ESMF_GridToMesh(dstGrid, dstStaggerLocG2M, dstIsSphere, dstIsLatLonDeg, &
+                    maskValues=dstMaskValues, regridConserve=regridConserveG2M, rc=localrc)
+               if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                    ESMF_CONTEXT, rcToReturn=rc)) return
+          endif
 
         else if (dstgeomtype .eq. ESMF_GEOMTYPE_MESH) then
 
@@ -1228,6 +1290,37 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
                ESMF_CONTEXT, rcToReturn=rc)) return
              dst_pl_used=.true.
 
+
+             ! Generate Mesh for creep fill extrapolation 
+             if (localExtrapMethod .eq. ESMF_EXTRAPMETHOD_CREEP) then
+                if (dstMeshloc .ne. ESMF_MESHLOC_NODE) then
+                   if (dstMeshloc .eq. ESMF_MESHLOC_ELEMENT) then
+                      ! Create a dual of the Mesh
+                      dstMeshDual=ESMF_MeshCreateDual(tempMesh, rc=localrc)
+                      if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                           ESMF_CONTEXT, rcToReturn=rc)) return
+                   
+                      ! Use the dual as the srcMesh
+                      tempMesh=dstMeshDual
+                   
+                      ! Record that we created the dual
+                      dstDual=.true.
+                   else
+                      call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
+                           msg="- D can currently only do non-conservative  on a mesh built on nodes or elements", & 
+                           ESMF_CONTEXT, rcToReturn=rc) 
+                      return  
+                   endif
+                endif
+
+                ! Turn on masking
+                if (present(dstMaskValues)) then
+                   call ESMF_MeshTurnOnNodeMask(tempMesh, maskValues=dstMaskValues, rc=localrc);
+                   if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                        ESMF_CONTEXT, rcToReturn=rc)) return
+                endif
+                dstMesh=tempMesh               
+             endif
           endif
           
         else if (dstgeomtype .eq. ESMF_GEOMTYPE_LOCSTREAM) then
@@ -1252,6 +1345,13 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
             ESMF_CONTEXT, rcToReturn=rc)) return
           dst_pl_used=.true.
 
+          ! Can't do creep fill on locstream
+          if (localExtrapMethod .eq. ESMF_EXTRAPMETHOD_CREEP) then
+             call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_BAD, & 
+                  msg=" - Creep fill extrapolation is not allowed when destination is a location stream", & 
+                  ESMF_CONTEXT, rcToReturn=rc) 
+             return  
+          endif
         else
           call ESMF_LogSetError(rcToCheck=ESMF_RC_ARG_WRONG, &
             msg="destination GEOMTYPE not supported, must be GRID,MESH or LOCSTREAM", &
@@ -1278,6 +1378,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
                                   localExtrapMethod, &
                                   localExtrapNumSrcPnts, &
                                   localExtrapDistExponent, &
+                                  localExtrapNumLevels, &
+                                  localExtrapNumInputLevels, &
                                   unmappedaction, &
                                   localIgnoreDegenerate, &
                                   srcTermProcessing, &
@@ -1313,6 +1415,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
                                   localExtrapMethod, &
                                   localExtrapNumSrcPnts, &
                                   localExtrapDistExponent, &
+                                  localExtrapNumLevels, &
+                                  localExtrapNumInputLevels, &
                                   unmappedaction, &
                                   localIgnoreDegenerate, &
                                   srcTermProcessing, &
@@ -1478,28 +1582,47 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
              if (ESMF_LogFoundError(localrc, &
                ESMF_ERR_PASSTHRU, &
                ESMF_CONTEXT, rcToReturn=rc)) return
+           else 
+              ! If we're doing creep fill, then also made mesh
+              if (localExtrapMethod .eq. ESMF_EXTRAPMETHOD_CREEP) then
+                 call ESMF_MeshDestroy(dstMesh,rc=localrc)
+                 if (ESMF_LogFoundError(localrc, &
+                      ESMF_ERR_PASSTHRU, &
+                      ESMF_CONTEXT, rcToReturn=rc)) return
+              endif
            endif           
         else if (dstgeomtype .eq. ESMF_GEOMTYPE_MESH) then
            if (.not. dst_pl_used) then
 
-           ! Otherwise reset masking
-           if (present(dstMaskValues)) then
-              if ((lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE) .or. &
-                   (lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE_2ND)) then
-                 call ESMF_MeshTurnOffCellMask(dstMesh, rc=localrc);
-                 if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-                      ESMF_CONTEXT, rcToReturn=rc)) return
-              else
-                 call ESMF_MeshTurnOffNodeMask(dstMesh, rc=localrc);
-                 if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
-                   ESMF_CONTEXT, rcToReturn=rc)) return
+              ! Otherwise reset masking
+              if (present(dstMaskValues)) then
+                 if ((lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE) .or. &
+                      (lregridmethod .eq. ESMF_REGRIDMETHOD_CONSERVE_2ND)) then
+                    call ESMF_MeshTurnOffCellMask(dstMesh, rc=localrc);
+                    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                         ESMF_CONTEXT, rcToReturn=rc)) return
+                 else
+                    call ESMF_MeshTurnOffNodeMask(dstMesh, rc=localrc);
+                    if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
+                         ESMF_CONTEXT, rcToReturn=rc)) return
+                 endif
               endif
-           endif
-
+           else
+              ! If we're doing creep fill and made a dual, then also destroy
+              if ((localExtrapMethod .eq. ESMF_EXTRAPMETHOD_CREEP) .and. &
+                   dstDual) then
+                 
+                 call ESMF_MeshDestroy(dstMesh,rc=localrc)
+                 if (ESMF_LogFoundError(localrc, &
+                      ESMF_ERR_PASSTHRU, &
+                      ESMF_CONTEXT, rcToReturn=rc)) return
+              endif
            endif
         endif
 
         if(present(rc)) rc = ESMF_SUCCESS
+
+        ! ESMF_METHOD_EXIT(localrc)
 
 !        call ESMF_VMWtime(end_time)
 !        print*,'regrid store time= ',end_time-beg_time
@@ -1615,6 +1738,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         type(ESMF_Mesh)      :: srcMesh, dstMesh
 
         integer :: srcIdx, dstIdx, ngrid_a, ngrid_b
+        integer :: sideAGC, sideAMC, sideBGC, sideBMC
         type(ESMF_XGridSide_Flag) :: srcSide, dstSide
         type(ESMF_XGridGeomBase), allocatable :: gridA(:), gridB(:)
         type(ESMF_Grid)      :: srcGrid
@@ -1653,10 +1777,14 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
         ! look for the correct Grid to use
         ! first Get necessary information from XGrid and Fields
-        call ESMF_XGridGet(xgrid, ngridA=ngrid_a, ngridB=ngrid_b, &
+        call ESMF_XGridGet(xgrid, &
+            sideAGridCount=sideAGC, sideAMeshCount=sideAMC, &
+            sideBGridCount=sideBGC, sideBMeshCount=sideBMC, &
             rc=localrc)
         if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
           ESMF_CONTEXT, rcToReturn=rc)) return
+        ngrid_a = sideAGC + sideAMC
+        ngrid_b = sideBGC + sideBMC
         allocate(gridA(ngrid_a), gridB(ngrid_b))
 
         call ESMF_XGridGet(xgrid, gridA, gridB, rc=localrc)

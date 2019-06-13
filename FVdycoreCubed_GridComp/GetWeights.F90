@@ -1,46 +1,48 @@
    
-!  $Id: GetWeights.F90,v 1.1.2.7.8.1.6.2.4.1.10.6.2.3 2016-04-04 18:26:04 bmauer Exp $
+!  $Id$
    
-#define REAL8 8
+!!!#define REAL8 8
    
    subroutine GetWeights_init (in_ntiles,in_ncnst,in_npx,in_npy,in_npz,&
          in_nx,in_ny,in_hydro,in_mknh,comm)
       use fms_mod,           only: fms_init, set_domain
-      use fv_mp_mod,         only: npes_x, npes_y
-      use fv_control_mod,    only: npx, npy, npz, ncnst, domain, fv_init
-      use fv_control_mod,    only: hydrostatic, Make_NH,ntiles
-      use fv_arrays_mod,     only: fv_atmos_type
+      use fv_control_mod,    only: fv_init1, fv_init2
+      use fv_arrays_mod,     only: REAL4, REAL8, FVPRC
+      use FV_StateMod,       only : FV_Atm  
       implicit none
       integer,intent(in) :: in_ntiles,in_ncnst
       integer,intent(in) :: in_npx,in_npy,in_npz
       integer,intent(in) :: in_nx,in_ny
       logical,intent(in) :: in_hydro,in_mknh
       integer            :: comm
-#ifdef SINGLE_FV
-      real,    parameter :: dt_who_cares = 1800.
-#else
-      real*8,  parameter :: dt_who_cares = 1800.d0
-#endif
-      type(fv_atmos_type), target :: FVUseless(1)
-
-      ntiles = in_ntiles
-      hydrostatic = in_hydro
-      Make_NH     = in_mknh
-      ncnst  = in_ncnst ! nq
-      npx    = in_npx
-      npy    = in_npy
-      npz    = in_npz
-      npes_x = in_nx
-      npes_y = in_ny / 6
-
-      npx=npx+1
-      npy=npy+1
+!#ifdef SINGLE_FV
+      real(FVPRC),    parameter :: dt_who_cares = 1800.
+!#else
+!      real*8,  parameter :: dt_who_cares = 1800.d0
+!#endif
+      integer :: p_split
+      logical, allocatable :: grids_on_my_pe(:)
+   
+      p_split = 1
 
       call fms_init(comm)
 
-      call fv_init(FVUseless, dt_who_cares)
+      call fv_init1(FV_atm, dt_who_cares, grids_on_my_pe, p_split)
 
-      call set_domain(domain)
+      FV_Atm(1)%flagstruct%ntiles = in_ntiles
+      FV_Atm(1)%flagstruct%hydrostatic = in_hydro
+      FV_Atm(1)%flagstruct%Make_NH     = in_mknh
+      FV_Atm(1)%flagstruct%ncnst  = in_ncnst ! nq
+      FV_Atm(1)%flagstruct%npx    = in_npx
+      FV_Atm(1)%flagstruct%npy    = in_npy
+      FV_Atm(1)%flagstruct%npz    = in_npz
+
+      FV_Atm(1)%flagstruct%npx=FV_Atm(1)%flagstruct%npx+1
+      FV_Atm(1)%flagstruct%npy=FV_Atm(1)%flagstruct%npy+1
+
+      call fv_init2(FV_atm, dt_who_cares, grids_on_my_pe, p_split)
+
+      call set_domain(FV_Atm(1)%domain)
 
    end subroutine GetWeights_init
 
@@ -51,13 +53,16 @@
       use MAPL_BaseMod
       use MAPL_GenericMod
       use MAPL_ShmemMod
+      use MAPL_ErrorHandlingMod
       use fv_grid_utils_mod, only : gnomonic_grids, cell_center2, mid_pt_sphere
       use fv_grid_tools_mod, only : mirror_grid
       use fv_grid_tools_mod, only : get_unit_vector
       use fv_grid_utils_mod, only : inner_prod
+      use fv_arrays_mod,     only : REAL4, REAL8, FVPRC
       use CUB2LATLON_mod,    only : init_latlon_grid, get_c2l_weight
       use GHOST_CUBSPH_mod,  only : B_grid, A_grid, ghost_cubsph_update
-      use fv_mp_mod,         only : is, ie, js, je, tile
+      use FV_StateMod,       only : FV_Atm  
+      use fv_mp_mod,         only : is,js,ie,je
 
       include "netcdf.inc"
 
@@ -126,6 +131,7 @@
          else
             write(c2l_fname,'(i5.5,"x",i5.5,"_c2l_",i5.5,"x",i5.5,".nc4")') npx,npy,nlon,nlat
          endif
+        !print*, 'GetWeights: ', TRIM(c2l_fname)
          inquire(FILE=TRIM(c2l_fname), EXIST=c2l_file_exists)
          if (.not. c2l_file_exists) then
 
@@ -236,11 +242,9 @@
             if (present(sublons) .and. present(sublats)) then
                do n=1,nlon
                   xlon(n) = sublons(n) !+ 180.0_8
-                  xlon(n) = xlon(n)*PI/180.0_8
                enddo
                do n=1,nlat
                   ylat(n) = sublats(n)
-                  ylat(n) = ylat(n)*PI/180.0_8
                enddo
             else
                call init_latlon_grid(xlon, ylat, nlon, nlat)
@@ -367,15 +371,17 @@
 
 ! Everyone Needs their copy of the Vector Rotation arrays
 !--------------------------------------------------------
+      if(.not. allocated(FV_Atm)) return
+
       call MAPL_SyncSharedMemory(rc=STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       allocate(e1(is:ie,js:je,3))
       allocate(e2(is:ie,js:je,3))
       allocate(f1(is:ie,js:je,3))
       allocate(f2(is:ie,js:je,3))
       allocate(g1(is:ie,js:je,3))
       allocate(g2(is:ie,js:je,3))
-      n = tile
+      n = FV_Atm(1)%tile
       do j=1,npx
          j1 = npx*(n-1) + j
          do i=1,npx
@@ -417,26 +423,16 @@
          do j=1,size(agrid,2)
             do i=1,size(agrid,1)
 
-               if     ( agrid(i,j,1)>lon(im) ) then
-                  i1 = im
-                  i2 = 1
-                  a1 = (agrid(i,j,1) - lon(im)) / (lon(1)+2.*PI - lon(im))
+               do i1= 1, im
+                  i2 = mod(i1,im) + 1
+                  d1 = modulo(agrid(i,j,1) - lon(i1), 2*pi)
+                  d2 = modulo(lon(i2) - lon(i1), 2*pi)
 
-               elseif ( agrid(i,j,1)<lon(1) ) then
-                  i1 = im
-                  i2 = 1
-                  a1 = (agrid(i,j,1)+2.*PI - lon(im)) / (lon(1)+2.*PI - lon(im))
-
-               else
-                  do i0=1,im-1
-                     if ( agrid(i,j,1)>=lon(i0) .and. agrid(i,j,1)<=lon(i0+1) ) then
-                        i1 = i0
-                        i2 = i0+1
-                        a1 = (agrid(i,j,1)-lon(i1)) / (lon(i0+1) - lon(i0))
-                        exit
-                     endif
-                  enddo
-               endif
+                  if (d2 >= d1) then
+                     a1 = d1 / d2
+                     exit
+                  end if
+               enddo
 
                if ( agrid(i,j,2)<lat(1) ) then
                   jc = 1
@@ -515,28 +511,25 @@
 
       use mpp_domains_mod,   only: mpp_update_domains, mpp_get_boundary, DGRID_NE
       use mpp_parameter_mod, only: AGRID
-      use fv_control_mod,    only: npx,npy
-      use fv_mp_mod,         only: domain, tile, &
-            is,js,ie,je,isd,jsd,ied,jed,ng
+      use FV_StateMod,       only: fv_atm
+      use fv_arrays_mod,     only: REAL4, REAL8, FVPRC
+      use fv_mp_mod,         only: is,js,ie,je,isd,jsd,ied,jed,ng
       use sw_core_mod,       only: d2a2c_vect
-      use fv_grid_utils_mod, only: vlon,vlat,edge_vect_s,edge_vect_n,edge_vect_w,edge_vect_e,es,ew
       implicit none
 
       real,    intent(INOUT)           :: U(:,:,:)
       real,    intent(INOUT)           :: V(:,:,:)
       integer, intent(   IN)           :: npz
-      logical, intent(  OUT), optional :: getC
+      logical, intent(   IN)           :: getC
 
 !local variables
       integer :: i,j,k, im2,jm2
 
       real(REAL8) :: ud(is:ie,js:je+1,npz)
       real(REAL8) :: vd(is:ie+1,js:je,npz)
-      real(REAL8) :: uatemp(isd:ied,jsd:jed,npz)
-      real(REAL8) :: vatemp(isd:ied,jsd:jed,npz)
 
-      real(REAL8) :: ut(isd:ied, jsd:jed)
-      real(REAL8) :: vt(isd:ied, jsd:jed)
+      real(FVPRC) :: ut(isd:ied, jsd:jed)
+      real(FVPRC) :: vt(isd:ied, jsd:jed)
 
       real(REAL8) :: v3(is-1:ie+1,js-1:je+1,3)
       real(REAL8) :: ue(is-1:ie+1,js  :je+1,3)    ! 3D winds at edges
@@ -544,27 +537,26 @@
       real(REAL8), dimension(is:ie):: ut1, ut2, ut3
       real(REAL8), dimension(js:je):: vt1, vt2, vt3
 
-      real(REAL8) ::  utemp(isd:ied  ,jsd:jed+1,npz)
-      real(REAL8) ::  vtemp(isd:ied+1,jsd:jed  ,npz)
-#ifdef SINGLE_FV
-      real :: uctemp(isd:ied+1,jsd:jed  ,npz)
-      real :: vctemp(isd:ied  ,jsd:jed+1,npz)
-#else
-      real*8 :: uctemp(isd:ied+1,jsd:jed  ,npz)
-      real*8 :: vctemp(isd:ied  ,jsd:jed+1,npz)
-#endif
+      real(FVPRC) :: uctemp(isd:ied+1,jsd:jed  ,npz)
+      real(FVPRC) :: vctemp(isd:ied  ,jsd:jed+1,npz)
+      real(FVPRC) ::  utemp(isd:ied  ,jsd:jed+1,npz)
+      real(FVPRC) ::  vtemp(isd:ied+1,jsd:jed  ,npz)
+      real(FVPRC) :: uatemp(isd:ied,jsd:jed,npz)
+      real(FVPRC) :: vatemp(isd:ied,jsd:jed,npz)
+!#else
+!      real*8 :: uctemp(isd:ied+1,jsd:jed  ,npz)
+!!      real*8 :: vctemp(isd:ied  ,jsd:jed+1,npz)
+!#endif
 
-      real(REAL8) :: wbuffer(js:je,npz)
-      real(REAL8) :: sbuffer(is:ie,npz)
-      real(REAL8) :: ebuffer(js:je,npz)
-      real(REAL8) :: nbuffer(is:ie,npz)
-      logical     :: getC_
+      real(FVPRC) :: wbuffer(js:je,npz)
+      real(FVPRC) :: sbuffer(is:ie,npz)
+      real(FVPRC) :: ebuffer(js:je,npz)
+      real(FVPRC) :: nbuffer(is:ie,npz)
+      integer     :: npx, npy
+      integer :: STATUS
 
-      if (present(getC)) then
-         getC_ = getC
-      else
-         getC_ = .false.
-      end if
+      npx = FV_Atm(1)%npx
+      npy = FV_Atm(1)%npy
 
       uatemp = 0.0d0
       vatemp = 0.0d0
@@ -576,15 +568,15 @@
       jm2 = (npy-1)/2
 
 ! Cubed-Sphere
-      call mpp_update_domains(uatemp, domain, complete=.false.)
-      call mpp_update_domains(vatemp, domain, complete=.true.)
+      call mpp_update_domains(uatemp, FV_Atm(1)%domain, complete=.false.)
+      call mpp_update_domains(vatemp, FV_Atm(1)%domain, complete=.true.)
       do k=1, npz
 ! Compute 3D wind tendency on A grid
          do j=js-1,je+1
             do i=is-1,ie+1
-               v3(i,j,1) = uatemp(i,j,k)*vlon(i,j,1) + vatemp(i,j,k)*vlat(i,j,1)
-               v3(i,j,2) = uatemp(i,j,k)*vlon(i,j,2) + vatemp(i,j,k)*vlat(i,j,2)
-               v3(i,j,3) = uatemp(i,j,k)*vlon(i,j,3) + vatemp(i,j,k)*vlat(i,j,3)
+               v3(i,j,1) = uatemp(i,j,k)*fv_atm(1)%gridstruct%vlon(i,j,1) + vatemp(i,j,k)*fv_atm(1)%gridstruct%vlat(i,j,1)
+               v3(i,j,2) = uatemp(i,j,k)*fv_atm(1)%gridstruct%vlon(i,j,2) + vatemp(i,j,k)*fv_atm(1)%gridstruct%vlat(i,j,2)
+               v3(i,j,3) = uatemp(i,j,k)*fv_atm(1)%gridstruct%vlon(i,j,3) + vatemp(i,j,k)*fv_atm(1)%gridstruct%vlat(i,j,3)
             enddo
          enddo
 ! A --> D
@@ -609,13 +601,13 @@
             i = 1
             do j=js,je
                if ( j>jm2 ) then
-                  vt1(j) = edge_vect_w(j)*ve(i,j-1,1)+(1.-edge_vect_w(j))*ve(i,j,1)
-                  vt2(j) = edge_vect_w(j)*ve(i,j-1,2)+(1.-edge_vect_w(j))*ve(i,j,2)
-                  vt3(j) = edge_vect_w(j)*ve(i,j-1,3)+(1.-edge_vect_w(j))*ve(i,j,3)
+                  vt1(j) = fv_atm(1)%gridstruct%edge_vect_w(j)*ve(i,j-1,1)+(1.-fv_atm(1)%gridstruct%edge_vect_w(j))*ve(i,j,1)
+                  vt2(j) = fv_atm(1)%gridstruct%edge_vect_w(j)*ve(i,j-1,2)+(1.-fv_atm(1)%gridstruct%edge_vect_w(j))*ve(i,j,2)
+                  vt3(j) = fv_atm(1)%gridstruct%edge_vect_w(j)*ve(i,j-1,3)+(1.-fv_atm(1)%gridstruct%edge_vect_w(j))*ve(i,j,3)
                else
-                  vt1(j) = edge_vect_w(j)*ve(i,j+1,1)+(1.-edge_vect_w(j))*ve(i,j,1)
-                  vt2(j) = edge_vect_w(j)*ve(i,j+1,2)+(1.-edge_vect_w(j))*ve(i,j,2)
-                  vt3(j) = edge_vect_w(j)*ve(i,j+1,3)+(1.-edge_vect_w(j))*ve(i,j,3)
+                  vt1(j) = fv_atm(1)%gridstruct%edge_vect_w(j)*ve(i,j+1,1)+(1.-fv_atm(1)%gridstruct%edge_vect_w(j))*ve(i,j,1)
+                  vt2(j) = fv_atm(1)%gridstruct%edge_vect_w(j)*ve(i,j+1,2)+(1.-fv_atm(1)%gridstruct%edge_vect_w(j))*ve(i,j,2)
+                  vt3(j) = fv_atm(1)%gridstruct%edge_vect_w(j)*ve(i,j+1,3)+(1.-fv_atm(1)%gridstruct%edge_vect_w(j))*ve(i,j,3)
                endif
             enddo
             do j=js,je
@@ -628,13 +620,13 @@
             i = npx
             do j=js,je
                if ( j>jm2 ) then
-                  vt1(j) = edge_vect_e(j)*ve(i,j-1,1)+(1.-edge_vect_e(j))*ve(i,j,1)
-                  vt2(j) = edge_vect_e(j)*ve(i,j-1,2)+(1.-edge_vect_e(j))*ve(i,j,2)
-                  vt3(j) = edge_vect_e(j)*ve(i,j-1,3)+(1.-edge_vect_e(j))*ve(i,j,3)
+                  vt1(j) = fv_atm(1)%gridstruct%edge_vect_e(j)*ve(i,j-1,1)+(1.-fv_atm(1)%gridstruct%edge_vect_e(j))*ve(i,j,1)
+                  vt2(j) = fv_atm(1)%gridstruct%edge_vect_e(j)*ve(i,j-1,2)+(1.-fv_atm(1)%gridstruct%edge_vect_e(j))*ve(i,j,2)
+                  vt3(j) = fv_atm(1)%gridstruct%edge_vect_e(j)*ve(i,j-1,3)+(1.-fv_atm(1)%gridstruct%edge_vect_e(j))*ve(i,j,3)
                else
-                  vt1(j) = edge_vect_e(j)*ve(i,j+1,1)+(1.-edge_vect_e(j))*ve(i,j,1)
-                  vt2(j) = edge_vect_e(j)*ve(i,j+1,2)+(1.-edge_vect_e(j))*ve(i,j,2)
-                  vt3(j) = edge_vect_e(j)*ve(i,j+1,3)+(1.-edge_vect_e(j))*ve(i,j,3)
+                  vt1(j) = fv_atm(1)%gridstruct%edge_vect_e(j)*ve(i,j+1,1)+(1.-fv_atm(1)%gridstruct%edge_vect_e(j))*ve(i,j,1)
+                  vt2(j) = fv_atm(1)%gridstruct%edge_vect_e(j)*ve(i,j+1,2)+(1.-fv_atm(1)%gridstruct%edge_vect_e(j))*ve(i,j,2)
+                  vt3(j) = fv_atm(1)%gridstruct%edge_vect_e(j)*ve(i,j+1,3)+(1.-fv_atm(1)%gridstruct%edge_vect_e(j))*ve(i,j,3)
                endif
             enddo
             do j=js,je
@@ -648,13 +640,13 @@
             j = 1
             do i=is,ie
                if ( i>im2 ) then
-                  ut1(i) = edge_vect_s(i)*ue(i-1,j,1)+(1.-edge_vect_s(i))*ue(i,j,1)
-                  ut2(i) = edge_vect_s(i)*ue(i-1,j,2)+(1.-edge_vect_s(i))*ue(i,j,2)
-                  ut3(i) = edge_vect_s(i)*ue(i-1,j,3)+(1.-edge_vect_s(i))*ue(i,j,3)
+                  ut1(i) = fv_atm(1)%gridstruct%edge_vect_s(i)*ue(i-1,j,1)+(1.-fv_atm(1)%gridstruct%edge_vect_s(i))*ue(i,j,1)
+                  ut2(i) = fv_atm(1)%gridstruct%edge_vect_s(i)*ue(i-1,j,2)+(1.-fv_atm(1)%gridstruct%edge_vect_s(i))*ue(i,j,2)
+                  ut3(i) = fv_atm(1)%gridstruct%edge_vect_s(i)*ue(i-1,j,3)+(1.-fv_atm(1)%gridstruct%edge_vect_s(i))*ue(i,j,3)
                else
-                  ut1(i) = edge_vect_s(i)*ue(i+1,j,1)+(1.-edge_vect_s(i))*ue(i,j,1)
-                  ut2(i) = edge_vect_s(i)*ue(i+1,j,2)+(1.-edge_vect_s(i))*ue(i,j,2)
-                  ut3(i) = edge_vect_s(i)*ue(i+1,j,3)+(1.-edge_vect_s(i))*ue(i,j,3)
+                  ut1(i) = fv_atm(1)%gridstruct%edge_vect_s(i)*ue(i+1,j,1)+(1.-fv_atm(1)%gridstruct%edge_vect_s(i))*ue(i,j,1)
+                  ut2(i) = fv_atm(1)%gridstruct%edge_vect_s(i)*ue(i+1,j,2)+(1.-fv_atm(1)%gridstruct%edge_vect_s(i))*ue(i,j,2)
+                  ut3(i) = fv_atm(1)%gridstruct%edge_vect_s(i)*ue(i+1,j,3)+(1.-fv_atm(1)%gridstruct%edge_vect_s(i))*ue(i,j,3)
                endif
             enddo
             do i=is,ie
@@ -668,13 +660,13 @@
             j = npy
             do i=is,ie
                if ( i>im2 ) then
-                  ut1(i) = edge_vect_n(i)*ue(i-1,j,1)+(1.-edge_vect_n(i))*ue(i,j,1)
-                  ut2(i) = edge_vect_n(i)*ue(i-1,j,2)+(1.-edge_vect_n(i))*ue(i,j,2)
-                  ut3(i) = edge_vect_n(i)*ue(i-1,j,3)+(1.-edge_vect_n(i))*ue(i,j,3)
+                  ut1(i) = fv_atm(1)%gridstruct%edge_vect_n(i)*ue(i-1,j,1)+(1.-fv_atm(1)%gridstruct%edge_vect_n(i))*ue(i,j,1)
+                  ut2(i) = fv_atm(1)%gridstruct%edge_vect_n(i)*ue(i-1,j,2)+(1.-fv_atm(1)%gridstruct%edge_vect_n(i))*ue(i,j,2)
+                  ut3(i) = fv_atm(1)%gridstruct%edge_vect_n(i)*ue(i-1,j,3)+(1.-fv_atm(1)%gridstruct%edge_vect_n(i))*ue(i,j,3)
                else
-                  ut1(i) = edge_vect_n(i)*ue(i+1,j,1)+(1.-edge_vect_n(i))*ue(i,j,1)
-                  ut2(i) = edge_vect_n(i)*ue(i+1,j,2)+(1.-edge_vect_n(i))*ue(i,j,2)
-                  ut3(i) = edge_vect_n(i)*ue(i+1,j,3)+(1.-edge_vect_n(i))*ue(i,j,3)
+                  ut1(i) = fv_atm(1)%gridstruct%edge_vect_n(i)*ue(i+1,j,1)+(1.-fv_atm(1)%gridstruct%edge_vect_n(i))*ue(i,j,1)
+                  ut2(i) = fv_atm(1)%gridstruct%edge_vect_n(i)*ue(i+1,j,2)+(1.-fv_atm(1)%gridstruct%edge_vect_n(i))*ue(i,j,2)
+                  ut3(i) = fv_atm(1)%gridstruct%edge_vect_n(i)*ue(i+1,j,3)+(1.-fv_atm(1)%gridstruct%edge_vect_n(i))*ue(i,j,3)
                endif
             enddo
             do i=is,ie
@@ -686,16 +678,16 @@
 ! Update:
          do j=js,je+1
             do i=is,ie
-               ud(i,j,k) = 0.5*( ue(i,j,1)*es(1,i,j,1) +  &
-                     ue(i,j,2)*es(2,i,j,1) +  &
-                     ue(i,j,3)*es(3,i,j,1) )
+               ud(i,j,k) = 0.5*( ue(i,j,1)*fv_atm(1)%gridstruct%es(1,i,j,1) +  &
+                     ue(i,j,2)*fv_atm(1)%gridstruct%es(2,i,j,1) +  &
+                     ue(i,j,3)*fv_atm(1)%gridstruct%es(3,i,j,1) )
             enddo
          enddo
          do j=js,je
             do i=is,ie+1
-               vd(i,j,k) = 0.5*( ve(i,j,1)*ew(1,i,j,2) +  &
-                     ve(i,j,2)*ew(2,i,j,2) +  &
-                     ve(i,j,3)*ew(3,i,j,2) )
+               vd(i,j,k) = 0.5*( ve(i,j,1)*fv_atm(1)%gridstruct%ew(1,i,j,2) +  &
+                     ve(i,j,2)*fv_atm(1)%gridstruct%ew(2,i,j,2) +  &
+                     ve(i,j,3)*fv_atm(1)%gridstruct%ew(3,i,j,2) )
             enddo
          enddo
 
@@ -711,7 +703,7 @@
          vtemp(is:ie,js:je,:) = vd(is:ie,js:je,:)
 
          ! update shared edges
-         call mpp_get_boundary(utemp, vtemp, domain, &
+         call mpp_get_boundary(utemp, vtemp, FV_Atm(1)%domain, &
                                wbuffery=wbuffer, ebuffery=ebuffer, &
                                sbufferx=sbuffer, nbufferx=nbuffer, &
                                gridtype=DGRID_NE, complete=.true. )
@@ -724,11 +716,12 @@
             enddo
          enddo
 
-         call mpp_update_domains(utemp, vtemp, domain, gridtype=DGRID_NE, complete=.true.)
+         call mpp_update_domains(utemp, vtemp, FV_Atm(1)%domain, gridtype=DGRID_NE, complete=.true.)
          do k=1,npz
             call d2a2c_vect(utemp(:,:,k),  vtemp(:,:,k), &
                       uatemp(:,:,k), vatemp(:,:,k), &
-                      uctemp(:,:,k), vctemp(:,:,k), ut, vt, .true.)
+                      uctemp(:,:,k), vctemp(:,:,k), ut, vt, .true., &
+                      fv_atm(1)%gridstruct,fv_atm(1)%bd,npx,npy,.false.,0)
          enddo
 
          U(:,:,:) = uctemp(is:ie,js:je,:)

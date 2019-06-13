@@ -1,10 +1,15 @@
-! $Id: write_parallel.H,v 1.3 2009-04-29 16:01:51 wputman Exp $
+! $Id$
 
 #ifdef NAME_
 #undef NAME_
 #endif
 
+#ifdef NAMESTR_
+#undef NAMESTR_
+#endif
+
 #define NAME_ WRITE_PARALLEL_
+#define NAMESTR_ WRITE_PARALLEL_
 
 #include "overload.macro"
 
@@ -29,7 +34,7 @@ subroutine SUB_ ( data, UNIT, ARRDES, format, RC)
   if (MAPL_AM_I_ROOT()) then
    if(arrdes%offset>=0) then
       call MPI_FILE_SEEK(UNIT, arrdes%offset, MPI_SEEK_SET, STATUS)
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
    endif
 
 #if (RANK_ == 0) 
@@ -59,7 +64,7 @@ subroutine SUB_ ( data, UNIT, ARRDES, format, RC)
    print*, arrdes%offset, recl, arrdes%offset + size(data)*EKIND_ + 8
 #endif
 #endif
-   VERIFY_(STATUS)
+   _VERIFY(STATUS)
 
   endif
 
@@ -73,32 +78,32 @@ subroutine SUB_ ( data, UNIT, ARRDES, format, RC)
    arrdes%offset = arrdes%offset + size(data)*EKIND_ + 8
 #endif
 
-   RETURN_(ESMF_SUCCESS)
+   _RETURN(ESMF_SUCCESS)
  endif
 
   if (present(unit)) then
      if (unit == UNDEF) then
-        RETURN_(ESMF_SUCCESS)
+        _RETURN(ESMF_SUCCESS)
      endif
      if(unit < 0) then
 
 #if (RANK_ > 2 || VARTYPE_ <= 0)
 
-        ASSERT_(.FALSE.)
+        _ASSERT(.FALSE.,'needs informative message')
 
 #else
 
-        ASSERT_(-UNIT<=LAST_UNIT)
+        _ASSERT(-UNIT<=LAST_UNIT,'needs informative message')
         munit => MEM_units(-unit)
         munit%prevrec = munit%prevrec + 1
 
         if(.not.associated(munit%Records)) then
            allocate(Rec(16),stat=status)
            munit%Records => REC
-           VERIFY_(STATUS)
+           _VERIFY(STATUS)
         elseif(size(munit%Records)< munit%prevrec) then
            allocate(REC(munit%prevrec*2),stat=status)
-           VERIFY_(STATUS)
+           _VERIFY(STATUS)
            REC(:munit%prevrec-1) = munit%Records
            deallocate(munit%Records)
            munit%Records => REC
@@ -106,17 +111,17 @@ subroutine SUB_ ( data, UNIT, ARRDES, format, RC)
 
 #if (RANK_ == 0)
         call dealloc_(munit%Records(munit%prevrec),rc=status)	
-        VERIFY_(STATUS)
+        _VERIFY(STATUS)
 #endif
 
 #if (RANK_ == 1)
         call alloc_(munit%Records(munit%prevrec),TKR_,size(data,1),rc=status)	
-        VERIFY_(STATUS)
+        _VERIFY(STATUS)
 #endif
 
 #if (RANK_ == 2)
         call alloc_(munit%Records(munit%prevrec),TKR_,size(data,1),size(data,2),rc=status)	
-        VERIFY_(STATUS)
+        _VERIFY(STATUS)
 #endif
 
         munit%Records(munit%prevrec)%TKR_  = data
@@ -142,13 +147,15 @@ subroutine SUB_ ( data, UNIT, ARRDES, format, RC)
      end if
   end if
 
-  RETURN_(ESMF_SUCCESS)
+  _RETURN(ESMF_SUCCESS)
 
 end subroutine SUB_
 
 !---------------------------
 #undef NAME_
+#undef NAMESTR_
 
 #undef DIMENSIONS_
 #undef RANK_
+#undef RANKSTR_
 #undef VARTYPE_

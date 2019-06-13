@@ -1,8 +1,9 @@
 module horiz_interp_spherical_mod
 
-  ! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Matthew Harrison </CONTACT>
-  ! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov"> Zhi Liang </CONTACT>
+  ! <CONTACT EMAIL="Matthew.Harrison@noaa.gov"> Matthew Harrison </CONTACT>
+  ! <CONTACT EMAIL="Zhi.Liang@noaa.gov"> Zhi Liang </CONTACT>
 
+  ! <HISTORY SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/"/>
 
   ! <OVERVIEW>
   !   Performs spatial interpolation between grids using inverse-distance-weighted scheme.
@@ -29,7 +30,7 @@ module horiz_interp_spherical_mod
 
 
   public :: horiz_interp_spherical_new, horiz_interp_spherical, horiz_interp_spherical_del
-  public :: horiz_interp_spherical_init
+  public :: horiz_interp_spherical_init, horiz_interp_spherical_wght
 
   integer, parameter :: max_neighbors = 400 
   real,    parameter :: max_dist_default = 0.1  ! radians
@@ -59,8 +60,8 @@ module horiz_interp_spherical_mod
   namelist /horiz_interp_spherical_nml/ search_method
 
   !-----------------------------------------------------------------------
-  character(len=128) :: version = '$Id$'
-  character(len=128) :: tagname = '$Name$'
+  ! Include variable "version" to be written to log file.
+#include<file_version.h>
   logical            :: module_is_initialized = .FALSE.
 
 contains
@@ -68,10 +69,10 @@ contains
   !#######################################################################
   !  <SUBROUTINE NAME="horiz_interp_spherical_init">
   !  <OVERVIEW>
-  !     writes version number and tag name to logfile.out
+  !     writes version number to logfile.out
   !  </OVERVIEW>
   !  <DESCRIPTION>       
-  !     writes version number and tag name to logfile.out
+  !     writes version number to logfile.out
   !  </DESCRIPTION>
 
   subroutine horiz_interp_spherical_init
@@ -79,9 +80,10 @@ contains
 
 
     if(module_is_initialized) return
-    call write_version_number (version, tagname)
+    call write_version_number("horiz_interp_spherical_mod", version)
 #ifdef INTERNAL_FILE_NML
       read (input_nml_file, horiz_interp_spherical_nml, iostat=io)
+      ierr = check_nml_error(io,'horiz_interp_spherical_nml') 
 #else
     if (file_exist('input.nml')) then
        unit = open_namelist_file ( )
@@ -170,10 +172,10 @@ end subroutine horiz_interp_spherical_init
     logical :: src_is_modulo
     real    :: min_theta_dst, max_theta_dst, min_phi_dst, max_phi_dst
     real    :: min_theta_src, max_theta_src, min_phi_src, max_phi_src 
-    integer, dimension(:),        allocatable        :: ilon, jlat
-    integer, dimension(:,:,:),    allocatable        :: map_src_add
-    integer, dimension(:,:),      allocatable        :: num_found
-    real, dimension(:,:,:),       allocatable        :: map_src_dist
+    integer :: map_src_add(size(lon_out,1),size(lon_out,2),max_neighbors)
+    real    :: map_src_dist(size(lon_out,1),size(lon_out,2),max_neighbors)
+    integer :: num_found(size(lon_out,1),size(lon_out,2))
+    integer :: ilon(max_neighbors), jlat(max_neighbors)
     real, dimension(size(lon_out,1),size(lon_out,2)) :: theta_dst, phi_dst
     real, dimension(size(lon_in,1)*size(lon_in,2))   :: theta_src, phi_src
 
@@ -246,16 +248,19 @@ end subroutine horiz_interp_spherical_init
        if (min_theta_dst < min_theta_src) print *, '=> WARNING : longitude of dest grid exceeds src'
        if (max_theta_dst > max_theta_src) print *, '=> WARNING : longitude of dest grid exceeds src'
     endif
-    allocate(map_src_add(map_dst_xsize,map_dst_ysize,max_neighbors),    &
-         map_src_dist(map_dst_xsize,map_dst_ysize,max_neighbors),   &
-         num_found(map_dst_xsize,map_dst_ysize),                    &
-         ilon(max_neighbors),jlat(max_neighbors)  )
 
     ! allocate memory to data type
-    allocate(Interp%i_lon(map_dst_xsize,map_dst_ysize,max_neighbors), &
-         Interp%j_lat(map_dst_xsize,map_dst_ysize,max_neighbors),     &
-         Interp%src_dist(map_dst_xsize,map_dst_ysize,max_neighbors),  &
-         Interp%num_found(map_dst_xsize,map_dst_ysize)       )
+    if(ASSOCIATED(Interp%i_lon)) then
+       if(size(Interp%i_lon,1) .NE. map_dst_xsize .OR.     &
+          size(Interp%i_lon,2) .NE. map_dst_ysize )  call mpp_error(FATAL, &
+          'horiz_interp_spherical_mod: size(Interp%i_lon(:),1) .NE. map_dst_xsize .OR. '// &
+          'size(Interp%i_lon(:),2) .NE. map_dst_ysize')
+    else
+       allocate(Interp%i_lon(map_dst_xsize,map_dst_ysize,max_neighbors), &
+            Interp%j_lat(map_dst_xsize,map_dst_ysize,max_neighbors),     &
+            Interp%src_dist(map_dst_xsize,map_dst_ysize,max_neighbors),  &
+            Interp%num_found(map_dst_xsize,map_dst_ysize)       )
+    endif
 
     map_src_add         = 0
     map_src_dist        = large
@@ -299,7 +304,6 @@ end subroutine horiz_interp_spherical_init
     Interp%nlon_src = map_src_xsize; Interp%nlat_src = map_src_ysize
     Interp%nlon_dst = map_dst_xsize; Interp%nlat_dst = map_dst_ysize
 
-    deallocate(map_src_add, map_src_dist, ilon, jlat)
     return
 
   end subroutine horiz_interp_spherical_new
@@ -478,6 +482,90 @@ end subroutine horiz_interp_spherical_init
 
     return
   end subroutine horiz_interp_spherical
+
+  ! </SUBROUTINE>
+  !#######################################################################
+  subroutine horiz_interp_spherical_wght( Interp, wt, verbose, mask_in, mask_out, missing_value)
+    type (horiz_interp_type), intent(in)        :: Interp
+    real, intent(out), dimension(:,:,:)         :: wt
+    integer, intent(in),               optional :: verbose
+    real, intent(in), dimension(:,:),  optional :: mask_in
+    real, intent(inout), dimension(:,:), optional :: mask_out
+    real, intent(in),                  optional :: missing_value
+
+    !--- some local variables ----------------------------------------
+    real, dimension(Interp%nlon_src, Interp%nlat_src) :: mask_src
+    real, dimension(Interp%nlon_dst, Interp%nlat_dst) :: mask_dst
+    integer :: nlon_in, nlat_in, nlon_out, nlat_out, num_found
+    integer :: m, n, i, j, k, miss_in, miss_out, i1, i2, j1, j2, iverbose
+    real    :: min_in, max_in, avg_in, min_out, max_out, avg_out, sum
+    !-----------------------------------------------------------------
+
+    iverbose = 0;  if (present(verbose)) iverbose = verbose
+
+    nlon_in  = Interp%nlon_src; nlat_in  = Interp%nlat_src
+    nlon_out = Interp%nlon_dst; nlat_out = Interp%nlat_dst
+
+    mask_src = 1.0; mask_dst = 1.0
+    if(present(mask_in)) mask_src = mask_in
+
+    do n=1,nlat_out
+       do m=1,nlon_out
+          ! neighbors are sorted nearest to farthest
+          ! check nearest to see if it is a land point
+          num_found = Interp%num_found(m,n)
+
+          if (num_found > num_nbrs_default) then
+            print*,'pe=',mpp_pe(),'num_found=',num_found
+            num_found = num_nbrs_default
+          end if
+
+          if(num_found == 0 ) then
+             mask_dst(m,n) = 0.0
+          else
+             i1 = Interp%i_lon(m,n,1); j1 = Interp%j_lat(m,n,1)
+             if (mask_src(i1,j1) .lt. 0.5) then
+                mask_dst(m,n) = 0.0
+             endif
+
+             if(num_found .gt. 1 ) then
+                i2 = Interp%i_lon(m,n,2); j2 = Interp%j_lat(m,n,2)
+                ! compare first 2 nearest neighbors -- if they are nearly
+                ! equidistant then use this mask for robustness
+                if(abs(Interp%src_dist(m,n,2)-Interp%src_dist(m,n,1)) .lt. epsln) then
+                   if((mask_src(i1,j1) .lt. 0.5))  mask_dst(m,n) = 0.0
+                endif
+             endif
+
+             sum=0.0
+             do k=1, num_found
+                if(mask_src(Interp%i_lon(m,n,k),Interp%j_lat(m,n,k)) .lt. 0.5 ) then
+                   wt(m,n,k) = 0.0
+                else
+                   if (Interp%src_dist(m,n,k) <= epsln) then
+                      wt(m,n,k) = large
+                      sum = sum + large
+                   else if(Interp%src_dist(m,n,k) <= Interp%max_src_dist ) then
+                      wt(m,n,k) = 1.0/Interp%src_dist(m,n,k)
+                      sum = sum+wt(m,n,k)
+                   else
+                      wt(m,n,k) = 0.0
+                   endif
+                endif
+             enddo
+             if (sum > epsln) then
+                do k = 1, num_found
+                   wt(m,n,k) = wt(m,n,k)/sum
+                enddo
+             else
+                mask_dst(m,n) = 0.0
+             endif
+          endif
+       enddo
+    enddo
+
+    return
+  end subroutine horiz_interp_spherical_wght
   ! </SUBROUTINE>
 
   !#######################################################################
@@ -859,8 +947,8 @@ end subroutine horiz_interp_spherical_init
     endif
   
     dot = cos(phi1)*cos(phi2)*cos(theta1-theta2) + sin(phi1)*sin(phi2)
-    if(dot > 1 ) dot = 1.
-    if(dot < -1) dot = -1
+    if(dot > 1. ) dot = 1.
+    if(dot < -1.) dot = -1.
     spherical_distance = acos(dot)
 
     return

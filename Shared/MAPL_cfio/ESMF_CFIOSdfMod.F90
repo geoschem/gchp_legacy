@@ -22,9 +22,8 @@
       use ESMF_CFIOGridMod
       use ESMF_CFIOVarInfoMod
       use ESMF_CFIOFileMod
-      use ESMF_CFIOwGrADSMod, only : CFIO_wGrADS
-      use ESMF_CFIOrGrADSMod, only : CFIO_rGrADS
       use netcdf
+      use, intrinsic :: ISO_FORTRAN_ENV, only: REAL64
 
       implicit none
 !------------------------------------------------------------------------------
@@ -106,11 +105,12 @@
 !     Create a CFIO output file with meta data
 !EOP
 !------------------------------------------------------------------------------
-       integer :: i, n, rtcode
+       integer :: i, rtcode
        integer :: maxLen
        character(len=MLEN) :: fNameTmp     ! file name 
        integer :: date, begTime
        character(len=MLEN) :: fName
+       character(len=MLEN) :: string
 
        call ESMF_CFIOGet(cfio, date=date, begTime=begTime, fName=fName, rc=rtcode)
        if (rtcode .ne. 0) print *, "Problems in ESMF_CFIOGet"
@@ -194,14 +194,14 @@
 
 !      get integer attributes from iList
        if ( associated(cfio%iList) ) then
-          call getMaxLenCnt(maxLen, cfio%nAttInt, iList=cfio%iList)
-          allocate(cfio%attIntNames(cfio%nAttInt),                           &
-                   cfio%attIntCnts(cfio%nAttInt),                            &
-                   cfio%attInts(cfio%nAttInt,maxLen), stat=rtcode)
-          if (err("can't allocate mem: attIntCnts",rtcode,-2) .lt. 0) then  
-             if ( present(rc) ) rc = rtcode
-             return
-          end if
+!@@          call getMaxLenCnt(maxLen, cfio%nAttInt, iList=cfio%iList)
+!@@          allocate(cfio%attIntNames(cfio%nAttInt),                           &
+!@@                   cfio%attIntCnts(cfio%nAttInt),                            &
+!@@                   cfio%attInts(cfio%nAttInt,maxLen), stat=rtcode)
+!@@          if (err("can't allocate mem: attIntCnts",rtcode,-2) .lt. 0) then  
+!@@             if ( present(rc) ) rc = rtcode
+!@@             return
+!@@          end if
 
           call getList(iList=cfio%iList, intAttNames=cfio%attIntNames,       &
                        intAttCnts=cfio%attIntCnts, intAtts=cfio%attInts )
@@ -230,14 +230,14 @@
 
 !      get real attributes from rList
        if ( associated(cfio%rList) ) then
-          call getMaxLenCnt(maxLen, cfio%nAttReal, rList=cfio%rList)
-          allocate(cfio%attRealNames(cfio%nAttReal),                       &
-                   cfio%attRealCnts(cfio%nAttReal),                        &
-                   cfio%attReals(cfio%nAttReal,maxLen), stat=rtcode)
-          if (err("can't allocate mem: attRealNames",rtcode,-2) .lt. 0) then  
-             if ( present(rc) ) rc = rtcode
-             return
-          end if
+!@@          call getMaxLenCnt(maxLen, cfio%nAttReal, rList=cfio%rList)
+!@@          allocate(cfio%attRealNames(cfio%nAttReal),                       &
+!@@                   cfio%attRealCnts(cfio%nAttReal),                        &
+!@@                   cfio%attReals(cfio%nAttReal,maxLen), stat=rtcode)
+!@@          if (err("can't allocate mem: attRealNames",rtcode,-2) .lt. 0) then  
+!@@             if ( present(rc) ) rc = rtcode
+!@@             return
+!@@          end if
 
           call getList(rList=cfio%rList, realAttNames=cfio%attRealNames,   &
                        realAttCnts=cfio%attRealCnts, realAtts=cfio%attReals )
@@ -267,14 +267,14 @@
 
 !      get char attributes from cList
        if ( associated(cfio%cList) ) then
-          call getMaxLenCnt(maxLen, cfio%nAttChar, cList=cfio%cList)
-          allocate(cfio%attCharNames(cfio%nAttChar),                      &
-                   cfio%attCharCnts(cfio%nAttChar),                       &
-                   cfio%attChars(cfio%nAttChar), stat=rtcode)
-          if (err("can't allocate mem: attCharNames",rtcode,-2) .lt. 0) then  
-             if ( present(rc) ) rc = rtcode
-             return
-          end if
+!@@          call getMaxLenCnt(maxLen, cfio%nAttChar, cList=cfio%cList)
+!@@          allocate(cfio%attCharNames(cfio%nAttChar),                      &
+!@@                   cfio%attCharCnts(cfio%nAttChar),                       &
+!@@                   cfio%attChars(cfio%nAttChar), stat=rtcode)
+!@@          if (err("can't allocate mem: attCharNames",rtcode,-2) .lt. 0) then  
+!@@             if ( present(rc) ) rc = rtcode
+!@@             return
+!@@          end if
           call getList(cList=cfio%cList, charAttNames=cfio%attCharNames,  &
                        charAttCnts=cfio%attCharCnts, charAtts=cfio%attChars )
        end if
@@ -351,27 +351,19 @@
 !EOP
 !------------------------------------------------------------------------------
       integer :: ngatts, lm, i, ii, iv
-      integer :: fileNameLen
       real*4 :: amiss
       real*4 :: vRange32(2)
-      real*4, pointer :: lon(:), lat(:), lev(:)
+      real*4, pointer :: lon(:), lat(:)
+      real*4, pointer :: lev(:) => null()
       real*8, pointer :: lon_64(:), lat_64(:), lev_64(:)
       integer :: coXType = NF90_FLOAT
       integer :: coYType = NF90_FLOAT
       integer :: coZType = NF90_FLOAT
-      character(len=MVARLEN) :: levunits
       character(len=MVARLEN) :: vAttName
-      character(len=MVARLEN), pointer :: vname(:) 
-      character(len=MLEN), pointer :: vtitle(:) 
-      character(len=MVARLEN), pointer :: vunits(:) 
-      integer, pointer :: kmvar(:)
-      real, pointer :: valid_range(:,:), packing_range(:,:) 
-      integer, pointer :: yyyymmdd(:), hhmmss(:)
       character(len=MLEN), pointer :: attNames(:)
       integer :: iCnt, rCnt, cCnt
       integer :: iMaxLen, rMaxLen, cMaxLen
       integer :: type, count, rtcode
-      integer :: dimId
       integer :: varId
       integer :: datatype         ! variable type
       integer :: vtype            ! variable type
@@ -387,9 +379,10 @@
       integer :: nDims, allVars, recdim
       integer :: im, jm, km
       integer :: hour, minute, seconds
-      integer :: fid, nVars, dimSize(4), myIndex
-      character(len=MVARLEN) :: dimName(4), dimUnits(4), vnameTemp
+      integer :: fid, nVars, dimSize(8), myIndex
+      character(len=MVARLEN) :: dimName(8), dimUnits(8), vnameTemp
       character(len=MVARLEN) :: nameAk, nameBk, namePtop
+      character(len=MVARLEN) :: levunits
       integer :: loc1, loc2
       integer :: akid, bkid, ptopid
       integer :: icount
@@ -400,8 +393,10 @@
       real*4 :: scale, offset
       character, pointer ::  globalAtt(:)
       character(len=MLEN) :: fNameTmp     ! file name
-      character(len=MVARLEN),dimension(:),pointer :: grads_vars
-  
+      character(len=MVARLEN) :: fversion
+      logical :: cs_found
+      integer :: nf
+
       fNameTmp = ''                                                                                   
 !     checking file name template
       if (present(expid)) cfio%expid = expid
@@ -440,13 +435,12 @@
 !     get grid information and global meta data
                                                                                           
       call CFIO_DimInquire (cfio%fid, im, jm, km, lm, &
-                            cfio%mVars, ngatts, vdir, rtcode)
+                            cfio%mVars, ngatts, vdir=vdir, rc=rtcode)
       if (err("CFIO_DimInquire failed",rtcode,rtcode) .lt. 0) then  
          if ( present(rc) ) rc = rtcode
          return
       end if
       cfio%tSteps = lm
-      ! Establish file directionality (SDE 2017-02-27)
       cfio%vDir = vdir
 
       rtcode = NF90_INQUIRE (cfio%fid,nDims,allVars,ngatts,recdim)
@@ -462,6 +456,7 @@
       end do
       nVars = 0
       cfio%mGrids = 0
+      cs_found = .false.
       do i=1,allVars
         rtcode = NF90_INQUIRE_VARIABLE(fid,i,vnameTemp,vtype,nvDims,vDims,nvAtts)
         if (err("Inquire: variable inquire error",rtcode,-52) .NE. 0) then  
@@ -469,6 +464,7 @@
            return
         end if
         if (nvDims .EQ. 1 .and. (index(vnameTemp, 'lon') .gt. 0 .or.  &
+            vnameTemp == 'Xdim' .or. &
             index(vnameTemp, 'XDim:EOSGRID') .gt. 0) ) then
            coXType = vtype
            cfio%mGrids = cfio%mGrids + 1
@@ -481,8 +477,21 @@
             index(vnameTemp, 'Height:EOSGRID') .gt. 0) ) then
            coZType = vtype
         end if
+        if(vnameTemp == 'cubed_sphere') then
+           cs_found = .true.
+           varId = i
+           rtcode = NF90_GET_ATT(fid,varId,'file_format_version',fversion )
+           if (err("problem in NF90_GET_ATT",rtcode,-53) .NE. 0) then  
+              if ( present(rc) ) rc = rtcode
+              return
+           end if
+           cycle
+        endif
 
       end do
+      if (cs_found) then
+         read(fversion, *) cfio%formatVersion
+      end if
 
       do i=1,allVars
         rtcode = NF90_INQUIRE_VARIABLE(fid,i,vnameTemp,vtype,nvDims,vDims,nvAtts)
@@ -493,6 +502,12 @@
         if (trim(vnameTemp) .eq. 'time_bnds') then 
            cfio%varObjs(nVars)%timAve = .true.
            cycle
+        end if
+        if (cs_found) then
+           if(vnameTemp == 'cubed_sphere') cycle
+           if(vnameTemp == 'contacts') cycle
+           if(vnameTemp == 'orientation') cycle
+           if(vnameTemp == 'anchor') cycle
         end if
         if (nvDims .EQ. 1) cycle
         nVars = nVars + 1
@@ -511,6 +526,11 @@
               cfio%varObjs(nVars)%grid%jm = dimSize(iv)
               cfio%varObjs(nVars)%grid%stnGrid = .true.
               cycle
+           end if
+           if (cs_found) then
+              if (dimName(iv)=='nf') cycle
+              if (dimName(iv)=='orientationStrLen') cycle
+              if (dimName(iv)=='ncontact') cycle
            end if
            rtcode = NF90_INQ_VARID(fid,dimName(iv),varId)
            dimUnits(iv) = ' '
@@ -541,8 +561,12 @@
               cfio%varObjs(nVars)%grid%lon = lon
               deallocate(lon)
            end if
+           nf = 1
+           if (cs_found) then
+              nf = 6
+           end if
            if (myIndex .EQ. 1) then
-              cfio%varObjs(nVars)%grid%jm = dimSize(iv)
+              cfio%varObjs(nVars)%grid%jm = dimSize(iv)*nf
               if (.not. associated(cfio%varObjs(nVars)%grid%lat)) then
                  allocate(cfio%varObjs(nVars)%grid%lat(dimSize(iv)))
               end if
@@ -594,64 +618,65 @@
                     if (rtcode .eq. 0) cfio%varObjs(nVars)%grid%ptop = ptop
                  end if
               end if
-             ! if (index(cfio%varObjs(nVars)%grid%standardName,             &
-             !           'atmosphere_hybrid_sigma_pressure_coordinate')     &
-             !           .gt. 0)  then
-             !    loc1 = index(cfio%varObjs(nVars)%grid%formulaTerm,'a:')
-             !    loc2 = index(cfio%varObjs(nVars)%grid%formulaTerm,'b:')
-             !    icount = 0
-             !    do icount = loc1+2, loc2
-             !      if (cfio%varObjs(nVars)%grid%formulaTerm(icount:icount) &
-             !           .ne. ' ') exit
-             !    end do
-             !    nameAk=trim(cfio%varObjs(nVars)%grid%formulaTerm          &
-             !                (icount:loc2-1))
-             !    loc1 = index(cfio%varObjs(nVars)%grid%formulaTerm,'b:')
-             !    loc2 = index(cfio%varObjs(nVars)%grid%formulaTerm,'ps:')
-             !    do icount = loc1+2, loc2
-             !      if (cfio%varObjs(nVars)%grid%formulaTerm(icount:icount) &
-             !           .ne. ' ') exit
-             !    end do
-             !    nameBk=trim(cfio%varObjs(nVars)%grid%formulaTerm          &
-             !                (icount:loc2-1))
-             !    loc1 = index(cfio%varObjs(nVars)%grid%formulaTerm,'p0:')
-             !    icount = loc1  + 4
-             !    namePtop=trim(cfio%varObjs(nVars)%grid%formulaTerm        &
-             !            (icount:len(cfio%varObjs(nVars)%grid%formulaTerm)))
-
-             !    rtcode = NF90_INQ_VARID(cfio%fid, trim(nameAk), akid)
-             !    if (rtcode .ne. 0) print *, "problem in getting akid in NF90_INQ_VARID"
-
-             !    allocate(cfio%varObjs(nVars)%grid%ak                      &
-             !             (cfio%varObjs(nVars)%grid%km+1),                 &
-             !             ak(cfio%varObjs(nVars)%grid%km+1))
-             !    rtcode = NF90_GET_VAR(cfio%fid,akid,ak,(/1/),(/cfio%varObjs(nVars)%grid%km+1/))
-             !    if (rtcode .ne. 0) print *, "problem in getting ak in NF90_GET_VAR"
-             !    cfio%varObjs(nVars)%grid%ak = ak
-             !    deallocate(ak)
-             !    rtcode = NF90_INQ_VARID(cfio%fid, trim(nameBk), bkid)
-             !    if (rtcode .ne. 0) print *, "problem in getting bkid in NF90_INQ_VARID"
-             !    allocate(cfio%varObjs(nVars)%grid%bk                      &
-             !             (cfio%varObjs(nVars)%grid%km+1),                 &
-             !             bk(cfio%varObjs(nVars)%grid%km+1))
-             !    rtcode = NF90_GET_VAR(cfio%fid,bkid,bk,(/1/),(/cfio%varObjs(nVars)%grid%km+1/))
-             !    if (rtcode .ne. 0) print *, "problem in getting bk in NF90_GET_VAR"
-             !    cfio%varObjs(nVars)%grid%bk = bk
-             !    deallocate(bk)
-
-             !    rtcode = NF90_INQ_VARID(cfio%fid, trim(namePtop), ptopid)
-             !    if (rtcode .ne. 0) print *, "problem in getting ptopid in NF90_INQ_VARID"
-             !    rtcode = NF90_GET_VAR(cfio%fid,ptopid,ptop_array,(/1/), (/1/))
-             !    ptop = ptop_array(1)
-             !    if (rtcode .ne. 0) print *, "problem in getting ptop in NF90_GET_VAR"
-             !    cfio%varObjs(nVars)%grid%ptop = ptop
-             !end if
+              !if (index(cfio%varObjs(nVars)%grid%standardName,             &
+              !          'atmosphere_hybrid_sigma_pressure_coordinate')     &
+              !          .gt. 0)  then
+              !   loc1 = index(cfio%varObjs(nVars)%grid%formulaTerm,'a:')
+              !   loc2 = index(cfio%varObjs(nVars)%grid%formulaTerm,'b:')
+              !   icount = 0
+              !   do icount = loc1+2, loc2
+              !     if (cfio%varObjs(nVars)%grid%formulaTerm(icount:icount) &
+              !          .ne. ' ') exit
+              !   end do
+              !   nameAk=trim(cfio%varObjs(nVars)%grid%formulaTerm          &
+              !               (icount:loc2-1))
+              !   loc1 = index(cfio%varObjs(nVars)%grid%formulaTerm,'b:')
+              !   loc2 = index(cfio%varObjs(nVars)%grid%formulaTerm,'ps:')
+              !   do icount = loc1+2, loc2
+              !     if (cfio%varObjs(nVars)%grid%formulaTerm(icount:icount) &
+              !          .ne. ' ') exit
+              !   end do
+              !   nameBk=trim(cfio%varObjs(nVars)%grid%formulaTerm          &
+              !               (icount:loc2-1))
+              !   loc1 = index(cfio%varObjs(nVars)%grid%formulaTerm,'p0:')
+              !   icount = loc1  + 4
+              !   namePtop=trim(cfio%varObjs(nVars)%grid%formulaTerm        &
+              !           (icount:len(cfio%varObjs(nVars)%grid%formulaTerm)))
+              !
+              !   rtcode = NF90_INQ_VARID(cfio%fid, trim(nameAk), akid)
+              !   if (rtcode .ne. 0) print *, "problem in getting akid in NF90_INQ_VARID"
+              !
+              !   allocate(cfio%varObjs(nVars)%grid%ak                      &
+              !            (cfio%varObjs(nVars)%grid%km+1),                 &
+              !            ak(cfio%varObjs(nVars)%grid%km+1))
+              !   rtcode = NF90_GET_VAR(cfio%fid,akid,ak,(/1/),(/cfio%varObjs(nVars)%grid%km+1/))
+              !   if (rtcode .ne. 0) print *, "problem in getting ak in NF90_GET_VAR"
+              !   cfio%varObjs(nVars)%grid%ak = ak
+              !   deallocate(ak)
+              !   rtcode = NF90_INQ_VARID(cfio%fid, trim(nameBk), bkid)
+              !   if (rtcode .ne. 0) print *, "problem in getting bkid in NF90_INQ_VARID"
+              !   allocate(cfio%varObjs(nVars)%grid%bk                      &
+              !            (cfio%varObjs(nVars)%grid%km+1),                 &
+              !            bk(cfio%varObjs(nVars)%grid%km+1))
+              !   rtcode = NF90_GET_VAR(cfio%fid,bkid,bk,(/1/),(/cfio%varObjs(nVars)%grid%km+1/))
+              !   if (rtcode .ne. 0) print *, "problem in getting bk in NF90_GET_VAR"
+              !   cfio%varObjs(nVars)%grid%bk = bk
+              !   deallocate(bk)
+              !
+              !   rtcode = NF90_INQ_VARID(cfio%fid, trim(namePtop), ptopid)
+              !   if (rtcode .ne. 0) print *, "problem in getting ptopid in NF90_INQ_VARID"
+              !   rtcode = NF90_GET_VAR(cfio%fid,ptopid,ptop_array,(/1/), (/1/))
+              !   ptop = ptop_array(1)
+              !   if (rtcode .ne. 0) print *, "problem in getting ptop in NF90_GET_VAR"
+              !   cfio%varObjs(nVars)%grid%ptop = ptop
+              !end if
               rtcode = NF90_GET_ATT(fid,varId,'coordinate',cfio%varObjs(nVars)%grid%coordinate)
               if (rtcode .ne. 0) cfio%varObjs(nVars)%grid%coordinate = "pressure"  
               cfio%varObjs(nVars)%grid%levUnits = trim(dimUnits(iv))
 
-              allocate(cfio%varObjs(nVars)%grid%lev(dimSize(iv)), &
-                       lev(dimSize(iv)))
+              allocate(cfio%varObjs(nVars)%grid%lev(dimSize(iv)))
+              if (.not.associated(lev))  allocate(lev(dimSize(iv)))
+
               if ( coZType .eq. NF90_FLOAT ) then
                  rtcode = NF90_GET_VAR(fid, varId, lev, (/1/), (/dimSize(iv)/)) 
 !print *, "Lev from CFIO SDFFileOpen: ", lev
@@ -664,7 +689,7 @@
               cfio%varObjs(nVars)%grid%lev = 0.0
               cfio%varObjs(nVars)%grid%lev = lev
 !print *, "cfio%varObjs(nVars)%grid%lev from CFIO SDFFileOpen: ", cfio%varObjs(nVars)%grid%lev
-              deallocate(lev)
+              rtcode = NF90_GET_ATT(fid,varId,'units',levunits)
            end if
         end do
         rtcode = NF90_INQ_VARID (cfio%fid, cfio%varObjs(nVars)%vName, varId)
@@ -1033,6 +1058,12 @@
 !     set grids objects in a CFIO object
       allocate( cfio%grids(cfio%mGrids), stat = rtcode)
       cfio%grids(1) = cfio%varObjs(1)%grid
+      if (associated(lev)) then
+         cfio%grids(1)%levunits = levUnits
+         allocate(cfio%grids(1)%lev(size(lev)),stat = rtcode)
+         cfio%grids(1)%lev = lev
+         deallocate(lev)
+      end if
       if ( cfio%mGrids .eq. 1 .and. cfio%varObjs(1)%grid%km .eq. 0) &
          cfio%grids(1)%km = km
       
@@ -1118,6 +1149,7 @@
       integer :: i, rtcode
       integer :: myKbeg, myKount
       integer :: myDate, myCurTime
+      logical :: useFaceDim
       character(len=MLEN) :: fNameTmp     ! file name 
                                                                                          
       fNameTmp = ''
@@ -1147,11 +1179,17 @@
          if ( trim(vName) .eq. trim(cfio%varObjs(i)%vName) ) exit
       end do
 
+      if (cfio%formatVersion > 2.0) then
+         useFaceDim = .true.
+      else
+         useFaceDim = .false.
+      end if
+
 !     write 2D variable
       if ( cfio%varObjs(i)%twoDimVar ) then 
          call CFIO_PutVar (cfio%fid, vName, myDate, myCurTime,             &
                         cfio%varObjs(i)%grid%im, cfio%varObjs(i)%grid%jm,  &
-                        0, 1, field, rtcode )
+                        0, 1, field, useFaceDim, rtcode )
          if (err("CFIO_PutVar failed",rtcode,rtcode) .lt. 0) then
             if ( present(rc) ) rc = rtcode
             return
@@ -1166,7 +1204,7 @@
 
          call CFIO_PutVar (cfio%fid, vName, myDate, myCurTime,             &
                         cfio%varObjs(i)%grid%im, cfio%varObjs(i)%grid%jm,  &
-                        myKbeg, myKount, field, rtcode )
+                        myKbeg, myKount, field, useFaceDim, rtcode )
          if (err("CFIO_PutVar failed",rtcode,rtcode) .lt. 0) then
             if ( present(rc) ) rc = rtcode
             return
@@ -1298,6 +1336,7 @@
       integer :: i, rtcode
       integer :: myKbeg, myKount
       integer :: myDate, myCurTime
+      logical :: useFaceDim
       character(len=MLEN) :: fNameTmp     ! file name
                                                                                          
       fNameTmp = ''
@@ -1352,9 +1391,14 @@
             end if
          end if
       else
+         if (cfio%formatVersion > 2.0) then
+            useFaceDim = .true.
+         else
+            useFaceDim = .false.
+         end if
          call CFIO_PutVar (cfio%fid, vName, myDate, myCurTime,              &
-                     cfio%varObjs(i)%grid%im, cfio%varObjs(i)%grid%jm,  &
-                     0, 1, field, rtcode )
+              cfio%varObjs(i)%grid%im, cfio%varObjs(i)%grid%jm,  &
+              0, 1, field, useFaceDim, rtcode )
          if (err("CFIO_PutVar failed",rtcode,rtcode) .lt. 0) then
             if ( present(rc) ) rc = rtcode
             return
@@ -1427,13 +1471,14 @@
 !     Read a variable from an existing file
 !EOP
 !------------------------------------------------------------------------------
-      integer :: i, j, k, rtcode, curStep
+      integer :: i, j, k, rtcode
       integer :: myKbeg, myKount
       integer :: myXbeg, myXount
       integer :: myYbeg, myYount
       integer :: myDate, myCurTime
       real, pointer :: tmp(:,:,:)          ! array contains data
       character(len=MLEN) :: fNameTmp     ! file name
+      logical :: useFaceDim
                                                                                          
       fNameTmp = ''
                                                                                          
@@ -1469,6 +1514,12 @@
          endif
       endif
 
+      if (cfio%formatVersion > 2.0) then
+         useFaceDim = .true.
+      else
+         useFaceDim = .false.
+      end if
+
       myKbeg = 1
       myKount = 1
 
@@ -1488,7 +1539,7 @@
          call CFIO_GetVar(cfio%fid,vName,mydate,mycurTime,                   &
                        cfio%varObjs(i)%grid%im,                          &
                        cfio%varObjs(i)%grid%jm,myKbeg,myKount,           &
-                       cfio%tSteps, tmp, cfio%isCyclic, rtcode )
+                       cfio%tSteps, tmp, cfio%isCyclic, useFaceDim, rtcode )
          if (rtcode .ne. 0) then
             if ( present(rc) ) rc = rtcode
             return
@@ -1502,11 +1553,11 @@
          call CFIO_GetVar(cfio%fid,vName,mydate,MYcurTime,                   &
                        cfio%varObjs(i)%grid%im,                          &
                        cfio%varObjs(i)%grid%jm, 0, 1, cfio%tSteps, tmp,  &
-                       cfio%isCyclic, rtcode )
-         if (rtcode .ne. 0) then
-            if ( present(rc) ) rc = rtcode
-            return
-         end if
+                       cfio%isCyclic, useFaceDim, rtcode )
+        if (err("CFIO_GetVar FAILED",rtcode,rtcode) .lt. 0) then  
+           if ( present(rc) ) rc = rtcode
+           return
+        end if
       end if
 
       myXbeg = 1
@@ -1602,13 +1653,14 @@
 !     Read a variable from an existing file
 !EOP
 !------------------------------------------------------------------------------
-      integer :: i, j, k, rtcode, curStep
+      integer :: i, j, k, rtcode
       integer :: myKbeg, myKount
       integer :: myXbeg, myXount
       integer :: myYbeg, myYount
       integer :: myDate, myCurTime
       real, pointer :: tmp(:,:)          ! array contains data
       character(len=MLEN) :: fNameTmp     ! file name
+      logical :: useFaceDim
                                                                                               
       fNameTmp = ''
 
@@ -1658,6 +1710,12 @@
       if ( present(xCount) ) myXount = xCount
       if ( present(yCount) ) myYount = yCount
 
+      if (cfio%formatVersion > 2.0) then
+         useFaceDim = .true.
+      else
+         useFaceDim = .false.
+      end if
+
 !     read 2D variable
       if ( cfio%varObjs(i)%twoDimVar .and.                              &
               .not. cfio%varObjs(i)%grid%stnGrid) then
@@ -1666,7 +1724,7 @@
         call CFIO_GetVar(cfio%fid,vName,MYdate,MYcurTime,                   &
                     cfio%varObjs(i)%grid%im,                            &
                     cfio%varObjs(i)%grid%jm, 0, 1, cfio%tSteps, tmp,    &
-                    cfio%isCyclic, rtcode )
+                    cfio%isCyclic, useFaceDim, rtcode )
         if (err("CFIO_GetVar failed",rtcode,rtcode) .lt. 0) then  
            if ( present(rc) ) rc = rtcode
            return
@@ -1781,7 +1839,7 @@
 !EOP
 !------------------------------------------------------------------------------
 
-      integer :: i, j, rtcode
+      integer :: i, rtcode
       integer :: myXbeg, myXount      
       integer :: myDate, myCurTime
       real, pointer :: tmp(:)          ! array contains data
@@ -1946,7 +2004,6 @@
       integer, pointer :: kmvar(:), station(:)
       real, pointer :: valid_range(:,:), packing_range(:,:)
       integer, pointer :: akid(:), bkid(:), ptopid(:)
-      integer :: prec
       integer, pointer ::  vid(:)
 
       real*4 amiss_32
@@ -1959,17 +2016,22 @@
       integer, pointer :: latid(:), lonid(:), stationid(:)
       integer, pointer :: levid(:), layerid(:)
       integer, pointer :: latdim(:), londim(:), stationdim(:)
+      integer, pointer :: faceid(:), facedim(:)
+      integer, pointer :: latvid(:), lonvid(:)
+      integer, pointer :: latvdim(:), lonvdim(:)
+      integer, pointer :: ncontid(:), stringid(:)
+      integer, pointer :: ncontdim(:), stringdim(:)
+      integer, pointer :: gmid(:), gmdim(:)
       integer, pointer :: levdim(:), layerdim(:)
       integer, pointer :: gDims3D(:,:), gDims2D(:,:)
-      integer dims3D(4), dims2D(3), dims1D(1), ptopdim
+      integer dims3D(5), dims2D(4), dims1D(1), ptopdim
       integer corner(1), edges(1)
-      integer :: corner2d(2), edges2d(2)
+      integer :: corner2d(3), edges2d(3)
+      integer :: nsize
       integer, pointer :: lat2id(:), lon2id(:)
 !      integer corner(4), edges(4)
       character*80 timeUnits 
       logical surfaceOnly
-      character*8 strBuf
-      character*14 dateString
       integer year,mon,day,hour,minute,sec
       integer count
       integer maxLen
@@ -1981,24 +2043,29 @@
       integer ig
       integer ndim
       character cig
-      integer nDefaultChunksize(4) ! Set Chunksize to im,jm,1,1 by default
+      integer nDefaultChunksize(5) ! Set Chunksize to im,jm,1,1 by default
+      logical :: useFaceDim
+      integer :: ncont
+      integer, allocatable :: ivar(:)
+      character(len=5), allocatable :: cvar(:)
+      character(len=4) :: verStr
+      character(len=80) :: imStr
 
 ! Variables for packing
 
       integer*2 amiss_16
       real*4, pointer ::  pRange_32(:,:),vRange_32(:,:)
       logical packflag
-      integer min
 ! Set metadata strings.  These metadata values are specified in the 
 ! COARDS conventions
 
       character (len=50), pointer :: lonDimName
       character (len=50), pointer :: latDimName
       character (len=50), target :: lonName = "longitude"
-      character (len=50), target :: lon2Name = "Nominal longitude at South pole"
+      character (len=50), target :: lon2Name = "Fake Longitude for GrADS Compatibility"
       character (len=50) :: lonUnits = "degrees_east"
       character (len=50), target :: latName = "latitude"
-      character (len=50), target :: lat2Name = "Nominal latitude at dateline"
+      character (len=50), target :: lat2Name = "Fake Latitude for GrADS Compatibility"
       character (len=50) :: latUnits = "degrees_north"
       character (len=50) :: levName = "vertical level"
 !                           levUnits: specified by user in argument list
@@ -2016,6 +2083,9 @@
       character (len=50) :: nameAk, nameBk, namePtop, nameStation 
       logical  bTimeSet
       integer :: sz_lon, sz_lat
+      integer :: jm6, nf
+      integer :: cid
+      integer :: fVersion, xOffset, yOffset, chunkDim
 
       nvars = cfio%mVars
       yyyymmdd_beg = cfio%date
@@ -2032,8 +2102,14 @@
                latdim(cfio%mGrids), londim(cfio%mGrids),                 &
                levdim(cfio%mGrids), layerdim(cfio%mGrids),               &
                akid(cfio%mGrids),bkid(cfio%mGrids),ptopid(cfio%mGrids),  &
-               gDims3D(4,cfio%mGrids), gDims2D(3,cfio%mGrids),           &
-               stationdim(cfio%mGrids), stationid(cfio%mGrids) )
+               gDims3D(5,cfio%mGrids), gDims2D(4,cfio%mGrids),           &
+               stationdim(cfio%mGrids), stationid(cfio%mGrids),          &
+               faceid(cfio%mGrids), facedim(cfio%mGrids),                &
+               lonvid(cfio%mGrids), lonvdim(cfio%mGrids),                &
+               latvid(cfio%mGrids), latvdim(cfio%mGrids),                &
+               ncontid(cfio%mGrids), ncontdim(cfio%mGrids),              &
+               stringid(cfio%mGrids), stringdim(cfio%mGrids),            &
+               gmid(cfio%mGrids), gmdim(cfio%mGrids))
 
       do i=1,nvars
          vname(i) = cfio%varObjs(i)%vName
@@ -2065,6 +2141,14 @@
 
       surfaceOnly = .TRUE.
 
+      nf = 1
+      useFaceDim = .false.
+      if (cfio%formatVersion > 2.0) then
+         useFaceDim = .true.
+         nf = 6
+         ncont = 4
+      end if
+         
 ! Basic error-checking.
 
       if (timinc .eq. 0) then
@@ -2119,16 +2203,21 @@
       lonDimName => lonName
       latDimName => latName
       if (cfio%grids(ig)%twoDimLat) then
-         nameLonDim = 'LON'
-         nameLatDim = 'LAT'
+         nameLonDim = 'lons'
+         nameLatDim = 'lats'
          coordinatesName = trim(nameLonDim) // ' ' // trim(nameLatDim)
          lonDimName => lon2Name
          latDimName => lat2Name
       endif
       if ( ig .eq. 1 ) then
          if (cfio%mGrids .eq. 1) then
-            nameLon = 'lon'
-            nameLat = 'lat'
+            if (cfio%grids(ig)%twoDimLat) then
+               nameLon = 'Xdim'
+               nameLat = 'Ydim'
+            else
+               nameLon = 'lon'
+               nameLat = 'lat'
+            end if
             nameLev = 'lev'
             nameEdge = 'edges'
             nameStation = 'station'
@@ -2152,10 +2241,27 @@
          rc = NF90_DEF_DIM(fid, nameStation, im, stationdim(ig))
          if (err("Create: error defining station",rc,-31) .LT. 0) return
       else
-         rc = NF90_DEF_DIM(fid, nameLon, im, londim(ig))
-         if (err("Create: error defining lon",rc,-31) .LT. 0) return
-         rc = NF90_DEF_DIM(fid, nameLat, jm, latdim(ig))
-         if (err("Create: error defining lat",rc,-31) .LT. 0) return
+         if (cfio%formatVersion > 2.0) then
+            rc = NF90_DEF_DIM(fid, nameLon, im, londim(ig))
+            if (err("Create: error defining x",rc,-31) .LT. 0) return
+            jm6 = jm/nf
+            rc = NF90_DEF_DIM(fid, nameLat, jm6, latdim(ig))
+            if (err("Create: error defining y",rc,-31) .LT. 0) return
+            rc = NF90_DEF_DIM(fid, 'nf', nf, facedim(ig))
+            if (err("Create: error defining nf",rc,-31) .LT. 0) return
+
+            if (cfio%useVertexCoordinates) then
+               rc = NF90_DEF_DIM(fid, 'xv', im+1, lonvdim(ig))
+               if (err("Create: error defining xv",rc,-31) .LT. 0) return
+               rc = NF90_DEF_DIM(fid, 'yv', jm6+1, latvdim(ig))
+               if (err("Create: error defining yv",rc,-31) .LT. 0) return
+            end if
+         else
+            rc = NF90_DEF_DIM(fid, nameLon, im, londim(ig))
+            if (err("Create: error defining lon",rc,-31) .LT. 0) return
+            rc = NF90_DEF_DIM(fid, nameLat, jm, latdim(ig))
+            if (err("Create: error defining lat",rc,-31) .LT. 0) return
+         end if
       end if
 
       if (.NOT. surfaceOnly) then
@@ -2168,7 +2274,6 @@
          if (err("Create: error defining edges",rc,-31) .LT. 0) return
       endif
 
-
 ! Define dimension variables.
 
       if (index(cfio%grids(ig)%gName,'station') .gt. 0) then
@@ -2177,17 +2282,173 @@
          rc = NF90_DEF_VAR (fid, nameLat, NF90_DOUBLE, stationdim(ig), latid(ig))
          if (err("Create: error creating lat",rc,-32) .LT. 0) return
       else
+         if (cfio%formatVersion > 2.0) then
+
+            rc = NF90_DEF_DIM(fid, 'ncontact', ncont, ncontdim(ig))
+            if (err("Create: error defining ncontact",rc,-31) .LT. 0) return
+            rc = NF90_DEF_DIM(fid, 'orientationStrLen', 5, stringdim(ig))
+            if (err("Create: error defining orientationStrLen",rc,-31) .LT. 0) return
+
+            rc = NF90_DEF_VAR (fid, 'nf', NF90_INT, facedim(ig), faceid(ig))
+            if (err("Create: error creating nf",rc,-32) .LT. 0) return
+            if (cfio%useVertexCoordinates) then
+               rc = NF90_DEF_VAR (fid, 'xv', NF90_DOUBLE, lonvdim(ig), lonvid(ig))
+               if (err("Create: error creating xv",rc,-32) .LT. 0) return
+               rc = NF90_DEF_VAR (fid, 'yv', NF90_DOUBLE, latvdim(ig), latvid(ig))
+               if (err("Create: error creating yv",rc,-32) .LT. 0) return
+            end if
+            rc = NF90_DEF_VAR (fid, 'ncontact', NF90_INT, ncontdim(ig), ncontid(ig))
+            if (err("Create: error creating ncontact",rc,-32) .LT. 0) return
+!            rc = NF90_DEF_VAR (fid, 'string', NF90_INT, stringdim(ig), stringid(ig))
+!            if (err("Create: error creating string",rc,-32) .LT. 0) return
+
+            rc = NF90_DEF_VAR (fid, 'cubed_sphere', NF90_CHAR, gmid(ig))
+            if (err("Create: error creating cubed_sphere",rc,-32) .LT. 0) return
+
+         end if ! new format
          rc = NF90_DEF_VAR (fid, nameLon, NF90_DOUBLE, londim(ig), lonid(ig))
          if (err("Create: error creating lon",rc,-32) .LT. 0) return
          rc = NF90_DEF_VAR (fid, nameLat, NF90_DOUBLE, latdim(ig), latid(ig))
          if (err("Create: error creating lat",rc,-32) .LT. 0) return
+         if (cfio%formatVersion > 2.0) then
+            dims2D(3) = facedim(ig)
+            dims2D(2) = latdim(ig)
+            dims2D(1) = londim(ig)
+            rc = NF90_DEF_VAR (fid, nameLonDim, NF90_DOUBLE, dims2D(1:3), lon2id(ig))
+            if (err("Create: error creating lons",rc,-32) .LT. 0) return
+            rc = NF90_DEF_VAR (fid, nameLatDim, NF90_DOUBLE, dims2D(1:3), lat2id(ig))
+            if (err("Create: error creating lats",rc,-32) .LT. 0) return
+
+            ! contacts
+            dims2D(2) = facedim(ig)
+            dims2D(1) = ncontdim(ig)
+            rc = NF90_DEF_VAR (fid, 'contacts', NF90_INT, dims2D(1:2), cid)
+            if (err("Create: error creating contacts",rc,-32) .LT. 0) return
+            rc = NF90_PUT_ATT(fid,cid,'long_name','adjacent face starting from left side going clockwise' )
+            if (err("Create: error creating contacts attribute",rc,-33) .LT. 0) &
+                 return
+            ! fill contact values
+            nsize=2
+            corner2d = 1
+            edges2d = 1
+            edges2d(1) = ncont
+            edges2d(2) = nf
+            allocate(ivar(nf*ncont), stat=rtcode)
+            ivar = (/5, 3, 2, 6, &
+                     1, 3, 4, 6, &
+                     1, 5, 4, 2, &
+                     3, 5, 6, 2, &
+                     3, 1, 6, 4, &
+                     5, 1, 2, 4 /)
+            rc = NF90_PUT_VAR(fid, cid, ivar,corner2d(1:nsize), edges2d(1:nsize))
+            if (err("Create: error writing contacts",rc,-38) .LT. 0) return
+            deallocate(ivar)
+
+
+            ! orientation
+            dims2D(1) = stringdim(ig)
+            dims2D(2) = ncontdim(ig)
+            dims2D(3) = facedim(ig)
+            rc = NF90_DEF_VAR (fid, 'orientation', NF90_CHAR, dims2D(1:3), cid)
+            if (err("Create: error creating orientation",rc,-32) .LT. 0) return
+            rc = NF90_PUT_ATT(fid,cid,'long_name','orientation of boundary' )
+            if (err("Create: error creating orientation attribute",rc,-33) .LT. 0) &
+                 return
+            ! fill orientation values
+            nsize=3
+            corner2d = 1
+            edges2d = 1
+            edges2d(1) = 5
+            edges2d(2) = ncont
+            edges2d(3) = nf
+            allocate(cvar(nf*ncont), stat=rtcode)
+            cvar = (/" Y:-X", &
+                     " X:-Y", &
+                     " Y:Y ", &
+                     " X:X ", &
+                     " Y:Y ", &
+                     " X:X ", &
+                     " Y:-X", &
+                     " X:-Y", &
+                     " Y:-X", &
+                     " X:-Y", &
+                     " Y:Y ", &
+                     " X:X ", &
+                     " Y:Y ", &
+                     " X:X ", &
+                     " Y:-X", &
+                     " X:-Y", &
+                     " Y:-X", &
+                     " X:-Y", &
+                     " Y:Y ", &
+                     " X:X ", &
+                     " Y:Y ", &
+                     " X:X ", &
+                     " Y:-X", &
+                     " X:-Y" /)
+            rc = NF90_PUT_VAR(fid, cid, cvar,corner2d(1:nsize), edges2d(1:nsize))
+            if (err("Create: error writing orientation",rc,-38) .LT. 0) return
+            deallocate(cvar)
+            ! anchor
+            nsize=3
+            dims2D(1) = ncontdim(ig)
+            dims2D(2) = ncontdim(ig)
+            dims2D(3) = facedim(ig)
+            rc = NF90_DEF_VAR (fid, 'anchor', NF90_INT, dims2D(1:nsize), cid)
+            if (err("Create: error creating anchor",rc,-32) .LT. 0) return
+            rc = NF90_PUT_ATT(fid,cid,'long_name','anchor point' )
+            if (err("Create: error creating contacts attribute",rc,-33) .LT. 0) &
+                 return
+            ! fill anchor values
+            corner2d = 1
+            edges2d = 1
+            edges2d(1) = ncont
+            edges2d(2) = ncont
+            edges2d(3) = nf
+            allocate(ivar(nf*ncont*ncont), stat=rtcode)
+            ivar = (/ & !FACE 1
+                 im, im,  1, im, &
+                  1, im,  1,  1, &
+                  1, im,  1,  1, &
+                 im, im,  1, im, &
+                 !FACE 2
+                 im,  1, im, im, &
+                  1,  1, im,  1, &
+                  1,  1, im,  1, &
+                 im,  1, im,  im, &
+                 !FACE 3
+                 im, im,  1, im, &
+                  1, im,  1,  1, &
+                  1, im,  1,  1, &
+                 im, im,  1, im, &
+                 !FACE 4
+                 im,  1, im, im, &
+                  1,  1, im,  1, &
+                  1,  1, im,  1, &
+                 im,  1, im, im, &
+                 !FACE 5
+                 im, im,  1, im, &
+                  1, im,  1,  1, &
+                  1, im,  1,  1, &
+                 im, im,  1, im, &
+                 !FACE 6
+                 im,  1, im, im, &
+                  1,  1, im,  1, &
+                  1,  1, im,  1, &
+                 im,  1, im, im  /)
+            rc = NF90_PUT_VAR(fid, cid, ivar,corner2d(1:nsize), edges2d(1:nsize))
+            if (err("Create: error writing anchor",rc,-38) .LT. 0) return
+            deallocate(ivar)
+
+         else
          if (cfio%grids(ig)%twoDimLat) then
             dims2D(2) = latdim(ig)
             dims2D(1) = londim(ig)
             rc = NF90_DEF_VAR (fid, nameLonDim, NF90_DOUBLE, dims2D(1:2), lon2id(ig))
-            if (err("Create: error creating lon2d",rc,-32) .LT. 0) return
+               if (err("Create: error creating lons",rc,-32) .LT. 0) return
             rc = NF90_DEF_VAR (fid, nameLatDim, NF90_DOUBLE, dims2D(1:2), lat2id(ig))
-            if (err("Create: error creating lat2d",rc,-32) .LT. 0) return
+               if (err("Create: error creating lats",rc,-32) .LT. 0) return
+            end if
          end if
       end if
 
@@ -2203,19 +2464,80 @@
 
 ! Set attributes for dimensions.
 
+         if (cfio%formatVersion > 2.0) then
+            rc = NF90_PUT_ATT(fid,faceid(ig),'long_name','cubed-sphere face' )
+            if (err("Create: error creating nf attribute",rc,-33) .LT. 0) &
+                 return
+            rc = NF90_PUT_ATT(fid,faceid(ig),'axis','e')
+            if (err("Create: error creating nf attribute",rc,-33) .LT. 0) &
+                 return
+            rc = NF90_PUT_ATT(fid,faceid(ig),'grads_dim','e')
+            if (err("Create: error creating nf attribute",rc,-33) .LT. 0) &
+                 return
+            rc = NF90_PUT_ATT(fid,lonvid(ig),'long_name','number of vertices along the x-edge' )
+
+            if (cfio%useVertexCoordinates) then
+               if (err("Create: error creating xv attribute",rc,-33) .LT. 0) &
+                    return
+               rc = NF90_PUT_ATT(fid,latvid(ig),'long_name','number of vertices along the y-edge' )
+               if (err("Create: error creating yv attribute",rc,-33) .LT. 0) &
+                    return
+            end if
+
+            rc = NF90_PUT_ATT(fid,ncontid(ig),'long_name','number of contact points' )
+            if (err("Create: error creating ncontact attribute",rc,-33) .LT. 0) &
+                 return
+!            rc = NF90_PUT_ATT(fid,stringid(ig),'long_name','string length' )
+!            if (err("Create: error creating string attribute",rc,-33) .LT. 0) &
+!                 return
+
+            rc = NF90_PUT_ATT(fid,gmid(ig),'grid_mapping_name','gnomonic cubed-sphere' )
+            if (err("Create: error creating cubed_sphere attribute",rc,-33) .LT. 0) &
+                 return
+            write(verStr,'(f4.2)') cfio%formatVersion
+            rc = NF90_PUT_ATT(fid,gmid(ig),'file_format_version',verStr )
+            if (err("Create: error creating cubed_sphere attribute",rc,-33) .LT. 0) &
+              return
+            rc = NF90_PUT_ATT(fid,gmid(ig),'additional_vars','contacts,orientation,anchor' )
+            if (err("Create: error creating cubed_sphere attribute",rc,-33) .LT. 0) &
+              return
+            write(imStr,*) cfio%grids(ig)%im
+            rc = NF90_PUT_ATT(fid,gmid(ig),'gridspec_file',&
+                 'C'//trim(adjustl(imStr))//'_gridspec.nc4')
+            if (err("Create: error creating cubed_sphere attribute",rc,-33) .LT. 0) &
+              return
+      end if
+!ALT      if (cfio%grids(ig)%twoDimLat) then
+!ALT         rc = NF90_PUT_ATT(fid,lonid(ig),'axis','lons')
+!ALT         if (err("Create: error creating lon attribute",rc,-33) .LT. 0) &
+!ALT              return
+!ALT      end if
       rc = NF90_PUT_ATT(fid,lonid(ig),'long_name',lonDimName)
       if (err("Create: error creating lon attribute",rc,-33) .LT. 0) &
         return
-      rc = NF90_PUT_ATT(fid,lonid(ig),'units',lonUnits)
+      if (cfio%grids(ig)%twoDimLat) then
+         rc = NF90_PUT_ATT(fid,lonid(ig),'units','degrees_east')
+      else
+         rc = NF90_PUT_ATT(fid,lonid(ig),'units',lonUnits)
+      end if
       if (err("Create: error creating lon attribute",rc,-33) .LT. 0)  &
         return
 
+!ALT      if (cfio%grids(ig)%twoDimLat) then
+!ALT         rc = NF90_PUT_ATT(fid,latid(ig),'axis','lats')
+!ALT         if (err("Create: error creating lat attribute",rc,-33) .LT. 0) &
+!ALT              return
+!ALT      end if
       rc = NF90_PUT_ATT(fid,latid(ig),'long_name',latDimName)
       if (err("Create: error creating lat attribute",rc,-33) .LT. 0) &
         return
-      rc = NF90_PUT_ATT(fid,latid(ig),'units',latUnits)
+      if (cfio%grids(ig)%twoDimLat) then
+         rc = NF90_PUT_ATT(fid,latid(ig),'units','degrees_north')
+      else
+         rc = NF90_PUT_ATT(fid,latid(ig),'units',latUnits)
+      end if
       if (err("Create: error creating lat attribute",rc,-33) .LT. 0) &
-        return
+           return
 
       if (cfio%grids(ig)%twoDimLat) then
          rc = NF90_PUT_ATT(fid,lon2id(ig),'long_name',lonName)
@@ -2359,11 +2681,13 @@
          nst = im
       end if
 
+      gDims3D(5,ig) = 0
       gDims3D(4,ig) = timedim
       gDims3D(3,ig) = levdim(ig)
       gDims3D(2,ig) = latdim(ig)
       gDims3D(1,ig) = londim(ig)
       
+      gDims2D(4,ig) = 0
       gDims2D(3,ig) = timedim
       gDims2D(2,ig) = latdim(ig)
       gDims2D(1,ig) = londim(ig)
@@ -2377,6 +2701,19 @@
          gDims2D(3,ig) = 0
          gDims2D(2,ig) = timedim
          gDims2D(1,ig) = stationdim(ig)
+      end if
+
+      if (useFaceDim) then
+         gDims3D(5,ig) = timedim
+         gDims3D(4,ig) = levdim(ig)
+         gDims3D(3,ig) = facedim(ig)
+         gDims3D(2,ig) = latdim(ig)
+         gDims3D(1,ig) = londim(ig)
+      
+         gDims2D(4,ig) = timedim
+         gDims2D(3,ig) = facedim(ig)
+         gDims2D(2,ig) = latdim(ig)
+         gDims2D(1,ig) = londim(ig)
       end if
 
       if ( ig .eq. 1 ) then
@@ -2490,22 +2827,24 @@
         if ( kmvar(i) .eq. 0 ) then
           ndim = 3
           if (index(cfio%varObjs(i)%grid%gName,'station') .gt. 0) ndim = 2
+          if (useFaceDim) ndim = ndim + 1
           if (packflag) then
-            rc = NF90_DEF_VAR (fid, vname(i), NF90_SHORT, dims2D, vid(i))
+            rc = NF90_DEF_VAR (fid, vname(i), NF90_SHORT, dims2D(1:ndim), vid(i))
           else if (cfio%prec .EQ. 1) then
-            rc = NF90_DEF_VAR (fid, vname(i), NF90_DOUBLE, dims2D, vid(i))
+            rc = NF90_DEF_VAR (fid, vname(i), NF90_DOUBLE, dims2D(1:ndim), vid(i))
           else
-            rc = NF90_DEF_VAR (fid, vname(i), NF90_FLOAT, dims2D, vid(i))
+            rc = NF90_DEF_VAR (fid, vname(i), NF90_FLOAT, dims2D(1:ndim), vid(i))
           endif
         else
           ndim = 4
           if (index(cfio%varObjs(i)%grid%gName,'station') .gt. 0) ndim = 3
+          if (useFaceDim) ndim = ndim + 1
           if (packflag) then
-            rc = NF90_DEF_VAR (fid, vname(i), NF90_SHORT, dims3D, vid(i))
+            rc = NF90_DEF_VAR (fid, vname(i), NF90_SHORT, dims3D(1:ndim), vid(i))
           else if (cfio%prec .EQ. 1) then
-            rc = NF90_DEF_VAR (fid, vname(i), NF90_DOUBLE, dims3D, vid(i))
+            rc = NF90_DEF_VAR (fid, vname(i), NF90_DOUBLE, dims3D(1:ndim), vid(i))
           else
-            rc = NF90_DEF_VAR (fid, vname(i), NF90_FLOAT, dims3D, vid(i))
+            rc = NF90_DEF_VAR (fid, vname(i), NF90_FLOAT, dims3D(1:ndim), vid(i))
           endif
         endif
         if (err("Create: error defining variable",rc,-34) .LT. 0)  &
@@ -2527,12 +2866,19 @@
 ! If Time (tm) has been set in grid, set the file to contiguous
 !
            if( bTimeSet .eqv. .FALSE. ) then
+              if (useFaceDim) then
+                 chunkDim=5
+                 nDefaultChunkSize(2)=jm/nf !!!ALT!!!
+              else
+                 chunkDim=4
+                 nDefaultChunkSize(2)=jm
+              end if
               nDefaultChunkSize(1)=im
-              nDefaultChunkSize(2)=jm
-              nDefaultChunkSize(3)=1
+              nDefaultChunkSize(3)=1 !nf
               nDefaultChunkSize(4)=1
+              nDefaultChunkSize(5)=1
               rc=NF90_DEF_VAR_CHUNKING(fid, vid(i), NF90_CHUNKED,  & 
-                   nDefaultChunkSize)
+                   nDefaultChunkSize(1:chunkDim))
            endif
 
         end if
@@ -2755,6 +3101,13 @@
               if (err("Create: error defining coordinates attribute",rc,-35) &
                    .LT. 0) return
            end if
+           if (cfio%formatVersion > 2.0) then
+              rc = NF90_PUT_ATT(fid, vid(i), 'grid_mapping',  &
+                   'cubed_sphere')
+              if (err("Create: error defining grid_mapping attribute",rc,-35) &
+                   .LT. 0) return
+           end if
+
         end if
 
       enddo
@@ -2797,15 +3150,29 @@
          lat_64(i) = cfio%grids(ig)%lat(i)
       enddo
 
+      fVersion = nint(cfio%formatVersion)
       if (cfio%grids(ig)%twoDimLat) then
+         xOffset = 0 ! offset to bring index to the middle of face 1
+         yOffset = 0 ! offset to bring index to the middle of face 1
+         if (jm == 6*im) then
+            xOffset = (im/2)*(jm/6)
+            yOffset = (im/2)
+         end if
          allocate(lon2_64(im), lat2_64(jm), stat = rtcode) 
          do i=1,im
-!            lon2_64(i) = i ! uncomment if index is needed
-            lon2_64(i) = cfio%grids(ig)%lon(i) ! lats at South pole
+            if (fVersion < 3) then
+               lon2_64(i) = i ! index
+            else
+               lon2_64(i) = cfio%grids(ig)%lon(i+xOffset) ! lons at first face
+               if (lon2_64(i) > 180.0d0 ) lon2_64(i) = lon2_64(i) - 360.0d0
+            end if
          enddo
          do i=1,jm
-!            lat2_64(i) = i ! uncomment if index is needed
-            lat2_64(i) = cfio%grids(ig)%lat((i-1)*im + 1) ! lons at date line
+            if (fVersion < 3) then
+               lat2_64(i) = i ! index
+            else
+               lat2_64(i) = cfio%grids(ig)%lat((i-1)*im + yOffset+1) ! lats at face 1
+            end if
          enddo
       end if
 
@@ -2826,6 +3193,30 @@
          end if
       end if
 
+      if (useFaceDim) then
+         allocate(ivar(nf), stat=rtcode)
+         do i=1, nf
+            ivar(i) = i
+         end do
+
+         corner(1) = 1
+         edges(1) = nf
+         rc = NF90_PUT_VAR(fid,faceid(ig),ivar,corner,edges)
+         if (err("Create: error writing nf",rc,-38) .LT. 0) return
+         deallocate(ivar)
+
+         allocate(ivar(ncont), stat=rtcode)
+         do i=1, ncont
+            ivar(i) = i
+         end do
+
+         corner(1) = 1
+         edges(1) = ncont
+         rc = NF90_PUT_VAR(fid,ncontid(ig),ivar,corner,edges)
+         if (err("Create: error writing nf",rc,-38) .LT. 0) return
+         deallocate(ivar)
+      end if
+
       if (cfio%grids(ig)%twoDimLat) then
          corner(1) = 1
          edges(1) = im
@@ -2833,20 +3224,32 @@
          if (err("Create: error writing lons2",rc,-38) .LT. 0) return
 
          corner(1) = 1
-         edges(1) = jm
+         if (useFaceDim) then
+            edges(1) = jm/nf
+         else
+            edges(1) = jm
+         end if
          rc = NF90_PUT_VAR(fid,latid(ig),lat2_64,corner,edges)
          if (err("Create: error writing lats2",rc,-38) .LT. 0) return
 
+         nsize=2
          corner2d = 1
+         edges2d = 1
          edges2d(1) = im
-         edges2d(2) = jm
-         rc = NF90_PUT_VAR(fid, lon2id(ig), lon_64,corner2d, edges2d)
+         if (useFaceDim) then
+            nsize = 3
+            edges2d(2) = jm/nf
+            edges2d(3) = nf
+         else
+            edges2d(2) = jm
+         end if
+         rc = NF90_PUT_VAR(fid, lon2id(ig), lon_64,corner2d(1:nsize), edges2d(1:nsize))
          if (err("Create: error writing lons",rc,-38) .LT. 0) return
 
-         corner2d = 1
-         edges2d(1) = im
-         edges2d(2) = jm
-         rc = NF90_PUT_VAR(fid, lat2id(ig), lat_64,corner2d, edges2d)
+!         corner2d = 1
+!         edges2d(1) = im
+!         edges2d(2) = jm
+         rc = NF90_PUT_VAR(fid, lat2id(ig), lat_64,corner2d(1:nsize), edges2d(1:nsize))
          if (err("Create: error writing lats",rc,-38) .LT. 0) return
          deallocate(lon2_64, stat = rtcode)
          deallocate(lat2_64, stat = rtcode)
@@ -2933,6 +3336,19 @@
       deallocate(vRange_32, stat = rtcode)
       deallocate(pRange_32, stat = rtcode)
 
+      deallocate(faceid, stat = rtcode)
+      deallocate(facedim, stat = rtcode)
+      deallocate(lonvid, stat = rtcode)
+      deallocate(lonvdim, stat = rtcode)
+      deallocate(latvid, stat = rtcode)
+      deallocate(latvdim, stat = rtcode)
+      deallocate(ncontid, stat = rtcode)
+      deallocate(ncontdim, stat = rtcode)
+      deallocate(stringid, stat = rtcode)
+      deallocate(stringdim, stat = rtcode)
+      deallocate(gmid, stat = rtcode)
+      deallocate(gmdim, stat = rtcode)
+
       rc=0
       return
 contains
@@ -2990,7 +3406,6 @@ contains
       integer :: hour, minute, sec, incSecs, timeIndex
       integer :: seconds, timeinc, curSecs
       real*4 :: bndsdata(2)
-      character*8 :: strBuf
       integer :: i, rtcode=0
 
 !     make sure user provides the right variable name

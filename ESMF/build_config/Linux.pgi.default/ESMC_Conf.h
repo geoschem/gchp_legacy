@@ -5,7 +5,7 @@
 
 #if 0
 Earth System Modeling Framework
-Copyright 2002-2018, University Corporation for Atmospheric Research,
+Copyright 2002-2019, University Corporation for Atmospheric Research,
 Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 Laboratory, University of Michigan, National Centers for Environmental
 Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -35,7 +35,7 @@ is a c++-11 feature.
 #if (ESMF_PGIVERSION_MAJOR < 12)
 typedef int ESMCI_FortranStrLenArg;
 #else
-#include <stdlib.h>
+#include <cstddef>
 typedef size_t ESMCI_FortranStrLenArg;
 #endif
 #endif

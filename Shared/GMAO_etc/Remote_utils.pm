@@ -32,6 +32,7 @@ require Exporter;
 
 $DEFAULT_RSH = "/usr/bin/ssh";
 $DEFAULT_RCP = "/usr/bin/scp";
+$DEFAULT_WGET = "/usr/local/other/SLES11.3/wget/1.18/bin/wget --no-check-certificate";
 
 #===================== Global Variables =============================#
 
@@ -1080,21 +1081,25 @@ sub splitrfile {
   my $remote_machine;
   my $remote_file;
   my $remote_id;
+  my $opt_filename;
+
+# $extra added for http paths which might come in with two :s
 
   if ( $_[0] =~ /:/ ){
-     ( $remote_location, $remote_file ) = split( /:/, $_[0] );
+     ( $remote_location, $remote_file, $opt_filename ) = split( /:/, $_[0] );
   }else{
        $remote_location = hostname();
        $remote_file = $_[0];
   }
   if ( $remote_location =~ /\@/ ) {
-       ( $remote_id, $remote_machine ) = split( /@/, $remote_location );
+#      ( $remote_id, $remote_machine ) = split( /@/, $remote_location );
+       ( $remote_id, $remote_machine ) = split( /@([^@]+)$/, $remote_location );
   }else{
        $remote_id = getlogin || (getpwuid($<))[0] || die "(splitrfile) ERROR - can not get login ID";
        $remote_machine = $remote_location;
   }
 
-  return ( $remote_id, $remote_machine, $remote_file );
+  return ( $remote_id, $remote_machine, $remote_file, $opt_filename );
 
 }
 
@@ -1846,13 +1851,19 @@ sub rflist {
    my $remote_machine;
    my $remote_file;
 
+   print "$#_ $_[0] \n";
+   $url = $_[0];
    if ( $#_ == 0 ) {
-      ( $remote_id, $remote_machine, $remote_file ) = splitrfile( $_[0] );
+      ( $remote_id, $remote_machine, $remote_file, $extra ) = splitrfile( $_[0] );
    } else {
       $remote_id      = $_[0];
       $remote_machine = $_[1];
       $remote_file    = $_[2];
    }
+#  print "0 remote_id = $remote_id\n"; 
+#  print "0 remote_machine = $remote_machine\n";
+#  print "0 remote_file = $remote_file\n";
+#  print "0 extra = $extra\n";
 
 # This module contains an interface to the .netrc file.
 
@@ -1865,7 +1876,22 @@ sub rflist {
 
 # If there is login information, use ftp to check the file.
 
-   if ( $use_ftp ) {
+   if ( $remote_machine eq "http" || $remote_machine eq "https" ) {
+# Reconstruct URL without extra : characters.
+      $url         = "http:${remote_file}${extra}";
+      $dir         = dirname ("$url");
+      $regex_raw   = basename ("$url");
+      $regex_raw   =~s/\*/\.\*/g;
+      $regex       = "\^${regex_raw}\$";
+      print "Using regex=$regex\n";
+      print "$DEFAULT_WGET -O - $dir\n";
+
+      $string=`$DEFAULT_WGET -O - $dir | grep -o \'<a href=[\'\"\'\"\'\"][^\"\'\"\'\"\']*[\'\"\'\"\'\"]\' |  sed -e \'s/\^<a href=[\"\'\"\'\"\']//\' -e \'s/\[\"\'\"\'\"\'\]\$//\' | grep -v -e \'\?\' -e \'\/\' | grep -E $regex | uniq `;
+      print "POPALI string = $string\n";
+      @retlist = split(/\n/,$string);
+   }
+ 
+   elsif ( $use_ftp ) {
       @retlist = ftp_rflist( $remote_id, $remote_machine, $remote_file, \%options );
 
    } else {
@@ -1907,6 +1933,16 @@ sub ftp_rflist {
       $full_path = $options{"full_path"};
    } else {
       $full_path = 0;
+   }
+
+# Check paasive ftp argument
+
+   if ( exists( $options{"passive"} ) ) {
+      $passive = $options{"passive"};
+      print "Passive detected in options.  Passive=$passive\n";
+   } else {
+      $passive = 1;
+      print "Passive not detected.  Default set to 1\n";
    }
 
 
@@ -1971,7 +2007,7 @@ sub ftp_rflist {
 
 # Get the listing from the remote machine.
 
-   $ftp = Net::FTP->new( "$remote_machine", Debug => 1 ) 
+   $ftp = Net::FTP->new( "$remote_machine", Debug => 1,  Passive => $passive  ) 
       or return( ( "ERROR", "1", "Can not connect" ) );
 
    if ( $use_ftp) {
@@ -2192,14 +2228,22 @@ use File::Basename;
 
 # Get arguments.
 
+   print "Arguments: $#_\n";
    ARG_SWITCH: {
       if ( $#_ == 0 ) {
-         ( $remote_id, $remote_machine, $remote_file ) = splitrfile( $_[0] );
+         print "0 Arguments: $_[0]\n";
+         ( $remote_id, $remote_machine, $remote_file, $opt_filename ) = splitrfile( $_[0] );
          $local_file = basename( $remote_file, "" );
          last ARG_SWITCH;
       }
       if ( $#_ == 1 ) {
-         ( $remote_id, $remote_machine, $remote_file ) = splitrfile( $_[0] );
+         print "1 Arguments: $_[0]\n";
+         print "1 Arguments: $_[1]\n";
+         ( $remote_id, $remote_machine, $remote_file, $opt_filename ) = splitrfile( $_[0] );
+
+#        print "1 remote_id = $remote_id\n"; 
+#        print "1 remote_machine = $remote_machine\n";
+#        print "1 remote_file = $remote_file\n";
          $local_file = $_[1];
          last ARG_SWITCH;
       }
@@ -2214,6 +2258,10 @@ use File::Basename;
          last ARG_SWITCH;
       }
       return 0;
+   }
+   
+   if ( $opt_filename ) {
+      print "opt_filename=$opt_filename\n";
    }
 
 
@@ -2239,10 +2287,35 @@ my ( $LOCAL, $local_host_name, $local_domain_name,
 
 # If there is login information, use ftp to transfer the file.
 
-        if ( $use_ftp ) {
+        if ( $remote_machine eq "http" || $remote_machine eq "https" ) {
+           # $opt_filename handles the case where the URL passed in has two ':' symbols, one after http
+           # and the other between the machine name and the file path.
+           if ( $opt_filename ) {
+             $target = "${remote_machine}:${remote_file}/${opt_filename}";
+           }
+           else {
+             $target = "${remote_machine}:${remote_file}";
+           }
+           print "$DEFAULT_WGET -O ${local_file} ${target}\n";
+           `$DEFAULT_WGET -O ${local_file} ${target}`;
+           if ( $? == 1 ) {
+              $retcode = 0;
+           }
+           elsif ( $? == 0 ) {
+              $retcode = 1;
+           }
+           else {
+              $retcode = $?;
+           }
+
+           print "retcode=$? $retcode\n";
+        }
+        elsif ( $use_ftp ) {
+           print "Using FTP\n";
            $retcode = ftp_get( $remote_id, $remote_machine, $remote_file,$local_file, \%options );
 
         } else {
+           print "Using rcp\n";
            $retcode = rcp_get( $remote_id, $remote_machine, $remote_file, $local_file, \%options );
         }
   }else{

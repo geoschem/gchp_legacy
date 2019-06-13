@@ -864,7 +864,7 @@
 !EOP
 !-------------------------------------------------------------------------
 
-      integer :: i,j,k,n
+      integer :: j,k
    
       print *,' '
       print *,caption,'   format=',iform
@@ -1057,10 +1057,9 @@
       character(len=*), parameter :: myname_   = myname//'::set_'
 
       character(len=255) template
-      character(len=255) token
       character(len=255) d2drc
 
-      integer            ival, iret, ierr
+      integer            ival, iret
 
 !     Default grid: a18
 !     -----------------
@@ -1074,7 +1073,7 @@
       if ( present(RCfile) ) then
         d2drc = trim(RCfile)
       else
-        call getenv('VDC2VDC_RC',d2drc)		! Unix binding
+        call get_environment_variable('VDC2VDC_RC',d2drc)		! Unix binding
         if(d2drc.eq.' ') d2drc=def_RCvdc	! default name
       endif
       call i90_loadf (trim(d2drc), iret)

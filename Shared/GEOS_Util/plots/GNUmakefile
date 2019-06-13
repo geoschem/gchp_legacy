@@ -5,7 +5,7 @@
 # Make sure ESMADIR is defined
 # ----------------------------
 ifndef ESMADIR
-       ESMADIR := $(PWD)/..
+       ESMADIR := $(PWD)/../..
 endif
 
 
@@ -77,10 +77,10 @@ local_esma_doc local_doc:
 #                  --------------------
 
 zonal_${ARCH}.x: zonal.o
-	$(FC) $(FOPT2) $(BYTERECLEN) $(EXTENDED_SOURCE) $(PP) -I. -I$(INC_MAPL_BASE) -Dgrads $^ -o $@
+	$(ESMA_FC) $(FOPT2) $(BYTERECLEN) $(EXTENDED_SOURCE) $(PP) -I. -I$(INC_MAPL_BASE) -Dgrads $^ -o $@
 
 zonal.o: zonal.f
-	$(FC) $(FOPT2) $(BYTERECLEN) $(EXTENDED_SOURCE) $(PP) -I. -I$(INC_MAPL_BASE) -Dgrads -c $<
+	$(ESMA_FC) $(FOPT2) $(BYTERECLEN) $(EXTENDED_SOURCE) $(PP) -I. -I$(INC_MAPL_BASE) -Dgrads -c $<
 
 #.
 

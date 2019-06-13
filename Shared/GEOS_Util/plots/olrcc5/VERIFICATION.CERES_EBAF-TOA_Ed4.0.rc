@@ -1,0 +1,15 @@
+OBSNAM: CERES_EBAF-4
+OBSDSC: CERES_EBAF-TOA_Ed4.0_Subset_200003-201701
+
+        filename:   'VERIFICATION/CERES_EBAF-TOA_Ed4.0/CERES_EBAF-TOA_Ed4.0_Subset_200003-201701.ctl'
+        filetype:   'BIN'
+        fields:     'OLR'      , 'IRRAD'         , 'RLUT'         , 1
+                    'OLC'      , 'IRRAD'         , 'RLUTCS'       , 1
+                    'OLCC5'    , 'IRRAD'         , 'RLUTCS'       , 1
+                    'OSR'      , 'SOLAR'         , 'RSUT'         , 1
+                    'OSCLR'    , 'SOLAR'         , 'RSUTCS'       , 1
+                    'SLRTP'    , 'SOLAR'         , 'RSDT'         , 1
+                    'RSR'      , 'SOLAR'         , 'RSNUT'        , 1
+                    'RSC'      , 'SOLAR'         , 'RSNUTCS'      , 1
+                    ::
+

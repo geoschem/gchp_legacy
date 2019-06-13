@@ -1,3 +1,4 @@
+#include "unused_dummy.H"
       module  m_GFIO_PutFld
 
 ! !USES:
@@ -115,7 +116,7 @@
       character(len=*), parameter :: myname_ = myname//'*'//'GFIO_Put_Fall_'
 
       integer       ier, year, month, day, hour
-      integer       nobs_oi, iv,  i, j, k, ia, ios
+      integer       iv,  i, j, ios
 
       integer       julday
       external      julday
@@ -137,23 +138,12 @@
       real            packing_range(2,nvars2d+nvars3d)  !   16-bit compression range 
 
                                        ! Variable defined in existing GFIO file
-      character*255 title_in           !   Title   in existing GFIO file
-      character*255 source_in          !   Source  in existing GFIO file 
-      character*255 contact_in         !   Contact in existing GFIO file
-      real          undef_in
-
       integer       lm_max_max         ! Maximum number of time stamps in file
 
       integer       nvars
       integer       ngatts             ! number of attributes on file
-      integer       kmvar_in(nvars2d+nvars3d)
 !OUT  integer       vid_in(nvars2d+nvars3d)      ! variable handle
-      character*80  vtitle_in(nvars2d+nvars3d)   ! variable long name in existing file
-      character*257 vname_in(nvars2d+nvars3d)
-      character*255 vunits_in(nvars2d+nvars3d)
 
-      character*255 levunits_in
-      integer       ndt_in
       integer       nvars_in
 
       integer       im_max, jm_max, mlev_max, lm_max
@@ -267,25 +257,25 @@
          if (im_max .ne. im) then
             write(stderr,'(2a,i5)') myname_,
      &           ': trying to write unallowed longitudinal dim'
-            call exit(7)
+            stop 7
          endif
 
          if (jm_max .ne. jm) then
             write(stderr,'(2a,i5)') myname_,
      &           ': trying to write unallowed latitudinal dim'
-            call exit(7)
+            stop 7
          endif
 
 !_OUT    if (lm_max .gt. lm_max_max) then
 !_OUT       write(stderr,'(2a,i5)') myname_,
 !_OUT&           ': trying to write unallowed number of times'
-!_OUT       call exit(7)
+!_OUT       stop 7
 !_OUT    endif
 
          if (mlev_max .ne. mlev) then
             write(stderr,'(2a,i5)') myname_,
      &           ': trying to write unallowed number of levels'
-            call exit(7)
+            stop 7
          endif
 
 
@@ -293,7 +283,7 @@
 
          write(stdout,'(2a)') myname_,
      .                ': No GFIO file for current date '
-         call flush (stdout)
+         flush (stdout)
 
          precision = iprec_def
          if ( present(iprec) ) precision = iprec
@@ -311,7 +301,7 @@
          if ( ier .ne. 0 ) then
            write(stderr,'(2a,i10)') myname_,  
      &                  ': Gfio_Create error, ier = ', ier
-           call exit(7)
+           stop 7
          end if
          print *, 'History_Ana: created Gfio file ', trim(gfiofile)
 
@@ -330,7 +320,7 @@
              write(stderr,'(2a,i10,2a)') myname_,
      &                    ': Gfio_PutVar, ier = ', ier,
      &                    ' for variable ', trim(vname2d(iv))
-             call exit(7)
+             stop 7
            end if
       end do
 
@@ -343,7 +333,7 @@
              write(stderr,'(2a,i10,2a)') myname_,
      &                    ': Gfio_PutVar, ier = ', ier,
      &                    ' for variable ', trim(vname3d(iv))
-             call exit(7)
+             stop 7
            end if
       end do
 
@@ -442,7 +432,7 @@
       character(len=*), parameter :: myname_ = myname//'*'//'GFIO_Put_F2d_'
 
       integer       ier, year, month, day, hour
-      integer       nobs_oi, iv,  i, j, k, ia, ios
+      integer       iv,  i, j, ios
 
       integer       julday
       external      julday
@@ -457,23 +447,12 @@
       real            packing_range(2,nvars)  !   16-bit compression range 
 
                                        ! Variable defined in existing GFIO file
-      character*255 title_in           !   Title   in existing GFIO file
-      character*255 source_in          !   Source  in existing GFIO file 
-      character*255 contact_in         !   Contact in existing GFIO file
-      real          undef_in
-
       integer       lm_max_max         ! Maximum number of time stamps in file
 !_OUT integer, allocatable :: nymd_in(:)
 !_OUT integer, allocatable :: nhms_in(:) 
 
       integer       ngatts             ! number of attributes on file
-      integer       kmvar_in(nvars)
-      character*80  vtitle_in(nvars)   ! variable long name in existing file
-      character*257 vname_in(nvars)
-      character*255 vunits_in(nvars)
 
-      character*255 levunits_in
-      integer       ndt_in
       integer       nvars_in
 
       integer       im_max, jm_max, mlev_max, lm_max
@@ -535,7 +514,7 @@
 !_OUT if ( ier .ne. 0 ) then
 !_OUT     write(stderr,'(2a,i5)') myname_,
 !_OUT.          ': allocate(lm) error, stat =', ier
-!_OUT     call exit(7)
+!_OUT     stop 7
 !_OUT endif
 
 !     Open GFIO file
@@ -576,25 +555,25 @@
          if (im_max .ne. im) then
             write(stderr,'(2a,i5)') myname_,
      &           ': trying to write unallowed longitudinal dim'
-            call exit(7)
+            stop 7
          endif
 
          if (jm_max .ne. jm) then
             write(stderr,'(2a,i5)') myname_,
      &           ': trying to write unallowed latitudinal dim'
-            call exit(7)
+            stop 7
          endif
 
 !_OUT    if (lm_max .gt. lm_max_max) then
 !_OUT       write(stderr,'(2a,i5)') myname_,
 !_OUT&           ': trying to write unallowed number of times'
-!_OUT       call exit(7)
+!_OUT       stop 7
 !_OUT    endif
 
          if (mlev_max .ne. mlev) then
             write(stderr,'(2a,i5)') myname_,
      &           ': trying to write unallowed number of levels'
-            call exit(7)
+            stop 7
          endif
 
 
@@ -602,7 +581,7 @@
 
          write(stdout,'(2a)') myname_,
      .                ': No GFIO file for current date '
-         call flush (stdout)
+         flush (stdout)
 
          precision = iprec_def
          if ( present(iprec) ) precision = iprec
@@ -620,7 +599,7 @@
          if ( ier .ne. 0 ) then
            write(stderr,'(2a,i10)') myname_,  
      &                  ': Gfio_Create error, ier = ', ier
-           call exit(7)
+           stop 7
          end if
          print *, 'History_Ana: created Gfio file ', trim(gfiofile)
 
@@ -636,7 +615,7 @@
              write(stderr,'(2a,i10,2a)') myname_,
      &                    ': Gfio_PutVar, ier = ', ier,
      &                    ' for variable ', trim(vname(iv))
-             call exit(7)
+             stop 7
            end if
       end do
 
@@ -684,15 +663,10 @@
       integer   nymd               !  Year-month-day, e.g.,  19971012
       integer   nhms               !  hour-minute-sec, e.g.,   120000
 
-      integer   ndalt              ! Frequency of output/analysis
-
                                    ! Grid Information
       integer   im                 !    number of points in the zonal direction 
       integer   jm                 !    number of points in the meridional 
                                    !    direction
-      real      lat(jm)
-      real      lon(im)
-      
       integer   nvars
       character*(*) vname (nvars)
 
@@ -712,8 +686,8 @@
 
       character(len=*), parameter :: myname_ = myname//'*'//'GFIO_Put_F2d2_'
 
-      integer       ier, year, month, day, hour
-      integer       iv,  i, j, k, ia, ios
+      integer       ier
+      integer       iv
 
       integer       julday
       external      julday
@@ -722,7 +696,6 @@
       parameter     ( contact = 'data@gmao.gsfc.nasa.gov' )
 
                                        ! Variable defined in existing GFIO file
-      integer       precision
 
 
 !     Internal "memory" for GFIO output
@@ -744,7 +717,7 @@
              write(stderr,'(2a,i10,2a)') myname_,
      &                    ': Gfio_PutVar, ier = ', ier,
      &                    ' for variable ', trim(vname(iv))
-             call exit(7)
+             stop 7
            end if
       end do
 
@@ -837,7 +810,7 @@
       character(len=*), parameter :: myname_ = myname//'*'//'GFIO_Put_F3d_'
 
       integer       ier, year, month, day, hour
-      integer       nobs_oi, iv,  i, j, k, ia, ios
+      integer       iv,  i, j, ios
 
       integer       julday
       external      julday
@@ -854,24 +827,13 @@
       real            packing_range(2,nvars)  !   16-bit compression range 
 
                                        ! Variable defined in existing GFIO file
-      character*255 title_in           !   Title   in existing GFIO file
-      character*255 source_in          !   Source  in existing GFIO file 
-      character*255 contact_in         !   Contact in existing GFIO file
-      real          undef_in
-
       integer       lm_max_max         ! Maximum number of time stamps in file
 !_OUT integer, allocatable :: nymd_in(:)
 !_OUT integer, allocatable :: nhms_in(:) 
 
       integer       ngatts             ! number of attributes on file
-      integer       kmvar_in(nvars)
 !OUT  integer       vid_in(nvars)      ! variable handle
-      character*80  vtitle_in(nvars)   ! variable long name in existing file
-      character*257 vname_in(nvars)
-      character*255 vunits_in(nvars)
 
-      character*255 levunits_in
-      integer       ndt_in
       integer       nvars_in
 
       integer       im_max, jm_max, mlev_max, lm_max
@@ -934,7 +896,7 @@
 !_OUT if ( ier .ne. 0 ) then
 !_OUT     write(stderr,'(2a,i5)') myname_,
 !_OUT.          ': allocate(lm) error, stat =', ier
-!_OUT     call exit(7)
+!_OUT     stop 7
 !_OUT endif
 
 !     Open GFIO file
@@ -975,25 +937,25 @@
          if (im_max .ne. im) then
             write(stderr,'(2a,i5)') myname_,
      &           ': trying to write unallowed longitudinal dim'
-            call exit(7)
+            stop 7
          endif
 
          if (jm_max .ne. jm) then
             write(stderr,'(2a,i5)') myname_,
      &           ': trying to write unallowed latitudinal dim'
-            call exit(7)
+            stop 7
          endif
 
 !_OUT    if (lm_max .gt. lm_max_max) then
 !_OUT       write(stderr,'(2a,i5)') myname_,
 !_OUT&           ': trying to write unallowed number of times'
-!_OUT       call exit(7)
+!_OUT       stop 7
 !_OUT    endif
 
          if (mlev_max .ne. mlev) then
             write(stderr,'(2a,i5)') myname_,
      &           ': trying to write unallowed number of levels'
-            call exit(7)
+            stop 7
          endif
 
 
@@ -1001,7 +963,7 @@
 
          write(stdout,'(2a)') myname_,
      .                ': No GFIO file for current date '
-         call flush (stdout)
+         flush (stdout)
 
          precision = iprec_def
          if ( present(iprec) ) precision = iprec
@@ -1019,7 +981,7 @@
          if ( ier .ne. 0 ) then
            write(stderr,'(2a,i10)') myname_,  
      &                  ': Gfio_Create error, ier = ', ier
-           call exit(7)
+           stop 7
          end if
          print *, 'History_Ana: created Gfio file ', trim(gfiofile)
 
@@ -1034,7 +996,7 @@
              write(stderr,'(2a,i10,2a)') myname_,
      &                    ': Gfio_PutVar, ier = ', ier,
      &                    ' for variable ', trim(vname(iv))
-             call exit(7)
+             stop 7
            end if
       end do
 
@@ -1142,7 +1104,7 @@
       character(len=*), parameter :: myname_ = myname//'*'//'GFIO_Put_F3d4_'
 
       integer       ier, year, month, day, hour
-      integer       nobs_oi, iv,  i, j, k, ia, ios
+      integer       iv,  i, j, k, ios
 
       integer       julday
       external      julday
@@ -1160,20 +1122,8 @@
       real            packing_range(2,nvars)  !   16-bit compression range 
 
                                        ! Variable defined in existing GFIO file
-      character*255 title_in           !   Title   in existing GFIO file
-      character*255 source_in          !   Source  in existing GFIO file 
-      character*255 contact_in         !   Contact in existing GFIO file
-      real          undef_in
-
-      integer       lm_max_max         ! Maximum number of time stamps in file
-
       integer       ngatts             ! number of attributes on file
-      integer       kmvar_in(nvars)
-      character*80  vtitle_in(nvars)   ! variable long name in existing file
-      character*257 vname_in(nvars)
-      character*255 vunits_in(nvars)
 
-      integer       ndt_in
       integer       nvars_in
 
       logical       sayit
@@ -1181,7 +1131,7 @@
       integer       precision
 
       real          lat_min, lat_max, lat_del 
-      real          lon_min, lon_max, lon_del 
+      real          lon_min, lon_del 
       real          p
       logical       fliplon
 
@@ -1206,6 +1156,7 @@
      .           ( bk(k+1) - bk(k) ) * 98400.
 
 
+      _UNUSED_DUMMY(ks)
 !     Define fields information properly
 !     ----------------------------------
       do iv = 1, nvars
@@ -1348,19 +1299,19 @@
          if (im_max .ne. im) then
             write(stderr,'(2a,i5)') myname_,
      &           ': trying to write unallowed longitudinal dim'
-            call exit(7)
+            stop 7
          endif
 
          if (jm_max .ne. jm) then
             write(stderr,'(2a,i5)') myname_,
      &           ': trying to write unallowed latitudinal dim'
-            call exit(7)
+            stop 7
          endif
 
          if (mlev_max .ne. km) then
             write(stderr,'(2a,i5)') myname_,
      &           ': trying to write unallowed number of levels'
-            call exit(7)
+            stop 7
          endif
 
 
@@ -1369,7 +1320,7 @@
          if(sayit)
      .   write(stdout,'(2a)') myname_,
      .                ': No GFIO file for current date '
-         call flush (stdout)
+         flush (stdout)
 
          precision = iprec_def
          if ( present(iprec) ) precision = iprec
@@ -1387,7 +1338,7 @@
          if ( ier .ne. 0 ) then
            write(stderr,'(2a,i10)') myname_,  
      &                  ': Gfio_Create error, ier = ', ier
-           call exit(7)
+           stop 7
          end if
          print *, myname_, ': Created Gfio file ', trim(gfiofile)
 
@@ -1406,7 +1357,7 @@
              write(stderr,'(2a,i10,2a)') myname_,
      &                    ': Gfio_PutVar, ier = ', ier,
      &                    ' for variable ', trim(vname(iv))
-             call exit(7)
+             stop 7
            end if
       end do
       deallocate(aux)

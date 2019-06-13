@@ -1,3 +1,4 @@
+#include "unused_dummy.H"
 !-------------------------------------------------------------------------
 !         NASA/GSFC, Data Assimilation Office, Code 910.3, GEOS/DAS      !
 !-------------------------------------------------------------------------
@@ -1994,6 +1995,11 @@ end subroutine i90_fullRelease
 
       subroutine iunits ( mifans, moftrm, moferr, miftrm )
       integer mifans, moftrm, moferr, miftrm 
+      _UNUSED_DUMMY(mifans)
+      _UNUSED_DUMMY(moftrm)
+      _UNUSED_DUMMY(moferr)
+      _UNUSED_DUMMY(miftrm)
+
       print *, 		&
            'i90: iunits() is obsolete, use i90_loadf() instead!'
       return

@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2018, University Corporation for Atmospheric Research,
+// Copyright 2002-2019, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -11,13 +11,13 @@
 //==============================================================================
 #include "ESMCI_Macros.h"
 #include "Mesh/include/ESMCI_Mesh.h"
-#include "Mesh/include/ESMCI_MeshField.h"
-#include "Mesh/include/ESMCI_MeshOBjConn.h"
-#include "Mesh/include/ESMCI_MeshObjPack.h"
-#include "Mesh/include/ESMCI_MeshSkin.h"
-#include "Mesh/include/ESMCI_SparseMsg.h"
-#include "Mesh/include/ESMCI_ParEnv.h"
-#include "Mesh/include/ESMCI_GlobalIds.h"
+#include "Mesh/include/Legacy/ESMCI_MeshField.h"
+#include "Mesh/include/Legacy/ESMCI_MeshObjConn.h"
+#include "Mesh/include/Legacy/ESMCI_MeshObjPack.h"
+#include "Mesh/include/Legacy/ESMCI_MeshSkin.h"
+#include "Mesh/include/Legacy/ESMCI_SparseMsg.h"
+#include "Mesh/include/Legacy/ESMCI_ParEnv.h"
+#include "Mesh/include/Legacy/ESMCI_GlobalIds.h"
 #include "PointList/include/ESMCI_PointList.h"
 #include "Util/include/ESMC_Util.h"
 #include "Util/include/ESMCI_F90Interface.h"

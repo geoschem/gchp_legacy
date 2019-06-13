@@ -21,8 +21,10 @@ if( $nmax == 0 ) then
       echo "gcmpost -source  SOURCE_DIRECTORY"
       echo "         where:  SOURCE_DIRECTORY  is the source directory for experiment"
       echo " "
+      echo "       <-movefiles           Optional Argument to Move Files and Test for Time_Average"
       echo "       <-collections COLL    Optional Argument to Only Process Supplied Collections>"
-      echo "       <-recover   YYYYMM    Optional Argument to Recover and Repeat YYYYMM>"
+      echo "       <-recover   YYYYMM    Optional Argument to Perform TimeAve of YYYYMM >"
+      echo "       <-rec_plt   YYYYMM    Optional Argument to Perform TimeAve of YYYYMM and Check for Plots>"
       echo "       <-ddf       clim      Optional Argument to Use clim.tabl for plots>"
       echo "       <-nostrict            Optional Argument to Disable STRICT (Default: TRUE)>"
       echo " "
@@ -57,9 +59,11 @@ endif
         set    BEGDATE   = "NULL"
         set    ENDDATE   = "NULL"
         set    RECDATE   = "NULL"
+        set    MOVEFILES = "NULL"
+        set    COLL      = "ALL"
         set    STRICT    = ""
-        set    COLL      = ""
         set    ANA       = ""
+        set   check_plot = "NULL"
 
 @       n  = 1
 while( $n <= $nmax )
@@ -69,9 +73,16 @@ while( $n <= $nmax )
             setenv SOURCE $argv[$n] 
        endif
 
-       if( "$argv[$n]" == "-recover"  ) then
+       if( "$argv[$n]" == "-recover" ) then
                     @ n = $n + 1
             set RECDATE = $argv[$n] 
+         set check_plot = FALSE
+       endif
+
+       if( "$argv[$n]" == "-rec_plt"  ) then
+                    @ n = $n + 1
+            set RECDATE = $argv[$n] 
+         set check_plot = TRUE
        endif
 
        if( "$argv[$n]" == "-ncpus" ) then 
@@ -86,6 +97,10 @@ while( $n <= $nmax )
 
        if( "$argv[$n]" == "-clim" ) then 
             set   CLIMO = 'TRUE'
+       endif
+
+       if( "$argv[$n]" == "-movefiles" ) then 
+            set  MOVEFILES = 'TRUE'
        endif
 
        if( "$argv[$n]" == "-nostrict" ) then 
@@ -195,7 +210,7 @@ endif
 # --------------------
 setenv ARCH `   uname`
 setenv HOST `hostname`
-set name = `echo $HOST` ; if ( ($name =~ pfe*) || ($name =~ p4fe*) || ($name =~ r[0-9]*i[0-9]*n[0-9]*) || ($name =~ bridge*) ) setenv HOST pleiades
+set name = `echo $HOST` ; if ( ($name =~ pfe*) || ($name =~ r[0-9]*i[0-9]*n[0-9]*) ) setenv HOST pleiades
 
 set name = `echo $HOST | cut -b 1-8` ; if( $name == 'discover' ) setenv HOST $name
 set name = `echo $HOST | cut -b 1-4` ; if( $name == 'borg'     ) setenv HOST discover
@@ -235,30 +250,32 @@ echo Use: NCPUS = $NCPUS
 if( $ARCH == 'Linux'  ) then
     if( $HOST == 'pleiades' ) then
                               setenv MASTOR lfe
-                              setenv MASDIR $expid
+                              setenv MASDIR /u/$LOGNAME/GEOS5.0/$expid
                               setenv BATCHQ normal
-                              set scpvar = "shiftc --wait"
-                              set mytar  = "tar"
+                              set scpvar = "mcp -a"
+                              set cpvar  = "mcp -a"
+                              set mytar  = "mtar"
     endif
     if( $HOST == 'discover' ) then
                               setenv MASTOR  dirac
                               setenv MASDIR /archive/u/$LOGNAME/GEOS5.0/$expid
                               setenv BATCHQ general
                               set scpvar = "bbscp -r3 -z"
+                              set cpvar  = "/bin/cp"
                               set mytar  = "tar"
     endif
 endif
 
 setenv GROUP `cat $HOME/.GROUProot`
-set check_plot = FALSE
 
 
 
 # Determine Collection Names and Archive Locations from HISTORY RC File
 # ---------------------------------------------------------------------
-if( .$COLL[1] != . ) then
+if( $COLL[1] != 'ALL' ) then
     set collections = `echo $COLL`
 else
+    set COLL        = ""
     set collections = `$GEOSUTIL/post/get_streams $HISTORYRC`
 endif
     set    archives = `$GEOSUTIL/post/get_archive $HISTORYRC $COLL`
@@ -314,7 +331,7 @@ if( $PLOTS[1] != "NULL"  ) then
          cd $SOURCE/$collections[1]
          set  monthlies = `/bin/ls -1 $expid.$collections[1].monthly* | grep -v $expid.$collections[1].monthly.clim`
          set        num = `/bin/ls -1 $monthlies | wc -l`
-         set check_plot = TRUE
+         if( $check_plot == 'NULL' ) set check_plot = TRUE
          @ date_node = $expdots + $ndots[1] + 4
          if( $num >= 24 ) set DDF = clim
          set  dates = `echo $monthlies[$num] | cut -d "." -f${date_node} | cut -c1-6`
@@ -360,7 +377,7 @@ if( $PLOTS[1] != "NULL"  ) then
          set      PATH = `echo $PATH/\#$COLLECTION.monthly\#`
          set monthlies = `echo $PATH | sed -e 's/\#/\*/g'`
          set       num = `/bin/ls -1 $monthlies | wc -l`
-         set check_plot = TRUE
+         if( $check_plot == 'NULL' ) set check_plot = TRUE
          @ date_node = $expdots + $ndots[1] + 4
          set  dates = `echo $monthlies[$num] | cut -d "." -f${date_node} | cut -c1-6`
          @ numdates = 1
@@ -402,7 +419,13 @@ end
 # ----------------------------------------------------------------------------
 
      cd $SOURCE/holding
-     if( -e LOCKFILE ) /bin/echo "Waiting for LOCKFILE ... "
+     if(    -e LOCKFILE ) /bin/echo "Waiting for LOCKFILE ... "
+     if(    -e LOCKFILE ) set LOCK = `stat -c %Z LOCKFILE`
+     while( -e LOCKFILE )
+               set    EPOCH = `date +'%s'`
+               @    LOCKAGE = $EPOCH - $LOCK
+               if( $LOCKAGE > 120 ) /bin/rm -f LOCKFILE
+     end
                                      lockfile LOCKFILE
      set    dates = ''
      set numdates = ''
@@ -484,7 +507,6 @@ end
 # ---------------------
 @ m      = 1
 @ begloc = 1
-@  count = 0
 foreach collection ( $collections )
       @ endloc = $begloc + $numdates[$m] - 1
         set streamdates = `echo $dates[${begloc}-${endloc}]`
@@ -555,6 +577,37 @@ foreach collection ( $collections )
             echo "Beginning Month within Local Files: ${begmon} (-$ndt Month: ${prvmon})"
             echo "   Ending Month within Local Files: ${begmon} (+$ndt Month: ${nxtmon})"
                if( ($prvmon != $begmon && $endmon != $nxtmon) | (".$STRICT" != .) ) then
+
+                 if( $MOVEFILES == "TRUE" ) then
+
+# Submit Time_Ave Job
+# -------------------
+cd $SOURCE/post
+if(    -e LOCKFILE ) /bin/echo "Waiting for LOCKFILE ... "
+if(    -e LOCKFILE ) set LOCK = `stat -c %Z LOCKFILE`
+while( -e LOCKFILE )
+          set    EPOCH = `date +'%s'`
+          @    LOCKAGE = $EPOCH - $LOCK
+          if( $LOCKAGE > 120 ) /bin/rm -f LOCKFILE
+end
+                                lockfile LOCKFILE
+echo "   Submitting Time_Ave job for: ${collection}.${date}"
+/bin/rm -f sedfile
+cat >      sedfile << EOF
+s/@POST_O/gcm_post.${collection}.o${date}/g
+s/@COLLECTION/$collection/g
+s/@YYYYMM/$date/g
+EOF
+/bin/rm -f                               gcm_post.${collection}.j${date}
+sed -f sedfile $SOURCE/post/gcm_post.j > gcm_post.${collection}.j${date}
+chmod 755                                gcm_post.${collection}.j${date}
+ qsub                                    gcm_post.${collection}.j${date}
+/bin/rm -f sedfile
+/bin/rm -f LOCKFILE
+sleep 5
+# ------------------
+
+                 else
                    echo "   Performing time average ..."
                    if(! -e time_ave.rc ) ln -s $GEOSUTIL/post/time_ave.rc .
                    if( $NCPUS == "NULL" | $NCPUS == 1 | !($?RUN_CMD) ) then
@@ -566,11 +619,7 @@ foreach collection ( $collections )
                                                             -tag $expid.$collection.monthly \
                                                             -d   $expid.$collection.diurnal $STRICT
                    endif
-                   @ count = $count + 1
-                   if( $count == 9 ) then
-                      @ count =  1
-                        wait
-                   endif
+                 endif
                else
                    echo "   End of Month not yet reached."
                endif
@@ -586,6 +635,7 @@ foreach collection ( $collections )
 end      # End Collection Loop
 wait
 
+if( $MOVEFILES == "TRUE" ) exit
 
 # Test for REPLAY with Forecasts
 # ------------------------------
@@ -613,233 +663,275 @@ foreach collection ( $collections )
    @ nstream   =                   $nstream  + 1
    @ date_node = $expdots + $ndots[$nstream] + 3
 
-     set        archfile = $SOURCE/archive/archive_commands.$collection.`date +%Y%m%d_%H%M%S`
-    /bin/rm -f $archfile
-     touch     $archfile
+   @ endloc = $begloc + $numdates[$m] - 1
+   set  streamdates = `echo $dates[${begloc}-${endloc}]`
 
-      @ endloc = $begloc + $numdates[$m] - 1
-        set  streamdates = `echo $dates[${begloc}-${endloc}]`
-        if( $streamdates[1] != 0 ) then   
-        foreach date ( $streamdates )
-        if( -e            $SOURCE/holding/$collection/$date ) then
+   if( $streamdates[1] != 0 ) then   
+      foreach date ( $streamdates )
+         if( -e            $SOURCE/holding/$collection/$date ) then
             set locdir  = $SOURCE/holding/$collection/$date
             cd $SOURCE/holding/$collection/$date
+
+            set        archfile = $SOURCE/archive/archive_commands.$collection.$date.`date +%Y%m%d_%H%M%S`
+            /bin/rm -f $archfile
+            touch     $archfile
+
             set  num  = `/bin/ls -1 $expid.$collection.monthly.* | wc -l`
+
             if( $num != 0 ) then
 
-                set    check_plot = TRUE
-                echo "set success = TRUE"                               >> $archfile
-                echo "if( -e $SOURCE/holding/$collection/$date ) then " >> $archfile
-                echo "    cd $SOURCE/holding/$collection/$date"         >> $archfile
+               if( $check_plot == 'NULL' ) set check_plot = TRUE
+               echo "set success = TRUE"                               >> $archfile
+               echo "if( -e $SOURCE/holding/$collection/$date ) then " >> $archfile
+               echo "    cd $SOURCE/holding/$collection/$date"         >> $archfile
 
-# Tar and Archive Dailies
-# -----------------------
-                    set locals = `/bin/ls -1 | grep ${expid}.${collection} | grep -v monthly | grep -v diurnal`
-                        @ daily_date_node  = $date_node
-                    if( $HIRES == FALSE ) then
-                        $mytar cf $expid.${collection}.daily.$date.$ext.tar $locals
-                        set locals = $expid.${collection}.daily.$date.$ext.tar
-                        @ daily_date_node  = $date_node + 1                 # Since daily is simply appended to collection name
-                    endif
+               # Tar and Archive Dailies
+               # -----------------------
+               set locals = `/bin/ls -1 | grep ${expid}.${collection} | grep -v monthly | grep -v diurnal`
+               @ daily_date_node  = $date_node
+               if( $HIRES == FALSE ) then
+                  $mytar cf $expid.${collection}.daily.$date.$ext.tar $locals
+                  set locals = $expid.${collection}.daily.$date.$ext.tar
+                  @ daily_date_node  = $date_node + 1                 # Since daily is simply appended to collection name
+               endif
 
-                foreach local ($locals)
+               foreach local ($locals)
 
-                    set fdate = `echo $local | cut -d "." -f${daily_date_node}`   # Assumed date format: YYYYMMDD_HHMMSS
-                    set year  = `echo $fdate | cut -c1-4`
-                    set month = `echo $fdate | cut -c5-6`
-                    set day   = `echo $fdate | cut -c7-8`
-                    set hour  = `echo $fdate | cut -c10-11`
+                  set fdate = `echo $local | cut -d "." -f${daily_date_node}`   # Assumed date format: YYYYMMDD_HHMMSS
+                  set year  = `echo $fdate | cut -c1-4`
+                  set month = `echo $fdate | cut -c5-6`
+                  set day   = `echo $fdate | cut -c7-8`
+                  set hour  = `echo $fdate | cut -c10-11`
 
-                    set archive = `echo $archives[$m] | sed -e "s/%c/$collection/ g" | \
-                                                        sed -e "s/%y4/$year/      g" | \
-                                                        sed -e "s/%m2/$month/     g" | \
-                                                        sed -e "s/%d2/$day/       g" | \
-                                                        sed -e "s/%h2/$hour/      g"`
+                  set archive = `echo $archives[$m] | sed -e "s/%c/$collection/ g" | \
+                                                      sed -e "s/%y4/$year/      g" | \
+                                                      sed -e "s/%m2/$month/     g" | \
+                                                      sed -e "s/%d2/$day/       g" | \
+                                                      sed -e "s/%h2/$hour/      g"`
 
-                    if( $HOST == 'pleiades' ) then
-                        echo "ssh ${MASTOR}               mkdir -p ${MASDIR}/$archive"        >> $archfile
-                        echo "    $scpvar $locdir/$local ${MASTOR}:${MASDIR}/$archive"        >> $archfile
-                    endif
+                  echo "if( -e $local ) then"                                          >> $archfile
+                  echo "ssh ${MASTOR} mkdir -p ${MASDIR}/$archive"                     >> $archfile
+                  echo 'echo " "'                                                      >> $archfile
+                  echo "echo 'Archiving:  '$local"                                     >> $archfile
 
-                    if( $HOST == 'discover' ) then
-                        echo "if( -e $local ) then"                                                                    >> $archfile
-                        echo "ssh $MASTOR mkdir -p ${MASDIR}/$archive "                                                >> $archfile
-                        echo 'echo " "'                                                                                >> $archfile
-                        echo "echo 'Archiving:  '$local"                                                               >> $archfile
-                        echo "$scpvar $local ${MASTOR}:${MASDIR}/$archive | set archive_status = "'`sed -e "s/ / /g"`' >> $archfile
-                        echo 'if ( .$archive_status[4] == .OK ) then'                                                  >> $archfile
-                        echo 'echo "   Archive ... PASS "'                                                             >> $archfile
-                        if( $FSEGMENT == 00000000 ) echo "/bin/rm -f $local"                                           >> $archfile
-                        echo "else"                                                                                    >> $archfile
-                        echo 'echo "   Archive ... FAIL!"'                                                             >> $archfile
-                        echo 'set success = FALSE'                                                                     >> $archfile
-                        echo "endif"                                                                                   >> $archfile
-                        echo 'unset  archive_status'                                                                   >> $archfile
-                        echo 'endif'                                                                                   >> $archfile
-                    endif
+                  if( $HOST == 'pleiades' ) then
+                     echo "ssh ${MASTOR} $scpvar $locdir/$local ${MASDIR}/$archive"    >> $archfile
 
-                end
-                        echo "wait" >> $archfile
+                     echo 'if ($status == 0) then '                                    >> $archfile
+                     echo 'echo "   Archive ... PASS "'                                >> $archfile
+                     if( $FSEGMENT == 00000000 ) echo "/bin/rm -f $local"              >> $archfile
+                     echo 'else'                                                       >> $archfile
+                     echo 'echo "   Archive ... FAIL!"'                                >> $archfile
+                     echo 'set success = FALSE'                                        >> $archfile
+                     echo 'endif'                                                      >> $archfile
 
-# Archive Monthlies (non diurnal files)
-# -------------------------------------
-      @ monthly_date_node  = $date_node + 1                 # Since monthly is simply appended to collection name
-                set locals = `/bin/ls -1 | grep ${expid}.${collection} | grep  monthly | grep -v diurnal`
+                  else if( $HOST == 'discover' ) then
+                     echo "$scpvar $local ${MASTOR}:${MASDIR}/$archive | set archive_status = "'`sed -e "s/ / /g"`' >> $archfile
 
-                foreach local ($locals)
-                    set fdate  = `echo $local | cut -d "." -f${monthly_date_node}`   # Assumed date format: YYYYMMDD_HHMMSS
-                    set year   = `echo $fdate | cut -c1-4`
-                    set month  = `echo $fdate | cut -c5-6`
-                    set day    = `echo $fdate | cut -c7-8`
-                    set hour   = `echo $fdate | cut -c10-11`
+                     echo 'if ( .$archive_status[4] == .OK ) then'                                                  >> $archfile
+                     echo 'echo "   Archive ... PASS "'                                >> $archfile
+                     if( $FSEGMENT == 00000000 ) echo "/bin/rm -f $local"              >> $archfile
+                     echo 'else'                                                       >> $archfile
+                     echo 'echo "   Archive ... FAIL!"'                                >> $archfile
+                     echo 'set success = FALSE'                                        >> $archfile
+                     echo 'endif'                                                      >> $archfile
 
-                    set archive = `echo $archives[$m] | sed -e "s/%c/$collection/ g" | \
-                                                        sed -e "s/%y4/$year/      g" | \
-                                                        sed -e "s/%m2/$month/     g" | \
-                                                        sed -e "s/%d2/$day/       g" | \
-                                                        sed -e "s/%h2/$hour/      g"`
+                     echo 'unset  archive_status'                                      >> $archfile
+                  endif
 
-                    /bin/cp $local $SOURCE/$collection
+                  echo 'endif'                                                         >> $archfile
 
-                    if( $HOST == 'pleiades' ) then
-                        echo "ssh ${MASTOR}               mkdir -p ${MASDIR}/$archive"        >> $archfile
-                        echo "    $scpvar $locdir/$local ${MASTOR}:${MASDIR}/$archive"        >> $archfile
-                    endif
+               end
+               echo "wait" >> $archfile
 
-                    if( $HOST == 'discover' ) then
-                        echo "if( -e $local ) then"                                                                    >> $archfile
-                        echo "ssh $MASTOR mkdir -p ${MASDIR}/$archive "                                                >> $archfile
-                        echo 'echo " "'                                                                                >> $archfile
-                        echo "echo 'Archiving:  '$local"                                                               >> $archfile
-                        echo "$scpvar $local ${MASTOR}:${MASDIR}/$archive | set archive_status = "'`sed -e "s/ / /g"`' >> $archfile
-                        echo 'if ( .$archive_status[4] == .OK ) then'                                                  >> $archfile
-                        echo 'echo "   Archive ... PASS "'                                                             >> $archfile
-                        if( $FSEGMENT == 00000000 ) echo "/bin/rm -f $local"                                           >> $archfile
-                        echo "else"                                                                                    >> $archfile
-                        echo 'echo "   Archive ... FAIL!"'                                                             >> $archfile
-                        echo 'set success = FALSE'                                                                     >> $archfile
-                        echo "endif"                                                                                   >> $archfile
-                        echo 'unset  archive_status'                                                                   >> $archfile
-                        echo 'endif'                                                                                   >> $archfile
-                    endif
+               # Archive Monthlies (non diurnal files)
+               # -------------------------------------
+               @ monthly_date_node  = $date_node + 1                 # Since monthly is simply appended to collection name
+               set locals = `/bin/ls -1 | grep ${expid}.${collection} | grep  monthly | grep -v diurnal`
 
-                end
+               foreach local ($locals)
+                  set fdate  = `echo $local | cut -d "." -f${monthly_date_node}`   # Assumed date format: YYYYMMDD_HHMMSS
+                  set year   = `echo $fdate | cut -c1-4`
+                  set month  = `echo $fdate | cut -c5-6`
+                  set day    = `echo $fdate | cut -c7-8`
+                  set hour   = `echo $fdate | cut -c10-11`
 
-# Archive Monthlies (diurnal files)
-# ---------------------------------
-      @ monthly_date_node  = $date_node + 1                 # Since diurnal is simply appended to collection name
-                set locals = `/bin/ls -1 | grep ${expid}.${collection} | grep  diurnal | grep -v monthly`
-                set  num   = `/bin/ls -1 | grep ${expid}.${collection} | grep  diurnal | grep -v monthly | wc -l`
-                if( $num  != 0 ) then
+                  set archive = `echo $archives[$m] | sed -e "s/%c/$collection/ g" | \
+                                                      sed -e "s/%y4/$year/      g" | \
+                                                      sed -e "s/%m2/$month/     g" | \
+                                                      sed -e "s/%d2/$day/       g" | \
+                                                      sed -e "s/%h2/$hour/      g"`
 
-                foreach local ($locals)
-                    set fdate  = `echo $local | cut -d "." -f${monthly_date_node}`   # Assumed date format: YYYYMMDD_HHMMSS
-                    set year   = `echo $fdate | cut -c1-4`
-                    set month  = `echo $fdate | cut -c5-6`
-                    set day    = `echo $fdate | cut -c7-8`
-                    set hour   = `echo $fdate | cut -c10-11`
+                  $cpvar $local $SOURCE/$collection
 
-                    set archive = `echo $archives[$m] | sed -e "s/%c/$collection/ g" | \
-                                                        sed -e "s/%y4/$year/      g" | \
-                                                        sed -e "s/%m2/$month/     g" | \
-                                                        sed -e "s/%d2/$day/       g" | \
-                                                        sed -e "s/%h2/$hour/      g"`
+                  echo "if( -e $local ) then"                                          >> $archfile
+                  echo "ssh ${MASTOR} mkdir -p ${MASDIR}/$archive"                     >> $archfile
+                  echo 'echo " "'                                                      >> $archfile
+                  echo "echo 'Archiving:  '$local"                                     >> $archfile
 
-                     mkdir -p      $SOURCE/$collection/diurnal
-                    /bin/cp $local $SOURCE/$collection/diurnal
+                  if( $HOST == 'pleiades' ) then
+                     echo "ssh ${MASTOR} $scpvar $locdir/$local ${MASDIR}/$archive"    >> $archfile
 
-                    if( $HOST == 'pleiades' ) then
-                        echo "ssh ${MASTOR}               mkdir -p ${MASDIR}/$archive"        >> $archfile
-                        echo "    $scpvar $locdir/$local ${MASTOR}:${MASDIR}/$archive"        >> $archfile
-                    endif
+                     echo 'if ($status == 0) then '                                    >> $archfile
+                     echo 'echo "   Archive ... PASS "'                                >> $archfile
+                     if( $FSEGMENT == 00000000 ) echo "/bin/rm -f $local"              >> $archfile
+                     echo 'else'                                                       >> $archfile
+                     echo 'echo "   Archive ... FAIL!"'                                >> $archfile
+                     echo 'set success = FALSE'                                        >> $archfile
+                     echo 'endif'                                                      >> $archfile
 
-                    if( $HOST == 'discover' ) then
-                        echo "if( -e $local ) then"                                                                          >> $archfile
-                        echo "ssh $MASTOR mkdir -p ${MASDIR}/$archive "                                                      >> $archfile
-                        echo 'echo " "'                                                                                      >> $archfile
-                        echo "echo 'Archiving:  '$local"                                                                     >> $archfile
-                        echo "$scpvar $local ${MASTOR}:${MASDIR}/$archive | set archive_status = "'`sed -e "s/ / /g"`'       >> $archfile
-                        echo 'if ( .$archive_status[4] == .OK ) then'                                                        >> $archfile
-                        echo 'echo "   Archive ... PASS "'                                                                   >> $archfile
-                        if( $FSEGMENT == 00000000 ) echo "/bin/rm -f $local"                                                 >> $archfile
-                        echo "else"                                                                                          >> $archfile
-                        echo 'echo "   Archive ... FAIL!"'                                                                   >> $archfile
-                        echo 'set success = FALSE'                                                                           >> $archfile
-                        echo "endif"                                                                                         >> $archfile
-                        echo 'unset  archive_status'                                                                         >> $archfile
-                        echo 'endif'                                                                                         >> $archfile
-                    endif
+                  else if( $HOST == 'discover' ) then
+                     echo "$scpvar $local ${MASTOR}:${MASDIR}/$archive | set archive_status = "'`sed -e "s/ / /g"`' >> $archfile
 
-                end
-                endif
+                     echo 'if ( .$archive_status[4] == .OK ) then'                                                  >> $archfile
+                     echo 'echo "   Archive ... PASS "'                                >> $archfile
+                     if( $FSEGMENT == 00000000 ) echo "/bin/rm -f $local"              >> $archfile
+                     echo 'else'                                                       >> $archfile
+                     echo 'echo "   Archive ... FAIL!"'                                >> $archfile
+                     echo 'set success = FALSE'                                        >> $archfile
+                     echo 'endif'                                                      >> $archfile
 
-# Archive Restarts (First Stream Only)
-# ------------------------------------
-                if( $nstream == 1 ) then
-                     echo " "                                                                                                >> $archfile
-                     if( $HOST == 'pleiades' ) then
-                         echo "ssh ${MASTOR}                                   mkdir -p ${MASDIR}/restarts/Y${year}"         >> $archfile
-                         echo "    $scpvar $SOURCE/restarts/*${year}${month}* ${MASTOR}:${MASDIR}/restarts/Y${year}"         >> $archfile
-                         echo "    $scpvar $SOURCE/GEOSgcm.x                  ${MASTOR}:${MASDIR}"                           >> $archfile
-                         echo "    $scpvar $HISTORYRC                         ${MASTOR}:${MASDIR}"                           >> $archfile
-                         echo "    $scpvar $HOMDIR/AGCM.rc                    ${MASTOR}:${MASDIR}"                           >> $archfile
-                         echo "    $scpvar $HOMDIR/CAP.rc                     ${MASTOR}:${MASDIR}"                           >> $archfile
-                         echo "    $scpvar $HOMDIR/gcm_run.j                  ${MASTOR}:${MASDIR}"                           >> $archfile
-                     endif
+                     echo 'unset  archive_status'                                      >> $archfile
+                  endif
+                  echo 'endif'                                                         >> $archfile
 
-                     if( $HOST == 'discover' ) then
-                         echo "    ssh $MASTOR                             mkdir -p ${MASDIR}/restarts/Y${year}"             >> $archfile
-                         echo "$scpvar $SOURCE/restarts/*${year}${month}* ${MASTOR}:${MASDIR}/restarts/Y${year}"             >> $archfile
-                         echo "$scpvar $SOURCE/GEOSgcm.x                  ${MASTOR}:${MASDIR}"                               >> $archfile
-                         echo "$scpvar $HISTORYRC                         ${MASTOR}:${MASDIR}"                               >> $archfile
-                         echo "$scpvar $HOMDIR/AGCM.rc                    ${MASTOR}:${MASDIR}"                               >> $archfile
-                         echo "$scpvar $HOMDIR/CAP.rc                     ${MASTOR}:${MASDIR}"                               >> $archfile
-                         echo "$scpvar $HOMDIR/gcm_run.j                  ${MASTOR}:${MASDIR}"                               >> $archfile
-                     endif
-                     if( $FSEGMENT == 00000000 ) echo "/bin/rm $SOURCE/restarts/*${year}${month}*"                           >> $archfile
-                endif
+               end
 
-                echo "cd ../"                                                                                                >> $archfile
-                echo 'if( $success == TRUE ) then'                                                                           >> $archfile
-                if( $FSEGMENT == 00000000 ) echo '    /bin/rm -r '$date                                                      >> $archfile
-                echo 'echo "   Successfully Archived:  "'$SOURCE/holding/$collection/$date                                   >> $archfile
-                echo 'else'                                                                                                  >> $archfile
-                echo 'echo "   FAILED to Archive:  "'$SOURCE/holding/$collection/$date                                       >> $archfile
-                echo 'endif'                                                                                                 >> $archfile
-                echo 'endif'                                                                                                 >> $archfile
+               # Archive Monthlies (diurnal files)
+               # ---------------------------------
+               @ monthly_date_node  = $date_node + 1                 # Since diurnal is simply appended to collection name
+               set locals = `/bin/ls -1 | grep ${expid}.${collection} | grep  diurnal | grep -v monthly`
+               set  num   = `/bin/ls -1 | grep ${expid}.${collection} | grep  diurnal | grep -v monthly | wc -l`
+               if( $num  != 0 ) then
 
+               foreach local ($locals)
+                  set fdate  = `echo $local | cut -d "." -f${monthly_date_node}`   # Assumed date format: YYYYMMDD_HHMMSS
+                  set year   = `echo $fdate | cut -c1-4`
+                  set month  = `echo $fdate | cut -c5-6`
+                  set day    = `echo $fdate | cut -c7-8`
+                  set hour   = `echo $fdate | cut -c10-11`
+
+                  set archive = `echo $archives[$m] | sed -e "s/%c/$collection/ g" | \
+                                                      sed -e "s/%y4/$year/      g" | \
+                                                      sed -e "s/%m2/$month/     g" | \
+                                                      sed -e "s/%d2/$day/       g" | \
+                                                      sed -e "s/%h2/$hour/      g"`
+
+                  mkdir -p     $SOURCE/$collection/diurnal
+                  $cpvar $local $SOURCE/$collection/diurnal
+
+                  echo "if( -e $local ) then"                                          >> $archfile
+                  echo "ssh ${MASTOR} mkdir -p ${MASDIR}/$archive"                     >> $archfile
+                  echo 'echo " "'                                                      >> $archfile
+                  echo "echo 'Archiving:  '$local"                                     >> $archfile
+
+                  if( $HOST == 'pleiades' ) then
+                     echo "ssh ${MASTOR} $scpvar $locdir/$local ${MASDIR}/$archive"    >> $archfile
+
+                     echo 'if ($status == 0) then '                                    >> $archfile
+                     echo 'echo "   Archive ... PASS "'                                >> $archfile
+                     if( $FSEGMENT == 00000000 ) echo "/bin/rm -f $local"              >> $archfile
+                     echo 'else'                                                       >> $archfile
+                     echo 'echo "   Archive ... FAIL!"'                                >> $archfile
+                     echo 'set success = FALSE'                                        >> $archfile
+                     echo 'endif'                                                      >> $archfile
+
+                  else if( $HOST == 'discover' ) then
+                     echo "$scpvar $local ${MASTOR}:${MASDIR}/$archive | set archive_status = "'`sed -e "s/ / /g"`' >> $archfile
+
+                     echo 'if ( .$archive_status[4] == .OK ) then'                                                  >> $archfile
+                     echo 'echo "   Archive ... PASS "'                                >> $archfile
+                     if( $FSEGMENT == 00000000 ) echo "/bin/rm -f $local"              >> $archfile
+                     echo 'else'                                                       >> $archfile
+                     echo 'echo "   Archive ... FAIL!"'                                >> $archfile
+                     echo 'set success = FALSE'                                        >> $archfile
+                     echo 'endif'                                                      >> $archfile
+
+                     echo 'unset  archive_status'                                      >> $archfile
+                  endif
+                  echo 'endif'                                                         >> $archfile
+
+
+               end
             endif
 
-        endif  # End IFTEST for -e $SOURCE/holding/$collection/$date due to possible deletion from other archive job
-        end
-        endif
-      @ begloc = $endloc + 1
-      @ m      = $m      + 1
+            # Archive Restarts (First Stream Only)
+            # ------------------------------------
+            if( $nstream == 1 ) then
+               echo " "                                                                                          >> $archfile
+               if( $HOST == 'pleiades' ) then
+                     echo "ssh ${MASTOR}                                   mkdir -p ${MASDIR}/restarts/Y${year}" >> $archfile
 
-# Submit Archive Job
-# ------------------
-set test = `cat $archfile`
-if( $#test != 0 ) then
-    cat $SOURCE/archive/gcm_archive.j $archfile > $SOURCE/archive/gcm_archive.$collection.$streamdates[1].j
-    cd  $SOURCE/archive
-    /bin/rm -f sedfile
-    /bin/mv -f gcm_archive.$collection.$streamdates[1].j tmpfile
-cat > sedfile << EOF
+                     echo "ssh ${MASTOR} $scpvar $SOURCE/restarts/*${year}${month}* ${MASDIR}/restarts/Y${year}" >> $archfile
+
+                     echo 'if ($status == 0) then '                                                              >> $archfile
+                     echo 'echo "   Restart Archive ... PASS "'                                                  >> $archfile
+                     if( $FSEGMENT == 00000000 ) echo "/bin/rm $SOURCE/restarts/*${year}${month}*"               >> $archfile
+                    #echo 'else'                                                                                 >> $archfile
+                    #echo 'echo "   Restart Archive ... FAIL!"'                                                  >> $archfile
+                    #echo 'set success = FALSE'                                                                  >> $archfile
+                     echo 'endif'                                                                                >> $archfile
+
+                     echo "ssh ${MASTOR} $scpvar $SOURCE/GEOSgcm.x                  ${MASDIR}"                   >> $archfile
+                     echo "ssh ${MASTOR} $scpvar $HISTORYRC                         ${MASDIR}"                   >> $archfile
+                     echo "ssh ${MASTOR} $scpvar $HOMDIR/AGCM.rc                    ${MASDIR}"                   >> $archfile
+                     echo "ssh ${MASTOR} $scpvar $HOMDIR/CAP.rc                     ${MASDIR}"                   >> $archfile
+                     echo "ssh ${MASTOR} $scpvar $HOMDIR/gcm_run.j                  ${MASDIR}"                   >> $archfile
+               endif
+
+               if( $HOST == 'discover' ) then
+                     echo "    ssh $MASTOR                             mkdir -p ${MASDIR}/restarts/Y${year}"     >> $archfile
+                     echo "$scpvar $SOURCE/restarts/*${year}${month}* ${MASTOR}:${MASDIR}/restarts/Y${year}"     >> $archfile
+                     echo "$scpvar $SOURCE/GEOSgcm.x                  ${MASTOR}:${MASDIR}"                       >> $archfile
+                     echo "$scpvar $HISTORYRC                         ${MASTOR}:${MASDIR}"                       >> $archfile
+                     echo "$scpvar $HOMDIR/AGCM.rc                    ${MASTOR}:${MASDIR}"                       >> $archfile
+                     echo "$scpvar $HOMDIR/CAP.rc                     ${MASTOR}:${MASDIR}"                       >> $archfile
+                     echo "$scpvar $HOMDIR/gcm_run.j                  ${MASTOR}:${MASDIR}"                       >> $archfile
+                     if( $FSEGMENT == 00000000 ) echo "/bin/rm $SOURCE/restarts/*${year}${month}*"               >> $archfile
+               endif
+            endif
+
+            echo 'cd ../'                                                                                        >> $archfile
+            echo 'if( $success == TRUE ) then'                                                                   >> $archfile
+            if( $FSEGMENT == 00000000 ) echo '    /bin/rm -r '$date                                              >> $archfile
+               echo 'echo "   Successfully Archived:  "'$SOURCE/holding/$collection/$date                        >> $archfile
+               echo 'else'                                                                                       >> $archfile
+               echo 'echo "   FAILED to Archive:  "'$SOURCE/holding/$collection/$date                            >> $archfile
+               echo 'endif'                                                                                      >> $archfile
+               echo 'endif'                                                                                      >> $archfile
+            endif
+
+         endif  # End IFTEST for -e $SOURCE/holding/$collection/$date due to possible deletion from other archive job
+      end
+      # Submit Archive Job
+      # ------------------
+      set test = `cat $archfile`
+      if( $#test != 0 ) then
+         cat $SOURCE/archive/gcm_archive.j $archfile > $SOURCE/archive/gcm_archive.$collection.$streamdates[1].j
+         cd  $SOURCE/archive
+         /bin/rm -f sedfile
+         /bin/mv -f gcm_archive.$collection.$streamdates[1].j tmpfile
+         cat > sedfile << EOF
 s/OUTPUT/gcm_archive.$collection.$streamdates[1].o/g
 EOF
-    sed -f sedfile tmpfile > gcm_archive.$collection.$streamdates[1].j
-    chmod +x gcm_archive.$collection.$streamdates[1].j
-    if( $HOST == 'pleiades' ) then
-                ./gcm_archive.$collection.$streamdates[1].j > ./gcm_archive.$collection.$streamdates[1].o
-    else
-         qsub     gcm_archive.$collection.$streamdates[1].j
-    endif
-    /bin/rm -f $archfile
-    /bin/rm -f sedfile
-    /bin/rm -f tmpfile
-else
-    /bin/rm -f $archfile
-endif
+         sed -f sedfile tmpfile > gcm_archive.$collection.$streamdates[1].j
+         chmod +x gcm_archive.$collection.$streamdates[1].j
+         if( $HOST == 'pleiades' ) then
+                  ./gcm_archive.$collection.$streamdates[1].j > ./gcm_archive.$collection.$streamdates[1].o
+         else
+            qsub     gcm_archive.$collection.$streamdates[1].j
+         endif
+         /bin/rm -f $archfile
+         /bin/rm -f sedfile
+         /bin/rm -f tmpfile
+      else
+         /bin/rm -f $archfile
+      endif
+
+   endif
+
+   @ begloc = $endloc + 1
+   @ m      = $m      + 1
 
 end
 wait
@@ -876,6 +968,12 @@ while( $m != 0 )
     endif
 end
 
+    set edate  = `echo $monthlies[$num] | cut -d "." -f${date_node}`
+    set eyear  = `echo $edate           | cut -c1-4`
+    set emonth = `echo $edate           | cut -c5-6`
+    set eday   = `echo $edate           | cut -c7-8`
+    set ehour  = `echo $edate           | cut -c10-11`
+
     set date  = `echo $monthlies[1] | cut -d "." -f${date_node}`
     set year  = `echo $date         | cut -c1-4`
     set month = `echo $date         | cut -c5-6`
@@ -905,23 +1003,39 @@ end
     if( $month == "11" ) set MON = NOV
     if( $month == "12" ) set MON = DEC
 
+@   nmonths = ( $eyear - $year ) * 12 + ( $emonth - $month ) + 1
+
+
     echo DSET $SOURCE/${collection}/$expid.${collection}.monthly.%y4%m2.$ext >  xdf.tabl
     echo TITLE $expdsc                                                       >> xdf.tabl
     echo OPTIONS template                                                    >> xdf.tabl
-    echo TDEF time $num  LINEAR  00:00Z01$MON$year 1$timinc                  >> xdf.tabl
+    echo TDEF time $nmonths  LINEAR  00:00Z01$MON$year 1$timinc              >> xdf.tabl
 
 endif  # Endif for monthlies NUM = 0 check
 
 # Create/Update Climatology Files for 2 or more years if locals were processed
 # ----------------------------------------------------------------------------
-if( $numlocs[$nstream] != 0 && $num >= 24 && ( $RECDATE == "NULL" || $CLIMO == "TRUE" ) ) then
-    set date  = `echo $monthlies[$num] | cut -d "." -f${date_node}`
-    set month = `echo $date            | cut -c5-6`
-           $GEOSUTIL/post/gcmclim.script -source $SOURCE -collection $collection -month $month
-    if( -e $SOURCE/${collection}/diurnal ) then
-           $GEOSUTIL/post/gcmclim.script -source $SOURCE -collection $collection -month $month -diurnal
+if( $RECDATE == "NULL" || $CLIMO == "TRUE" ) then
+    if( $numlocs[$nstream] != 0 && $num >= 24 ) then
+        set date  = `echo $monthlies[$num] | cut -d "." -f${date_node}`
+        set month = `echo $date            | cut -c5-6`
+               $GEOSUTIL/post/gcmclim.script -source $SOURCE -collection $collection -month $month -ncpus $NCPUS
+        if( -e $SOURCE/${collection}/diurnal ) then
+               $GEOSUTIL/post/gcmclim.script -source $SOURCE -collection $collection -month $month -diurnal -ncpus $NCPUS
+        endif
+        if( $DDF == "NULL" ) set DDF = clim
     endif
-    if( $DDF == "NULL" ) set DDF = clim
+else if( $RECDATE != "NULL" ) then
+    set date  = $RECDATE
+    set month = `echo $date | cut -c5-6`
+    set num_recdates = `/bin/ls -1 $monthlies | grep ${month}.$ext | wc -l`
+    if( $numlocs[$nstream] != 0 && $num_recdates >= 2 ) then
+               $GEOSUTIL/post/gcmclim.script -source $SOURCE -collection $collection -month $month -ncpus $NCPUS
+        if( -e $SOURCE/${collection}/diurnal ) then
+               $GEOSUTIL/post/gcmclim.script -source $SOURCE -collection $collection -month $month -diurnal -ncpus $NCPUS
+        endif
+        if( $DDF == "NULL" ) set DDF = clim
+    endif
 endif
 
 end    # End ForEach Output Stream Loop
@@ -936,16 +1050,17 @@ endif  # End PLOTS Option
 #######################################################################
 
 QUICKPLOT:
-if( $check_plot == "TRUE" && $RECDATE == "NULL"  ) then
+if( $check_plot == "TRUE" ) then
 cd  $SOURCE/plot
 
     if(! -e plot.rc ) /bin/ln -s $GEOSUTIL/post/plot.rc .
-    set STATUS    = `grep    PLOT_STATUS: plot.rc | cut -d'#' -f1 | cut -d':' -f2 | tr "[:lower:]" "[:upper:]"`
-    set SEASONS   = `grep   PLOT_SEASONS: plot.rc | cut -d'#' -f1 | cut -d':' -f2 | tr "[:lower:]" "[:upper:]"`
-    set FREQUENCY = `grep PLOT_FREQUENCY: plot.rc | cut -d'#' -f1 | cut -d':' -f2 | tr "[:lower:]" "[:upper:]"`
-    set OPTIONS   = `grep   PLOT_OPTIONS: plot.rc | cut -d'#' -f1 | cut -d':' -f2 `
-    set CMPEXP    = `grep    PLOT_CMPEXP: plot.rc | cut -d'#' -f1 | cut -d':' -f2- `
-    set MISCTMP   = `grep      PLOT_MISC: plot.rc | cut -d'#' -f1 | tr "[:lower:]" "[:upper:]"`
+    set STATUS    = `grep    PLOT_STATUS: plot.rc | grep -v '#' | cut -d':' -f2 | tr "[:lower:]" "[:upper:]"`
+    set SEASONS   = `grep   PLOT_SEASONS: plot.rc | grep -v '#' | cut -d':' -f2 | tr "[:lower:]" "[:upper:]"`
+    set FREQUENCY = `grep PLOT_FREQUENCY: plot.rc | grep -v '#' | cut -d':' -f2 | tr "[:lower:]" "[:upper:]"`
+    set OPTIONS   = `grep   PLOT_OPTIONS: plot.rc | grep -v '#' | cut -d':' -f2 `
+    set CMPEXP    = `grep    PLOT_CMPEXP: plot.rc | grep -v '#' | cut -d':' -f2- `
+    set MISCTMP   = `grep      PLOT_MISC: plot.rc | grep -v '#' | tr "[:lower:]" "[:upper:]"`
+    set NJOBS     = `grep      PLOT_JOBS: plot.rc | grep -v '#' | cut -d':' -f2- `
     set MISC      = ''
 
     set   miscnum  = $#MISCTMP
@@ -957,7 +1072,8 @@ cd  $SOURCE/plot
         end
     endif
        
-set CMPEXP = `echo $CMPEXP`
+set    CMPEXP = `echo $CMPEXP`
+setenv CMPEXP "$CMPEXP"
 
 if( $PLOTS[1] != "NULL" ) set STATUS = ON
 if( $STATUS == "ON" && $num > 0 ) then   # At least 1 monthly mean exists
@@ -980,6 +1096,12 @@ else
      end
 endif
 
+# Set STREAMS to ALL Streams in HISTORY.RC
+# ----------------------------------------
+set  streams = `$GEOSUTIL/post/get_streams $HISTORYRC`
+set nstreams = $#streams
+
+echo CHECKDATES: $checkdates
 set season   = ''
 set plotdate = ''
 foreach date ($checkdates)
@@ -1009,7 +1131,37 @@ foreach date ($checkdates)
     end
 
     if( $season[1] != '' ) set plotdate = $date
+
+    echo "  SEASON: $season"
+    echo "    DATE: $date"
+    echo "PLOTDATE: $plotdate"
+
+# Check that ALL Streams have consistent number of monthlies (UNLESS plots package is forced, i.e., $PLOTS != NULL)
+# -----------------------------------------------------------------------------------------------------------------
+if( $PLOTS[1] == "NULL" ) then
+     if(    -e LOCKFILE ) /bin/echo "Waiting for LOCKFILE ... "
+     if(    -e LOCKFILE ) set LOCK = `stat -c %Z LOCKFILE`
+     while( -e LOCKFILE )
+               set    EPOCH = `date +'%s'`
+               @    LOCKAGE = $EPOCH - $LOCK
+               if( $LOCKAGE > 120 ) /bin/rm -f LOCKFILE
+     end
+                                      lockfile LOCKFILE
+@ count = 0
+foreach stream ($streams)
+    echo Checking stream: $stream for date: $date
+    set  checkstream = `/bin/ls -1 $SOURCE/$stream/$expid.$stream.monthly.${date}* | grep -v monthly.clim`
+    echo checkstream: $checkstream
+    echo ' '
+    set ncheckstream = $#checkstream
+    @ count = $count + $ncheckstream
 end
+echo Number of streams: $nstreams
+echo Number of streams containing ${date}: $count
+if ( $count != $nstreams ) set season = ''
+/bin/rm -f LOCKFILE
+endif
+
     set year  = `echo $plotdate | cut -c1-4`
     set month = `echo $plotdate | cut -c5-6`
 
@@ -1019,18 +1171,7 @@ if( $PLOTS[1] != "NULL" ) set season = `echo $PLOTS`
 
 if( $season[1] != '' ) then
 
-if( $#CMPEXP != 0 ) then
-  set CMPEXP = `echo -cmpexp $CMPEXP`
-  set cmpexp = "cmpexpz.dyn   cmpexph.dyn  \
-                cmpexpz.gwd   cmpexph.gwd  \
-                cmpexpz.ana   cmpexph.ana  \
-                cmpexpz.rad   cmpexph.rad cmpexph.aero \
-                cmpexpz.turb  cmpexph.turb.1  cmpexph.turb.2 cmpexph.turb.3 \
-                cmpexpz.moist cmpexph.moist.1 cmpexph.moist.2 cmpexph.moist.3 cmpexph.moist.4"
-  set cmpexp = `echo $cmpexp` # To remove extra blanks
-else
-  set cmpexp = ''
-endif
+if( $#CMPEXP != 0 ) set CMPEXP = `echo -cmpexp $CMPEXP`
 
 if( $FREQUENCY == "CLIM" ) then
 
@@ -1075,21 +1216,31 @@ else
     endif
 endif
 
+# Create Plot Lists
+# ---------------------------------------------------------------------------------
+         if( -e  portrait.list ) /bin/rm -f  portrait.list 
+         if( -e landscape.list ) /bin/rm -f landscape.list 
+         if( -e dummy          ) /bin/rm -f dummy
+
+         echo ' '
+         echo 'Creating landscape.list ...' ; $GEOSUTIL/plots/landscape.script -v -list -source $SOURCE >& dummy ; grep "plot ==" dummy > landscape.list ; /bin/rm -f dummy
+         echo 'Creating  portrait.list ...' ; $GEOSUTIL/plots/portrait.script  -v -list -source $SOURCE >& dummy ; grep "plot ==" dummy >  portrait.list ; /bin/rm -f dummy
+         echo ' '
+
 # Create Plot Job Scripts (ntype:L => landscape.script, ntype:P => portrait.script)
 # ---------------------------------------------------------------------------------
                     set   datetime = `date +%Y%m%d_%H%M%S`
          /bin/rm -f LIST_$datetime
          touch      LIST_$datetime
 
-         set   ntypes = "P L"
+         $GEOSUTIL/plots/configure
+         set   ntypes = "L P"
 foreach type ($ntypes)
 
     if( $type == "L" ) then
-         set   nplots = `$GEOSUTIL/plots/landscape.script -plots`
-         set   nplots = "$MISC $nplots"
+         set   nplots = `$GEOSUTIL/plots/landscape.script -list -source $SOURCE`
     else if ( $type == "P" ) then
-         set   nplots = `$GEOSUTIL/plots/portrait.script -plots`
-         set   nplots = "$MISC $cmpexp $nplots"
+         set   nplots = `$GEOSUTIL/plots/portrait.script  -list -source $SOURCE`
     endif
     set nplots = `echo $nplots` # To remove blanks
 
@@ -1105,9 +1256,14 @@ foreach plot ($nplots)
               set begplt  = NULL
               set endplt  = NULL
          endif
-         if( $plot == "tseries" ) then
-              set begplt = $begdate
-              set endplt = $enddate
+         if( $type == "L" ) then
+            foreach xyz (tseries qbo vortex)
+            set   tseries = `grep "$plot " landscape.list | grep $xyz`
+            if( $#tseries > 0 ) then
+                 set begplt = $begdate
+                 set endplt = $enddate
+            endif
+            end
          endif
          if( $BEGDATE != "NULL" ) set begplt = $BEGDATE
          if( $ENDDATE != "NULL" ) set endplt = $ENDDATE
@@ -1123,9 +1279,9 @@ if( $LIST != "NULL" ) /bin/cp -f $LIST LIST_$datetime
 
 # -----------------------
 
-@ njobs = 10
-@     n = 1
-while( $n <= $njobs )
+if( .$NJOBS == . ) set NJOBS = 10
+@     n = 0
+while( $n < $NJOBS )
      set  FILE = gcm_plot${n}.j
      set ofile_season = `echo ${season} | sed 's/ /_/g'`
      set OFILE = gcm_plot${n}_${ofile_season}.${datetime}
@@ -1137,14 +1293,14 @@ while( $n <= $njobs )
 cat gcm_plot.tmpl > FILE
 
 cat > sedfile << EOF
-s|${expid}_PLT|$bname|g
+s|@NAME|$bname|g
 s|OUTPUT|$OFILE|g
 s|@LIST|LIST_$datetime|g
 s|@N|$n|g
 EOF
 sed -f sedfile FILE > $FILE
 
-echo Submitting Plot Job: $FILE for ${ofile_season}
+echo "Submitting Plot Job: $FILE for ${ofile_season}"
 qsub $FILE
 
 /bin/rm -f FILE
@@ -1158,5 +1314,7 @@ end
 
 
 endif # End season     test
+end   # End checkdates loop
+
 endif # End num        test
 endif # End check_plot test

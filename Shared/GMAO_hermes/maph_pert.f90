@@ -42,7 +42,7 @@
       integer :: rc, freq
       integer :: nymd_p, nhms_p
       integer :: in, jn
-      logical :: fexists, zero
+      logical :: fexists
       logical :: verb, phis_flag, ts_flag
 
       character(len=255) :: dyn_pin       ! perturbation input file name

@@ -12,6 +12,8 @@
 ! !USES:
 !
       use m_dyn
+      use m_dyn_util, only: Dyn_Util_Tv2T
+      use m_dyn_util, only: Dyn_Scale_by_TotEne
 
       implicit NONE
 
@@ -48,21 +50,33 @@
 
 !     Locals
 !     ------
+      character(len=255) :: egress
+      character(len=20)  :: anorm
+      character(len=255) :: jnorm
       integer, parameter :: READ_ONLY = 1
       integer fid, nvars, ngatts
       integer ios, rc, iopt, ifile
       integer ntimes, n, freq, nymd, nhms, prec
       integer freq_d, nymd_d, nhms_d, prec_d    !Timetag for newly created diff in *.hdf format  
       integer im, jm, km, lm, system, dyntype
-      logical dominmax,verb
+      logical dominmax,verb,sbyene,tv2t
+      logical normlz
+      character(len=3) ntype ! norm type (when applicable)
+      real, allocatable :: ps  (:,:)
+      real, allocatable :: delp(:,:,:)
       real    acoeff
+      real    eps_eer
+      real    projlat(2), projlon(2)
+      integer projlev(2)
       
 !  Initialize
 !  ----------     
-   call Init_ ( dyntype, mfiles, files, dominmax, verb )
-   nfiles = 1
+   call Init_ ( dyntype, mfiles, files, dominmax, verb, egress, eps_eer, anorm, jnorm,  &
+                tv2t, projlon, projlat, projlev, normlz, ntype )
+
 !  Loop over input eta files
 !  -------------------------
+   nfiles = 1
    do ifile = 1, nfiles
 
       etafile = files(ifile)
@@ -97,10 +111,24 @@
             call die(myname,'cannot read dynamics vector file')
          end if
 
+         ! check dims
+         if ( dyn(1)%grid%im/=dyn(2)%grid%im .or. &
+              dyn(1)%grid%jm/=dyn(2)%grid%jm .or. &
+              dyn(1)%grid%km/=dyn(2)%grid%km ) then
+            write(6,'(a,3(i6,2x))') 'dyn-1:', dyn(1)%grid%im,dyn(1)%grid%jm,dyn(1)%grid%km
+            write(6,'(a,3(i6,2x))') 'dyn-2:', dyn(2)%grid%im,dyn(2)%grid%jm,dyn(2)%grid%km
+            call die(myname,'error, incompatible dims')
+         endif
          print *, "> nymd, nhms: ", nymd, nhms, " (diff)"
          lm = min(dyn(1)%grid%lm,dyn(2)%grid%lm)
          if ( .not. dominmax ) then
            print *, "scaling difference by: ", acoeff
+           if (sbyene) then
+              allocate(ps  (dyn(1)%grid%im,dyn(1)%grid%jm))
+              allocate(delp(dyn(1)%grid%im,dyn(1)%grid%jm,dyn(1)%grid%km))
+              ps  =dyn(1)%ps
+              delp=dyn(1)%delp
+           endif
            dyn(1)%ps     = acoeff*(dyn(1)%ps - dyn(2)%ps)
            dyn(1)%ts     = acoeff*(dyn(1)%ts - dyn(2)%ts)
            dyn(1)%phis   = acoeff*(dyn(1)%phis - dyn(2)%phis)
@@ -114,8 +142,18 @@
            dyn(1)%delp    = acoeff*(dyn(1)%delp - dyn(2)%delp)
            dyn(1)%u       = acoeff*(dyn(1)%u - dyn(2)%u)
            dyn(1)%v       = acoeff*(dyn(1)%v - dyn(2)%v)
+           if (tv2t) then
+              ! convert virtual temperature to temperature
+              call Dyn_Util_Tv2T (dyn(1)%pt,dyn(1)%q(:,:,:,1))
+              call Dyn_Util_Tv2T (dyn(2)%pt,dyn(2)%q(:,:,:,1))
+           endif
            dyn(1)%pt      = acoeff*(dyn(1)%pt - dyn(2)%pt)
            dyn(1)%q(:,:,:,1:lm) = acoeff*(dyn(1)%q(:,:,:,1:lm) - dyn(2)%q(:,:,:,1:lm))
+           if (sbyene) then
+               call Dyn_Scale_by_TotEne(dyn(1),eps_eer,anorm,jnorm,projlon,projlat,projlev, &
+                                        nymd,nhms,ntype=ntype,normlz=normlz,ps=ps,delp=delp)
+               deallocate(ps,delp)
+           endif
          endif
 
 !       If so, echo result to standard out
@@ -154,7 +192,7 @@
 !  All done
 !  --------
    close(999)
-   open (999,file='DYNDIFF_EGRESS',form='formatted')
+   open (999,file=trim(egress),form='formatted')
    close(999)
    call exit(0)
 
@@ -170,16 +208,30 @@ CONTAINS
 !
 ! !INTERFACE:
 !
-      subroutine Init_ ( dyntype, mfiles, files, dominmax, verb )
+      subroutine Init_ ( dyntype, mfiles, files, dominmax, verb, egress, &
+                         eps_eer, anorm, jnorm, tv2t, &
+                         projlon, projlat, projlev, normlz, ntype )
+
+      use m_inpak90
+      use m_chars,   only: lowercase
 
       implicit NONE
 
       integer,       intent(out) :: dyntype ! 4=geos4, 5=geos5
       integer,       intent(in)  :: mfiles  ! max. number of eta files
                                             ! dynamics file names (eta)
-      character*255, intent(out) :: files(mfiles) 
+      character(len=*), intent(out) :: files(mfiles) 
+      character(len=*), intent(out) :: egress
+      character(len=*), intent(out) :: anorm
+      character(len=*), intent(out) :: jnorm
+      real,    intent(out) :: eps_eer
+      real,    intent(out) :: projlat(2), projlon(2)
+      integer, intent(out) :: projlev(2)
       logical, intent(out) :: dominmax
+      logical, intent(out) :: tv2t
       logical, intent(out) :: verb
+      logical, intent(out) :: normlz
+      character(len=*), intent(out) :: ntype
       
 !
 ! !REVISION HISTORY:
@@ -189,20 +241,40 @@ CONTAINS
 !EOP
 !BOC
 
-      character*4, parameter :: myname = 'init'
+      character*4, parameter :: myname_ = trim(myname)//'*init'
 
-      integer iret, i, iarg, argc, iargc
+      character(len=256) :: rcfile
       character(len=255) :: etafile, argv
+      integer iret, i, iarg, argc, iargc
+      real    pnext
       logical dout
+      logical invalid
 
       dout = .false.
       verb = .false.
 
+      anorm    = 'twe'
+      jnorm    = 'NULL'
       dyn_dout = 'NONE'
       dyntype  = 4        ! default is GEOS-4 files
       dominmax = .false.
       acoeff = 1.0
+      egress = 'DYNDIFF_EGRESS'
+      rcfile = 'NULL'
+      sbyene = .false.
+      tv2t   = .false.
+      eps_eer = 1.0
+      normlz = .false.
+      ntype  = 'ene'
 
+!     Default LPO boundaries
+!     ----------------------
+      projlon(1) =    0.
+      projlon(2) =  360.
+      projlat(1) =  -90.
+      projlat(2) =   90.
+      projlev(1) =    1
+      projlev(2) =   99
 
       print *
       print *, '     ---------------------------------------------------------'
@@ -233,13 +305,36 @@ CONTAINS
              iarg = iarg + 1
              call GetArg ( iArg, argv )
              read(argv,*) acoeff
+           case ("-egress")
+             if ( iarg+1 .gt. argc ) call usage()
+             iarg = iarg + 1
+             call GetArg ( iArg, egress )
            case ("-o")
              dout = .true.
              if ( iarg+1 .gt. argc ) call usage()
              iarg = iarg + 1
              call GetArg ( iArg, dyn_dout )
+           case ("-txt")
+             dout = .true.
+             if ( iarg+1 .gt. argc ) call usage()
+             iarg = iarg + 1
+             call GetArg ( iArg, jnorm )
+           case ("-tv2t")
+             tv2t = .true.
            case ("-h")
              if ( iarg+1 .gt. argc ) call usage()
+           case ("-ene_scale")
+             sbyene=.true.
+           case ("-normlz")
+             normlz=.true.
+           case ("-ntype")
+             if ( iarg+1 .gt. argc ) call usage()
+             iarg = iarg + 1
+             call GetArg ( iArg, ntype )
+           case ("-rc")
+             if ( iarg+1 .gt. argc ) call usage()
+             iarg = iarg + 1
+             call GetArg ( iArg, rcfile )
            case default
              nfiles = nfiles + 1
              if ( nfiles .gt. mfiles ) call usage()
@@ -256,6 +351,112 @@ CONTAINS
            dominmax = .true.
       endif
       if ( nfiles .gt. 2 ) call usage()
+
+!     If rc-file specificied and scale-by-energy, read relevant options
+!     -----------------------------------------------------------------
+      if (trim(rcfile)/='NULL' .and. sbyene ) then
+
+!        Load RC file
+!        ------------
+         call i90_loadf (trim(rcfile), iret)
+         if( iret .ne. 0) then
+             write(6,'(2a,i5)') myname_,': I90_loadf error, iret =',iret
+             call exit (1)
+         endif
+
+!        Read in norm type
+!        -----------------
+         call I90_label('pert_norm:', iret)
+         if (iret .eq. 0) then
+            call I90_Gtoken ( argv, iret )
+            if ( iret==0 ) then
+                anorm = lowercase(trim(argv))
+                write(6,'(2a)') 'Norm for perturbation: ', trim(anorm)
+             endif
+         endif
+
+!        Read Ehrendorfer, Errico, and Raeder's epsilon factor (apply to Q-component)
+!        ----------------------------------------------------------------------------
+         call I90_label('ehrendorfer_errico_raedder_eps:', iret)
+         if (iret .ne. 0) then
+           write(6,'(2a,i5)') myname_, ': I90_label error, iret =',iret
+         else
+           eps_eer = I90_GFloat(iret)
+           if( iret .ne. 0) then
+              write(6,'(3a,i5)') myname_,': I90_GFloat error, ', ' iret =',iret
+              call exit (1)
+           end if
+         end if
+         write(6,'(a,1p,e13.6)') 'Ehrendorfer, Errico, and Raeder eps: ',eps_eer
+
+!        Read in LPO information
+!        -----------------------
+         call I90_label('local_svec_projection:', iret)
+         if (iret .ne. 0) then
+           if(verb) write(6,'(2a)') myname_, &
+                        ': Using default local projection operator, i.e., none'
+         else
+             invalid = .false.
+             pnext = I90_GFloat(iret)
+             if (iret/=0) invalid = .true.
+             if (.not.invalid) then
+                projlon(1) = pnext
+             end if
+             pnext = I90_GFloat(iret)
+             if (iret/=0) invalid = .true.
+             if (.not.invalid) then
+                projlon(2) = pnext
+             end if
+             pnext = I90_GFloat(iret)
+             if (iret/=0) invalid = .true.
+             if (.not.invalid) then
+                projlat(1) = pnext
+             end if
+             pnext = I90_GFloat(iret)
+             if (iret/=0) invalid = .true.
+             if (.not.invalid) then
+                projlat(2) = pnext
+             end if
+             pnext = I90_GFloat(iret)
+             if (iret/=0) invalid = .true.
+             if (.not.invalid) then
+                projlev(1) = pnext
+             end if
+             pnext = I90_GFloat(iret)
+             if (iret/=0) invalid = .true.
+             if (.not.invalid) then
+                projlev(2) = pnext
+             end if
+
+!            Quick sanity check
+!            ------------------
+             if ( projlat(1) > projlat(2) ) invalid = .true.
+             if ( projlev(1) > projlev(2) ) invalid = .true.
+   
+             if ( invalid ) then
+                  projlon(1) =    0.
+                  projlon(2) =  360.
+                  projlat(1) =  -90.
+                  projlat(2) =   90.
+                  projlev(1) =    1
+                  projlev(2) =   99
+                  write(6,'(2a,/,a)') myname_, &
+                     ': Something went wrong while setting projection box.', &
+                     '  Taking default local projection (-180,180) (-90,90) (All Levels)'
+             else
+                 if(verb) write(6,'(a,/,2(a,f7.2,a,f7.2,/),2(a,i7),/)')    &
+                    'User specified local projection: ',               &
+                    '  From Lon ', projlon(1), ' to Lon ', projlon(2), &
+                    '  From Lat ', projlat(1), ' to Lat ', projlat(2), &
+                    '  From Lev ', projlev(1), ' to Lev ', projlev(2)
+             endif
+         endif
+         print *
+         print *, "Norm type: ", trim(ntype)
+
+         tv2t = .true.
+      endif
+      if (tv2t .and. verb) print *, 'Will convert virtual T to T'
 
 !     Echo the parameters
 !     -------------------
@@ -282,6 +483,8 @@ CONTAINS
       print *, '-verb       Echo different to standard out'
       print *, '              (default: FALSE) '
       print *, '-g5         Treats files as GEOS-5 files'
+      print *, '-tv2t       Converts diff in Tv to diff in T'
+      print *, '-egress     Name of EGRESS file for successful finalization'
       print *, '-a  coeff   Scale difference by this coefficient (see note)'
       print *
       print *

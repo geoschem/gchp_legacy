@@ -6,18 +6,37 @@
 #  Purposes - This is a perl wrapper for the g5_modules csh script.
 #
 #  Notes:
-#  1. You cannot "source" the csh file, g5_modules, from a perl
-#     script.
-#  2. Instead use the following in your perl script:
+#
+#  1. g5_modules must be in the same directory with this script.
+#
+#  2. Use the following commands to "source" g5_modules from a perl script:
 #     #--------------------------------
-#        do "g5_modules_perl_wrapper";
+#     {
+#          local @ARGV = ("$BinDir");
+#          do "$BinDir/g5_modules_perl_wrapper";
+#     }
 #     #--------------------------------
-#  3. The environment variable, FVROOT, must be set prior to calling script.
+#     where $BinDir is dir location of g5_modules and g5_modules_perl_wrapper
+#
+#  3. If your perl script resides in the same directory with g5_modules and
+#     g5_modules_perl_wrapper, then you can "source" g5_modules with the
+#     following commands:
+#     #--------------------------------
+#     use FindBin qw($Bin);
+#     use lib "$Bin";
+#     {
+#          local @ARGV = ();
+#          do "g5_modules_perl_wrapper";
+#     }
+#     #--------------------------------
 #
 #  REVISION HISTORY
 #  17Dec2007  Stassi  Initial version of code
 #  23Apr2009  Stassi  Broke scripts into subprograms 
-#
+#  04Oct2016  Stassi  Added "g5_mpw_" to front of sub names to avoid
+#                     conflict with calling script
+#  05Feb2018  Stassi  Get $bindir from @ARGV, if calling script does not
+#                     reside is same directory as this script
 ########################################################################
 use strict;
 use warnings;
@@ -27,21 +46,26 @@ my ($BASEDIR, @libmods, $modinit, $loadmodules);
 my (@fields, $LD_LIBRARY_PATH);
 my ($arch, $node);
 my ($baselib, $status);
+my $name = "g5_modules_perl_wrapper";
 
 # main program
 #-------------
 {
-    init();
-    get_expected_values();
-    set_env_variables();
+    g5_mpw_init();
+    g5_mpw_get_expected_values();
+    g5_mpw_set_env_variables();
 }
 
 #=======================================================================
 # name - init
 #=======================================================================
-sub init {
-    my ($FVROOT);
-    
+sub g5_mpw_init {
+    use FindBin qw($Bin);
+    my ($bindir, $msg);
+
+    $bindir = $ARGV[0];
+    $bindir = $Bin unless $bindir and -e "$bindir/g5_modules";
+
     # NOTE: Spell out scriptname--DO NOT USE $0 here!
     #------------------------------------------------
     $scriptname = "g5_modules_perl_wrapper";
@@ -51,21 +75,20 @@ sub init {
     chomp($arch = `uname -s`);
     chomp($node = `uname -n`);
 
-    # get FVROOT
-    #-----------
-    $FVROOT = $ENV{"FVROOT"};
-    die ">> Error << Environment variable, FVROOT not defined. " unless $FVROOT;
-
     # find g5_modules csh script
     #---------------------------
-    $g5_modules = "$FVROOT/bin/g5_modules";
-    die ">> Error << Cannot find $g5_modules. " unless (-e $g5_modules);
+    $g5_modules = "$bindir/g5_modules";
+    unless (-e $g5_modules) {
+        $msg = "[$name] >> Error << Cannot find file: $g5_modules";
+        print "$msg\n";
+        die "$msg;";
+    }
 }
 
 #=======================================================================
-# name - get_expected_values
+# name - g5_mpw_get_expected_values
 #=======================================================================
-sub get_expected_values {
+sub g5_mpw_get_expected_values {
 
     # get expected values from g5_modules
     #------------------------------------
@@ -83,9 +106,9 @@ sub get_expected_values {
 }
 
 #=======================================================================
-# name - set_env_variables
+# name - g5_mpw_set_env_variables
 #=======================================================================
-sub set_env_variables {
+sub g5_mpw_set_env_variables {
 
     # setenv BASEDIR
     #---------------
@@ -94,10 +117,15 @@ sub set_env_variables {
 
     # add BASEDIR lib to LD_LIBRARY_PATH, if not already there
     #---------------------------------------------------------
-    $LD_LIBRARY_PATH = $ENV{"LD_LIBRARY_PATH"};
     $baselib = "$BASEDIR/$arch/lib";
-    $status = index($LD_LIBRARY_PATH, $baselib);
-    if ($status < 0) { $ENV{"LD_LIBRARY_PATH"} .= ":$baselib" };
+    $LD_LIBRARY_PATH = $ENV{"LD_LIBRARY_PATH"};
+    if ($LD_LIBRARY_PATH) {
+        $status = index($LD_LIBRARY_PATH, $baselib);
+        if ($status < 0) { $ENV{"LD_LIBRARY_PATH"} .= ":$baselib" };
+    }
+    else {
+        $ENV{"LD_LIBRARY_PATH"} = $baselib;
+    }
  
     # load library modules
     #---------------------

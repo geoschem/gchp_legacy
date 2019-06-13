@@ -100,10 +100,8 @@
 
                                    ! Grid Information
                                    !    direction
-      integer       ier, year, month, day, hour
-      integer       nobs_oi, i, j, k, kk, ia, ios
-
-      integer       lm_max_max          ! Maximum number of time stamps in file
+      integer       ier
+      integer       j, k
 
       integer       ngatts              ! number of attributes on file
       integer       nvars, nvars_in
@@ -153,13 +151,13 @@
          if (im_max .ne. im) then
             write(stderr,'(2a,i5)') myname_,
      &           ': trying to read unallowed longitudinal dim'
-            call exit(7)
+            stop 7
          endif
 
          if (jm_max .ne. jm) then
             write(stderr,'(2a,i5)') myname_,
      &           ': trying to read unallowed latitudinal dim'
-            call exit(7)
+            stop 7
          endif
 
          if (mlev_max .ne. mlev) then
@@ -173,12 +171,12 @@
 
          write(stdout,'(2a)') myname_,
      .                ': No GFIO file for current date '
-         call flush (stdout)
+         flush (stdout)
          if ( present(stat) ) then
            stat = 99
            return
          else
-           call exit(7)
+           stop 7
          end if
 
       endif
@@ -195,18 +193,18 @@
       allocate ( lon64(im), stat=ier )
         if (ier/=0) then
             write(stderr,'(2a,i10,2a)') myname_, 'Alloc(lon) error '
-            call flush (stderr); call exit(7)
+            flush (stderr); stop 7
         endif
 
       call ncdinq (ncid, 1, dimName, dimSize, ier)
          if (ier/=0)then
              write(stderr,'(2a)') myname_, 'Error(ncdinq)'
-             call flush (stderr); call exit(7)
+             flush (stderr); stop 7
          endif
       dimId = ncvid (ncid, dimName, ier)
          if (ier/=0)then
              write(stderr,'(2a)') myname_, 'Error(ncvid)'
-             call flush (stderr); call exit(7)
+             flush (stderr); stop 7
          endif
 
 !     Caution: will try to read as 64-bit first ...
@@ -216,7 +214,7 @@
              write(stderr,'(2a,i10,2a)') myname_, 
      &                    ': Gfio_GetVar, ier = ', ier,
      &                    ' for variable ', 'lon'
-             call flush(stderr); call exit(7)
+             flush(stderr); stop 7
             endif
 
 !     ... if absurd lons, read as 32-bit
@@ -248,7 +246,7 @@
              write(stderr,'(2a,i10,2a)') myname_, 
      &                    ': Gfio_GetVar, ier = ', ier,
      &                    ' for variable ', trim(vname2d(iv))
-             call exit(7)
+             stop 7
            else
              call fix_undef_in_ ( n2dim, fld2d(:,:,iv:iv), vname2d(iv) )
            end if
@@ -266,7 +264,7 @@
              write(stderr,'(2a,i10)') myname_,
      &                    ': Gfio_GetVar, ier = ', ier,
      &                    ' for variable ', trim(vname3d(iv))
-             call exit(7)
+             stop 7
            else
              call fix_undef_in_ ( n3dim, fld3d(:,:,:,iv:iv), vname3d(iv) )
            end if
@@ -280,14 +278,14 @@
              if ( ier .ne. 0 ) then
                   write(stderr,'(2a,i10)') myname_, 
      .                         ': Alloc(aux), ier = ', ier
-                  call exit(7)
+                  stop 7
              end if
         call Gfio_GetVar ( ncid, 'Height', nymd, nhms,
      &                     mlev_max, 1, 0, 1, lev, ier )
            if ( ier .ne. 0 ) then
              write(stderr,'(2a,i10)') myname_,
      &                    ': Gfio_GetVar (lev), ier = ', ier
-             call exit(7)
+             stop 7
            end if
 
         do iv = 1, nvars3d
@@ -297,7 +295,7 @@
              write(stderr,'(2a,i10,2a)') myname_,
      &                    ': Gfio_GetVar, ier = ', ier,
      &                    ' for variable ', trim(vname3d(iv))
-             call exit(7)
+             stop 7
            else
              call fix_undef_in_ ( im*jm*mlev_max, aux, vname3d(iv) )
            end if
@@ -401,14 +399,11 @@
 
                                    ! Grid Information
                                    !    direction
-      integer       ier, year, month, day, hour
-      integer       nobs_oi, i, j, k, kk, ia, ios
-
-      integer       lm_max_max          ! Maximum number of time stamps in file
+      integer       ier
 
       integer       ngatts              ! number of attributes on file
       integer       nvars_in
-      integer       im_max, jm_max, mlev_max, lev_max, lm_max
+      integer       im_max, jm_max, mlev_max, lm_max
       integer       n2dim
       integer       iv, icount
       integer       ncid
@@ -444,13 +439,13 @@
          if (im_max .ne. im) then
             write(stderr,'(2a,i5)') myname_,
      &           ': trying to read unallowed longitudinal dim'
-            call exit(7)
+            stop 7
          endif
 
          if (jm_max .ne. jm) then
             write(stderr,'(2a,i5)') myname_,
      &           ': trying to read unallowed latitudinal dim'
-            call exit(7)
+            stop 7
          endif
 
 
@@ -458,8 +453,8 @@
 
          write(stdout,'(2a)') myname_,
      .                ': No GFIO file for current date '
-         call flush (stdout)
-         call exit(7)
+         flush (stdout)
+         stop 7
 
       endif
 
@@ -474,18 +469,18 @@
       allocate ( lon64(im), stat=ier )
         if (ier/=0) then
             write(stderr,'(2a,i10,2a)') myname_, 'Alloc(lon) error '
-            call flush (stdout); call exit(7)
+            flush (stdout); stop 7
         endif
             
       call ncdinq (ncid, 1, dimName, dimSize, ier)
          if (ier/=0)then
              write(stderr,'(2a)') myname_, 'Error(ncdinq)'
-             call flush (stderr); call exit(7)
+             flush (stderr); stop 7
          endif
       dimId = ncvid (ncid, dimName, ier)
          if (ier/=0)then
              write(stderr,'(2a)') myname_, 'Error(ncvid)'
-             call flush (stderr); call exit(7)
+             flush (stderr); stop 7
          endif
 
 !     Caution: will try to read as 64-bit first ...
@@ -495,7 +490,7 @@
              write(stderr,'(2a,i10,2a)') myname_,
      &                    ': Gfio_GetVar, ier = ', ier,
      &                    ' for variable ', 'lon'
-             call flush(stderr); call exit(7)
+             flush(stderr); stop 7
             endif
 
 !     ... if absurd lons, read as 32-bit
@@ -527,7 +522,7 @@
              write(stderr,'(2a,i10)') myname_, 
      &                    ': Gfio_GetVar, ier = ', ier, 
      &                    ' for variable ', trim(vname(iv))
-             call exit(7)
+             stop 7
            else
              call fix_undef_in_ ( n2dim, fld(:,:,iv:iv), vname(iv) )
            end if
@@ -625,10 +620,8 @@
 
                                    ! Grid Information
                                    !    direction
-      integer       ier, year, month, day, hour
-      integer       nobs_oi, i, j, k, kk, ia, ios
-
-      integer       lm_max_max          ! Maximum number of time stamps in file
+      integer       ier
+      integer       j, k
 
       integer       ngatts              ! number of attributes on file
       integer       nvars_in
@@ -682,7 +675,7 @@
                  stat = 1
                  return
             else
-                 call exit(7)
+                 stop 7
             endif
          endif
 
@@ -693,7 +686,7 @@
                  stat = 1
                  return
             else
-                 call exit(7)
+                 stop 7
             endif
          endif
 
@@ -708,12 +701,12 @@
 
          if(verbose_) write(stdout,'(2a)') myname_,
      .                ': No GFIO file for current date '
-         call flush (stdout)
+         flush (stdout)
          if ( present(stat) ) then
               stat = 2
               return
          else
-              call exit(7)
+              stop 7
          endif
       endif
 
@@ -729,19 +722,19 @@
       allocate ( lon64(im), stat=ier )
         if (ier/=0) then
             if(verbose_) write(stderr,'(2a,i10,2a)') myname_, 'Alloc(lon) error '
-            call flush (stdout)
-            call exit(7)
+            flush (stdout)
+            stop 7
         endif
 
       call ncdinq (ncid, 1, dimName, dimSize, ier)
          if (ier/=0)then
              if(verbose_) write(stderr,'(2a)') myname_, 'Error(ncdinq)'
-             call flush (stderr); call exit(7)
+             flush (stderr); stop 7
          endif
       dimId = ncvid (ncid, dimName, ier)
          if (ier/=0)then
              if(verbose_) write(stderr,'(2a)') myname_, 'Error(ncvid)'
-             call flush (stderr); call exit(7)
+             flush (stderr); stop 7
          endif
 
 !     Caution: will try to read as 64-bit first ...
@@ -751,7 +744,7 @@
              if(verbose_) write(stderr,'(2a,i10,2a)') myname_,
      &                    ': Gfio_GetVar, ier = ', ier,
      &                    ' for variable ', 'lon'
-             call flush(stderr); call exit(7)
+             flush(stderr); stop 7
             endif
 
 !     ... if absurd lons, read as 32-bit
@@ -789,7 +782,7 @@
                     stat = 3 
                     return
                else
-                    call exit(7)
+                    stop 7
                endif
              else
                call fix_undef_in_ ( n3dim, fld(:,:,:,iv:iv), vname(iv) )
@@ -808,7 +801,7 @@
                        stat = 4
                        return
                   else
-                       call exit(7)
+                       stop 7
                   endif
              end if
         call Gfio_GetVar ( ncid, 'Height', nymd, nhms,
@@ -820,7 +813,7 @@
                   stat = 3 
                   return
              else
-                  call exit(7)
+                  stop 7
              endif
            end if
 
@@ -835,7 +828,7 @@
                   stat = 3 
                   return
              else
-                  call exit(7)
+                  stop 7
              endif
            else
              call fix_undef_in_ ( im*jm*mlev_max, aux, vname(iv) )
@@ -960,20 +953,20 @@
      &   write(stdout,'(2a,i10,3a)') myname_, ': Fixed ', nonmiss,
      .                             ' values from input with strange undef',
      .                             ' for variable ', trim(vname)
-         call flush(stdout)
+         flush(stdout)
          if ( val_max_out .ne. undef ) then
             write(stdout,*) ' Largest  value on  input: ',  val_max_in
             write(stdout,*) ' Largest  value on output: ',  val_max_out
             write(stdout,*) ' Undef        value spec.: ',  undef
             write(stdout,*) ' Correction not done. Aborting ... '
-            call exit (7)
+            stop 7
          end if
       end if
       if (numnan .ne. 0) then
          write(stdout,'(2a,i10,3a)') myname_, ': There were ',numnan,
      .                             ' NaN values from input',
      .                             ' for variable ', trim(vname)
-         call flush(stdout)
+         flush(stdout)
       endif
 
       return

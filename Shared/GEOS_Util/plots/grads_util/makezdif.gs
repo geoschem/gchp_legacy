@@ -3,6 +3,7 @@ function makezdif (args)
 'numargs  'args
  numargs = result
 
+       abs = FALSE
       name = 'q'
       ptop =  0
        num =  0
@@ -14,6 +15,7 @@ if( subwrd(args,num)='-file1' ) ; file1  = subwrd(args,num+1) ; endif
 if( subwrd(args,num)='-file2' ) ; file2  = subwrd(args,num+1) ; endif
 if( subwrd(args,num)='-name'  ) ; name   = subwrd(args,num+1) ; endif
 if( subwrd(args,num)='-ptop'  ) ; ptop   = subwrd(args,num+1) ; endif
+if( subwrd(args,num)='-abs'   ) ; abs    = TRUE               ; endif
 endwhile
 
 'run getenv "GEOSUTIL"'
@@ -67,8 +69,11 @@ endwhile
 
 * Create Array of Target Pressure Levels
 * --------------------------------------
-'set dfile 'file2
+'set dfile 'file1
+'getinfo zdim'
+         zdim1 = result
 
+'set dfile 'file2
 'getinfo zdim'
          zdim2 = result
 'set z  'zdim2
@@ -97,10 +102,9 @@ say '                 Pressure Levels: 'levs
 say ''
 
 
-* Create Temporary File at 1x1 degree resolution with consistent levels
-* ---------------------------------------------------------------------
+* Create Temporary File at 0.25x0.25 degree resolution with consistent levels
+* ---------------------------------------------------------------------------
 'setlons'
-*'setx'
 'getinfo lon'
          lon = result
 if( lon < 0 )
@@ -151,7 +155,11 @@ while( z<=nlev )
             'define qtmp = 'q1' + lon-lon'
             'define qmod = regrid2( qtmp,0.25,0.25,bs_p1,0,-90)'
           'undefine qtmp'
-            '     d qmod-qobs'
+                  if( abs = TRUE )
+            '         d abs(qmod-qobs)'
+                  else
+            '         d qmod-qobs'
+                  endif
        else
             'define qk = 'q1' + lon-lon'
              if( k > 1 )
@@ -174,7 +182,11 @@ while( z<=nlev )
                  say '------------ '
              endif
             'define qmod = regrid2( qint,0.25,0.25,bs_p1,0,-90)'
-            '     d qmod-qobs'
+                  if( abs = TRUE )
+            '         d abs(qmod-qobs)'
+                  else
+            '         d qmod-qobs'
+                  endif
        endif
              say ' '
 z = z + 1
@@ -208,13 +220,31 @@ minval =  1e15
  z = 1
  while( z <= nlev )
 'set z 'z
-'minmax.simple qz '
+'minmax.simple qz'
+
  qmax = subwrd(result,1)
  qmin = subwrd(result,2)
+ qave = subwrd(result,3)
+ qrms = subwrd(result,4)
+ qstd = subwrd(result,5)
+ qfac = 2
+
+*facmax = (qmax-qave)/qstd
+*facmin = (qave-qmin)/qstd
+*say 'z: 'z'  facmax: 'facmax'  facmin: 'facmin
+
+ if( qmax > qave + qfac*qstd )
+     qmax = qave + qfac*qstd
+ endif
+ if( qmin < qave - qfac*qstd )
+     qmin = qave - qfac*qstd
+ endif
+ 
  if( qmax > maxval ) ; maxval = qmax ; endif
  if( qmin < minval ) ; minval = qmin ; endif
  z = z + 1
  endwhile
+ say ' '
 
 *'close 'newfile
 '!remove ZDIFILE.txt'

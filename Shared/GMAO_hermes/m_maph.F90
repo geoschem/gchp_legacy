@@ -293,7 +293,6 @@
       real  delpn(in,jn,km)        ! pressure thickness
 
       integer nymd, nhms, nstep
-      real pmax, pmin, mean
 
 ! get original data with km layers
 
@@ -374,7 +373,6 @@
       real, optional :: frocn(in,jn)  ! fraction of ocean
       real, optional :: frcin(in,jn)  ! fraction of sea ice
 
-      integer nymd, nhms, nstep
       real    pmax, pmin, mean
 
       logical, parameter :: adjdmass = .false.  ! RT: Mass adj was off in SJ's original

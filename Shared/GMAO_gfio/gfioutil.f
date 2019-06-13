@@ -138,7 +138,7 @@
 
       integer i, timeId, hour, min, sec, corner(1), err, timInc
       integer year, month, day
-      character(len=MAXCHR) timeUnits, strTmp, dimUnits
+      character(len=MAXCHR) timeUnits, dimUnits
 
       character*(MAXCHR) varName, dimName
       integer type, nvDims, vdims(MAXVDIMS), nvAtts, dimSize
@@ -323,16 +323,11 @@
 !EOP
 !-------------------------------------------------------------------------
 
-      integer nDims, recdim, ngatts, seconds
+      integer nDims, recdim, ngatts
       integer varType, nvDims, vDims(MAXVDIMS), nvAtts
-      character*8 strBuf
-      character*(MAXCHR) dimName
-      character*(MAXCHR) dimUnits
       character*(MAXCHR) vnameTemp
-      integer dimSize
       integer i
       logical surfaceOnly
-      logical noTimeInfo
       integer attType, attLen
       integer allVars            ! all variables - includes dimension vars
 
@@ -429,10 +424,9 @@
 
       ! Local variables
 
-      character*(MAXCHR)  NewUnits
-      integer ypos(2), mpos(2), dpos(2), hpos(2), minpos(2), spos(2)
+      integer ypos(2), mpos(2), dpos(2), hpos(2), spos(2)
       integer datepos(2)
-      integer i, j, inew, strlen
+      integer strlen
       integer firstdash, lastdash
       integer firstcolon, lastcolon
       integer lastspace

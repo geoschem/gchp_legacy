@@ -1,10 +1,15 @@
-! $Id: gather.H,v 1.4 2012-08-23 19:55:28 atrayano Exp $
+! $Id$
 
 #ifdef NAME_
 #undef NAME_
 #endif
 
+#ifdef NAMESTR_
+#undef NAMESTR_
+#endif
+
 #define NAME_ MAPL_CommsGatherV_
+#define NAMESTR_ 'MAPL_CommsGatherV_'
 
 #include "overload.macro"
 
@@ -25,27 +30,29 @@
     type(ESMF_VM)                         :: vm
 
     call ESMF_DELayoutGet(layout, vm=vm, rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call ESMF_VMGet(vm, mpiCommunicator=COMM, rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call mpi_gatherv( sendbuf, sendcnt,  MPITYPE_,     &
                   recvbuf, recvcnts, displs, MPITYPE_, &
                   root, comm, status )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
 #ifdef sysLinux
     call mpi_barrier(comm, status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 #endif
 
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
   END SUBROUTINE SUB_
 
 #undef NAME_
+#undef NAMESTR_
 
 #undef DIMENSIONS_
 #undef RANK_
+#undef RANKSTR_
 #undef VARTYPE_
 

@@ -1,7 +1,7 @@
 // $Id$
 //
 // Earth System Modeling Framework
-// Copyright 2002-2018, University Corporation for Atmospheric Research,
+// Copyright 2002-2019, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -16,13 +16,14 @@
 #include "ESMCI_Macros.h"
 #include "ESMCI_LogErr.h"
 #include "ESMCI_F90Interface.h"
-#include "ESMCI_Exception.h"
-#include "Mesh/include/ESMCI_MeshCXX.h"
-#include "ESMCI_MeshRead.h"
-#include "ESMCI_MeshVTK.h"
-#include "ESMCI_ParEnv.h"
-#include "ESMCI_MeshUtils.h"
 #include "ESMCI_VM.h"
+
+#include "Mesh/include/Legacy/ESMCI_Exception.h"
+#include "Mesh/include/ESMCI_MeshCXX.h"
+#include "Mesh/include/Legacy/ESMCI_MeshRead.h"
+#include "Mesh/include/Legacy/ESMCI_MeshVTK.h"
+#include "Mesh/include/Legacy/ESMCI_ParEnv.h"
+#include "Mesh/include/Legacy/ESMCI_MeshUtils.h"
 #include "Mesh/include/ESMCI_MathUtil.h"
 #include "Mesh/include/ESMCI_Mesh_Glue.h"
 
@@ -115,6 +116,7 @@ MeshCXX::~MeshCXX(){
     // set internal mesh dimensions
     (meshp)->set_parametric_dimension(pdim);
     (meshp)->set_spatial_dimension(cart_sdim);
+    (meshp)->orig_spatial_dim=sdim;
 
     // Set the number of nodes and elements
     ThrowAssert(meshp->num_elems() == 0);

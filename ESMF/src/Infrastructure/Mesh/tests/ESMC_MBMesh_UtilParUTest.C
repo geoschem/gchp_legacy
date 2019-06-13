@@ -2,7 +2,7 @@
 //==============================================================================
 //
 // Earth System Modeling Framework
-// Copyright 2002-2016, University Corporation for Atmospheric Research,
+// Copyright 2002-2019, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -42,8 +42,6 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-using namespace std;
-
 int main(int argc, char *argv[]) {
 
   char name[80];
@@ -73,7 +71,7 @@ int main(int argc, char *argv[]) {
   if (rc != ESMF_SUCCESS) return 0;
 
   // common vector for pointlist verification
-  vector<double*> cv;
+  std::vector<double*> cv;
 
   // --------------------------------------------------------------------------
   // quad mesh bilinear
@@ -87,7 +85,7 @@ int main(int argc, char *argv[]) {
 
   // build a pointlist
   PointList *pl_quad_par;
-  pl_quad_par = MBMesh_to_PointList(mesh_quad_par, &rc);
+  pl_quad_par = MBMesh_to_PointList(mesh_quad_par, ESMC_MESHLOC_NODE, NULL, &rc);
 
   //----------------------------------------------------------------------------
   //NEX_UTest_Multi_Proc_Only
@@ -115,7 +113,7 @@ int main(int argc, char *argv[]) {
 
   // build a pointlist
   PointList *pl_quad_sph_par;
-  pl_quad_sph_par = MBMesh_to_PointList(mesh_quad_sph_par, &rc);
+  pl_quad_sph_par = MBMesh_to_PointList(mesh_quad_sph_par, ESMC_MESHLOC_NODE, NULL, &rc);
 
   //----------------------------------------------------------------------------
   //NEX_UTest_Multi_Proc_Only

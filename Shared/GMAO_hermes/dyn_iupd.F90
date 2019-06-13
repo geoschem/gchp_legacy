@@ -15,31 +15,22 @@ character(len=*), parameter :: myname="dyn_iupd"
 
 character(len=256)  ifile
 character(len=256)  iofile
-character(len=256)  argv
 integer, parameter :: dyntype=5
 integer :: nymd, nhms, freq, rc
 integer :: im1,jm1,km1,lm1
 integer :: im2,jm2,km2,lm2
-integer :: iargc,iarg, argc, k, ks, lm
-real :: ptop,pint
+integer :: iargc,iarg, argc, k
 real,allocatable :: ak(:),bk(:)
 type(dyn_vect) :: xi
 type(dyn_vect) :: yi
 type(dyn_vect) :: zi
 logical, parameter :: pncf=.true.
+character(len=*), parameter :: ovars(11)=(/'    u','    v',' delp','   tv','   ps','   ts', ' sphu','qitot','qltot','qrtot','qstot'/)
 
 argc = iargc()
 if ( argc < 2 ) then
-   print *, "Usage: reset_time.x fname yyyymmdd hhmmss time_inc"
+   print *, "Usage: dyn_iupd.x finput foutput"
    print *, "   "
-
-   print *, "Reset begin_date, begin_time and time_increment."
-   print *, "Use negative number to skip. For example, "
-   print *, "   "
-   print *, "reset_time.x file_name -9 60000 -9 "
-   print *, "will only modify begin_time"
-   print *, "Please note: for HDF-EOS format, TIME:EOSGRID will"
-   print *, "             be modified, but Time will be NOT."
    stop
 end if
 
@@ -58,10 +49,10 @@ print *, im2, jm2, km2, lm2
 ! Number of levels and tracers must equal for now
 ! -----------------------------------------------
 if ( km1 /= km2 ) then
-   call die (myname,'lev tracers not consistent (error), aborting ... ')
+   call die (myname,'number of levs not consistent (error), aborting ... ')
 endif
 if ( lm1 /= lm2  ) then
-   print *, trim(myname),' number of tracers not consistent (warning), aborting ... '
+   print *, trim(myname),' number of tracers not consistent (warning), updating what possible ... '
 endif
 
 ! Read latest increment
@@ -126,7 +117,9 @@ enddo
 deallocate(ak,bk)
 
 ! write out updated incremet - will overwrite original file
-call dyn_put ( trim(iofile), nymd, nhms, 0, yi, rc, new=.true., freq=freq, vectype=dyntype )
+call dyn_put ( trim(iofile), nymd, nhms, 0, yi, rc, new=.true., freq=freq, vectype=dyntype, &
+                               verbose=.true. )
+!             only_vars=ovars, verbose=.true. )
 
 ! clean up
 call dyn_clean ( yi )

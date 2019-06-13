@@ -81,7 +81,6 @@ c -----------------------
       real, allocatable ::  dtdtdyn(:,:,:)
       real, allocatable ::  dqvdtdyn(:,:,:)
       real, allocatable ::  plevs(:)
-      real, allocatable ::  times(:)
       real, allocatable ::  lonN(:)
       real, allocatable ::  latN(:)
       real, allocatable ::  lonC(:)
@@ -148,7 +147,7 @@ CC  Loop over all input times
       allocate(plevs(lmC))
       allocate(lonC(imC))
       allocate(latC(jmC))
-      call read_asm_data (id,t,qv,u,v,omega,latC,lonC,imC,jmC,lmC,nymd,nhms,plevs,nvars,ntimes,undef,rc)
+      call read_asm_data (id,t,qv,u,v,omega,latC,lonC,imC,jmC,lmC,plevs,nvars,ntimes,undef,rc)
       do index=1,lmC
        plevsscm(index) = plevs(index)
       enddo
@@ -189,21 +188,21 @@ c-----------SVETA-----------------------------------------
       allocate(dqvdtana(imC,jmC,lmC))
       call read_qdtana_data (id,dqvdtana,latC,lonC,imC,jmC,lmC,plevs,nvars,ntimes,undef,rc)    
 c-----------------------------------------------------------------
-      call getmylatlon2(latbegin,lonbegin,latend,lonend,latN,lonN,imN,jmN,lmN,ps,psscm(n))
-      call getmylatlon2(latbegin,lonbegin,latend,lonend,latN,lonN,imN,jmN,lmN,ts,tsscm(n))
-      call getmylatlon2(latbegin,lonbegin,latend,lonend,latN,lonN,imN,jmN,lmN,eflux,efluxscm(n))
-      call getmylatlon2(latbegin,lonbegin,latend,lonend,latN,lonN,imN,jmN,lmN,hflux,hfluxscm(n))
-      call getmylatlon2(latbegin,lonbegin,latend,lonend,latN,lonN,imN,jmN,lmN,prectot,prectotscm(n))
-      call getmylatlon3(n,latbegin,lonbegin,latend,lonend,latC,lonC,imC,jmC,lmC,t,undef,plevs,tscm)
-      call getmylatlon3(n,latbegin,lonbegin,latend,lonend,latC,lonC,imC,jmC,lmC,qv,undef,plevs,qvscm)
-      call getmylatlon3(n,latbegin,lonbegin,latend,lonend,latC,lonC,imC,jmC,lmC,u,undef,plevs,uscm)
-      call getmylatlon3(n,latbegin,lonbegin,latend,lonend,latC,lonC,imC,jmC,lmC,v,undef,plevs,vscm)
-      call getmylatlon3(n,latbegin,lonbegin,latend,lonend,latC,lonC,imC,jmC,lmC,omega,undef,plevs,omegascm)
-      call getmylatlon3(n,latbegin,lonbegin,latend,lonend,latC,lonC,imC,jmC,lmC,dtdtdyn,undef,plevs,dtdtdynscm)
-      call getmylatlon3(n,latbegin,lonbegin,latend,lonend,latC,lonC,imC,jmC,lmC,dqvdtdyn,undef,plevs,dqvdtdynscm)
+      call getmylatlon2(latbegin,lonbegin,latend,lonend,latN,lonN,imN,jmN,ps,psscm(n))
+      call getmylatlon2(latbegin,lonbegin,latend,lonend,latN,lonN,imN,jmN,ts,tsscm(n))
+      call getmylatlon2(latbegin,lonbegin,latend,lonend,latN,lonN,imN,jmN,eflux,efluxscm(n))
+      call getmylatlon2(latbegin,lonbegin,latend,lonend,latN,lonN,imN,jmN,hflux,hfluxscm(n))
+      call getmylatlon2(latbegin,lonbegin,latend,lonend,latN,lonN,imN,jmN,prectot,prectotscm(n))
+      call getmylatlon3(n,latbegin,lonbegin,latend,lonend,latC,lonC,imC,jmC,lmC,t,undef,tscm)
+      call getmylatlon3(n,latbegin,lonbegin,latend,lonend,latC,lonC,imC,jmC,lmC,qv,undef,qvscm)
+      call getmylatlon3(n,latbegin,lonbegin,latend,lonend,latC,lonC,imC,jmC,lmC,u,undef,uscm)
+      call getmylatlon3(n,latbegin,lonbegin,latend,lonend,latC,lonC,imC,jmC,lmC,v,undef,vscm)
+      call getmylatlon3(n,latbegin,lonbegin,latend,lonend,latC,lonC,imC,jmC,lmC,omega,undef,omegascm)
+      call getmylatlon3(n,latbegin,lonbegin,latend,lonend,latC,lonC,imC,jmC,lmC,dtdtdyn,undef,dtdtdynscm)
+      call getmylatlon3(n,latbegin,lonbegin,latend,lonend,latC,lonC,imC,jmC,lmC,dqvdtdyn,undef,dqvdtdynscm)
 c------------------SVETA----------------------
-      call getmylatlon3(n,latbegin,lonbegin,latend,lonend,latC,lonC,imC,jmC,lmC,dtdtana,undef,plevs,dtdtanascm)
-      call getmylatlon3(n,latbegin,lonbegin,latend,lonend,latC,lonC,imC,jmC,lmC,dqvdtana,undef,plevs,dqvdtanascm)
+      call getmylatlon3(n,latbegin,lonbegin,latend,lonend,latC,lonC,imC,jmC,lmC,dtdtana,undef,dtdtanascm)
+      call getmylatlon3(n,latbegin,lonbegin,latend,lonend,latC,lonC,imC,jmC,lmC,dqvdtana,undef,dqvdtanascm)
 c----------------------------------
       call tick(nymd,nhms,5400)
 
@@ -340,14 +339,12 @@ c %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
       real ts1(im,jm), ts2(im,jm), ts3(im,jm)
       real ps1(im,jm), ps2(im,jm), ps3(im,jm)
 
-      integer timinc,nsecf
+      integer timinc
       integer, allocatable :: yyyymmdd(:),hhmmss(:),kmvar(:)
       character * 256 title,source,contact,levunits
       real amiss
       character * 256, allocatable :: vname(:),vtitle(:),vunits(:) 
       real, allocatable :: valrange(:,:),packrange(:,:)
-
-      integer ii
 
       allocate ( yyyymmdd(1) )
       allocate ( hhmmss(1) )
@@ -421,14 +418,12 @@ c %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
       real hflux1(im,jm), hflux2(im,jm), hflux3(im,jm)
       real prectot1(im,jm), prectot2(im,jm), prectot3(im,jm)
 
-      integer timinc,nsecf
+      integer timinc
       integer, allocatable :: yyyymmdd(:),hhmmss(:),kmvar(:)
       character * 256 title,source,contact,levunits
       character * 256, allocatable :: vname(:),vtitle(:),vunits(:) 
       real amiss
       real, allocatable :: valrange(:,:),packrange(:,:)
-
-      integer ii
 
       allocate ( yyyymmdd(1) )
       allocate ( hhmmss(1) )
@@ -507,13 +502,11 @@ c %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
       real tdt(im,jm,lm), lats(jm), lons(im), plevs(lm)
       real amiss
 
-      integer timinc,nsecf
+      integer timinc
       integer, allocatable :: yyyymmdd(:),hhmmss(:),kmvar(:)
       character * 256 title,source,contact,levunits
       character * 256, allocatable :: vname(:),vtitle(:),vunits(:) 
       real, allocatable :: valrange(:,:),packrange(:,:)
-
-      integer ii
 
 C **********************************************************************
 C ****                  Read HDF File for Some Info                 ****
@@ -563,13 +556,12 @@ c %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
       real tdtana(im,jm,lm), lats(jm), lons(im), plevs(lm)
       real amiss
 
-      integer timinc,nsecf
+      integer timinc
       integer, allocatable :: yyyymmdd(:),hhmmss(:),kmvar(:)
       character * 256 title,source,contact,levunits
       character * 256, allocatable :: vname(:),vtitle(:),vunits(:) 
       real, allocatable :: valrange(:,:),packrange(:,:)
 
-      integer ii
 
 C **********************************************************************
 C ****                  Read HDF File for Some Info                 ****
@@ -622,13 +614,11 @@ c%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
       real qdt(im,jm,lm), lats(jm), lons(im), plevs(lm)
       real amiss
 
-      integer timinc,nsecf
+      integer timinc
       integer, allocatable :: yyyymmdd(:),hhmmss(:),kmvar(:)
       character * 256 title,source,contact,levunits
       character * 256, allocatable :: vname(:),vtitle(:),vunits(:) 
       real, allocatable :: valrange(:,:),packrange(:,:)
-
-      integer ii
 
 C **********************************************************************
 C ****                  Read HDF File for Some Info                 ****
@@ -678,13 +668,11 @@ c %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
       real qdtana(im,jm,lm), lats(jm), lons(im), plevs(lm)
       real amiss
 
-      integer timinc,nsecf
+      integer timinc
       integer, allocatable :: yyyymmdd(:),hhmmss(:),kmvar(:)
       character * 256 title,source,contact,levunits
       character * 256, allocatable :: vname(:),vtitle(:),vunits(:) 
       real, allocatable :: valrange(:,:),packrange(:,:)
-
-      integer ii
 
 C **********************************************************************
 C ****                  Read HDF File for Some Info                 ****
@@ -729,21 +717,20 @@ C **********************************************************************
 
 
 c%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-      subroutine read_asm_data (id,t,qv,u,v,omega,lats,lons,im,jm,lm,nymd,nhms,plevs,nvars,ntime,amiss,rc)
+      subroutine read_asm_data (id,t,qv,u,v,omega,lats,lons,im,jm,lm,plevs,nvars,ntime,amiss,rc)
       implicit none
 
-      integer   id,im,jm,lm,nvars,ntime,nymd,nhms,rc
+      integer   id,im,jm,lm,nvars,ntime,rc
       real t(im,jm,lm), qv(im,jm,lm), u(im,jm,lm), v(im,jm,lm), omega(im,jm,lm) 
       real lats(jm), lons(im), plevs(lm)
       real amiss
 
-      integer timinc,nsecf
+      integer timinc
       integer, allocatable :: yyyymmdd(:),hhmmss(:),kmvar(:)
       character * 256 title,source,contact,levunits
       character * 256, allocatable :: vname(:),vtitle(:),vunits(:) 
       real, allocatable :: valrange(:,:),packrange(:,:)
 
-      integer ii
 
 C **********************************************************************
 C ****                  Read HDF File for Some Info                 ****
@@ -791,11 +778,11 @@ C **********************************************************************
 
 c %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
       subroutine getmylatlon2(latbegin,lonbegin,latend,lonend,lats,lons,
-     .                                 imN,jmN,lmN,fieldin,fieldscm)
+     .                                 imN,jmN,fieldin,fieldscm)
       implicit none
       real latbegin,lonbegin,latend,lonend
       real lats(jmN),lons(imN)
-      integer imN,jmN,lmN
+      integer imN,jmN
       real fieldin(imN,jmN),fieldscm
 
       real dlat, dlon
@@ -821,12 +808,12 @@ c %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 c %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
       subroutine getmylatlon3(n,latbegin,lonbegin,latend,lonend,lats,lons,
-     .                                 imC,jmC,lmC,fieldin,undef,plevs,fieldscm)
+     .                                 imC,jmC,lmC,fieldin,undef,fieldscm)
       implicit none
       real latbegin,lonbegin,latend,lonend
       real lats(jmC),lons(imC)
       integer n,imC,jmC,lmC
-      real fieldin(imC,jmC,lmC),fieldscm(1000,100),plevs(lmC)
+      real fieldin(imC,jmC,lmC),fieldscm(1000,100)
       real undef
 
       integer ii,jj,kk,ibegin,iend,jbegin,jend,itot
@@ -857,7 +844,7 @@ c %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
        endif
       enddo
 
-      if(undefs) call extrap(n,lmC,plevs,undef,fieldscm)
+      if(undefs) call extrap(n,lmC,undef,fieldscm)
 
       return
       end subroutine getmylatlon3
@@ -865,7 +852,7 @@ c %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 c %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
       subroutine writer_meta(n,lmC,plevsscm,timesscm,yearsscm,monthsscm,daysscm,hoursscm,minutesscm)
       implicit none
-      integer n,lmC,id
+      integer n,lmC
       real plevsscm(lmC),timesscm(n)
       integer yearsscm(n),monthsscm(n),daysscm(n),hoursscm(n),minutesscm(n)
 
@@ -913,7 +900,6 @@ c %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
       subroutine writer_upper(n,lmC,tscm,qvscm,uscm,vscm,omegascm,dtdtdynscm,dqvdtdynscm,dtdtanascm,dqvdtanascm)
       implicit none
       integer n,lmC
-      real plevsscm(lmC)
       real tscm(1000,100),qvscm(1000,100),uscm(1000,100),vscm(1000,100),omegascm(1000,100)
       real dtdtdynscm(1000,100),dqvdtdynscm(1000,100),dtdtanascm(1000,100),dqvdtanascm(1000,100)
 
@@ -1070,10 +1056,10 @@ c %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
       end subroutine writer_surface
 
 c %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-      subroutine extrap(n,lmC,plevs,undef,fieldscm)
+      subroutine extrap(n,lmC,undef,fieldscm)
       implicit none
       integer n,lmC
-      real undef,plevs(lmC),fieldscm(1000,100)
+      real undef,fieldscm(1000,100)
 
       integer kk
       real valabove

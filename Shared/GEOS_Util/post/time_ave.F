@@ -37,7 +37,7 @@ c **********************************************************************
       integer  begdate, begtime
       integer  enddate, endtime
 
-      integer id,rc,fid,precision,timeinc,timeid
+      integer id,rc,precision,timeinc,timeid
       integer ntime,nvars,ngatts,ncvid,nvars2
 
       character*256, allocatable ::   arg(:)
@@ -46,15 +46,15 @@ c **********************************************************************
       character*256  name
       character*256  ext
       character*256  output, doutput, hdfile, rcfile
-      character*8    date,date0
-      character*2    time,time0
+      character*8    date0
+      character*2    time0
       character*1    char
       data output  /'monthly_ave'/
       data rcfile  /'NULL'/
       data doutput /'NULL'/
       data template/'NULL'/
 
-      integer n,m,nargs,iargc,L,nbeg,nfiles,mlev,nv,km,mvars,mv,ndvars
+      integer n,m,nargs,iargc,L,nfiles,nv,km,mvars,mv,ndvars
 
       real     plev,qming,qmaxg
       real     undef
@@ -89,7 +89,7 @@ c **********************************************************************
       integer, allocatable :: ntimes(:,:,:,:)
 
       integer timinc,i,j,k,nmax,kbeg,kend,loc1,loc2
-      integer imax,jmax,nstar
+      integer nstar
       logical defined, tend, first, strict, diurnal, mdiurnal, lquad, ldquad
       data first  /.true./
       data strict /.true./
@@ -101,7 +101,7 @@ c **********************************************************************
       character*256, allocatable ::    quadtmp(:,:)
       character*256, allocatable ::    aliases(:,:)
       character*256, allocatable ::   aliastmp(:,:)
-      character*256  name1, name2, name3, name4, name5, dummy
+      character*256  name1, name2, name3, dummy
       integer        nquad
       integer        nalias
       logical,       allocatable :: lzstar(:)
@@ -125,12 +125,15 @@ C **********************************************************************
          npex = npex-1
          npey = nint ( float(npes)/float(npex) )
       enddo
+      call ESMF_Initialize(logKindFlag=ESMF_LOGKIND_NONE,
+     .                     mpiCommunicator=MPI_COMM_WORLD, rc=rc)
 #else
       comm = 0
       npes = 1
       npex = 1
       npey = 1
       myid = 0
+      call ESMF_Initialize(logKindFlag=ESMF_LOGKIND_NONE, rc=rc)
 #endif
       root = myid.eq.0
 
@@ -426,7 +429,7 @@ c -----------------------------
         km=kmvar(nvars)
          m=      nvars
       do n=1,nquad
-         call check_quad ( quadratics(1,n),vname,nloc,nvars,aliases,nalias,qloc(1,n) )
+         call check_quad ( quadratics(1,n),vname,nvars,aliases,nalias,qloc(1,n) )
          if( qloc(1,n)*qloc(2,n).ne.0 ) then
              m=m+1
              allocate ( iloc(m) )
@@ -1078,7 +1081,7 @@ C **********************************************************************
       use dynamics_lattice_module
       implicit none
       type ( dynamics_lattice_type ) lattice
-      integer im,jm,i,j,n
+      integer im,jm,i,j
       real  q(im,jm),undef,qz(jm)
       real qp(im,jm)
       logical defined
@@ -1099,10 +1102,10 @@ C **********************************************************************
       return
       end
 
-      subroutine check_quad ( quad,vname,nloc,nvars,aliases,nalias,qloc )
+      subroutine check_quad ( quad,vname,nvars,aliases,nalias,qloc )
       implicit none
       character*256  quad(2), aliases(2,nalias), vname(nvars)
-      integer  nvars, nalias, qloc(2), nloc(nvars)
+      integer  nvars, nalias, qloc(2)
       integer  m,n
 
 c Initialize Location of Quadratics
@@ -1277,7 +1280,6 @@ C***********************************************************************
       end function incymd
 
       subroutine usage(root)
-      integer ierror
       logical root
       if(root) then
       write(6,100)

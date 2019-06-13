@@ -62,7 +62,7 @@ C
 
       integer function err ( outstring, iret, ec ) 
       character *(*) outstring
-      integer ec, rc, iret
+      integer ec, iret
 
       if (iret .EQ. 0) then
         err = iret

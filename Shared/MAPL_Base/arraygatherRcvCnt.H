@@ -1,10 +1,15 @@
-! $Id: arraygatherRcvCnt.H,v 1.3 2013-01-17 14:54:55 atrayano Exp $
+! $Id$
 
 #ifdef NAME_
 #undef NAME_
 #endif
 
+#ifdef NAMESTR_
+#undef NAMESTR_
+#endif
+
 #define NAME_ ArrayGatherRcvCnt_
+#define NAMESTR_ 'ArrayGatherRcvCnt_'
 
 #include "overload.macro"
 
@@ -27,13 +32,12 @@
     
     integer                               :: I
     integer                               :: IM1 ! 'I minus 1'
-    integer                               :: de
     integer                               :: deId ! index of my PE
     integer                               :: dstDE
     
 ! This version works only for 1D arrays! 
 
-    ASSERT_(RANK_ == 1)
+    _ASSERT(RANK_ == 1, 'only rank 1 is supported')
 
     if(present(dstPe)) then
       dstDE = dstPe 
@@ -42,13 +46,13 @@
     end if
 
     call ESMF_VMGet(vm, localPet=deId, petCount=ndes, rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
 
-    ASSERT_(size(recvCounts) == nDEs)
+    _ASSERT(size(recvCounts) == nDEs, 'recvcounts must match nDEs')
 
     allocate (displs(0:nDEs), stat=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     displs(0) = 0
     do I = 1,nDEs
@@ -61,16 +65,18 @@
 
     call ESMF_VMGatherV(vm, local_array, sendcount, &
                         global_array, recvcounts, displs, dstDE, rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     deallocate(displs, stat=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
   end subroutine SUB_
 
 #undef NAME_
+#undef NAMESTR_
 
 #undef DIMENSIONS_
 #undef RANK_
+#undef RANKSTR_
 #undef VARTYPE_

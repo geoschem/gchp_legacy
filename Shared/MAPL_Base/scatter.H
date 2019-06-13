@@ -1,10 +1,15 @@
-! $Id: scatter.H,v 1.2 2008-08-28 20:30:48 trayanov Exp $
+! $Id$
 
 #ifdef NAME_
 #undef NAME_
 #endif
 
+#ifdef NAMESTR_
+#undef NAMESTR_
+#endif
+
 #define NAME_ MAPL_CommsScatterV_
+#define NAMESTR_ 'MAPL_CommsScatterV_'
 
 #include "overload.macro"
 
@@ -25,27 +30,29 @@
     integer                               :: comm
 
     call ESMF_DELayoutGet(layout, vm=vm, rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 #if 1
     call ESMF_VMGet(vm, mpiCommunicator = comm, rc=status)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call mpi_scatterv( sendbuf, sendcnts, displs,  MPITYPE_, &
                        recvbuf, recvcnt, MPITYPE_,           &
                        root, comm, status )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 #else
     call ESMF_VMScatterv( vm, sendbuf, sendcnts, displs,  &
                        recvbuf, recvcnt,                  &
                        root, status )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 #endif
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
   END SUBROUTINE SUB_
 
 #undef NAME_
+#undef NAMESTR_
 
 #undef DIMENSIONS_
 #undef RANK_
+#undef RANKSTR_
 #undef VARTYPE_
 

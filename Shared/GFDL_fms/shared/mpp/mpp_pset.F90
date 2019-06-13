@@ -1,7 +1,7 @@
 ! module within MPP for handling PSETs:
 ! PSET: Persistent Shared-memory Execution Thread
 !
-! AUTHOR: V. Balaji (v.balaji)
+! AUTHOR: V. Balaji (v.balaji@noaa.gov)
 ! DATE: 2006-01-15
 #include <fms_platform.h>
 #ifdef test_mpp_pset
@@ -50,7 +50,9 @@ module mpp_pset_mod
 !public type
   type :: mpp_pset_type
      private
+#ifdef IBM_FIX
      sequence
+#endif
      integer :: npset !number of PSETs
      integer :: next_in_pset, prev_in_pset !next and prev PE in PSET (cyclic)
      integer :: root_in_pset !PE designated to be the root within PSET

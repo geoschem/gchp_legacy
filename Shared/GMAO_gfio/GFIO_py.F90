@@ -760,7 +760,7 @@
 
 
 ! Local
-      integer i, j, k, nob
+      integer i, j, nob
       real    o_lon, o_lat
       real    m_dlon, m_dlat
       real    alfa, beta
@@ -885,7 +885,6 @@ end subroutine gfioInterpXY
 
 ! Local
       integer i, j, nob
-      real    o_lon, o_lat
       real    m_dlon, m_dlat
 !                         ------
 
@@ -981,7 +980,6 @@ end subroutine gfioInterpNN
 
 ! Local
       integer i, j, nob
-      real    o_lon, o_lat
       real    m_dlon, m_dlat
 !                         ------
 

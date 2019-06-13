@@ -10,13 +10,23 @@
 
 import os
 import sys
+import re
 
 from optparse     import OptionParser
 from netCDF4      import Dataset
 from MAPL         import Config
 
 try:
-    from PyRTF   import *
+    from PyRTF    import *
+    HAS_RTF = True
+except ImportError:
+    try:
+        from rtfw import *
+        HAS_RTF = True
+    except:
+        HAS_RTF = False
+
+if HAS_RTF:
 
     nNAME = int(TabPS.DEFAULT_WIDTH * 2.5)
     nDIMS = int(TabPS.DEFAULT_WIDTH * 1)
@@ -33,10 +43,7 @@ try:
     thin_frame    = FramePS( thin_edge, normal_edge, thin_edge,  normal_edge )
     thin_frameL   = FramePS( thin_edge, None,        thin_edge,  normal_edge )
     thin_frameR   = FramePS( thin_edge, normal_edge, thin_edge,  None )
-    HAS_RTF = True
 
-except:
-    HAS_RTF = False
     
 #     -----
 class Spec(object):
@@ -44,8 +51,9 @@ class Spec(object):
     """                                                                                  
     Generic container for Variables
     """
-    def __init__(self,name):
+    def __init__(self,name,mytype):
         self.name = name
+        self.type = mytype
         self.section = 0
 
 #.................................................................................................
@@ -56,12 +64,15 @@ class Writer(object):
     """
     Base class for writer.
     """
-    def writeVariable(self,vname,var):
+    def writeVariable(self,vname,var,newUnits=None):
         """
         Write row for a single variable.
         """
         dims = var.dimensions
-        if len(dims) == 2:
+        if len(dims) == 1:
+            a, = dims
+            dim = get1d(a)
+        elif len(dims) == 2:
             a, b = dims
             dim = get1d(a) + get1d(b)
         elif len(dims) == 3:
@@ -73,15 +84,19 @@ class Writer(object):
         else:
             raise ValueError, 'invalid dimensions: %s for <%s>'%(str(dims),vname)
         descr = var.long_name.replace('__ENSEMBLE__','').replace('_',' ')
-        self.row(vname,dim,descr,var.units)
+        if newUnits:
+            unitlessDescr = re.sub('\[.*\]','',descr)
+            self.row(vname,dim,unitlessDescr,newUnits)
+        else:
+            self.row(vname,dim,descr,var.units)
     
     def doCollection(self,Coll,options):
         """
         Write spec for a given collection.
         """
-        
+       
         Title = Coll.title.split(',')
-        Name = Coll.name.split('_')
+        Name = Coll.type.split('_')
 
         # Defaults deverived from collection name
         # ---------------------------------------
@@ -89,34 +104,52 @@ class Writer(object):
             sampling = 'Time-Averaged'
         elif Name[0][0:4].upper() == 'INST':
             sampling = 'Instantaneous'
+        elif Name[0][0:4].upper() == 'CONS':
+            sampling = 'Invariant'
         else:
             sampling = 'unknown'
+
         try:
             freq = Name[0][4]+'-Hourly' # not robust
         except:
             freq = 'unknown'
+
         dim = Name[1]
-        if Name[3][0] == 'C':
+
+        if options.dyamond and 'Invariant' not in sampling:
+            resfield = 4
+        else:
+            resfield = 3
+
+        onCube = False
+        if Name[resfield][0] == 'C':
             res = 'Coarsened Horizontal Resolution'
-        elif Name[3][0] == 'N':
+        elif Name[resfield][0] == 'N':
             res = 'Full Horizontal Resolution'
-        elif Name[3][0] == 'M':
+        elif Name[resfield][0] == 'M':
+            onCube = True
             res = 'Full Horizontal Resolution On Cube'
         else:
             res = 'Unknown resolution'
-        if Name[3][1] == 'v':
+
+        if Name[resfield][1] == 'v':
             level = 'Model-Level'
-        elif Name[3][1] == 'e':
+        elif Name[resfield][1] == 'e':
             level = 'Model-Edge-Level'
-        elif Name[3][1] == 'p':
+        elif Name[resfield][1] == 'p':
             level = 'Pressure-Level'
-        elif Name[3][1] == 'x':
+        elif Name[resfield][1] == 'x':
             level = 'Single-Level'
-        elif Name[3][1] == 'z':
+        elif Name[resfield][1] == 'z':
             level = 'Height-Level'
         else:
             level = 'unknown'
-            
+
+        have_channels = False
+        if Coll.lev_name:
+            if 'CHANNEL' in Coll.lev_name.upper():
+                have_channels = True
+
         if Title[0] == 'Invariants':
             dim, freq, sampling, level = ('2d','invariants','time independent', 'surface')
             descr = Title[1]
@@ -124,6 +157,9 @@ class Writer(object):
             if options.nature:
                 dim_, freq, sampling, level, res = Title[:5]
                 descr = ','.join(Title[5:])[:-2]
+            elif options.merraobs:
+                dim_, freq, sampling, level = Title[:4]
+                descr = ','.join(Title[4:])
             elif options.merra:
                 dim_, freq, sampling, level = Title[:4]
                 descr = ','.join(Title[5:]) #[:-2].replace("'","")
@@ -158,9 +194,19 @@ class Writer(object):
             self.property('Frequency',"%s from %s (%s)"%(freq.lower(),tbeg,sampling.lower()))
         self.property("Spatial Grid","%s, %s, %s"%(dim.upper(),level.lower(),res.lower()))
         if Coll.nz<1:
-            self.property("Dimensions","longitude=%d, latitude=%d, time=%d "%(Coll.nx,Coll.ny,Coll.nt))
+            if onCube:
+                self.property("Dimensions","grid resolution=%d, time=%d "%(Coll.nx,Coll.nt))
+            else:
+                self.property("Dimensions","longitude=%d, latitude=%d, time=%d "%(Coll.nx,Coll.ny,Coll.nt))
         else:
-            self.property("Dimensions","longitude=%d, latitude=%d, level=%d, time=%d "%(Coll.nx,Coll.ny,Coll.nz,Coll.nt))
+            if have_channels:
+                self.property("Dimensions","longitude=%d, latitude=%d, channels=%d, time=%d "%(Coll.nx,Coll.ny,Coll.nz,Coll.nt))
+            else:
+                if onCube:
+                    self.property("Dimensions","grid resolution=%d, level=%d, time=%d "%(Coll.nx,Coll.nz,Coll.nt))
+                else:
+                    self.property("Dimensions","longitude=%d, latitude=%d, level=%d, time=%d "%(Coll.nx,Coll.ny,Coll.nz,Coll.nt))
+
 
         usize = 'MB'
         gsize = int(float(Coll.size)/(1024.*1024.)+0.5)
@@ -175,13 +221,16 @@ class Writer(object):
         # --------------
         self.table('header')
         for vname in sorted(Coll.variables):
-            self.writeVariable(vname, Coll.variables[vname] )
+            if any(Coll.newUnits):
+                self.writeVariable(vname, Coll.variables[vname], Coll.newUnits[vname] )
+            else:
+                self.writeVariable(vname, Coll.variables[vname] )
         self.table('footer')
 
 #.................................................................................................
 
 #     ---------
-class txtWriter(Writer):
+class stdoutWriter(Writer):
 #     ---------
     """
     Implements text file writer.
@@ -209,6 +258,39 @@ class txtWriter(Writer):
 
     def close(self):
         pass
+
+#.................................................................................................
+
+#     ---------
+class txtWriter(Writer):
+#     ---------
+    """
+    Implements text file writer.
+    """
+    def __init__(self,filename=None):
+        self.filename = filename # ignore this for now.
+        self.doc = open(filename,'w')
+        self.secn = 0
+    def section(self,collection,description):
+        self.secn += 1
+        self.doc.write("\n")
+        self.doc.write("\n")
+        self.doc.write( "%d) Collection %s: %s\n"%(self.secn,collection,description) )
+        self.doc.write("\n")
+    def property(self,name,value):
+        self.doc.write( "%19s: %s\n"%(name,value) )
+    def table(self,choice='header'):
+        if choice == 'header':
+            self.doc.write("\n")
+            self.doc.write( " -----------|------|------------------------------------------------------------|------------\n" )
+            self.doc.write( "   Name     | Dims |                     Description                            |    Units   \n" )
+        self.doc.write( " -----------|------|------------------------------------------------------------|------------\n" )
+        return
+    def row(self,vname,dim,descr,units):
+        self.doc.write( ' %-10s | %4s | %-58s | %-10s \n'%(vname,dim,descr,units) )
+
+    def close(self):
+        self.doc.close()
 
 #.................................................................................................
 
@@ -272,38 +354,79 @@ class rtfWriter(Writer):
         r.Write(self.doc,f)
         
 #   -------------
-def getCollection(filename,collname):
+def getCollection(filename,collname,options,colltype=None):
 #   -------------
     """
     Parses netCDF file and gathers collection metadata.
     """
-    Coll = Spec(collname)
+    if colltype:
+        Coll = Spec(collname,colltype)
+    else:
+        Coll = Spec(collname,collname)
+
     Coll.size = os.path.getsize(filename)
     Coll.nc = Dataset(filename)
     Coll.variables = dict()
-    Coll.title = Coll.nc.Title
+    Coll.newUnits = dict()
+
+    try:
+        Coll.title = Coll.nc.Title
+    except:
+        Coll.title = None
+
     try:
         Coll.LongName = Coll.nc.LongName
     except:
-        Coll.LongName = None        
+        Coll.LongName = None
+
     try:
         Coll.ShortName = Coll.nc.ShortName
     except:
-        Coll.ShortName = None        
-    Coll.nx = len(Coll.nc.dimensions['lon'])
-    Coll.ny = len(Coll.nc.dimensions['lat'])
+        Coll.ShortName = None
+
+    try:
+        Coll.nx = len(Coll.nc.dimensions['lon'])
+    except:
+        try:
+            Coll.nx = len(Coll.nc.dimensions['longitude'])
+        except:
+            Coll.nx = len(Coll.nc.dimensions['Xdim'])
+
+    try:
+        Coll.ny = len(Coll.nc.dimensions['lat'])
+    except:
+        try:
+            Coll.ny = len(Coll.nc.dimensions['latitude'])
+        except:
+            Coll.ny = len(Coll.nc.dimensions['Ydim'])
+
+
     try:
         Coll.nt = len(Coll.nc.dimensions['time'])
     except:
         Coll.nt = 0
+
     try:
         Coll.nz = len(Coll.nc.dimensions['lev'])
+        Coll.lev_name = Coll.nc.variables['lev'].long_name
     except:
-        Coll.nz = 0
+        try:
+            Coll.nz = len(Coll.nc.dimensions['levels'])
+            Coll.lev_name = Coll.nc.variables['levels'].long_name
+        except:
+            Coll.nz = 0
+            Coll.lev_name = None
+
+    ignore_vars = ['lon','lons','longitude','xdim',
+                   'lat','lats','latitude','ydim',
+                   'lev','levels',
+                   'time','taitime',
+                   'nf','ncontact','orientationStrLen','cubed_sphere','anchor','contacts','orientation']
     for v in Coll.nc.variables:
-        if v.upper() in ('LON', 'LAT', 'LEV','TIME', 'TAITIME' ):
+        if v.lower() in ignore_vars:
             continue
         Coll.variables[v] = Coll.nc.variables[v]
+
     try:
         time = Coll.nc.variables['time']
         tunits = time.units
@@ -315,7 +438,7 @@ def getCollection(filename,collname):
     return Coll
         
 def get1d(dname):
-    return dname.replace('time','t').replace('lon','x').replace('lat','y').replace('lev','z')
+    return dname.replace('time','t').replace('longitude','x').replace('latitude','y').replace('levels','z').replace('lon','x').replace('lat','y').replace('lev','z').replace('Xdim','x').replace('Ydim','y').replace('nf','')
 
 
 def MakeMyStyleSheet( ):
@@ -394,14 +517,14 @@ if __name__ == "__main__":
 #   Parse command line options
 #   --------------------------
     parser = OptionParser(usage="Usage: %prog [OPTIONS] netcdf_file(s)",
-                          version='1.0.0' )
+                          version='1.1.0' )
 
     parser.add_option("-o", "--output", dest="outFile", default=outFile,
-              help="Output file name for the File Spec (default=%s)"\
+              help="Output file name for the File Spec, ignored for format 'stdout' (default=%s)"\
                           %outFile )
 
     parser.add_option("-f", "--format", dest="format", default=format,
-              help="Output file format: one of 'text', 'rtf' (default=%s)"%format )
+              help="Output file format: one of 'stdout', 'text', 'rtf' (default=%s)"%format )
 
     parser.add_option("-H", "--history", dest="history", default=None,
               help="Optional HISTORY.rc resource file (default=None)")
@@ -414,9 +537,17 @@ if __name__ == "__main__":
                       action="store_true", dest="nature",
                       help="Assume Nature Run file name conventions")
 
+    parser.add_option("-O", "--merraobs",
+                      action="store_true", dest="merraobs",
+                      help="Assume merraobs Run file name conventions")
+
     parser.add_option("-F", "--forward_processing",
                       action="store_true", dest="fp",
                       help="Assume Forward Processing file name conventions")
+
+    parser.add_option("-D", "--dyamond",
+                      action="store_true", dest="dyamond",
+                      help="Assume DYAMOND file name conventions")
 
     parser.add_option("-v", "--verbose",
                       action="store_true", dest="verbose",
@@ -443,6 +574,8 @@ if __name__ == "__main__":
     n = 0
     if options.merra:  n+=1
     if options.nature: n+=1
+    if options.merraobs: n+=1
+    if options.dyamond: n+=1
     if options.fp:     n+=1
     if n>1:
        raise 'ValueError', 'only one of -N, -M, -F can be specified'
@@ -453,7 +586,18 @@ if __name__ == "__main__":
     if 'text' in options.format:
         options.outFile = name + '.txt'
         writer = txtWriter(options.outFile)
+    elif 'txt' in options.format:
+        options.outFile = name + '.txt'
+        writer = txtWriter(options.outFile)
+    elif 'stdout' in options.format:
+        options.outFile = name + '.txt'
+        writer = stdoutWriter(options.outFile)
     elif 'rtf' in options.format:
+        if not HAS_RTF:
+            raise ValueError, 'PyRTF is not installed, therefore format RTF is not available'
+        options.outFile = name + '.doc'
+        writer = rtfWriter(options.outFile)
+    elif 'doc' in options.format:
         if not HAS_RTF:
             raise ValueError, 'PyRTF is not installed, therefore format RTF is not available'
         options.outFile = name + '.doc'
@@ -467,25 +611,68 @@ if __name__ == "__main__":
     for fname in inFiles:
         if options.nature:
             collname = os.path.basename(fname).split('.')[1] 
+            colltype = None
+        elif options.dyamond:
+            collname = os.path.basename(fname).split('.')[1]
+            colltype = None
+            #print collname
+        elif options.merraobs:
+            # Strip off datestamp and nc4
+            colllist = os.path.basename(fname).split('.')[:-2]
+            # strip off merra2
+            colllist = colllist[1:]
+            # Make a string joined by dots
+            collname = '.'.join(colllist)
+            rcn = collname+'.colltype'
+            colltype = Descr[rcn].replace("'","").replace(",","")
         elif options.fp:
             collname = os.path.basename(fname).split('.')[3] 
+            colltype = None
         else:
             collname = os.path.basename(fname).split('.')[1]
-        Name = collname.split('_')
-        if len(Name) == 4:
+            colltype = None
+
+        if colltype:
+            Name = colltype.split('_')
+        else:
+            Name = collname.split('_')
+        if len(Name) >= 4:
             Files[collname] = fname
 
     # Sort collections by (res,name,freq,dim)
     # --------------------------------------
     CollNames = dict()
-    for collname in Files:
-        freq, dim, name, res = collname.split('_')
-        if   freq == 'const': prefix = 'a'
-        elif res[0] == 'N':   prefix = 'b'
-        elif res[0] == 'M':   prefix = 'c'
-        else:                 prefix = 'd'
-        name = prefix + collname 
-        CollNames[name] = collname
+    if options.merraobs:
+        for collname in Files:
+            freq, dim, name, res = colltype.split('_')
+            if   freq == 'const': prefix = 'a'
+            elif res[0] == 'N':   prefix = 'b'
+            elif res[0] == 'M':   prefix = 'c'
+            else:                 prefix = 'd'
+            name = prefix + collname 
+            CollNames[name] = collname
+    elif options.dyamond:
+        for collname in Files:
+            if 'const' in collname.split('_')[0]:
+                freq, dim, name, res = collname.split('_')
+            else:
+                freq, dur, dim, name, res = collname.split('_')
+
+            if   freq == 'const': prefix = 'a'
+            elif res[0] == 'N':   prefix = 'b'
+            elif res[0] == 'M':   prefix = 'c'
+            else:                 prefix = 'd'
+            name = prefix + collname 
+            CollNames[name] = collname
+    else:
+        for collname in Files:
+            freq, dim, name, res = collname.split('_')
+            if   freq == 'const': prefix = 'a'
+            elif res[0] == 'N':   prefix = 'b'
+            elif res[0] == 'M':   prefix = 'c'
+            else:                 prefix = 'd'
+            name = prefix + collname 
+            CollNames[name] = collname
 
     # Gather metadata for each collection
     # -----------------------------------
@@ -494,7 +681,7 @@ if __name__ == "__main__":
         if options.verbose:
             print "[] Working on collection <%s>"%collname
         fname = Files[collname]
-        Collection = getCollection(fname,collname)
+        Collection = getCollection(fname,collname,options,colltype)
         if cf is not None:
             try:
                 rcn = collname+'.descr'
@@ -502,6 +689,18 @@ if __name__ == "__main__":
                 Collection.title = title
             except:
                 pass
+        if options.merraobs:
+            for vname in Collection.variables:
+                long_name = Collection.variables[vname].long_name
+                try:
+                    findUnits = re.search('.*\[(.*)\].*',long_name)
+                    newUnits = findUnits.group(1)
+                    if newUnits == "hPA":
+                        newUnits = "hPa"
+                except AttributeError:
+                    newUnits = '1'
+               
+                Collection.newUnits[vname] = newUnits
         writer.doCollection(Collection,options)
 
     # All done

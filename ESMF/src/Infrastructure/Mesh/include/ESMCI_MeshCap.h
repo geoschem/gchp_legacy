@@ -1,6 +1,6 @@
 // $Id$
 // Earth System Modeling Framework
-// Copyright 2002-2018, University Corporation for Atmospheric Research,
+// Copyright 2002-2019, University Corporation for Atmospheric Research,
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics
 // Laboratory, University of Michigan, National Centers for Environmental
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory,
@@ -14,7 +14,7 @@
 
 #include "ESMCI_Mesh.h"
 
-#include "Mesh/include/ESMCI_Regrid_Helper.h"
+#include "Mesh/include/Regridding/ESMCI_Regrid_Helper.h"
 
 #include "ESMCI_Macros.h"
 #include "ESMCI_LogErr.h"
@@ -79,6 +79,10 @@
                                         ESMC_CoordSys_Flag *coordSys,
                                           bool _is_esmf_mesh, int *rc);
 
+    static MeshCap *meshcreate_from_grid(Grid **gridpp,
+                                                  bool _is_esmf_mesh, 
+                                                  int *rc);
+
     void meshaddnodes(int *num_nodes, int *nodeId,
                       double *nodeCoord, int *nodeOwner, InterArray<int> *nodeMaskII,
                       ESMC_CoordSys_Flag *_coordSys, int *_orig_sdim,
@@ -86,6 +90,11 @@
 
     void meshwrite(char *fname, int *rc,
                    ESMCI_FortranStrLenArg nlen);
+
+    void meshwritewarrays(char *fname, ESMCI_FortranStrLenArg nlen,
+                                   int num_nodeArrays, ESMCI::Array **nodeArrays, 
+                                   int num_elemArrays, ESMCI::Array **elemArrays, 
+                                   int *rc);
 
     void meshaddelements(int *_num_elems, int *elemId, int *elemType, InterArray<int> *_elemMaskII ,
                          int *_areaPresent, double *elemArea,
@@ -116,14 +125,16 @@
 
     static void meshinfoserialize(int *intMeshFreed,
                                   int *spatialDim, int *parametricDim,
+                                  int *intIsPresentNDG, int *intIsPresentEDG,
                                   char *buffer, int *length, int *offset,
-                                  ESMC_InquireFlag *inquireflag, int *localrc,
+                                  ESMC_InquireFlag *inquireflag, int *rc,
                                   ESMCI_FortranStrLenArg buffer_l);
 
 
     static void meshinfodeserialize(int *intMeshFreed,
                                     int *spatialDim, int *parametricDim,
-                                    char *buffer, int *offset, int *localrc,
+                                    int *intIsPresentNDG, int *intIsPresentEDG,
+                                    char *buffer, int *offset, int *rc,
                                     ESMCI_FortranStrLenArg buffer_l);
 
     void meshserialize(char *buffer, int *length, int *offset,
@@ -137,6 +148,11 @@
     void meshfindpnt(int *unmappedaction, int *dimPnts, int *numPnts,
                      double *pnts, int *pets, int *rc);
 
+    void geteleminfointoarray(DistGrid *elemDistgrid, 
+                                   int numElemArrays,
+                                   int *infoTypeElemArrays, 
+                                   Array **elemArrays, 
+                                   int *rc);
 
     void getlocalcoords(double *nodeCoord, int *_orig_sdim, int *rc);
 
@@ -192,8 +208,8 @@
     static void sphdeg_to_cart(double *lon, double *lat,
                         double *x, double *y, double *z, int *rc);
 
-    void meshsetpoles(int *_pole_val, int *_min_pole_gid, int *_max_pole_gid,
-                      int *rc);
+    void meshsetpoles(int *_pole_obj_type, int *_pole_val, int *_min_pole_gid, int *_max_pole_gid,
+                           int *rc);
 
     static MeshCap *meshcreatedual(MeshCap **src_meshpp, int *rc);
 
@@ -208,6 +224,8 @@
               int *extrapMethod,
               int *extrapNumSrcPnts,
               ESMC_R8 *extrapDistExponent,
+              int *extrapNumLevels,
+              int *extrapNumInputLevels,
               int *unmappedaction, int *_ignoreDegenerate,
               int *srcTermProcessing, int *pipelineDepth,
               ESMCI::RouteHandle **rh, int *has_rh, int *has_iw,

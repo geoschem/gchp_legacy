@@ -1,9 +1,10 @@
 module time_manager_mod
 
-! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">
+! <CONTACT EMAIL="fms@gfdl.noaa.gov">
 !   fms
 ! </CONTACT>
 
+! <HISTORY SRC="http://www.gfdl.noaa.gov/fms-cgi-bin/cvsweb.cgi/FMS/"/>
 
 ! <OVERVIEW>
 !   A software package that provides a set of simple interfaces for
@@ -69,6 +70,8 @@ module time_manager_mod
 !    Derived-type data variable used to store time and date quantities. It
 !    contains three PRIVATE variables: days, seconds and ticks.
 ! </DATA>
+
+#include <fms_platform.h>
 
 use constants_mod, only: rseconds_per_day=>seconds_per_day
 use fms_mod, only: error_mesg, FATAL, WARNING, write_version_number, stdout
@@ -177,8 +180,8 @@ end interface
 
 !======================================================================
 
-character(len=128) :: version='$Id$'
-character(len=128) :: tagname='$Name$'
+! Include variable "version" to be written to log file.
+#include<file_version.h>
 logical :: module_is_initialized = .false.
 
 !======================================================================
@@ -1229,7 +1232,7 @@ end subroutine time_assignment
 
 function time_type_to_real(time)
 
-double precision            :: time_type_to_real
+real(DOUBLE_KIND)           :: time_type_to_real
 type(time_type), intent(in) :: time
 
 if(.not.module_is_initialized) call time_manager_init
@@ -3087,7 +3090,7 @@ subroutine time_manager_init ( )
 
   if (module_is_initialized) return  ! silent return if already called
 
-  call write_version_number (version, tagname)
+  call write_version_number("TIME_MANAGER_MOD", version)
   module_is_initialized = .true.
 
 end subroutine time_manager_init
@@ -3414,7 +3417,8 @@ logical :: test17=.true.,test18=.true.,test19=.true.
  call constants_init
 
 #ifdef INTERNAL_FILE_NML
-      read (input_nml_file, test_nml, iostat=io)
+   read (input_nml_file, test_nml, iostat=io)
+   ierr = check_nml_error (io, 'test_nml')
 #else
  nmlunit = open_namelist_file()
  ierr=1

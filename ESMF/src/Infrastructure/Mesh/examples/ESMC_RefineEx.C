@@ -2,7 +2,7 @@
 //==============================================================================
 //
 // Earth System Modeling Framework
-// Copyright 2002-2018, University Corporation for Atmospheric Research, 
+// Copyright 2002-2019, University Corporation for Atmospheric Research, 
 // Massachusetts Institute of Technology, Geophysical Fluid Dynamics 
 // Laboratory, University of Michigan, National Centers for Environmental 
 // Prediction, Los Alamos National Laboratory, Argonne National Laboratory, 
@@ -21,7 +21,7 @@
 #include <ESMCI_ParEnv.h>
 #include <ESMCI_MeshRefine.h>
 #include <ESMCI_RefineTopo.h>
-#include <ESMCI_MeshOBjConn.h>
+#include <ESMCI_MeshObjConn.h>
 #include <ESMCI_MeshGen.h>
 #include <ESMCI_HAdapt.h>
 #include <ESMCI_Rebalance.h>
@@ -220,7 +220,7 @@ void test_adapt_wave_exec(HAdapt &hadapt, Mesh &mesh) {
       char buf[512];
 
       std::sprintf(buf, "refine_out_%04d", nout++);
-      WriteMesh(mesh, buf, 1, 0.0, ESMC_FILE_VTK);
+      WriteMesh(mesh, buf, 0, NULL, 0, NULL, 1, 0.0, ESMC_FILE_VTK);
 
     }
 

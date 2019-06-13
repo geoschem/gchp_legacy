@@ -1,6 +1,4 @@
-
 ! -*-f90-*-
-! $Id$
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -90,6 +88,11 @@ subroutine mpp_init( flags,localcomm )
   close(unit_nml)  
 #endif
 
+  if (io_status > 0) then
+     call mpp_error(FATAL,'=>mpp_init: Error reading input.nml')
+  endif
+
+
 ! non-root pe messages written to other location than stdout()
   if(etc_unit_is_stderr) then
      etc_unit = stderr()
@@ -145,7 +148,7 @@ subroutine mpp_init( flags,localcomm )
   if( verbose )call mpp_error( NOTE, 'MPP_INIT: initializing MPP module...' )
   if( pe.EQ.root_pe )then
 logunit = stdlog()
-     write( logunit,'(/a)' )'MPP module '//trim(version)//trim(tagname)
+     write( logunit,'(/a)' )'MPP module '//trim(version)
      write( logunit,'(a,i6)' )'MPP started with NPES=', npes
      write( logunit,'(a)' )'Using SMA (shmem) library for message passing...'
      write( logunit, '(a,es12.4,a,i10,a)' ) &
@@ -153,6 +156,8 @@ logunit = stdlog()
      write( logunit, '(a,es12.4,a,i20,a)' ) &
           'Clock rolls over after ', max_ticks*tick_rate, ' sec (', max_ticks, ' ticks)'
   end if
+
+  stdoutunit = stdout()
 
   call mpp_clock_begin(clock0)
 
@@ -334,7 +339,7 @@ end subroutine mpp_malloc
       if( .NOT.ANY(from_pe.EQ.peset(current_peset_num)%list) ) &
            call mpp_error( FATAL, 'mpp_broadcast_text: broadcasting from invalid PE.' )
 
-      if( current_clock.NE.0 )call SYSTEM_CLOCK(start_tick)
+      if( debug .and. (current_clock.NE.0) )call SYSTEM_CLOCK(start_tick)
 
       ptr = LOC(mpp_stack)
       words = size(bdata(:))*size(transfer(bdata(1),word))
@@ -360,7 +365,7 @@ end subroutine mpp_malloc
           end do
       end if
 
-      if( current_clock.NE.0 )call increment_current_clock( EVENT_BROADCAST, length )
+      if( debug .and. (current_clock.NE.0) )call increment_current_clock( EVENT_BROADCAST, length )
       return
     end subroutine mpp_broadcast_char
 
@@ -1060,6 +1065,60 @@ end subroutine mpp_malloc
 #undef MPP_TYPE_BYTELEN_
 #define MPP_TYPE_BYTELEN_ 4
 #include <mpp_sum_sma.h>
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                                                                             !
+!            SCATTER AND GATHER ROUTINES: mpp_alltoall                        !
+!                                                                             !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+#undef MPP_ALLTOALL_
+#undef MPP_ALLTOALLV_
+#undef MPP_TYPE_
+#undef MPP_TYPE_BYTELEN_
+#undef MPI_TYPE_
+#define MPP_ALLTOALL_ mpp_alltoall_int4
+#define MPP_ALLTOALLV_ mpp_alltoall_int4_v
+#define MPP_TYPE_ integer(INT_KIND)
+#define MPP_TYPE_BYTELEN_ 4
+#define MPI_TYPE_ MPI_INTEGER4
+#include <mpp_alltoall_sma.h>
+
+#undef MPP_ALLTOALL_
+#undef MPP_ALLTOALLV_
+#undef MPP_TYPE_
+#undef MPP_TYPE_BYTELEN_
+#undef MPI_TYPE_
+#define MPP_ALLTOALL_ mpp_alltoall_int8
+#define MPP_ALLTOALLV_ mpp_alltoall_int8_v
+#define MPP_TYPE_ integer(LONG_KIND)
+#define MPP_TYPE_BYTELEN_ 8
+#define MPI_TYPE_ MPI_INTEGER8
+#include <mpp_alltoall_sma.h>
+
+#undef MPP_ALLTOALL_
+#undef MPP_ALLTOALLV_
+#undef MPP_TYPE_
+#undef MPP_TYPE_BYTELEN_
+#undef MPI_TYPE_
+#define MPP_ALLTOALL_ mpp_alltoall_real4
+#define MPP_ALLTOALLV_ mpp_alltoall_real4_v
+#define MPP_TYPE_ real(FLOAT_KIND)
+#define MPP_TYPE_BYTELEN_ 4
+#define MPI_TYPE_ MPI_REAL4
+#include <mpp_alltoall_sma.h>
+
+#undef MPP_ALLTOALL_
+#undef MPP_ALLTOALLV_
+#undef MPP_TYPE_
+#undef MPP_TYPE_BYTELEN_
+#undef MPI_TYPE_
+#define MPP_ALLTOALL_ mpp_alltoall_real8
+#define MPP_ALLTOALLV_ mpp_alltoall_real8_v
+#define MPP_TYPE_ real(DOUBLE_KIND)
+#define MPP_TYPE_BYTELEN_ 8
+#define MPI_TYPE_ MPI_REAL8
+#include <mpp_alltoall_sma.h>
 
 !#######################################################################
 !these local versions are written for grouping into shmem_integer_wait

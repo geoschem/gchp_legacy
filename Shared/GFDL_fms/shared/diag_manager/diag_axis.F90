@@ -1,24 +1,31 @@
+#include <fms_platform.h>
+
 MODULE diag_axis_mod
-  ! <CONTACT EMAIL="GFDL.Climate.Model.Info@noaa.gov">
+  ! <CONTACT EMAIL="seth.underwood@noaa.gov">
   !   Seth Underwood
   ! </CONTACT>
 
-  ! <OVERVIEW> <TT>diag_axis_mod</TT> is an integral part 
-  !   of diag_manager_mod. It helps to create axis IDs 
-  !   that are used in register_diag_field.  
+  ! <OVERVIEW> <TT>diag_axis_mod</TT> is an integral part
+  !   of diag_manager_mod. It helps to create axis IDs
+  !   that are used in register_diag_field.
   ! </OVERVIEW>
 
   ! <DESCRIPTION> Users first create axis ID by calling
-  !   diag_axis_init, then use this axis ID in 
+  !   diag_axis_init, then use this axis ID in
   !   register_diag_field.
   ! </DESCRIPTION>
 
   USE mpp_domains_mod, ONLY: domain1d, domain2d, mpp_get_compute_domain,&
        & mpp_get_domain_components, null_domain1d, null_domain2d,&
        & OPERATOR(.NE.), mpp_get_global_domain, mpp_get_domain_name
-  USE fms_mod, ONLY: error_mesg, write_version_number, lowercase, uppercase, FATAL
+  USE fms_mod, ONLY: error_mesg, write_version_number, lowercase, uppercase,&
+       & fms_error_handler, FATAL, NOTE
   USE diag_data_mod, ONLY: diag_axis_type, max_subaxes, max_axes,&
-       & max_num_axis_sets
+       & max_num_axis_sets, max_axis_attributes, debug_diag_manager,&
+       & first_send_data_call, diag_atttype
+#ifdef use_netCDF
+  USE netcdf, ONLY: NF90_INT, NF90_FLOAT, NF90_CHAR
+#endif
 
   IMPLICIT NONE
 
@@ -27,15 +34,13 @@ MODULE diag_axis_mod
        & get_axis_length, get_axis_global_length, diag_subaxes_init,&
        & get_diag_axis_cart, get_diag_axis_data, max_axes, get_axis_aux,&
        & get_tile_count, get_axes_shift, get_diag_axis_name,&
-       & get_axis_num, get_diag_axis_domain_name
+       & get_axis_num, get_diag_axis_domain_name, diag_axis_add_attribute
 
 
   ! Module variables
   ! Parameters
-  CHARACTER(len=128), PARAMETER :: version =&
-       & '$Id$'
-  CHARACTER(len=128), PARAMETER :: tagname =&
-       & '$Name$'
+  ! Include variable "version" to be written to log file.
+#include<file_version.h>
 
   ! counter of number of axes defined
   INTEGER, DIMENSION(:), ALLOCATABLE :: num_subaxes
@@ -48,6 +53,34 @@ MODULE diag_axis_mod
   ! ---- global storage for all defined axes ----
   TYPE(diag_axis_type), ALLOCATABLE, SAVE :: Axes(:)
   LOGICAL :: module_is_initialized = .FALSE.
+
+  ! <INTERFACE NAME="diag_axis_add_attribute">
+  !   <OVERVIEW>
+  !     Add a attribute to the diag axis
+  !   </OVERVIEW>
+  !   <TEMPLATE>
+  !     SUBROUTINE diag_axis_add_attribute(diag_axis_id, att_name, att_value)
+  !   </TEMPLATE>
+  !   <DESCRIPTION>
+  !     Add an arbitrary attribute and value to the diagnostic axis.  Any number
+  !     of attributes can be added to a given axis.  All attribute addition must
+  !     be done before first <TT>send_data</TT> call.
+  !
+  !     If a real or integer attribute is already defined, a FATAL error will be called.
+  !     If a character attribute is already defined, then it will be prepended to the
+  !     existing attribute value.
+  !   </DESCRIPTION>
+  !   <IN NAME="diag_axis_id" TYPE="INTEGER" />
+  !   <IN NAME="att_name" TYPE="CHARACTER(len=*)" />
+  !   <IN NAME="att_value" TYPE="REAL|INTEGER|CHARACTER(len=*)" />
+  INTERFACE diag_axis_add_attribute
+     MODULE PROCEDURE diag_axis_add_attribute_scalar_r
+     MODULE PROCEDURE diag_axis_add_attribute_scalar_i
+     MODULE PROCEDURE diag_axis_add_attribute_scalar_c
+     MODULE PROCEDURE diag_axis_add_attribute_r1d
+     MODULE PROCEDURE diag_axis_add_attribute_i1d
+  END INTERFACE diag_axis_add_attribute
+  ! </INTERFACE>
 
 CONTAINS
 
@@ -95,7 +128,7 @@ CONTAINS
     CHARACTER(len=*), INTENT(in) :: name
     REAL, DIMENSION(:), INTENT(in) :: DATA
     CHARACTER(len=*), INTENT(in) :: units
-    CHARACTER(len=*), INTENT(in) :: cart_name  
+    CHARACTER(len=*), INTENT(in) :: cart_name
     CHARACTER(len=*), INTENT(in), OPTIONAL :: long_name, set_name
     INTEGER, INTENT(in), OPTIONAL :: direction, edges
     TYPE(domain1d), INTENT(in), OPTIONAL :: Domain
@@ -110,7 +143,7 @@ CONTAINS
     CHARACTER(len=128) :: emsg
 
     IF ( .NOT.module_is_initialized ) THEN
-       CALL write_version_number( version, tagname )
+       CALL write_version_number("DIAG_AXIS_MOD", version)
     ENDIF
 
     IF ( PRESENT(tile_count)) THEN
@@ -118,7 +151,7 @@ CONTAINS
     ELSE
        tile = 1
     END IF
-    
+
     ! Allocate the axes
     IF (.NOT. ALLOCATED(Axis_sets)) ALLOCATE(Axis_sets(max_num_axis_sets))
     IF (.NOT. ALLOCATED(Axes)) ALLOCATE(Axes(max_axes))
@@ -174,7 +207,7 @@ CONTAINS
           END IF
        END IF
     END DO
-    
+
     !---- register axis ----
     num_def_axes = num_def_axes + 1
     ! <ERROR STATUS="FATAL">max_axes exceeded, increase it via diag_manager_nml</ERROR>
@@ -189,13 +222,13 @@ CONTAINS
          & TRIM(uppercase(cart_name)) == 'T' .OR.&
          & TRIM(uppercase(cart_name)) == 'N' ) THEN
        Axes(diag_axis_init)%cart_name = TRIM(uppercase(cart_name))
-    ELSE     
+    ELSE
        ! <ERROR STATUS="FATAL">Invalid cart_name name.</ERROR>
        CALL error_mesg('diag_axis_mod::diag_axis_init', 'Invalid cart_name name.', FATAL)
     END IF
 
     !---- allocate storage for coordinate values of axis ----
-    IF ( Axes(diag_axis_init)%cart_name == 'T' ) THEN 
+    IF ( Axes(diag_axis_init)%cart_name == 'T' ) THEN
        axlen = 0
     ELSE
        axlen = SIZE(DATA(:))
@@ -205,7 +238,7 @@ CONTAINS
     ! Initialize Axes(diag_axis_init)
     Axes(diag_axis_init)%name   = TRIM(name)
     Axes(diag_axis_init)%data   = DATA(1:axlen)
-    Axes(diag_axis_init)%units  = units  
+    Axes(diag_axis_init)%units  = units
     Axes(diag_axis_init)%length = axlen
     Axes(diag_axis_init)%set    = set
     ! start and end are used in subaxes information only
@@ -213,6 +246,7 @@ CONTAINS
     Axes(diag_axis_init)%end = -1
     Axes(diag_axis_init)%subaxis_name = ""
     Axes(diag_axis_init)%shift = 0
+    Axes(diag_axis_init)%num_attributes = 0
 
     IF ( PRESENT(long_name) ) THEN
        Axes(diag_axis_init)%long_name = long_name
@@ -225,7 +259,7 @@ CONTAINS
     ELSE
        Axes(diag_axis_init)%aux = 'none'
     END IF
- 
+
     !---- axis direction (-1, 0, or +1) ----
     IF ( PRESENT(direction) )THEN
        IF ( ABS(direction) /= 1 .AND. direction /= 0 )&
@@ -257,11 +291,11 @@ CONTAINS
        IF ( Axes(diag_axis_init)%cart_name == 'X' ) Axes(diag_axis_init)%Domain = domain_x
        IF ( Axes(diag_axis_init)%cart_name == 'Y' ) Axes(diag_axis_init)%Domain = domain_y
     ELSE IF ( PRESENT(Domain)) THEN
-       !---- domain1d type ----     
+       !---- domain1d type ----
        Axes(diag_axis_init)%Domain2 = null_domain2d ! needed since not 2-D domain
        Axes(diag_axis_init)%Domain = Domain
     ELSE
-       Axes(diag_axis_init)%Domain2 = null_domain2d 
+       Axes(diag_axis_init)%Domain2 = null_domain2d
        Axes(diag_axis_init)%Domain = null_domain1d
     END IF
 
@@ -271,7 +305,7 @@ CONTAINS
        CALL mpp_get_compute_domain(Axes(diag_axis_init)%Domain, isc, iec)
        CALL mpp_get_global_domain(Axes(diag_axis_init)%Domain, isg, ieg)
        IF ( Axes(diag_axis_init)%length == ieg - isg + 2 ) THEN
-          Axes(diag_axis_init)%shift = 1 
+          Axes(diag_axis_init)%shift = 1
        END IF
     END IF
 
@@ -283,7 +317,7 @@ CONTAINS
           IF ( Axes(edges)%cart_name /= Axes(diag_axis_init)%cart_name) ierr=1
           IF ( Axes(edges)%length    /= Axes(diag_axis_init)%length+1 ) ierr=ierr+2
           IF ( Axes(edges)%set       /= Axes(diag_axis_init)%set      ) ierr=ierr+4
-          IF ( ierr > 0 )   THEN 
+          IF ( ierr > 0 )   THEN
              ! <ERROR STATUS="FATAL">Edges axis does not match axis (code <CODE>).</ERROR>
              WRITE (emsg,'("Edges axis does not match axis (code ",I1,").")') ierr
              CALL error_mesg('diag_axis_mod::diag_axis_init', emsg, FATAL)
@@ -312,7 +346,7 @@ CONTAINS
   !   <DESCRIPTION>
   !     Given the ID of a parent axis, create a subaxis and fill it with data,
   !     and return the ID of the corresponding subaxis.
-  !     
+  !
   !     The subaxis is defined on the parent axis from <TT>start_indx</TT>
   !     to <TT>end_indx</TT>.
   !   </DESCRIPTION>
@@ -326,13 +360,13 @@ CONTAINS
     INTEGER, INTENT(in) :: axis
     REAL, DIMENSION(:), INTENT(in) :: subdata
     INTEGER, INTENT(in) :: start_indx
-    INTEGER, INTENT(in) :: end_indx 
+    INTEGER, INTENT(in) :: end_indx
     TYPE(domain2d), INTENT(in), OPTIONAL  :: domain_2d
 
     INTEGER :: i, nsub_axis, direction
     INTEGER :: xbegin, xend, ybegin, yend
     INTEGER :: ad_xbegin, ad_xend, ad_ybegin, ad_yend
-    CHARACTER(len=128) :: name, nsub_name   
+    CHARACTER(len=128) :: name, nsub_name
     CHARACTER(len=128) :: units
     CHARACTER(len=128) :: cart_name
     CHARACTER(len=128) :: long_name
@@ -377,14 +411,14 @@ CONTAINS
        Axes(axis)%end(nsub_axis)   = end_indx
        if ( hasDomain ) Axes(axis)%subaxis_domain2(nsub_axis) = domain_2d
     END IF
-  
+
     ! Create new name for the subaxis from name of parent axis
-    ! If subaxis already exists, get the index and return       
+    ! If subaxis already exists, get the index and return
     IF(subaxis_set) THEN
        IF ( Axes(axis)%set > 0 ) THEN
-          diag_subaxes_init = get_axis_num(name, set_name=TRIM(Axis_sets(Axes(axis)%set)))     
+          diag_subaxes_init = get_axis_num(name, set_name=TRIM(Axis_sets(Axes(axis)%set)))
        ELSE
-          diag_subaxes_init = get_axis_num(name)    
+          diag_subaxes_init = get_axis_num(name)
        END IF
     ELSE
        ! get a new index for subaxis
@@ -406,14 +440,14 @@ CONTAINS
     END IF
   END FUNCTION diag_subaxes_init
   ! </FUNCTION>
-         
+
   ! <SUBROUTINE NAME="get_diag_axis">
   !   <OVERVIEW>
   !     Return information about the axis with index ID
   !   </OVERVIEW>
   !   <TEMPLATE>
   !     SUBROUTINE get_diag_axis(id, name, units, long_name, cart_name,
-  !          direction, edges, Domain, data)
+  !          direction, edges, Domain, data, num_attributes, attributes)
   !   </TEMPLATE>
   !   <DESCRIPTION>
   !     Return information about the axis with index ID
@@ -437,12 +471,16 @@ CONTAINS
   !     Array of coordinate values for this axis.
   !   </OUT>
   SUBROUTINE get_diag_axis(id, name, units, long_name, cart_name,&
-       & direction, edges, Domain, DATA)
+       & direction, edges, Domain, DATA, num_attributes, attributes)
     CHARACTER(len=*), INTENT(out) :: name, units, long_name, cart_name
     INTEGER, INTENT(in) :: id
     TYPE(domain1d), INTENT(out) :: Domain
     INTEGER, INTENT(out) :: direction, edges
     REAL, DIMENSION(:), INTENT(out) :: DATA
+    INTEGER, INTENT(out), OPTIONAL :: num_attributes
+    TYPE(diag_atttype), ALLOCATABLE, DIMENSION(:), INTENT(out), OPTIONAL :: attributes
+
+    INTEGER :: i, j, istat
 
     CALL valid_id_check(id, 'get_diag_axis')
     name      = Axes(id)%name
@@ -452,11 +490,65 @@ CONTAINS
     direction = Axes(id)%direction
     edges     = Axes(id)%edges
     Domain    = Axes(id)%Domain
-    IF ( Axes(id)%length > SIZE(DATA(:)) ) THEN 
+    IF ( Axes(id)%length > SIZE(DATA(:)) ) THEN
        ! <ERROR STATUS="FATAL">array data is too small.</ERROR>
        CALL error_mesg('diag_axis_mod::get_diag_axis', 'array data is too small', FATAL)
     ELSE
-       DATA(1:Axes(id)%length) = Axes(id)%data
+       DATA(1:Axes(id)%length) = Axes(id)%data(1:Axes(id)%length)
+    END IF
+    IF ( PRESENT(num_attributes) ) THEN
+       num_attributes = Axes(id)%num_attributes
+    END IF
+    IF ( PRESENT(attributes) ) THEN
+       IF ( _ALLOCATED(Axes(id)%attributes) ) THEN
+          IF ( ALLOCATED(attributes) ) THEN
+             ! If allocate, make sure attributes is large enough to hold Axis(id)%attributes
+             IF ( Axes(id)%num_attributes .GT. SIZE(attributes(:)) ) THEN
+                CALL error_mesg('diag_axis_mod::get_diag_axis', 'array attribute is too small', FATAL)
+             END IF
+          ELSE
+             ! Allocate attributes
+             ALLOCATE(attributes(Axes(id)%num_attributes), STAT=istat)
+             IF ( istat .NE. 0 ) THEN
+                CALL error_mesg('diag_axis_mod::get_diag_axis', 'Unable to allocate memory for attribute', FATAL)
+             END IF
+          END IF
+          DO i=1, Axes(id)%num_attributes
+             ! Unallocate all att arrays in preparation for new data
+             IF ( _ALLOCATED(attributes(i)%fatt) ) THEN
+                DEALLOCATE(attributes(i)%fatt)
+             END IF
+             IF ( _ALLOCATED(attributes(i)%iatt) ) THEN
+                DEALLOCATE(attributes(i)%iatt)
+             END IF
+
+             ! Copy in attribute data
+             attributes(i)%type = Axes(id)%attributes(i)%type
+             attributes(i)%len = Axes(id)%attributes(i)%len
+             attributes(i)%name = Axes(id)%attributes(i)%name
+             attributes(i)%catt = Axes(id)%attributes(i)%catt
+             ! Allocate fatt arrays (if needed), and copy in data
+             IF ( _ALLOCATED(Axes(id)%attributes(i)%fatt) ) THEN
+                ALLOCATE(attributes(i)%fatt(SIZE(Axes(id)%attributes(i)%fatt(:))), STAT=istat)
+                IF ( istat .NE. 0 ) THEN
+                   CALL error_mesg('diag_axis_mod::get_diag_axis', 'Unable to allocate memory for attribute%fatt', FATAL)
+                END IF
+                DO j=1, SIZE(attributes(i)%fatt(:))
+                   attributes(i)%fatt(j) = Axes(id)%attributes(i)%fatt(j)
+                END DO
+             END IF
+             ! Allocate iatt arrays (if needed), and copy in data
+             IF ( _ALLOCATED(Axes(id)%attributes(i)%iatt) ) THEN
+                ALLOCATE(attributes(i)%iatt(SIZE(Axes(id)%attributes(i)%iatt(:))), STAT=istat)
+                IF ( istat .NE. 0 ) THEN
+                   CALL error_mesg('diag_axis_mod::get_diag_axis', 'Unable to allocate memory for attribute%iatt', FATAL)
+                END IF
+                DO j=1, SIZE(attributes(i)%iatt(:))
+                   attributes(i)%iatt(j) = Axes(id)%attributes(i)%iatt(j)
+                END DO
+             END IF
+          END DO
+       END IF
     END IF
   END SUBROUTINE get_diag_axis
   ! </SUBROUTINE>
@@ -499,7 +591,7 @@ CONTAINS
     REAL, DIMENSION(:), INTENT(out) :: DATA
 
     CALL valid_id_check(id, 'get_diag_axis_data')
-    IF (Axes(id)%length > SIZE(DATA(:))) THEN 
+    IF (Axes(id)%length > SIZE(DATA(:))) THEN
        ! <ERROR STATUS="FATAL">array data is too small</ERROR>
        CALL error_mesg('diag_axis_mod::get_diag_axis_data', 'array data is too small', FATAL)
     ELSE
@@ -564,7 +656,7 @@ CONTAINS
   INTEGER FUNCTION get_axis_length(id)
     INTEGER, INTENT(in) :: id
 
-    INTEGER :: length   
+    INTEGER :: length
 
     CALL valid_id_check(id, 'get_axis_length')
     IF ( Axes(id)%Domain .NE. null_domain1d ) THEN
@@ -634,7 +726,7 @@ CONTAINS
 
     INTEGER :: i, id, flag
 
-    IF ( SIZE(ids(:)) < 1 ) THEN 
+    IF ( SIZE(ids(:)) < 1 ) THEN
        ! <ERROR STATUS="FATAL">input argument has incorrect size.</ERROR>
        CALL error_mesg('diag_axis_mod::get_tile_count', 'input argument has incorrect size', FATAL)
     END IF
@@ -695,7 +787,7 @@ CONTAINS
 
     INTEGER :: i, id, flag
 
-    IF ( SIZE(ids(:)) < 1 ) THEN 
+    IF ( SIZE(ids(:)) < 1 ) THEN
        ! <ERROR STATUS="FATAL">input argument has incorrect size.</ERROR>
        CALL error_mesg('diag_axis_mod::get_domain2d', 'input argument has incorrect size', FATAL)
     END IF
@@ -729,14 +821,14 @@ CONTAINS
   !   </IN>
   !   <OUT NAME="ishift" TYPE="INTEGER">X shift value.</OUT>
   !   <OUT NAME="jshift" TYPE="INTEGER">Y shift value.</OUT>
-  SUBROUTINE get_axes_shift(ids, ishift, jshift) 
+  SUBROUTINE get_axes_shift(ids, ishift, jshift)
     INTEGER, DIMENSION(:), INTENT(in) :: ids
     INTEGER, INTENT(out) :: ishift, jshift
 
     INTEGER :: i, id
 
     !-- get the value of the shift.
-    ishift = 0 
+    ishift = 0
     jshift = 0
     DO i = 1, SIZE(ids(:))
        id = ids(i)
@@ -823,7 +915,7 @@ CONTAINS
   !     SUBROUTINE valid_id_check(id, routine_name)
   !   </TEMPLATE>
   !   <DESCRIPTION>
-  !     Check to see if the given axis id is a valid id.  If the axis id is invalid, 
+  !     Check to see if the given axis id is a valid id.  If the axis id is invalid,
   !     call a FATAL error.  If the ID is valid, just return.
   !   </DESCRIPTION>
   !   <IN NAME="id" TYPE="INTEGER">Axis id to check for validity</IN>
@@ -845,4 +937,377 @@ CONTAINS
   END SUBROUTINE valid_id_check
   ! </SUBROUTINE>
   ! </PRIVATE>
+
+  SUBROUTINE diag_axis_attribute_init(diag_axis_id, name, type, cval, ival, rval)
+    INTEGER, INTENT(in) :: diag_axis_id !< input field ID, obtained from diag_axis_mod::diag_axis_init.
+    CHARACTER(len=*) :: name !< Name of the attribute
+    INTEGER, INTENT(in) :: type !< NetCDF type (NF_FLOAT, NF_INT, NF_CHAR)
+    CHARACTER(len=*), INTENT(in), OPTIONAL :: cval !< Character string attribute value
+    INTEGER, DIMENSION(:), INTENT(in), OPTIONAL :: ival !< Integer attribute value(s)
+    REAL, DIMENSION(:), INTENT(in), OPTIONAL :: rval !< Real attribute value(s)
+
+    INTEGER :: istat, length, i, j, this_attribute, out_field
+    CHARACTER(len=1024) :: err_msg
+
+    IF ( .NOT.first_send_data_call ) THEN
+       ! Call error due to unable to add attribute after send_data called
+       ! <ERROR STATUS="FATAL">
+       !   Attempting to add attribute <name> to axis <axis_name>
+       !   after first send_data call.  Too late.
+       ! </ERROR>
+       CALL error_mesg('diag_manager_mod::diag_axis_add_attribute', 'Attempting to add attribute "'&
+            &//TRIM(name)//'" to axis after first send_data call.  Too late.', FATAL)
+    END IF
+
+    ! Simply return if diag_axis_id <= 0 --- not registered
+    IF ( diag_axis_id .LE. 0 ) THEN
+       RETURN
+    ELSE IF ( diag_axis_id .GT. num_def_axes ) THEN
+       ! Call error axis_id greater than num_def_axes.  Axis is unknown
+       ! <ERROR STATUS="FATAL">
+       !   Attempting to add attribute <name> to axis ID <axis_ID>, however ID unknown.
+       ! </ERROR>
+       WRITE(err_msg, '(I5)') diag_axis_id
+       CALL error_mesg('diag_manager_mod::diag_axis_add_attribute', 'Attempting to add attribute "'&
+            &//TRIM(name)//'" to axis ID "'//TRIM(err_msg)//'", however ID unknown.', FATAL)
+
+    ELSE
+       ! Allocate memory for the attributes
+       CALL attribute_init_axis(Axes(diag_axis_id))
+
+       ! Check if attribute already exists
+       this_attribute = 0
+       DO i=1, Axes(diag_axis_id)%num_attributes
+          IF ( TRIM(Axes(diag_axis_id)%attributes(i)%name) .EQ. TRIM(name) ) THEN
+             this_attribute = i
+             EXIT
+          END IF
+       END DO
+
+       IF ( this_attribute.NE.0 .AND. (type.EQ.NF90_INT .OR. type.EQ.NF90_FLOAT) ) THEN
+          ! <ERROR STATUS="FATAL">
+          !   Attribute <name> already defined for axis <axis_name>.
+          !   Contact the developers
+          ! </ERROR>
+          CALL error_mesg('diag_manager_mod::diag_axis_add_attribute',&
+               & 'Attribute "'//TRIM(name)//'" already defined for axis "'&
+               &//TRIM(Axes(diag_axis_id)%name)//'".  Contact the developers.', FATAL)
+       ELSE IF ( this_attribute.NE.0 .AND. type.EQ.NF90_CHAR .AND. debug_diag_manager ) THEN
+          ! <ERROR STATUS="NOTE">
+          !   Attribute <name> already defined for axis <axis_name>.
+          !   Prepending.
+          ! </ERROR>
+          CALL error_mesg('diag_manager_mod::diag_axis_add_attribute',&
+               & 'Attribute "'//TRIM(name)//'" already defined for axis"'&
+               &//TRIM(Axes(diag_axis_id)%name)//'".  Prepending.', NOTE)
+       ELSE
+          ! Defining a new attribute
+          ! Increase the number of field attributes
+          this_attribute = Axes(diag_axis_id)%num_attributes + 1
+          ! Checking to see if num_attributes == max_axis_attributes, and return error message
+          IF ( this_attribute .GT. max_axis_attributes ) THEN
+             ! <ERROR STATUS="FATAL">
+             !   Number of attributes exceeds max_axis_attributes for attribute <name> for axis <axis_name>.
+             !   Increase diag_manager_nml:max_axis_attributes.
+             ! </ERROR>
+             CALL error_mesg('diag_manager_mod::diag_axis_add_attribute',&
+                  & 'Number of attributes exceeds max_axis_attributes for attribute "'&
+                  & //TRIM(name)//'" for axis "'//TRIM(Axes(diag_axis_id)%name)&
+                  & //'".  Increase diag_manager_nml:max_axis_attributes.',&
+                  & FATAL)
+          ELSE
+             Axes(diag_axis_id)%num_attributes = this_attribute
+             ! Set name and type
+             Axes(diag_axis_id)%attributes(this_attribute)%name = name
+             Axes(diag_axis_id)%attributes(this_attribute)%type = type
+             ! Initialize catt to a blank string, as len_trim doesn't always work on an uninitialized string
+             Axes(diag_axis_id)%attributes(this_attribute)%catt = ''
+          END IF
+       END IF
+
+       SELECT CASE (type)
+       CASE (NF90_INT)
+          IF ( .NOT.PRESENT(ival) ) THEN
+             ! <ERROR STATUS="FATAL">
+             !   Number type claims INTEGER, but ival not present for attribute <name> for axis <axis_name>.
+             !   Contact the developers.
+             ! </ERROR>
+             CALL error_mesg('diag_manager_mod::diag_axis_add_attribute',&
+                  & 'Attribute type claims INTEGER, but ival not present for attribute "'&
+                  & //TRIM(name)//'" for axis "'//TRIM(Axes(diag_axis_id)%name)&
+                  & //'". Contact the developers.', FATAL)
+          END IF
+          length = SIZE(ival)
+          ! Allocate iatt(:) to size of ival
+          ALLOCATE(Axes(diag_axis_id)%attributes(this_attribute)%iatt(length), STAT=istat)
+          IF ( istat.NE.0 ) THEN
+             ! <ERROR STATUS="FATAL">
+             !   Unable to allocate iatt for attribute <name> for axis <axis_name>
+             ! </ERROR>
+             CALL error_mesg('diag_manager_mod::diag_axis_add_attribute', 'Unable to allocate iatt for attribute "'&
+                  & //TRIM(name)//'" for axis "'//TRIM(Axes(diag_axis_id)%name)//'"', FATAL)
+          END IF
+          ! Set remaining fields
+          Axes(diag_axis_id)%attributes(this_attribute)%len = length
+          Axes(diag_axis_id)%attributes(this_attribute)%iatt = ival
+       CASE (NF90_FLOAT)
+          IF ( .NOT.PRESENT(rval) ) THEN
+             ! <ERROR STATUS="FATAL">
+             !   Attribute type claims REAL, but rval not present for attribute <name> for axis <axis_name>.
+             !   Contact the developers.
+             ! </ERROR>
+             CALL error_mesg('diag_manager_mod::diag_axis_add_attribute',&
+                  & 'Attribute type claims REAL, but rval not present for attribute "'&
+                  & //TRIM(name)//'" for axis "'//TRIM(Axes(diag_axis_id)%name)&
+                  & //'". Contact the developers.', FATAL)
+          END IF
+          length = SIZE(rval)
+          ! Allocate iatt(:) to size of rval
+          ALLOCATE(Axes(diag_axis_id)%attributes(this_attribute)%fatt(length), STAT=istat)
+          IF ( istat.NE.0 ) THEN
+             ! <ERROR STATUS="FATAL">
+             !   Unable to allocate fatt for attribute <name> for axis <axis_name>
+             ! </ERROR>
+             CALL error_mesg('diag_manager_mod::diag_axis_add_attribute', 'Unable to allocate fatt for attribute "'&
+                  & //TRIM(name)//'" for axis "'//TRIM(Axes(diag_axis_id)%name)&
+                  & //'"', FATAL)
+          END IF
+          ! Set remaining fields
+          Axes(diag_axis_id)%attributes(this_attribute)%len = length
+          Axes(diag_axis_id)%attributes(this_attribute)%fatt = rval
+       CASE (NF90_CHAR)
+          IF ( .NOT.PRESENT(cval) ) THEN
+             ! <ERROR STATUS="FATAL">
+             !   Attribute type claims CHARACTER, but cval not present for attribute <name> for axis <axis_name>.
+             !   Contact the developers.
+             ! </ERROR>
+             CALL error_mesg('diag_manager_mod::diag_axis_add_attribute',&
+                  & 'Attribute type claims CHARACTER, but cval not present for attribute "'&
+                  & //TRIM(name)//'" for axis "'//TRIM(Axes(diag_axis_id)%name)&
+                  & //'". Contact the developers.', FATAL)
+          END IF
+          CALL prepend_attribute_axis(Axes(diag_axis_id), TRIM(name), TRIM(cval))
+       CASE default
+          ! <ERROR STATUS="FATAL">
+          !   Unknown attribute type for attribute <name> for axis <axis_name>.
+          !   Contact the developers.
+          ! </ERROR>
+          CALL error_mesg('diag_manager_mod::diag_axis_add_attribute', 'Unknown attribute type for attribute "'&
+               & //TRIM(name)//'" for axis "'//TRIM(Axes(diag_axis_id)%name)&
+               & //'". Contact the developers.', FATAL)
+       END SELECT
+    END IF
+  END SUBROUTINE diag_axis_attribute_init
+
+  ! <SUBROUTINE NAME="diag_axis_add_attribute_scalar_r" INTERFACE="diag_axis_add_attribute">
+  !   <IN NAME="diag_axis_id" TYPE="INTEGER" />
+  !   <IN NAME="att_name" TYPE="CHARACTER(len=*)" />
+  !   <IN NAME="att_value" TYPE="REAL" />
+  SUBROUTINE diag_axis_add_attribute_scalar_r(diag_axis_id, att_name, att_value)
+    INTEGER, INTENT(in) :: diag_axis_id
+    CHARACTER(len=*), INTENT(in) :: att_name
+    REAL, INTENT(in) :: att_value
+
+    CALL diag_axis_add_attribute_r1d(diag_axis_id, att_name, (/ att_value /))
+  END SUBROUTINE diag_axis_add_attribute_scalar_r
+  ! </SUBROUTINE>
+
+  ! <SUBROUTINE NAME="diag_axis_add_attribute_scalar_i" INTERFACE="diag_axis_add_attribute">
+  !   <IN NAME="diag_axis_id" TYPE="INTEGER" />
+  !   <IN NAME="att_name" TYPE="CHARACTER(len=*)" />
+  !   <IN NAME="att_value" TYPE="INTEGER" />
+  SUBROUTINE diag_axis_add_attribute_scalar_i(diag_axis_id, att_name, att_value)
+    INTEGER, INTENT(in) :: diag_axis_id
+    CHARACTER(len=*), INTENT(in) :: att_name
+    INTEGER, INTENT(in) :: att_value
+
+    CALL diag_axis_add_attribute_i1d(diag_axis_id, att_name, (/ att_value /))
+  END SUBROUTINE diag_axis_add_attribute_scalar_i
+  ! </SUBROUTINE>
+
+  ! <SUBROUTINE NAME="diag_axis_add_attribute_scalar_c" INTERFACE="diag_axis_add_attribute">
+  !   <IN NAME="diag_axis_id" TYPE="INTEGER" />
+  !   <IN NAME="att_name" TYPE="CHARACTER(len=*)" />
+  !   <IN NAME="att_value" TYPE="CHARACTER(len=*)" />
+  SUBROUTINE diag_axis_add_attribute_scalar_c(diag_axis_id, att_name, att_value)
+    INTEGER, INTENT(in) :: diag_axis_id
+    CHARACTER(len=*), INTENT(in) :: att_name
+    CHARACTER(len=*), INTENT(in) :: att_value
+
+    CALL diag_axis_attribute_init(diag_axis_id, att_name, NF90_CHAR, cval=att_value)
+  END SUBROUTINE diag_axis_add_attribute_scalar_c
+  ! </SUBROUTINE>
+
+  ! <SUBROUTINE NAME="diag_axis_add_attribute_r1d" INTERFACE="diag_axis_add_attribute">
+  !   <IN NAME="diag_axis_id" TYPE="INTEGER" />
+  !   <IN NAME="att_name" TYPE="CHARACTER(len=*)" />
+  !   <IN NAME="att_value" TYPE="REAL, DIMENSION(:)" />
+  SUBROUTINE diag_axis_add_attribute_r1d(diag_axis_id, att_name, att_value)
+    INTEGER, INTENT(in) :: diag_axis_id
+    CHARACTER(len=*), INTENT(in) :: att_name
+    REAL, DIMENSION(:), INTENT(in) :: att_value
+
+    INTEGER :: num_attributes, len
+    CHARACTER(len=512) :: err_msg
+
+    CALL diag_axis_attribute_init(diag_axis_id, att_name, NF90_FLOAT, rval=att_value)
+  END SUBROUTINE diag_axis_add_attribute_r1d
+  ! </SUBROUTINE>
+
+  ! <SUBROUTINE NAME="diag_axis_add_attribute_i1d" INTERFACE="diag_axis_add_attribute">
+  !   <IN NAME="diag_axis_id" TYPE="INTEGER" />
+  !   <IN NAME="att_name" TYPE="CHARACTER(len=*)" />
+  !   <IN NAME="att_value" TYPE="INTEGER, DIMENSION(:)" />
+  SUBROUTINE diag_axis_add_attribute_i1d(diag_axis_id, att_name, att_value)
+    INTEGER, INTENT(in) :: diag_axis_id
+    CHARACTER(len=*), INTENT(in) :: att_name
+    INTEGER, DIMENSION(:), INTENT(in) :: att_value
+
+    CALL diag_axis_attribute_init(diag_axis_id, att_name, NF90_INT, ival=att_value)
+  END SUBROUTINE diag_axis_add_attribute_i1d
+  ! </SUBROUTINE>
+
+  ! <SUBROUTINE NAME="attribute_init_axis" INTERFACE="attribute_init">
+  !   <OVERVIEW>
+  !     Allocates the atttype in out_axis
+  !   </OVERVIEW>
+  !   <TEMPLATE>
+  !     SUBROUTINE attribute_init(out_axis, err_msg)
+  !   </TEMPLATE>
+  !   <DESCRIPTION>
+  !     Allocates memory in out_file for the attributes.  Will <TT>FATAL</TT> if err_msg is not included
+  !     in the subroutine call.
+  !   </DESCRIPTION>
+  !   <INOUT NAME="out_file" TYPE="TYPE(file_type)">output file to allocate memory for attribute</INOUT>
+  !   <OUT NAME="err_msg" TYPE="CHARACTER(len=*), OPTIONAL">Error message, passed back to calling function</OUT>
+  SUBROUTINE attribute_init_axis(out_axis, err_msg)
+    TYPE(diag_axis_type), INTENT(inout) :: out_axis
+    CHARACTER(LEN=*), INTENT(out), OPTIONAL :: err_msg
+
+    INTEGER :: istat
+
+    ! Initialize err_msg
+    IF ( PRESENT(err_msg) ) err_msg = ''
+
+    ! Allocate memory for the attributes
+    IF ( .NOT._ALLOCATED(out_axis%attributes) ) THEN
+       ALLOCATE(out_axis%attributes(max_axis_attributes), STAT=istat)
+       IF ( istat.NE.0 ) THEN
+          ! <ERROR STATUS="FATAL">
+          !   Unable to allocate memory for diag axis attributes
+          ! </ERROR>
+          IF ( fms_error_handler('diag_util_mod::attribute_init_axis', 'Unable to allocate memory for diag axis attributes', err_msg) ) THEN
+             RETURN
+          END IF
+       ELSE
+          ! Set equal to 0.  It will be increased when attributes added
+          out_axis%num_attributes = 0
+       END IF
+    END IF
+  END SUBROUTINE attribute_init_axis
+  ! </SUBROUTINE>
+
+  ! <SUBROUTINE NAME="prepend_attribute_axis">
+  !   <OVERVIEW>
+  !     Prepends the attribute value to an already existing attribute.  If the
+  !     attribute isn't yet defined, then creates a new attribute
+  !   </OVERVIEW>
+  !   <TEMPLATE>
+  !     SUBROUTINE prepend_attribute(out_file, attribute, prepend_value)
+  !   </TEMPLATE>
+  !   <DESCRIPTION>
+  !     Checks if the attribute already exists for <TT>out_axis</TT>.  If it exists,
+  !     then prepend the <TT>prepend_value</TT>, otherwise, create the attribute
+  !     with the <TT>prepend_value</TT>. <TT>err_msg</TT> indicates no duplicates found.
+  !   </DESCRIPTION>
+  !   <INOUT NAME="out_axis" TYPE="TYPE(diag_axis_type)">diagnostic axis that will get the attribute</INOUT>
+  !   <IN NAME="att_name" TYPE="CHARACTER(len=*)">Name of the attribute</IN>
+  !   <IN NAME="prepend_value" TYPE="CHARACTER(len=*)">Value to prepend</IN>
+  !   <OUT NAME="err_msg" TYPE="CHARACTER(len=*), OPTIONAL">Error message, passed back to calling routine</OUT>
+  SUBROUTINE prepend_attribute_axis(out_axis, att_name, prepend_value, err_msg)
+    TYPE(diag_axis_type), INTENT(inout) :: out_axis
+    CHARACTER(len=*), INTENT(in) :: att_name, prepend_value
+    CHARACTER(len=*), INTENT(out) , OPTIONAL :: err_msg
+
+    INTEGER :: length, i, this_attribute
+    CHARACTER(len=512) :: err_msg_local
+
+    ! Initialize string variables
+    err_msg_local = ''
+    IF ( PRESENT(err_msg) ) err_msg = ''
+
+    ! Make sure the attributes for this out file have been initialized
+    CALL attribute_init_axis(out_axis, err_msg_local)
+    IF ( TRIM(err_msg_local) .NE. '' ) THEN
+       IF ( fms_error_handler('diag_util_mod::prepend_attribute_axis', TRIM(err_msg_local), err_msg) ) THEN
+          RETURN
+       END IF
+    END IF
+
+    ! Find if attribute exists
+    this_attribute = 0
+    DO i=1, out_axis%num_attributes
+       IF ( TRIM(out_axis%attributes(i)%name) .EQ. TRIM(att_name) ) THEN
+          this_attribute = i
+          EXIT
+       END IF
+    END DO
+
+    IF ( this_attribute > 0 ) THEN
+       IF ( out_axis%attributes(this_attribute)%type .NE. NF90_CHAR ) THEN
+          ! <ERROR STATUS="FATAL">
+          !   Attribute <name> is not a character attribute.
+          ! </ERROR>
+          IF ( fms_error_handler('diag_util_mod::prepend_attribute_axis',&
+               & 'Attribute "'//TRIM(att_name)//'" is not a character attribute.',&
+               & err_msg) ) THEN
+             RETURN
+          END IF
+       END IF
+    ELSE
+       ! Defining a new attribute
+       ! Increase the number of file attributes
+       this_attribute = out_axis%num_attributes + 1
+       IF ( this_attribute .GT. max_axis_attributes ) THEN
+          ! <ERROR STATUS="FATAL">
+          !   Number of attributes exceeds max_axis_attributes for attribute <name>.
+          !   Increase diag_manager_nml:max_axis_attributes.
+          ! </ERROR>
+          IF ( fms_error_handler('diag_util_mod::prepend_attribute_axis',&
+               & 'Number of attributes exceeds max_axis_attributes for attribute "'&
+               &//TRIM(att_name)//'".  Increase diag_manager_nml:max_axis_attributes.',&
+               & err_msg) ) THEN
+             RETURN
+          END IF
+       ELSE
+          out_axis%num_attributes = this_attribute
+          ! Set name and type
+          out_axis%attributes(this_attribute)%name = att_name
+          out_axis%attributes(this_attribute)%type = NF90_CHAR
+          ! Initialize catt to a blank string, as len_trim doesn't always work on an uninitialized string
+          out_axis%attributes(this_attribute)%catt = ''
+       END IF
+    END IF
+
+    ! Only add string only if not already defined
+    IF ( INDEX(TRIM(out_axis%attributes(this_attribute)%catt), TRIM(prepend_value)).EQ.0 ) THEN
+       ! Check if new string length goes beyond the length of catt
+       length = LEN_TRIM(TRIM(prepend_value)//" "//TRIM(out_axis%attributes(this_attribute)%catt))
+       IF ( length.GT.LEN(out_axis%attributes(this_attribute)%catt) ) THEN
+          ! <ERROR STATUS="FATAL">
+          !   Prepend length for attribute <name> is longer than allowed.
+          ! </ERROR>
+          IF ( fms_error_handler('diag_util_mod::prepend_attribute_file',&
+               & 'Prepend length for attribute "'//TRIM(att_name)//'" is longer than allowed.',&
+               & err_msg) ) THEN
+             RETURN
+          END IF
+       END IF
+       ! Set files
+       out_axis%attributes(this_attribute)%catt =&
+            & TRIM(prepend_value)//' '//TRIM(out_axis%attributes(this_attribute)%catt)
+       out_axis%attributes(this_attribute)%len = length
+    END IF
+  END SUBROUTINE prepend_attribute_axis
+  ! </SUBROUTINE>
 END MODULE diag_axis_mod

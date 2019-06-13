@@ -8,10 +8,11 @@ C **********************************************************************
 
       character*20     tasks
       integer          ntasks
-      integer*8          ntot,   nins
+      integer*8        ntot,   nins
       real             cputot, cpuins
+      integer          pad
 
-      common /time_parm/ ntasks
+      common /time_parm/ pad, ntasks
       common /time_parm/  tasks(maxtask) 
       common /time_parm/ cputot(maxtask), ntot(maxtask) 
       common /time_parm/ cpuins(maxtask), nins(maxtask) 

@@ -6,6 +6,7 @@
 # key global variables
 # => $infil: input nodefile (defaults to $PBS_NODEFILE)
 # => $outfil: output nodefile to which subsetted list is written
+# => $index0: zero-based index into @nodeList (-index input option is one-based)
 # => @nodeList: sorted list of nodes from input nodelist (each node listed once)
 # => %cpusPerNode: number of CPUs per node on input nodelist; keys = @nodeList
 #
@@ -23,7 +24,7 @@ use warnings;
 
 # global variables
 #-----------------
-my ($infil, $outfil, $back, $index, $ppnIN, $ppn, $outflg, $debug);
+my ($infil, $outfil, $back, $index0, $ppnIN, $ppn, $outflg, $debug);
 my (@nodeList, %cpusPerNode);
 my ($cpusIN, $cpusOUT, $singleOUT);
 
@@ -41,12 +42,13 @@ my ($cpusIN, $cpusOUT, $singleOUT);
 #=======================================================================
 sub init {
     use Getopt::Long;
-    my ($front, $help);
+    my ($index1, $help);
 
     # get input options
     #------------------
     GetOptions( "f=s"      => \$infil,
                 "o=s"      => \$outfil,
+                "index=i"  => \$index1,
                 "b|back"   => \$back,
                 "ppnIN=i"  => \$ppnIN,
                 "ppn=i"    => \$ppn,
@@ -65,12 +67,13 @@ sub init {
     $infil = $ENV{PBS_NODEFILE} unless $infil;
     $outflg = 1 if defined($outflg) and $outflg eq "";
     $outflg = 0 unless $outflg;
+    $index0 = $index1 - 1 if $index1;
 
     # check for error conditions
     #---------------------------
     die "Error. Input file not defined;" unless $infil;
     die "Error. Input file not found: $infil;" unless -e $infil;
-    die "Error. Must supply # of CPUs with -n flag;" unless $cpusOUT;
+    die "Error. Must supply # of output CPUs;" unless $cpusOUT;
     die "Error. Total CPUs ($cpusOUT) does not divide evenly by ppn ($ppn):"
         if $ppn and ($cpusOUT % $ppn != 0);
 }
@@ -80,7 +83,7 @@ sub init {
 # purpose - read available nodes from input nodefile
 #=======================================================================
 sub read_infil {
-    my ($singleIN);
+    my ($singleIN, $node);
 
     # read input node list
     #---------------------
@@ -89,7 +92,6 @@ sub read_infil {
     foreach (<INFIL>) {
         chomp;
         next unless $_;
-        push @nodeList, $_ unless $cpusPerNode{$_};
         $cpusPerNode{$_}++;
         $cpusIN++;
     }
@@ -107,7 +109,12 @@ sub read_infil {
         $cpusIN *= $ppnIN;
         foreach (keys %cpusPerNode) { $cpusPerNode{$_} = $ppnIN }
     }
-    @nodeList = sort @nodeList;
+
+    # create node list
+    #-----------------
+    foreach $node (sort(keys %cpusPerNode)) {
+        foreach (1..$cpusPerNode{$node}) { push @nodeList, $node }
+    }
     $singleOUT = $singleIN unless defined($singleOUT);
 
     # check that requested processes are available
@@ -121,68 +128,50 @@ sub read_infil {
 # purpose - print the subsetted nodes
 #=======================================================================
 sub print_output {
-    my ($step, $cnt, $perNode, $ind);
+    my ($step, $cntALL, %cnt, $perNode, $ind, $index1);
     my ($node, @cpuList, %deja, $msg, $FH);
     my (%cpusLeftPerNode, %cpusLeftPerNodeALL, $cpusLEFT, $cpusLEFTall);
 
     # determine @nodeList step value and starting index 
     #---------------------------------------------------
-    if ($back) { $step = -1; $index = $#nodeList unless defined($index) }
-    else       { $step =  1; $index = 0          unless defined($index) }
+    if ($back) { $step = -1; $index0 = $#nodeList unless defined($index0) }
+    else       { $step =  1; $index0 = 0          unless defined($index0) }
+    $index1 = $index0 + 1;
 
     # initialize counters and array index
     #------------------------------------
-    $cnt = 0;
-    $perNode = 0;
-    $ind = $index;
+    $cntALL = 0;
+    %cnt = ();
+    %deja = ();
 
     %cpusLeftPerNode    = %cpusPerNode;
     %cpusLeftPerNodeALL = %cpusPerNode;
 
+    $ind = $index0;
+
     while (1) {
+        errorMSG() if $ind < 0 or $ind > $#nodeList;
+
         $node = $nodeList[$ind];
+        $ind += $step;
 
-        # skip node if it does not have enough CPUs per node
-        #---------------------------------------------------
-        if ($ppn and $cpusPerNode{$node} < $ppn) {
-            $ind += $step;
-            next;
+        if ($ppn) {
+            next if $cpusPerNode{$node} < $ppn;
+            next if $cnt{$node} and $cnt{$node} >= $ppn;
         }
-
-        # add node to @cpuList
-        #---------------------
-        if ($back) { unshift @cpuList, $node unless $singleOUT and $deja{$node} }
-        else       { push    @cpuList, $node unless $singleOUT and $deja{$node} }
+        push @cpuList, $node unless $singleOUT and $deja{$node};
 
         $cpusLeftPerNode{$node} = 0;
         $cpusLeftPerNodeALL{$node}--;
 
-        # increment counters
-        #-------------------
-        $cnt++;
-        $perNode++;
+        $cnt{$node}++;
         $deja{$node}++;
+        $cntALL++;
 
-        # we are done if we have reached the number of requested CPUs
-        #------------------------------------------------------------
-        last if $cnt >= $cpusOUT;
-
-        # move to next node, if at @cpusPerNode or $ppn limit
-        #----------------------------------------------------
-        if ($perNode >= $cpusPerNode{$node} or ($ppn and ($perNode >= $ppn))) {
-            $ind += $step;
-            $perNode = 0;
-        }
-
-        # die if @nodeList index is out of bounds
-        #----------------------------------------
-        if (($ind < 0) or ($ind > $#nodeList)) {
-            $msg = "Error. Cannot allocate $cpusOUT cpus from $infil;";
-            $msg .= " ppn = $ppn;" if $ppn;
-            $msg .= " back = $back;" if $back;
-            die $msg;
-        }
+        last if $cntALL >= $cpusOUT;
     }
+    errorMSG() if $cntALL < $cpusOUT;
+    @cpuList = sort(@cpuList);
 
     # write @cpuList to output file
     #------------------------------
@@ -201,7 +190,7 @@ sub print_output {
         $cpusLEFT    = 0;
         $cpusLEFTall = 0;
 
-        foreach $node (@nodeList) {
+        foreach $node (keys %cpusPerNode) {
             $cpusLEFT    += $cpusLeftPerNode{$node};
             $cpusLEFTall += $cpusLeftPerNodeALL{$node};
         }
@@ -219,8 +208,25 @@ sub print_output {
         print STDERR "debug: cpusOUT     = $cpusOUT\n";
         print STDERR "debug: cpusLEFT    = $cpusLEFT\n";
         print STDERR "debug: cpusLEFTall = $cpusLEFTall\n";
+        print STDERR "debug: first index = $index1\n";
+        print STDERR "debug: step        = $step\n";
         print STDERR "debug: outflg      = $outflg\n\n";
     }
+}
+#=======================================================================
+# name - errorMSG
+# purpose - print error message and die if unable to allocate requested nodes
+#=======================================================================
+sub errorMSG {
+    my ($msg, $index1);
+    $index1 = $index0 + 1;
+    $msg = "Error. Cannot allocate $cpusOUT cpus from $infil;";
+    $msg .= " -index $index1";
+    $msg .= " -back" if $back;
+    $msg .= " -ppnIN $ppnIN" if $ppnIN;
+    $msg .= " ppn = $ppn" if $ppn;
+    $msg .= ";";
+    die $msg;
 }
 
 #=======================================================================
@@ -247,6 +253,10 @@ OPTIONS
                    \$PBS_NODEFILE, if it is defined
 
    -o nodeFileOUT  Name of output nodefile; Defaults to STDOUT
+
+   -index index1   The start index (one-based) for subsetting nodes;
+                   defaults to last index for -back flag;
+                   otherwise, defaults to 1
 
    -back           Get nodes from the back of the input list;
                    default is to take nodes from front of input list
