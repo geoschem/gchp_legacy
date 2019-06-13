@@ -20,7 +20,7 @@
      #TAU_OPTIONS  = '-optPdtF90Parser="$(PDTROOTDIR)/bin/f95parse" -optPreProcess -optVerbose -optPDTInst -optRevert -optKeepFiles'
      export TAU_OPTIONS
      FC = $(TAUROOTDIR)/x86_64/bin/tau_f90.sh -tau_options=$(TAU_OPTIONS) -tau_makefile=$(TAU_MAKEFILE)
-     ifeq ($(F2PY),f2py)
+     ifeq ($(USE_F2PY),yes)
       F2PY = f2py --f77exec=$(ORIGFC) --f90exec=$(ORIGFC)
      endif
   endif

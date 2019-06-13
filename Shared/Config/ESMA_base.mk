@@ -111,7 +111,8 @@ ACG         = $(ESMABIN)/mapl_acg.pl
 ACG_FLAGS   = -v
 F90SPLIT    = $(ESMABIN)/f90split.x  # split f90 file by procedure
 F90AIB      = $(ESMABIN)/f90aib.x    # automatic interface block
-F2PY        =        # python fortran extension builder. Set to f2py to enable.
+USE_F2PY    = no     # Toggle usage of python fortran extension builder
+F2PY        = f2py   # python fortran extension builder
 DLLEXT      = so     # extension for shared libraries
 F2PYEXT     = so     # extension for python extensions
 

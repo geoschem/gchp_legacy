@@ -65,7 +65,7 @@ $(TARGETS):
 	  done
 	$(MAKE) local_$@
 
-ifeq ($(F2PY),f2py)
+ifeq ($(USE_F2PY),yes)
 local_esma_install local_install:
 	@echo No local install in here
 	@echo F2PY is enabled

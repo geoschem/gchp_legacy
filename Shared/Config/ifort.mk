@@ -21,7 +21,7 @@
 
      MKL_COMPILER = intel_f
 
-     ifeq ($(F2PY),f2py)
+     ifeq ($(USE_F2PY),yes)
       F2PY += --fcompiler=intelem
      endif
 
