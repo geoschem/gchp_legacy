@@ -311,8 +311,8 @@ contains
          dim_name => iter%get()
          dim_this => this%dimensions%at(dim_name)
          if ( .not. associated(dim_this) ) then
-            msg = "FileMetadata::add_variable() - undefined dimension: " &
-                  // dim_name
+            write(*,'(4a)') 'FileMetadata::add_variable() - undefined dimension: ', &
+                  Trim(dim_name), ' for var: ', Trim(var_name)
             _ASSERT( associated(dim_this), trim(msg))
          end if
          shp =[shp,dim_this]
