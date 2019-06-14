@@ -98,7 +98,6 @@ Warnings:                    1
     --> NEI2011_HOURLY         :       false
     --> NEI2011_MONMEAN        :       true
     --> MIX                    :       true
-    --> STREETS                :       false
     --> DICE_Africa            :       true 
 # ----- GLOBAL INVENTORIES ------------------
     --> CEDS                   :       true
@@ -634,87 +633,6 @@ Warnings:                    1
 0 NEI11_PTNONIPM_OCPI  $ROOT/NEI2011/v2017-02-MM/$MM/NEI11_0.1x0.1_2011$MM_monmean_ptnonipm.nc POC      2006-2013/1-12/1/0 C xyz kg/m2/s  OCPI 26/222/257/1007/267 1   50
 0 NEI11_PTNONIPM_OCPO  -                                                                       -        -                  - -   -        OCPO 26/222/257/1007/268 1   50
 )))NEI2011_MONMEAN
-
-#==============================================================================
-# --- STREETS SE ASIA (Zhang et al., 2009) ---
-#==============================================================================
-(((STREETS
-0 ZHANG_NO__IND     $ROOT/STREETS/v2014-07/2006/Streets_CO_NO_SO2_2006.generic.1x1.nc NO_ind  2006/1/1/0 C xy kg/m2/s  NO   1/4/25/36/1003        1 40 
-0 ZHANG_NO__POW     $ROOT/STREETS/v2014-07/2006/Streets_CO_NO_SO2_2006.generic.1x1.nc NO_pow  2006/1/1/0 C xy kg/m2/s  NO   1/4/25/36/1003        1 40 
-0 ZHANG_NO__RES     $ROOT/STREETS/v2014-07/2006/Streets_CO_NO_SO2_2006.generic.1x1.nc NO_res  2006/1/1/0 C xy kg/m2/s  NO   1/4/25/36/1003        1 40 
-0 ZHANG_NO__TRA     $ROOT/STREETS/v2014-07/2006/Streets_CO_NO_SO2_2006.generic.1x1.nc NO_tra  2006/1/1/0 C xy kg/m2/s  NO   1/4/25/36/1003        1 40 
-0 ZHANG_CO__IND     $ROOT/STREETS/v2014-07/2006/Streets_CO_NO_SO2_2006.generic.1x1.nc CO_ind  2006/1/1/0 C xy kg/m2/s  CO   6/9/26/37/52/1003     1 40 
-0 ZHANG_SOAP__IND   -                                                                 -       -          - -  -        SOAP 6/9/26/37/52/1003/280 1 40 
-0 ZHANG_CO__POW     $ROOT/STREETS/v2014-07/2006/Streets_CO_NO_SO2_2006.generic.1x1.nc CO_pow  2006/1/1/0 C xy kg/m2/s  CO   6/9/26/37/52/1003     1 40 
-0 ZHANG_SOAP__POW   -                                                                 -       -          - -  -        SOAP 6/9/26/37/52/1003/280 1 40 
-0 ZHANG_CO__RES     $ROOT/STREETS/v2014-07/2006/Streets_CO_NO_SO2_2006.generic.1x1.nc CO_res  2006/1/1/0 C xy kg/m2/s  CO   6/9/26/37/52/1003     1 40 
-0 ZHANG_SOAP__RES   -                                                                 -       -          - -  -        SOAP 6/9/26/37/52/1003/280 1 40 
-0 ZHANG_CO__TRA     $ROOT/STREETS/v2014-07/2006/Streets_CO_NO_SO2_2006.generic.1x1.nc CO_tra  2006/1/1/0 C xy kg/m2/s  CO   6/9/26/37/52/1003     1 40 
-0 ZHANG_SOAP__TRA   -                                                                 -       -          - -  -        SOAP 6/9/26/37/52/1003/280 1 40 
-0 ZHANG_SO2__IND    $ROOT/STREETS/v2014-07/2006/Streets_CO_NO_SO2_2006.generic.1x1.nc SO2_ind 2006/1/1/0 C xy kg/m2/s  SO2  11/14/1003            1 40 
-0 ZHANG_SO4__IND    -                                                                 -       -          - -  -        SO4  11/14/63/1003         1 40 
-0 ZHANG_pFe__IND    -                                                                 -       -          - -  -        pFe  11/14/66/1003         1 40 
-0 ZHANG_SO2__POW    $ROOT/STREETS/v2014-07/2006/Streets_CO_NO_SO2_2006.generic.1x1.nc SO2_pow 2006/1/1/0 C xy kg/m2/s  SO2  11/14/1003            1 40 
-0 ZHANG_SO4__POW    -                                                                 -       -          - -  -        SO4  11/14/63/1003         1 40 
-0 ZHANG_pFe__POW    -                                                                 -       -          - -  -        pFe  11/14/66/1003         1 40 
-0 ZHANG_SO2__RES    $ROOT/STREETS/v2014-07/2006/Streets_CO_NO_SO2_2006.generic.1x1.nc SO2_res 2006/1/1/0 C xy kg/m2/s  SO2  11/14/1003            1 40 
-0 ZHANG_SO4__RES    -                                                                 -       -          - -  -        SO4  11/14/63/1003         1 40 
-0 ZHANG_pFe__RES    -                                                                 -       -          - -  -        pFe  11/14/66/1003         1 40 
-0 ZHANG_SO2__TRA    $ROOT/STREETS/v2014-07/2006/Streets_CO_NO_SO2_2006.generic.1x1.nc SO2_tra 2006/1/1/0 C xy kg/m2/s  SO2  11/14/1003            1 40 
-0 ZHANG_SO4__TRA    -                                                                 -       -          - -  -        SO4  11/14/63/1003         1 40 
-0 ZHANG_pFe__TRA    -                                                                 -       -          - -  -        pFe  11/14/66/1003         1 40 
-0 ZHANG_C2H6__DOB   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc C2H6_dob     2006/1/1/0 C xy kgC/m2/s C2H6 26/1003               1 40 
-0 ZHANG_C2H6__DOF   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc C2H6_dof     2006/1/1/0 C xy kgC/m2/s C2H6 26/1003               1 40
-0 ZHANG_C2H6__DOP   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc C2H6_dop     2006/1/1/0 C xy kgC/m2/s C2H6 26/1003               1 40
-0 ZHANG_C2H6__IND   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc C2H6_ind     2006/1/1/0 C xy kgC/m2/s C2H6 26/1003               1 40
-0 ZHANG_C2H6__POW   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc C2H6_pow     2006/1/1/0 C xy kgC/m2/s C2H6 26/1003               1 40
-0 ZHANG_C2H6__TRA   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc C2H6_tra     2006/1/1/0 C xy kgC/m2/s C2H6 26/1003               1 40
-0 ZHANG_C3H8__DOB   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc C3H8_dob     2006/1/1/0 C xy kgC/m2/s C3H8 26/1003               1 40 
-0 ZHANG_C3H8__DOF   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc C3H8_dof     2006/1/1/0 C xy kgC/m2/s C3H8 26/1003               1 40 
-0 ZHANG_C3H8__DOP   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc C3H8_dop     2006/1/1/0 C xy kgC/m2/s C3H8 26/1003               1 40 
-0 ZHANG_C3H8__IND   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc C3H8_ind     2006/1/1/0 C xy kgC/m2/s C3H8 26/1003               1 40 
-0 ZHANG_C3H8__POW   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc C3H8_pow     2006/1/1/0 C xy kgC/m2/s C3H8 26/1003               1 40 
-0 ZHANG_C3H8__TRA   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc C3H8_tra     2006/1/1/0 C xy kgC/m2/s C3H8 26/1003               1 40 
-0 ZHANG_CH2O__DOB   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc CH2O_dob     2006/1/1/0 C xy kg/m2/s  CH2O 26/1003               1 40 
-0 ZHANG_CH2O__DOF   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc CH2O_dof     2006/1/1/0 C xy kg/m2/s  CH2O 26/1003               1 40 
-0 ZHANG_CH2O__DOP   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc CH2O_dop     2006/1/1/0 C xy kg/m2/s  CH2O 26/1003               1 40 
-0 ZHANG_CH2O__IND   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc CH2O_ind     2006/1/1/0 C xy kg/m2/s  CH2O 26/1003               1 40 
-0 ZHANG_CH2O__POW   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc CH2O_pow     2006/1/1/0 C xy kg/m2/s  CH2O 26/1003               1 40 
-0 ZHANG_CH2O__TRA   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc CH2O_tra     2006/1/1/0 C xy kg/m2/s  CH2O 26/1003               1 40 
-0 ZHANG_ALK4__DOB   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc ALK4_dob     2006/1/1/0 C xy kgC/m2/s ALK4 26/1003               1 40 
-0 ZHANG_ALK4__DOF   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc ALK4_dof     2006/1/1/0 C xy kgC/m2/s ALK4 26/1003               1 40 
-0 ZHANG_ALK4__DOP   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc ALK4_dop     2006/1/1/0 C xy kgC/m2/s ALK4 26/1003               1 40 
-0 ZHANG_ALK4__IND   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc ALK4_ind     2006/1/1/0 C xy kgC/m2/s ALK4 26/1003               1 40 
-0 ZHANG_ALK4__POW   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc ALK4_pow     2006/1/1/0 C xy kgC/m2/s ALK4 26/1003               1 40 
-0 ZHANG_ALK4__TRA   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc ALK4_tra     2006/1/1/0 C xy kgC/m2/s ALK4 26/1003               1 40 
-0 ZHANG_ACET__DOB   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc ACET_dob     2006/1/1/0 C xy kgC/m2/s ACET 26/1003               1 40 
-0 ZHANG_ACET__DOF   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc ACET_dof     2006/1/1/0 C xy kgC/m2/s ACET 26/1003               1 40 
-0 ZHANG_ACET__DOP   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc ACET_dop     2006/1/1/0 C xy kgC/m2/s ACET 26/1003               1 40 
-0 ZHANG_ACET__IND   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc ACET_ind     2006/1/1/0 C xy kgC/m2/s ACET 26/1003               1 40 
-0 ZHANG_ACET__POW   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc ACET_pow     2006/1/1/0 C xy kgC/m2/s ACET 26/1003               1 40 
-0 ZHANG_ACET__TRA   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc ACET_tra     2006/1/1/0 C xy kgC/m2/s ACET 26/1003               1 40 
-0 ZHANG_MEK__DOB    $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc MEK_dob      2006/1/1/0 C xy kgC/m2/s MEK  26/1003               1 40 
-0 ZHANG_MEK__DOF    $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc MEK_dof      2006/1/1/0 C xy kgC/m2/s MEK  26/1003               1 40 
-0 ZHANG_MEK__DOP    $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc MEK_dop      2006/1/1/0 C xy kgC/m2/s MEK  26/1003               1 40 
-0 ZHANG_MEK__IND    $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc MEK_ind      2006/1/1/0 C xy kgC/m2/s MEK  26/1003               1 40 
-0 ZHANG_MEK__POW    $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc MEK_pow      2006/1/1/0 C xy kgC/m2/s MEK  26/1003               1 40 
-0 ZHANG_MEK__TRA    $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc MEK_tra      2006/1/1/0 C xy kgC/m2/s MEK  26/1003               1 40 
-0 ZHANG_ALD2__DOB   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc ALD2_dob     2006/1/1/0 C xy kgC/m2/s ALD2 26/1003               1 40 
-0 ZHANG_ALD2__DOF   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc ALD2_dof     2006/1/1/0 C xy kgC/m2/s ALD2 26/1003               1 40 
-0 ZHANG_ALD2__DOP   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc ALD2_dop     2006/1/1/0 C xy kgC/m2/s ALD2 26/1003               1 40 
-0 ZHANG_ALD2__IND   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc ALD2_ind     2006/1/1/0 C xy kgC/m2/s ALD2 26/1003               1 40 
-0 ZHANG_ALD2__POW   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc ALD2_pow     2006/1/1/0 C xy kgC/m2/s ALD2 26/1003               1 40 
-0 ZHANG_ALD2__TRA   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc ALD2_tra     2006/1/1/0 C xy kgC/m2/s ALD2 26/1003               1 40 
-0 ZHANG_PRPE__DOB   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc PRPE_dob     2006/1/1/0 C xy kgC/m2/s PRPE 26/1003               1 40 
-0 ZHANG_PRPE__DOF   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc PRPE_dof     2006/1/1/0 C xy kgC/m2/s PRPE 26/1003               1 40 
-0 ZHANG_PRPE__DOP   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc PRPE_dop     2006/1/1/0 C xy kgC/m2/s PRPE 26/1003               1 40 
-0 ZHANG_PRPE__IND   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc PRPE_ind     2006/1/1/0 C xy kgC/m2/s PRPE 26/1003               1 40 
-0 ZHANG_PRPE__POW   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc PRPE_pow     2006/1/1/0 C xy kgC/m2/s PRPE 26/1003               1 40 
-0 ZHANG_PRPE__TRA   $ROOT/STREETS/v2014-07/2006/Streets_VOCs_2006.generic.1x1.nc PRPE_tra     2006/1/1/0 C xy kgC/m2/s PRPE 26/1003               1 40 
-
-# --> NH3 emissions are only available for year 2000:
-0 STREETS_NH3     $ROOT/STREETS/v2014-07/2000/Streets_2000.generic.1x1.nc      NH3_tot      2000/1/1/0 C xy kg/m2/s  NH3  38/1003                 1 40 
-)))STREETS
 
 #==============================================================================
 # --- MIX v1.1 (Asia) ---
@@ -2799,11 +2717,6 @@ Warnings:                    1
 30 GEIA_SEASON_NOX  $ROOT/GEIA/v2014-07/GEIA_monthscal.generic.1x1.nc NOXrat 1985/1-12/1/0 C xy unitless 1
 31 GEIA_SEASON_SO2  $ROOT/GEIA/v2014-07/GEIA_monthscal.generic.1x1.nc SO2rat 1985/1-12/1/0 C xy unitless 1
 
-# from Streets:
-36 ZHANG_SEASON_NOX   $ROOT/STREETS/v2014-07/2006/Streets_2004_NOx_MonthFctr_total.generic.1x1.nc NOxrat    2004/1-12/1/0 C xy unitless 1
-37 ZHANG_SEASON_CO    $ROOT/STREETS/v2014-07/2006/Streets_2001_CO_MonthFctr_total.generic.1x1.nc  ratio     2001/1-12/1/0 C xy unitless 1 
-38 STREETS_SEASON_NH3 $ROOT/STREETS/v2014-07/2000/Streets_NH3_scale.generic.1x1.nc                NH3_scale 1995/1-12/1/0 C xy unitless 1 
-
 # for Bromocarbons:
 39 BROMOCARB_SEASON $ROOT/BROMINE/v2015-02/BromoCarb_Season.nc CHXBRY_scale 2000/1-12/1/0 C xy unitless 1
 
@@ -3036,7 +2949,6 @@ Warnings:                    1
 #==============================================================================
 1000 EMEP_MASK   $ROOT/MASKS/v2018-09/EMEP_mask.geos.1x1.20151222.nc           MASK     2000/1/1/0 C xy 1 1 -30/30/45/70
 1002 CANADA_MASK $ROOT/MASKS/v2018-09/Canada_mask.geos.1x1.nc                  MASK     2000/1/1/0 C xy 1 1 -141/40/-52/85
-1003 SEASIA_MASK $ROOT/MASKS/v2018-09/SE_Asia_mask.generic.1x1.nc              MASK     2000/1/1/0 C xy 1 1  60/-12/153/55
 1006 ASIA_MASK   $ROOT/MASKS/v2018-09/MIX_Asia_mask.generic.025x025.nc         MASK     2000/1/1/0 C xy 1 1 46/-12/180/82
 1007 CONUS_MASK  $ROOT/MASKS/v2018-09/CONUS_Mask.01x01.nc                      MASK     2000/1/1/0 C xy 1 1 -140/20/-50/60
 1008 AFRICA_MASK $ROOT/MASKS/v2018-09/AF_LANDMASK.geos.05x0666.global.nc       LANDMASK 1985/1/1/0 C xy 1 1 -20/-37/54/40
