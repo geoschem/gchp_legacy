@@ -36,7 +36,6 @@
 EmisACET_Total     ACET   -1     -1  -1   3   kg/m2/s  ACET_emission_flux_from_all_sectors
 EmisACET_Anthro    ACET   0      1   -1   3   kg/m2/s  ACET_emission_flux_from_anthropogenic
 EmisACET_BioBurn   ACET   111    -1  -1   2   kg/m2/s  ACET_emission_flux_from_biomass_burning
-EmisACET_Biofuel   ACET   0      2   -1   2   kg/m2/s  ACET_emission_flux_from_biofuel
 EmisACET_Biogenic  ACET   0      4   -1   2   kg/m2/s  ACET_emission_flux_from_biogenic_sources
 EmisACET_Ocean     ACET   101    -1  -1   2   kg/m2/s  ACET_emission_flux_from_ocean
 
@@ -46,7 +45,6 @@ EmisACET_Ocean     ACET   101    -1  -1   2   kg/m2/s  ACET_emission_flux_from_o
 EmisALD2_Total     ALD2   -1     -1  -1   3   kg/m2/s  ALD2_emission_flux_from_all_sectors
 EmisALD2_Anthro    ALD2   0      1   -1   3   kg/m2/s  ALD2_emission_flux_from_anthropogenic
 EmisALD2_BioBurn   ALD2   111    -1  -1   2   kg/m2/s  ALD2_emission_flux_from_biomass_burning
-EmisALD2_Biofuel   ALD2   0      2   -1   2   kg/m2/s  ALD2_emission_flux_from_biofuel
 EmisALD2_Biogenic  ALD2   0      4   -1   2   kg/m2/s  ALD2_emission_flux_from_biogenic_sources
 EmisALD2_Ocean     ALD2   101    -1  -1   2   kg/m2/s  ALD2_emission_flux_from_ocean
 EmisALD2_PlantDecay ALD2  0      3   -1   2   kg/m2/s  ALD2_emission_flux_from_decaying_plants
@@ -59,7 +57,6 @@ EmisALK4_Total     ALK4   -1     -1  -1   3   kg/m2/s  ALK4_emission_flux_from_a
 EmisALK4_Aircraft  ALK4   0      20  -1   3   kg/m2/s  ALK4_emission_flux_from_aircraft
 EmisALK4_Anthro    ALK4   0      1   -1   3   kg/m2/s  ALK4_emission_flux_from_anthropogenic
 EmisALK4_BioBurn   ALK4   111    -1  -1   2   kg/m2/s  ALK4_emission_flux_from_biomass_burning
-EmisALK4_Biofuel   ALK4   0      2   -1   2   kg/m2/s  ALK4_emission_flux_from_biofuel
 EmisALK4_Ship      ALK4   0      10  -1   2   kg/m2/s  ALK4_emission_flux_from_ships
 
 ###############################################################################
@@ -69,12 +66,10 @@ EmisBCPI_Total     BCPI   -1     -1  -1   3   kg/m2/s  BCPI_emission_flux_from_a
 EmisBCPI_Aircraft  BCPI   0      20  -1   3   kg/m2/s  BCPI_emission_flux_from_aircraft
 EmisBCPI_Anthro    BCPI   0      1   -1   3   kg/m2/s  BCPI_emission_flux_from_anthropogenic
 EmisBCPI_BioBurn   BCPI   111    -1  -1   2   kg/m2/s  BCPI_emission_flux_from_biomass_burning
-EmisBCPI_Biofuel   BCPI   0      2   -1   2   kg/m2/s  BCPI_emission_flux_from_biofuel
 EmisBCPI_Ship      BCPI   0      10  -1   2   kg/m2/s  BCPI_emission_flux_from_ships
 EmisBCPO_Total     BCPO   -1     -1  -1   2   kg/m2/s  BCPO_emission_flux_from_all_sectors
 EmisBCPO_Anthro    BCPO   0      1   -1   2   kg/m2/s  BCPO_emission_flux_from_anthropogenic
 EmisBCPO_BioBurn   BCPO   111    -1  -1   2   kg/m2/s  BCPO_emission_flux_from_biomass_burning
-EmisBCPO_Biofuel   BCPO   0      2   -1   2   kg/m2/s  BCPO_emission_flux_from_biofuel
 EmisBCPO_Ship      BCPO   0      10  -1   2   kg/m2/s  BCPO_emission_flux_from_ships
 
 ###############################################################################
@@ -83,7 +78,6 @@ EmisBCPO_Ship      BCPO   0      10  -1   2   kg/m2/s  BCPO_emission_flux_from_s
 EmisBENZ_Total     BENZ   -1     -1  -1   3   kg/m2/s  BENZ_emission_flux_from_all_sectors
 EmisBENZ_Anthro    BENZ   0      1   -1   3   kg/m2/s  BENZ_emission_flux_from_anthropogenic
 EmisBENZ_BioBurn   BENZ   111    -1  -1   2   kg/m2/s  BENZ_emission_flux_from_biomass_burning
-EmisBENZ_Biofuel   BENZ   0      2   -1   2   kg/m2/s  BENZ_emission_flux_from_biofuel
 EmisBENZ_Ship      BENZ   0      10  -1   2   kg/m2/s  BENZ_emission_flux_from_ships
 
 ###############################################################################
@@ -91,7 +85,6 @@ EmisBENZ_Ship      BENZ   0      10  -1   2   kg/m2/s  BENZ_emission_flux_from_s
 ###############################################################################
 EmisC2H2_Total     C2H2   -1     -1  -1   3   kg/m2/s  C2H2_emission_flux_from_all_sectors
 EmisC2H2_Anthro    C2H2   0      1   -1   3   kg/m2/s  C2H2_emission_flux_from_anthropogenic
-EmisC2H2_Biofuel   C2H2   0      2   -1   2   kg/m2/s  C2H2_emission_flux_from_biofuel
 EmisC2H2_Ship      C2H2   0      10  -1   2   kg/m2/s  C2H2_emission_flux_from_ships
 
 ###############################################################################
@@ -99,7 +92,6 @@ EmisC2H2_Ship      C2H2   0      10  -1   2   kg/m2/s  C2H2_emission_flux_from_s
 ###############################################################################
 EmisC2H4_Total     C2H4   -1     -1  -1   3   kg/m2/s  C2H4_emission_flux_from_all_sectors
 EmisC2H4_Anthro    C2H4   0      1   -1   3   kg/m2/s  C2H4_emission_flux_from_anthropogenic
-EmisC2H4_Biofuel   C2H4   0      2   -1   2   kg/m2/s  C2H4_emission_flux_from_biofuel
 EmisC2H4_Biogenic  C2H4   0      4   -1   2   kg/m2/s  C2H4_emission_flux_from_biogenic_sources
 EmisC2H4_Ship      C2H4   0      10  -1   2   kg/m2/s  C2H4_emission_flux_from_ships
 
@@ -110,7 +102,6 @@ EmisC2H6_Total     C2H6   -1     -1  -1   3   kg/m2/s  C2H6_emission_flux_from_a
 EmisC2H6_Aircraft  C2H6   0      20  -1   3   kg/m2/s  C2H6_emission_flux_from_aircraft
 EmisC2H6_Anthro    C2H6   0      1   -1   3   kg/m2/s  C2H6_emission_flux_from_anthropogenic
 EmisC2H6_BioBurn   C2H6   111    -1  -1   2   kg/m2/s  C2H6_emission_flux_from_biomass_burning
-EmisC2H6_Biofuel   C2H6   0      2   -1   2   kg/m2/s  C2H6_emission_flux_from_biofuel
 EmisC2H6_Ship      C2H6   0      10  -1   2   kg/m2/s  C2H6_emission_flux_from_ships
 
 ###############################################################################
@@ -120,7 +111,6 @@ EmisC3H8_Total     C3H8   -1     -1  -1   3   kg/m2/s  C3H8_emission_flux_from_a
 EmisC3H8_Aircraft  C3H8   0      20  -1   3   kg/m2/s  C3H8_emission_flux_from_aircraft
 EmisC3H8_Anthro    C3H8   0      1   -1   3   kg/m2/s  C3H8_emission_flux_from_anthropogenic
 EmisC3H8_BioBurn   C3H8   111    -1  -1   2   kg/m2/s  C3H8_emission_flux_from_biomass_burning
-EmisC3H8_Biofuel   C3H8   0      2   -1   2   kg/m2/s  C3H8_emission_flux_from_biofuel
 EmisC3H8_Ship      C3H8   0      10  -1   2   kg/m2/s  C3H8_emission_flux_from_ships
 
 ###############################################################################
@@ -150,7 +140,6 @@ EmisCH2O_Total     CH2O   -1     -1  -1   3   kg/m2/s  CH2O_emission_flux_from_a
 EmisCH2O_Aircraft  CH2O   0      20  -1   3   kg/m2/s  CH2O_emission_flux_from_aircraft
 EmisCH2O_Anthro    CH2O   0      1   -1   3   kg/m2/s  CH2O_emission_flux_from_anthropogenic
 EmisCH2O_BioBurn   CH2O   111    -1  -1   2   kg/m2/s  CH2O_emission_flux_from_biomass_burning
-EmisCH2O_Biofuel   CH2O   0      2   -1   2   kg/m2/s  CH2O_emission_flux_from_biofuel
 EmisCH2O_Ship      CH2O   0      10  -1   2   kg/m2/s  CH2O_emission_flux_from_ships
 
 ###############################################################################
@@ -164,7 +153,6 @@ EmisCH3I_Ocean     CH3I   0     1    -1   2   kg/m2/s  CH3I_emission_flux_from_o
 EmisCH4_Total      CH4    -1     -1  -1   3   kg/m2/s  CH4_emission_flux_from_all_sectors
 EmisCH4_Anthro     CH4    0      1   -1   3   kg/m2/s  CH4_emission_flux_from_anthropogenic
 EmisCH4_BioBurn    CH4    0      5   -1   2   kg/m2/s  CH4_emission_flux_from_biomass_burning
-EmisCH4_Biofuel    CH4    0      2   -1   2   kg/m2/s  CH4_emission_flux_from_biofuel
 EmisCH4_Ship       CH4    0      10  -1   2   kg/m2/s  CH4_emission_flux_from_ships
 
 ###############################################################################
@@ -178,10 +166,9 @@ EmisCHBr3_Ocean    CHBr3  0      1   -1   2   kg/m2/s  CHBr3_emission_flux_from_
 EmisCO_Total       CO     -1     -1  -1   3   kg/m2/s  CO_emission_flux_from_all_sectors
 EmisCO_Aircraft    CO     0      20  -1   3   kg/m2/s  CO_emission_flux_from_aircraft
 EmisCO_Anthro      CO     0      1   -1   3   kg/m2/s  CO_emission_flux_from_anthropogenic
-EmisCO_Biofuel     CO     0      2   -1   2   kg/m2/s  CO_emission_flux_from_biofuel_sector
 EmisCO_BioBurn     CO     111    -1  -1   2   kg/m2/s  CO_emission_flux_from_biomass_burning
 EmisCO_Ship        CO     0      10  -1   2   kg/m2/s  CO_emission_flux_from_ships
-EmisCO_Monoterp    CO     0      3   -1   2   kg/m2/s  CO_emission_flux_from_monoterpenes
+EmisCO_Monoterp    CO     0      4   -1   2   kg/m2/s  CO_emission_flux_from_monoterpenes
 
 ###############################################################################
 #####  CO2 emissions                                                      ##### 
@@ -189,7 +176,6 @@ EmisCO_Monoterp    CO     0      3   -1   2   kg/m2/s  CO_emission_flux_from_mon
 EmisCO2_Total      CO2    -1     -1  -1   3   kg/m2/s  CO2_emission_flux_from_all_sectors
 EmisCO2_Anthro     CO2    0      1   -1   3   kg/m2/s  CO2_emission_flux_from_anthropogenic
 EmisCO2_BioBurn    CO2    0      5   -1   2   kg/m2/s  CO2_emission_flux_from_biomass_burning
-EmisCO2_Biofuel    CO2    0      2   -1   2   kg/m2/s  CO2_emission_flux_from_biofuel
 EmisCO2_Ship       CO2    0      10  -1   2   kg/m2/s  CO2_emission_flux_from_ships
 
 ###############################################################################
@@ -220,28 +206,24 @@ EmisEOH_Ship       EOH    0      10  -1   2   kg/m2/s  EOH_emission_flux_from_sh
 ###############################################################################
 EmisHAC_Total      HAC    -1     -1  -1   3   kg/m2/s  HAC_emission_flux_from_all_sectors
 EmisHAC_Anthro     HAC    0      1   -1   3   kg/m2/s  HAC_emission_flux_from_anthropogenic
-EmisHAC_Biofuel    HAC    0      2   -1   2   kg/m2/s  HAC_emission_flux_from_biofuel
 
 ###############################################################################
 #####  GLYC emissions                                                     ##### 
 ###############################################################################
 EmisGLYC_Total     GLYC   -1     -1  -1   3   kg/m2/s  GLYC_emission_flux_from_all_sectors
 EmisGLYC_Anthro    GLYC   0      1   -1   3   kg/m2/s  GLYC_emission_flux_from_anthropogenic
-EmisGLYC_Biofuel   GLYC   0      2   -1   2   kg/m2/s  GLYC_emission_flux_from_biofuel
 
 ###############################################################################
 #####  GLYX emissions                                                     ##### 
 ###############################################################################
 EmisGLYX_Total     GLYX   -1     -1  -1   3   kg/m2/s  GLYX_emission_flux_from_all_sectors
 EmisGLYX_Anthro    GLYX   0      1   -1   3   kg/m2/s  GLYX_emission_flux_from_anthropogenic
-EmisGLYX_Biofuel   GLYX   0      2   -1   2   kg/m2/s  GLYX_emission_flux_from_biofuel
 
 ###############################################################################
 #####  HCOOH sources                                                      ##### 
 ###############################################################################
 EmisHCOOH_Total    HCOOH  -1     -1  -1   3   kg/m2/s  HCOOH_emission_flux_from_all_sectors
 EmisHCOOH_Anthro   HCOOH  0      1   -1   3   kg/m2/s  HCOOH_emission_flux_from_anthropogenic
-EmisHCOOH_Biofuel  HCOOH  0      2   -1   2   kg/m2/s  HCOOH_emission_flux_from_biofuel
 EmisHCOOH_Ship     HCOOH  0      10  -1   2   kg/m2/s  HCOOH_emission_flux_from_ship
 
 ###############################################################################
@@ -272,7 +254,6 @@ EmisLIMO_Biogenic  LIMO   0      4   -1   2   kg/m2/s  LIMO_emission_flux_from_b
 EmisMACR_Total     MACR   -1     -1  -1   3   kg/m2/s  MACR_emission_flux_from_all_sectors
 EmisMACR_Aircraft  MACR   0      20  -1   3   kg/m2/s  MACR_emission_flux_from_anthropogenic
 EmisMACR_Anthro    MACR   0      1   -1   3   kg/m2/s  MACR_emission_flux_from_anthropogenic
-EmisMACR_Biofuel   MACR   0      2   -1   2   kg/m2/s  MACR_emission_flux_from_biofuel
 
 ###############################################################################
 #####  MEK emissions                                                      #####
@@ -280,7 +261,6 @@ EmisMACR_Biofuel   MACR   0      2   -1   2   kg/m2/s  MACR_emission_flux_from_b
 EmisMEK_Total      MEK    -1     -1  -1   3   kg/m2/s  MEK_emission_flux_from_all_sectors
 EmisMEK_Anthro     MEK    0      1   -1   3   kg/m2/s  MEK_emission_flux_from_anthropogenic
 EmisMEK_BioBurn    MEK    111    -1  -1   2   kg/m2/s  MEK_emission_flux_from_biomass_burning
-EmisMEK_Biofuel    MEK    0      2   -1   2   kg/m2/s  MEK_emission_flux_from_biofuel
 EmisMEK_Ship       MEK    0      10  -1   2   kg/m2/s  MEK_emission_flux_from_ships
 
 ###############################################################################
@@ -288,14 +268,12 @@ EmisMEK_Ship       MEK    0      10  -1   2   kg/m2/s  MEK_emission_flux_from_sh
 ###############################################################################
 EmisMGLY_Total     MGLY   -1     -1  -1   3   kg/m2/s  MGLY_emission_flux_from_all_sectors
 EmisMGLY_Anthro    MGLY   0      1   -1   3   kg/m2/s  MGLY_emission_flux_from_anthropogenic
-EmisMGLY_Biofuel   MGLY   0      2   -1   2   kg/m2/s  MGLY_emission_flux_from_biofuel
 
 ###############################################################################
 #####  MOH emissions                                                      #####
 ###############################################################################
 EmisMOH_Total      MOH    -1     -1  -1   3   kg/m2/s  MOH_emission_flux_from_all_sectors
 EmisMOH_Anthro     MOH    0      1   -1   3   kg/m2/s  MOH_emission_flux_from_anthropogenic
-EmisMOH_Biofuel    MOH    0      2   -1   2   kg/m2/s  MOH_emission_flux_from_biofuel
 EmisMOH_Ship       MOH    0      10  -1   2   kg/m2/s  MOH_emission_flux_from_ships
 
 ###############################################################################
@@ -328,7 +306,6 @@ EmisNAP_BioBurn    NAP    111    -1  -1   2   kg/m2/s  NAP_emission_flux_from_bi
 EmisNH3_Total      NH3    -1     -1  -1   3   kg/m2/s  NH3_emission_flux_from_all_sectors
 EmisNH3_Anthro     NH3    0      1   -1   3   kg/m2/s  NH3_emission_flux_from_anthropogenic
 EmisNH3_BioBurn    NH3    111    -1  -1   2   kg/m2/s  NH3_emission_flux_from_biomass_burning
-EmisNH3_Biofuel    NH3    0      2   -1   2   kg/m2/s  NH3_emission_flux_from_biofuel
 EmisNH3_Natural    NH3    0      3   -1   2   kg/m2/s  NH3_emission_flux_from_natural_sources
 EmisNH3_Seabirds   NH3    0      30  -1   2   kg/m2/s  NH3_emission_flux_from_seabirds
 EmisNH3_Ship       NH3    0      10  -1   2   kg/m2/s  NH3_emission_flux_from_ships
@@ -340,7 +317,6 @@ EmisNO_Total       NO     -1     -1  -1   3   kg/m2/s  NO_emission_flux_from_all
 EmisNO_Aircraft    NO     0      20  -1   3   kg/m2/s  NO_emission_flux_from_anthropogenic
 EmisNO_Anthro      NO     0      1   -1   3   kg/m2/s  NO_emission_flux_from_biomass_burning
 EmisNO_BioBurn     NO     111    -1  -1   2   kg/m2/s  NO_emission_flux_from_biomass_burning
-EmisNO_Biofuel     NO     0      2   -1   2   kg/m2/s  NO_emission_flux_from_biofuel
 EmisNO_Lightning   NO     103    -1  -1   3   kg/m2/s  NO_emission_flux_from_lightning
 EmisNO_Ship        NO     102    -1  -1   2   kg/m2/s  NO_emission_flux_from_ships
 EmisNO_Soil        NO     0      3   -1   2   kg/m2/s  NO_emission_flux_from_soil
@@ -363,12 +339,10 @@ EmisOCPI_Total     OCPI   -1     -1  -1   3   kg/m2/s  OCPI_emission_flux_from_a
 EmisOCPI_Aircraft  OCPI   0      20  -1   3   kg/m2/s  OCPI_emission_flux_from_aircraft
 EmisOCPI_Anthro    OCPI   0      1   -1   3   kg/m2/s  OCPI_emission_flux_from_anthropogenic
 EmisOCPI_BioBurn   OCPI   111    -1  -1   2   kg/m2/s  OCPI_emission_flux_from_biomass_burning
-EmisOCPI_Biofuel   OCPI   0      2   -1   2   kg/m2/s  OCPI_emission_flux_from_biofuel
 EmisOCPI_Ship      OCPI   0      10  -1   2   kg/m2/s  OCPI_emission_flux_from_ships
 EmisOCPO_Total     OCPO   -1     -1  -1   2   kg/m2/s  OCPO_emission_flux_from_all_sectors
 EmisOCPO_Anthro    OCPO   0      1   -1   2   kg/m2/s  OCPO_emission_flux_from_anthropogenic
 EmisOCPO_BioBurn   OCPO   111    -1  -1   2   kg/m2/s  OCPO_emission_flux_from_biomass_burning
-EmisOCPO_Biofuel   OCPO   0      2   -1   2   kg/m2/s  OCPO_emission_flux_from_biofuel
 EmisOCPO_Ship      OCPO   0      10  -1   2   kg/m2/s  OCPO_emission_flux_from_ships
 
 ###############################################################################
@@ -376,7 +350,6 @@ EmisOCPO_Ship      OCPO   0      10  -1   2   kg/m2/s  OCPO_emission_flux_from_s
 ###############################################################################
 EmispFe_Total      pFe    -1     -1  -1   3   kg/m2/s  pFe_emission_flux_from_all_sectors
 EmispFe_Anthro     pFe    0      1   -1   3   kg/m2/s  pFe_emission_flux_from_anthropogenic
-EmispFe_Biofuel    pFe    0      2   -1   2   kg/m2/s  pFe_emission_flux_from_biofuel_sector
 EmispFe_Ship       pFe    0      10  -1   2   kg/m2/s  pFe_emission_flux_from_ships
 
 ###############################################################################
@@ -384,11 +357,9 @@ EmispFe_Ship       pFe    0      10  -1   2   kg/m2/s  pFe_emission_flux_from_sh
 ###############################################################################
 EmisPOG1_Total     POG1   -1     -1  -1   3   kg/m2/s  POG1_emission_flux_from_all_sectors
 EmisPOG1_Anthro    POG1   0      1   -1   3   kg/m2/s  POG1_emission_flux_from_anthropogenic
-EmisPOG1_Biofuel   POG1   0      2   -1   2   kg/m2/s  POG1_emission_flux_from_biofuel_sector
 EmisPOG1_BioBurn   POG1   111    -1  -1   2   kg/m2/s  POG1_emission_flux_from_GFED_inventory
 EmisPOG2_Total     POG2   -1     -1  -1   3   kg/m2/s  POG2_emission_flux_from_all_sectors
 EmisPOG2_Anthro    POG2   0      1   -1   3   kg/m2/s  POG2_emission_flux_from_anthropogenic
-EmisPOG2_Biofuel   POG2   0      2   -1   2   kg/m2/s  POG2_emission_flux_from_biofuel_sector
 EmisPOG2_BioBurn   POG2   111    -1  -1   2   kg/m2/s  POG2_emission_flux_from_GFED_inventory
 
 ###############################################################################
@@ -398,7 +369,6 @@ EmisPRPE_Total     PRPE   -1     -1  -1   3   kg/m2/s  PRPE_emission_flux_from_a
 EmisPRPE_Aircraft  PRPE   0      20  -1   3   kg/m2/s  PRPE_emission_flux_from_aircraft
 EmisPRPE_Anthro    PRPE   0      1   -1   3   kg/m2/s  PRPE_emission_flux_from_anthropogenic
 EmisPRPE_BioBurn   PRPE   111    -1  -1   2   kg/m2/s  PRPE_emission_flux_from_biomass_burning
-EmisPRPE_Biofuel   PRPE   0      2   -1   2   kg/m2/s  PRPE_emission_flux_from_biofuel
 EmisPRPE_Biogenic  PRPE   0      4   -1   2   kg/m2/s  PRPE_emission_flux_from_biogenic_sources
 EmisPRPE_Ship      PRPE   0      10  -1   2   kg/m2/s  PRPE_emission_flux_from_ships
 
@@ -408,7 +378,6 @@ EmisPRPE_Ship      PRPE   0      10  -1   2   kg/m2/s  PRPE_emission_flux_from_s
 EmisRCHO_Total     RCHO   -1     -1  -1   3   kg/m2/s  RCHO_emission_flux_from_all_sectors
 EmisRCHO_Aircraft  RCHO   0      20  -1   3   kg/m2/s  RCHO_emission_flux_from_aircraft
 EmisRCHO_Anthro    RCHO   0      1   -1   3   kg/m2/s  RCHO_emission_flux_from_anthropogenic
-EmisRCHO_Biofuel   RCHO   0      2   -1   2   kg/m2/s  RCHO_emission_flux_from_biofuel
 
 ###############################################################################
 #####  SESQ emissions                                                     #####
@@ -431,7 +400,6 @@ EmisSO2_Total      SO2    -1     -1  -1   3   kg/m2/s  SO2_emission_flux_from_al
 EmisSO2_Aircraft   SO2    0      20  -1   3   kg/m2/s  SO2_emission_flux_from_aircraft
 EmisSO2_Anthro     SO2    0      1   -1   3   kg/m2/s  SO2_emission_flux_from_anthropogenic
 EmisSO2_BioBurn    SO2    111    -1  -1   2   kg/m2/s  SO2_emission_flux_from_biomass_burning
-EmisSO2_Biofuel    SO2    0      2   -1   2   kg/m2/s  SO2_emission_flux_from_biofuel
 EmisSO2_VolcErupt  SO2    117    51  -1   3   kg/m2/s  SO2_emission_flux_from_eruptive_volcano
 EmisSO2_VolcDegas  SO2    117    52  -1   3   kg/m2/s  SO2_emission_flux_from_noneruptive_volcano
 EmisSO2_Ship       SO2    0      10  -1   2   kg/m2/s  SO2_emission_flux_from_ships
@@ -442,7 +410,6 @@ EmisSO2_Ship       SO2    0      10  -1   2   kg/m2/s  SO2_emission_flux_from_sh
 EmisSO4_Total      SO4    -1     -1  -1   3   kg/m2/s  SO4_emission_flux_from_all_sectors
 EmisSO4_Aircraft   SO4    0      20  -1   3   kg/m2/s  SO4_emission_flux_from_aircraft
 EmisSO4_Anthro     SO4    0      1   -1   3   kg/m2/s  SO4_emission_flux_from_anthropogenic
-EmisSO4_Biofuel    SO4    0      2   -1   2   kg/m2/s  SO4_emission_flux_from_biofuel
 EmisSO4_Ship       SO4    0      10  -1   2   kg/m2/s  SO4_emission_flux_from_ship
 
 ###############################################################################
@@ -451,7 +418,6 @@ EmisSO4_Ship       SO4    0      10  -1   2   kg/m2/s  SO4_emission_flux_from_sh
 EmisSOAP_Total     SOAP   -1     -1  -1   3   kg/m2/s  SOAP_emission_flux_from_all_sectors
 EmisSOAP_Aircraft  SOAP   0      20  -1   3   kg/m2/s  SOAP_emission_flux_from_aircraft
 EmisSOAP_Anthro    SOAP   0      1   -1   3   kg/m2/s  SOAP_emission_flux_from_anthropogenic
-EmisSOAP_Biofuel   SOAP   0      2   -1   2   kg/m2/s  SOAP_emission_flux_from_biofuel_sector
 EmisSOAP_Biogenic  SOAP   0      4   -1   2   kg/m2/s  SOAP_emission_flux_from_biogenic_sources
 EmisSOAP_BioBurn   SOAP   111    -1  -1   2   kg/m2/s  SOAP_emission_flux_from_biomass_burning
 EmisSOAP_Ship      SOAP   0      10  -1   2   kg/m2/s  SOAP_emission_flux_from_ships
@@ -467,7 +433,6 @@ EmisSOAS_Biogenic  SOAS   0      4   -1   2   kg/m2/s  SOAS_emission_flux_from_b
 EmisTOLU_Total     TOLU   -1     -1  -1   3   kg/m2/s  TOLU_emission_flux_from_all_sectors
 EmisTOLU_Anthro    TOLU   0      1   -1   3   kg/m2/s  TOLU_emission_flux_from_anthropogenic
 EmisTOLU_BioBurn   TOLU   111    -1  -1   2   kg/m2/s  TOLU_emission_flux_from_biomass_burning
-EmisTOLU_Biofuel   TOLU   0      2   -1   2   kg/m2/s  TOLU_emission_flux_from_biofuel
 EmisTOLU_Ship      TOLU   0      10  -1   2   kg/m2/s  TOLU_emission_flux_from_ships
 
 ###############################################################################
@@ -476,7 +441,6 @@ EmisTOLU_Ship      TOLU   0      10  -1   2   kg/m2/s  TOLU_emission_flux_from_s
 EmisXYLE_Total     XYLE   -1     -1  -1   3   kg/m2/s  XYLE_emission_flux_from_all_sectors
 EmisXYLE_Anthro    XYLE   0      1   -1   3   kg/m2/s  XYLE_emission_flux_from_anthropogenic
 EmisXYLE_BioBurn   XYLE   111    -1  -1   2   kg/m2/s  XYLE_emission_flux_from_biomass_burning
-EmisXYLE_Biofuel   XYLE   0      2   -1   2   kg/m2/s  XYLE_emission_flux_from_biofuel
 EmisXYLE_Ship      XYLE   0      10  -1   2   kg/m2/s  XYLE_emission_flux_from_ships
 
 ###############################################################################
@@ -484,90 +448,6 @@ EmisXYLE_Ship      XYLE   0      10  -1   2   kg/m2/s  XYLE_emission_flux_from_s
 #####  Listed in same order as HEMCO_Config.rc                            #####
 #####  (You can comment these out for production runs, to save memory)    #####
 ###############################################################################
-
-#=============================
-# GEIA
-#=============================
-InvGEIAnatural_NH3   NH3    0    3   1   2   kg/m2/s  NH3_emission_flux_from_GEIA_natural_source
-
-#=============================
-# Seabirds
-#=============================
-InvSEABIRDS_NH3      NH3    0    30  1   2   kg/m2/s  NH3_emission_flux_from_arctic_seabirds
-
-#=============================
-# CEDS
-#=============================
-InvCEDS_ALD2         ALD2   0    1   5   2   kg/m2/s  ALD2_emission_flux_from_CEDS_inventory
-InvCEDS_ALK4         ALK4   0    1   5   2   kg/m2/s  ALK4_emission_flux_from_CEDS_inventory
-InvCEDS_BCPI         BCPI   0    1   5   2   kg/m2/s  BCPI_emission_flux_from_CEDS_inventory
-InvCEDS_BCPO         BCPO   0    1   5   2   kg/m2/s  BCPO_emission_flux_from_CEDS_inventory
-InvCEDS_BENZ         BENZ   0    1   5   2   kg/m2/s  BENZ_emission_flux_from_CEDS_inventory
-InvCEDS_C2H2         C2H2   0    1   5   2   kg/m2/s  C2H2_emission_flux_from_CEDS_inventory
-InvCEDS_C2H4         C2H4   0    1   5   2   kg/m2/s  C2H4_emission_flux_from_CEDS_inventory
-InvCEDS_C2H6         C2H6   0    1   5   2   kg/m2/s  C2H6_emission_flux_from_CEDS_inventory
-InvCEDS_C3H8         C3H8   0    1   5   2   kg/m2/s  C3H8_emission_flux_from_CEDS_inventory
-InvCEDS_CH2O         CH2O   0    1   5   2   kg/m2/s  CH2O_emission_flux_from_CEDS_inventory
-InvCEDS_CH4          CH4    0    1   5   2   kg/m2/s  CH4_emission_flux_from_CEDS_inventory
-InvCEDS_CO           CO     0    1   5   2   kg/m2/s  CO_emission_flux_from_CEDS_inventory
-InvCEDS_CO2          CO2    0    1   5   2   kg/m2/s  CO2_emission_flux_from_CEDS_inventory
-InvCEDS_EOH          EOH    0    1   5   2   kg/m2/s  EOH_emission_flux_from_CEDS_inventor
-InvCEDS_HCOOH        HCOOH  0    1   5   2   kg/m2/s  HCOOH_emission_flux_from_CEDS_inventory
-InvCEDS_MEK          MEK    0    1   5   2   kg/m2/s  MEK_emission_flux_from_CEDS_inventory
-InvCEDS_NH3          NH3    0    1   5   2   kg/m2/s  NH3_emission_flux_from_CEDS_inventory
-InvCEDS_NO           NO     0    1   5   2   kg/m2/s  NO_emission_flux_from_CEDS_inventory
-InvCEDS_OCPI         OCPI   0    1   5   2   kg/m2/s  OCPI_emission_flux_from_CEDS_inventory
-InvCEDS_OCPO         OCPO   0    1   5   2   kg/m2/s  OCPO_emission_flux_from_CEDS_inventory
-InvCEDS_pFe          pFe    0    1   5   2   kg/m2/s  pFe_emission_flux_from_CEDS_inventory
-InvCEDS_POG1         POG1   0    1   5   2   kg/m2/s  POG1_emission_flux_from_CEDS_inventory
-InvCEDS_POG2         POG2   0    1   5   2   kg/m2/s  POG2_emission_flux_from_CEDS_inventory
-InvCEDS_PRPE         PRPE   0    1   5   2   kg/m2/s  PRPE_emission_flux_from_CEDS_inventory
-InvCEDS_SO2          SO2    0    1   5   2   kg/m2/s  SO2_emission_flux_from_CEDS_inventory
-InvCEDS_SO4          SO4    0    1   5   2   kg/m2/s  SO4_emission_flux_from_CEDS_inventory
-InvCEDS_SOAP         SOAP   0    1   5   2   kg/m2/s  SOAP_emission_flux_from_CEDS_inventory
-InvCEDS_TOLU         TOLU   0    1   5   2   kg/m2/s  TOLU_emission_flux_from_CEDS_inventory
-InvCEDS_XYLE         XYLE   0    1   5   2   kg/m2/s  XYLE_emission_flux_from_CEDS_inventory
-
-#=============================
-# BIOFUEL (Yevich & Logan)
-#=============================
-InvYLBIOFUEL_C3H8    C3H8   0    2   5   2   kg/m2/s  C3H8_emission_flux_from_Yevich_and_Logan_biofuel_inventory
-InvYLBIOFUEL_GLYC    GLYC   0    2   1   2   kg/m2/s  GLYC_emission_flux_from_Yevich_and_Logan_biofuel_inventory
-InvYLBIOFUEL_GLYX    GLYX   0    2   1   2   kg/m2/s  GLYX_emission_flux_from_Yevich_and_Logan_biofuel_inventory
-InvYLBIOFUEL_HAC     HAC    0    2   1   2   kg/m2/s  HAC_emission_flux_from_Yevich_and_Logan_biofuel_inventory
-InvYLBIOFUEL_MGLY    MGLY   0    2   1   2   kg/m2/s  MGLY_emission_flux_from_Yevich_and_Logan_biofuel_inventory
-
-#=============================
-# RETRO
-# (only ACET used, rest from CEDS)
-#=============================
-InvRETRO_ACET        ACET   0    1   3   2   kg/m2/s  ACET_emission_flux_from_RETRO_inventory
-
-#=============================
-# XIAO
-#=============================
-InvXIAO_C3H8         C3H8   0    1   5   2   kg/m2/s  C3H8_from_Xiao_intentory
-
-#=============================
-# C2H62010
-#=============================
-InvC2H62010anth_C2H6 C2H6   0    1  100 2 kg/m2/s C2H6_from_C2H62010_anthropogenic_inventory
-InvC2H62010biof_C2H6 C2H6   0    2  100 2 kg/m2/s C2H6_from_C2H62010_biofuel_inventory
-
-#=============================
-# EMEP
-#=============================
-InvEMEP_ALD2         ALD2   0    1   10  2   kg/m2/s  ALD2_emission_flux_from_EMEP_inventory
-InvEMEP_ALK4         ALK4   0    1   10  2   kg/m2/s  ALK4_emission_flux_from_EMEP_inventory
-InvEMEP_CO           CO     0    1   10  2   kg/m2/s  CO_emission_flux_from_EMEP_inventory
-InvEMEP_MEK          MEK    0    1   10  2   kg/m2/s  MEK_emission_flux_from_EMEP_inventory
-InvEMEP_NH3          NH3    0    1   10  2   kg/m2/s  NH3_emission_flux_from_EMEP_inventory
-InvEMEP_NO           NO     0    1   10  2   kg/m2/s  NO_emission_flux_from_EMEP_inventory
-InvEMEP_pFe          pFe    0    1   10  2   kg/m2/s  pFe_emission_flux_from_EMEP_inventory
-InvEMEP_PRPE         PRPE   0    1   10  2   kg/m2/s  PRPE_emission_flux_from_EMEP_inventory
-InvEMEP_SO2          SO2    0    1   10  2   kg/m2/s  SO2_emission_flux_from_EMEP_inventory
-InvEMEP_SO4          SO4    0    1   10  2   kg/m2/s  SO4_emission_flux_from_EMEP_inventory
-InvEMEP_SOAP         SOAP   0    1   10  2   kg/m2/s  SOAP_emission_flux_from_EMEP_inventory
 
 #=============================
 # APEI
@@ -676,6 +556,54 @@ InvDICEAfrica_TOLU   TOLU   0    1   60  2   kg/m2/s  TOLU_emission_flux_from_DI
 InvDICEAfrica_XYLE   XYLE   0    1   60  2   kg/m2/s  XYLE_emission_flux_from_DICEAfrica_inventory
 
 #=============================
+# CEDS
+#=============================
+InvCEDS_ALD2         ALD2   0    1   5   2   kg/m2/s  ALD2_emission_flux_from_CEDS_inventory
+InvCEDS_ALK4         ALK4   0    1   5   2   kg/m2/s  ALK4_emission_flux_from_CEDS_inventory
+InvCEDS_BCPI         BCPI   0    1   5   2   kg/m2/s  BCPI_emission_flux_from_CEDS_inventory
+InvCEDS_BCPO         BCPO   0    1   5   2   kg/m2/s  BCPO_emission_flux_from_CEDS_inventory
+InvCEDS_BENZ         BENZ   0    1   5   2   kg/m2/s  BENZ_emission_flux_from_CEDS_inventory
+InvCEDS_C2H2         C2H2   0    1   5   2   kg/m2/s  C2H2_emission_flux_from_CEDS_inventory
+InvCEDS_C2H4         C2H4   0    1   5   2   kg/m2/s  C2H4_emission_flux_from_CEDS_inventory
+InvCEDS_C2H6         C2H6   0    1   5   2   kg/m2/s  C2H6_emission_flux_from_CEDS_inventory
+InvCEDS_C3H8         C3H8   0    1   5   2   kg/m2/s  C3H8_emission_flux_from_CEDS_inventory
+InvCEDS_CH2O         CH2O   0    1   5   2   kg/m2/s  CH2O_emission_flux_from_CEDS_inventory
+InvCEDS_CH4          CH4    0    1   5   2   kg/m2/s  CH4_emission_flux_from_CEDS_inventory
+InvCEDS_CO           CO     0    1   5   2   kg/m2/s  CO_emission_flux_from_CEDS_inventory
+InvCEDS_CO2          CO2    0    1   5   2   kg/m2/s  CO2_emission_flux_from_CEDS_inventory
+InvCEDS_EOH          EOH    0    1   5   2   kg/m2/s  EOH_emission_flux_from_CEDS_inventor
+InvCEDS_HCOOH        HCOOH  0    1   5   2   kg/m2/s  HCOOH_emission_flux_from_CEDS_inventory
+InvCEDS_MEK          MEK    0    1   5   2   kg/m2/s  MEK_emission_flux_from_CEDS_inventory
+InvCEDS_NH3          NH3    0    1   5   2   kg/m2/s  NH3_emission_flux_from_CEDS_inventory
+InvCEDS_NO           NO     0    1   5   2   kg/m2/s  NO_emission_flux_from_CEDS_inventory
+InvCEDS_OCPI         OCPI   0    1   5   2   kg/m2/s  OCPI_emission_flux_from_CEDS_inventory
+InvCEDS_OCPO         OCPO   0    1   5   2   kg/m2/s  OCPO_emission_flux_from_CEDS_inventory
+InvCEDS_pFe          pFe    0    1   5   2   kg/m2/s  pFe_emission_flux_from_CEDS_inventory
+InvCEDS_POG1         POG1   0    1   5   2   kg/m2/s  POG1_emission_flux_from_CEDS_inventory
+InvCEDS_POG2         POG2   0    1   5   2   kg/m2/s  POG2_emission_flux_from_CEDS_inventory
+InvCEDS_PRPE         PRPE   0    1   5   2   kg/m2/s  PRPE_emission_flux_from_CEDS_inventory
+InvCEDS_SO2          SO2    0    1   5   2   kg/m2/s  SO2_emission_flux_from_CEDS_inventory
+InvCEDS_SO4          SO4    0    1   5   2   kg/m2/s  SO4_emission_flux_from_CEDS_inventory
+InvCEDS_SOAP         SOAP   0    1   5   2   kg/m2/s  SOAP_emission_flux_from_CEDS_inventory
+InvCEDS_TOLU         TOLU   0    1   5   2   kg/m2/s  TOLU_emission_flux_from_CEDS_inventory
+InvCEDS_XYLE         XYLE   0    1   5   2   kg/m2/s  XYLE_emission_flux_from_CEDS_inventory
+
+#=============================
+# GEIA_NH3
+#=============================
+InvGEIAnatural_NH3   NH3    0    3   1   2   kg/m2/s  NH3_emission_flux_from_GEIA_natural_source
+
+#=============================
+# Seabirds
+#=============================
+InvSEABIRDS_NH3      NH3    0    30  1   2   kg/m2/s  NH3_emission_flux_from_arctic_seabirds
+
+#=============================
+# C2H62010
+#=============================
+InvC2H62010anth_C2H6 C2H6   0    1  100 2 kg/m2/s C2H6_from_C2H62010_anthropogenic_inventory
+
+#=============================
 # LIANG_BROMOCARB
 #=============================
 InvLIANG_CH2Br2      CH2Br2 0    1   1   2   kg/m2/s  CH2Br2_emission_flux_from_LIANG_BROMOCARB_inventory
@@ -688,17 +616,6 @@ InvORDONEZ_CH2I2     CH2I2  0    1   1   2   kg/m2/s  CH2I2_emission_flux_from_O
 InvORDONEZ_CH2ICl    CH2ICl 0    1   1   2   kg/m2/s  CH2ICl_emission_flux_from_ORDONEZ_IODOCARB_inventory
 InvORDONEZ_CH2IBr    CH2IBr 0    1   1   2   kg/m2/s  CH2IBr_emission_flux_from_ORDONEZ_IODOCARB_inventory
 InvORDONEZ_CH3I      CH3I   0    1   1   2   kg/m2/s  CH3I_emission_flux_from_ORDONEZ_IODOCARB_inventory
-
-#=============================
-# ARCTAS_SHIP
-#=============================
-InvARCTASship_SO2    SO2    0    10  1   2   kg/m2/s  CO_emission_flux_from_ARCTASship_inventory
- 
-#=============================
-# ICOADS_SHIP
-#=============================
-InvICOADSship_CO     CO     0    10  2   2   kg/m2/s  CO_emission_flux_from_ICOADSship_inventory
-InvICOADSship_SOAP   SOAP   0    10  2   2   kg/m2/s  CO_emission_flux_from_ICOADSship_inventory
 
 #=============================
 # CEDS_SHIP
@@ -729,21 +646,6 @@ InvCEDSship_TOLU     TOLU   0    10  5   2   kg/m2/s  TOLU_emission_flux_from_CE
 InvCEDSship_XYLE     XYLE   0    10  5   2   kg/m2/s  XYLE_emission_flux_from_CEDSship_inventory
 
 #=============================
-# EMEP_SHIP
-#=============================
-InvEMEPship_CO       CO     0    10  10  2   kg/m2/s  CO_emission_flux_from_EMEPship_inventory
-InvEMEPship_SO2      SO2    0    10  10  2   kg/m2/s  MEK_emission_flux_from_EMEPship_inventory
-InvEMEPship_SOAP     SOAP   0    10  10  2   kg/m2/s  MEK_emission_flux_from_EMEPship_inventory
-
-#=============================
-# BOND
-#=============================
-InvBONDanthro_POG1   POG1   0    1   1   2   kg/m2/s  POG1_emission_flux_from_BONDanthro_inventory
-InvBONDanthro_POG2   POG2   0    1   1   2   kg/m2/s  POG2_emission_flux_from_BONDanthro_inventory
-InvBONDbiofuel_POG1  POG1   0    2   1   2   kg/m2/s  POG1_emission_flux_from_BONDanthro_inventory
-InvBONDbiofuel_POG2  POG2   0    2   1   2   kg/m2/s  POG2_emission_flux_from_BONDanthro_inventory
-
-#=============================
 # AEIC
 #=============================
 InvAEIC_ACET         ACET   0    20  1   3   kg/m2/s  ACET_emission_flux_from_AEIC_inventory
@@ -768,12 +670,6 @@ InvAEIC_SOAP         SOAP   0    20  1   3   kg/m2/s  SOAP_emission_flux_from_AE
 #============================= 
 InvPLANTDECAY_ALD2   ALD2   0    3   1   2   kg/m2/s  ALD2_emission_flux_from_PLANTDECAY_inventory
 InvPLANTDECAY_EOH    EOH    0    3   1   2   kg/m2/s  EOH_emission_flux_from_PLANTDECAY_inventory
-
-#=============================
-# VOLCANO
-#=============================
-InvVOLCANOerupt_SO2  SO2    117  51  1   3   kg/m2/s  SO2_emission_flux_from_VOLCANOerupt_inventory
-InvVOLCANdegas_SO2   SO2    117  52  1   3   kg/m2/s  SO2_emission_flux_from_VOLCANOdegas_inventory
 
 #=============================
 # Offline dust emissions
@@ -870,6 +766,12 @@ InvGFED_SO2          SO2    111  -1  -1  2   kg/m2/s  SO2_emission_flux_from_GFE
 InvGFED_SOAP         SOAP   111  -1  -1  2   kg/m2/s  SOAP_emission_flux_from_GFED_extension
 InvGFED_TOLU         TOLU   111  -1  -1  2   kg/m2/s  TOLU_emission_flux_from_GFED_extension
 InvGFED_XYLE         ACET   111  -1  -1  2   kg/m2/s  XYLE_emission_flux_from_GFED_extension
+
+#=============================
+# Volcano extension
+#=============================
+InvVOLCANOerupt_SO2  SO2    117  51  -1  3   kg/m2/s  SO2_eruptive_emission_flux_from_Volcano_extension
+InvVOLCANdegas_SO2   SO2    117  52  -1  3   kg/m2/s  SO2_degassing_emission_flux_from_Volcano_extension
 
 #=============================
 # INORG_IODINE Extension
