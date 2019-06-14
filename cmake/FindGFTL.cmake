@@ -3,6 +3,7 @@ find_path(GFTL_INCLUDE_DIR
 	types/key_deferredLengthString.inc
 	HINTS
 		$ENV{GFTL_ROOT}
+		$ENV{gFTL_ROOT}
 	PATH_SUFFIXES "include"
 )
 
