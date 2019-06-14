@@ -9,6 +9,8 @@ find_path(ESMF_INCLUDES_DIR
 	PATH_SUFFIXES
 		"include" 
 		"mod"
+		"src/include" 
+		"src/mod"
 )
 
 find_path(ESMF_HEADERS_DIR
