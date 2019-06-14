@@ -4,6 +4,7 @@ find_path(ESMF_INCLUDES_DIR
 	ESMF_ErrReturnCodes.inc
 	HINTS 
 		$ENV{ESMF_ROOT}
+		$ENV{ESMF_ROOT}/DEFAULTINSTALLDIR
 	DOC "The path to the directory containing \"ESMF_ErrReturnCodes.inc\"."
 	PATH_SUFFIXES
 		"include" 
@@ -14,6 +15,7 @@ find_path(ESMF_HEADERS_DIR
 	ESMC.h
 	HINTS 
 		$ENV{ESMF_ROOT}
+		$ENV{ESMF_ROOT}/DEFAULTINSTALLDIR
 	DOC "The path to the directory containing \"ESMC.h\"."
 	PATH_SUFFIXES "include"
 )
@@ -24,12 +26,14 @@ file_glob_directories(GLOBBED_MODDIRS
 	PATHS
 		${CMAKE_PREFIX_PATH}
 		$ENV{ESMF_ROOT}
+		$ENV{ESMF_ROOT}/DEFAULTINSTALLDIR
 )
 find_path(ESMF_MOD_DIR
 	esmf.mod
 	HINTS
 		${GLOBBED_MODDIRS}
 		$ENV{ESMF_ROOT}
+		$ENV{ESMF_ROOT}/DEFAULTINSTALLDIR
 	DOC "The path to the directory containing \"esmf.mod\"."
 	PATH_SUFFIXES 
 		"mod"
@@ -42,12 +46,14 @@ file_glob_directories(GLOBBED_MODDIRS
 	PATHS
 		${CMAKE_PREFIX_PATH}
 		$ENV{ESMF_ROOT}
+		$ENV{ESMF_ROOT}/DEFAULTINSTALLDIR
 )
 find_library(ESMF_LIBRARY
 	libesmf.a
 	HINTS
 		${GLOBBED_MODDIRS}
 		$ENV{ESMF_ROOT}
+		$ENV{ESMF_ROOT}/DEFAULTINSTALLDIR
 	DOC "The path to the directory containing \"libesmf.a\"."
 	PATH_SUFFIXES
 		"lib"
