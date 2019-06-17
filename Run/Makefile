@@ -103,6 +103,8 @@ build_all_debug:
 
 # Build without cleaning
 build_esmf:
+	rm -f geos
+	rm -f $(CODEDIR_GC)/bin/geos
 	date > ${BUILD_LOG}
 	rm -f $(CODEDIR_GCHP)/ESMF/esmf.install
 	rm -f $(CODEDIR_GCHP)/Shared/mapl.install
@@ -113,6 +115,8 @@ build_esmf:
 
 # Build with GEOS-Chem core debug flags and without cleaning
 build_esmf_debug:
+	rm -f geos
+	rm -f $(CODEDIR_GC)/bin/geos
 	date > ${BUILD_LOG}
 	rm -f $(CODEDIR_GCHP)/ESMF/esmf.install
 	rm -f $(CODEDIR_GCHP)/Shared/mapl.install
@@ -127,6 +131,8 @@ build_esmf_debug:
 
 # Build without cleaning
 build_mapl:
+	rm -f geos
+	rm -f $(CODEDIR_GC)/bin/geos
 	date > ${BUILD_LOG}
 	rm -f $(CODEDIR_GCHP)/Shared/mapl.install
 	rm -f $(CODEDIR_GCHP)/FVdycoreCubed_GridComp/fvdycore.install
@@ -136,6 +142,8 @@ build_mapl:
 
 # Build with GEOS-Chem core debug flags and without cleaning
 build_mapl_debug:
+	rm -f geos
+	rm -f $(CODEDIR_GC)/bin/geos
 	date > ${BUILD_LOG}
 	rm -f $(CODEDIR_GCHP)/Shared/mapl.install
 	rm -f $(CODEDIR_GCHP)/FVdycoreCubed_GridComp/fvdycore.install
