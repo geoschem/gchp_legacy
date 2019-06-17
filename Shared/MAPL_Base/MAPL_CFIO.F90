@@ -5088,6 +5088,7 @@ CONTAINS
     real, pointer    :: levsfile(:) => null()
     type(ESMF_CFIO), pointer :: cfiop
     type(CFIOCollection), pointer :: collection
+    character(len=63):: msg
 
     call ESMF_VMGetCurrent(vm,rc=status)
     _VERIFY(STATUS)
@@ -5171,7 +5172,10 @@ CONTAINS
                 exit
              endif
           enddo
-          _ASSERT(found, 'search failed')
+          if ( .NOT. found ) then
+             msg = 'search failed for: ' // trim(cfiovarname)
+             _ASSERT(found, msg)
+          endif
           mcfio%varname(i)=bundleVarName
           if (twoD) then
              mcfio%vardims(i)=2
