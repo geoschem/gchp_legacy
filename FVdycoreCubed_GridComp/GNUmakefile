@@ -119,7 +119,10 @@ OBJS := $(addsuffix .o, $(basename $(SRCS)))
 DEPS := $(addsuffix .d, $(basename $(SRCS))) \
         $(addsuffix .d, $(basename $(BINS)))
 
-INC_DIRS = . $(INC_ESMF) $(INC_HERMES) $(INC_GMAO_SHARED) $(INC_MPI) $(INC_GEOS_FV1) $(INC_GMAO_pFIO) $(INC_FLAP)
+# Explicitly include INC_GFDL_FMS, now separate from INC_GMAO_SHARED to avoid compilation
+# warnings about nonexistent include directory when compiling GFDL_fms.
+#INC_DIRS = . $(INC_ESMF) $(INC_HERMES) $(INC_GMAO_SHARED) $(INC_MPI) $(INC_GEOS_FV1) $(INC_GMAO_pFIO) $(INC_FLAP)
+INC_DIRS = . $(INC_ESMF) $(INC_HERMES) $(INC_GMAO_SHARED) $(INC_GFDL_FMS) $(INC_MPI) $(INC_GEOS_FV1) $(INC_GMAO_pFIO) $(INC_FLAP)
 MOD_DIRS = . $(INC_DIRS)
 
 USER_FINCS  = $(foreach dir,$(INC_DIRS),$(I)$(dir))

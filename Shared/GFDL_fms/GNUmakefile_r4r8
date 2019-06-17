@@ -95,6 +95,10 @@ DEPS := $(notdir $(addsuffix .d, $(basename $(ALLSRCS))))
 
 DEPS := $(filter-out nsclock.d threadloc.d, $(DEPS)) # filter these out
 
+# NOTE: INC_GFDL_FMS is no longer in INC_GMAO_SHARED so as to avoid
+# a nonexistent missing directory warning when compiling this component
+# in GCHP with gfortran. INC_GMAO_SHARED is only used here and in FVdycore
+# where INC_GFDL_FMS is now explicitly included.
 INC_DIRS = . .. ../shared/include ../shared/mpp/include  \
             $(INC_GMAO_SHARED) $(INC_SDF) $(INC_ESMF) $(INC_MPI)
 MOD_DIRS = . $(INC_DIRS) 

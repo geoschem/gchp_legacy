@@ -91,14 +91,17 @@ LIB_GMAO_pFIO = $(ESMALIB)/libGMAO_pFIO.a
 INC_MAPL_BASE = $(ESMAINC)/MAPL_Base
 LIB_MAPL_BASE = $(ESMALIB)/libMAPL_Base.a $(LIB_GMAO_pFIO)
 
-# Change in INC_GMAO_SHARED for GCHP: remove chem_base, lanl_cice; add gmao_pfio
+# Remove unused libraries from INC_GMAO_SHARED for GCHP. Also remove
+# GFDL_FMS to avoid nonexistent include directory messages when compiling with gfortran.
 #INC_GMAO_SHARED = $(INC_MPEU) $(INC_PILGRIM) $(INC_MFHDF3) $(INC_GFIO) \
 #                  $(INC_CFIO) $(INC_MAPL_BASE) $(INC_GEOS_SHARED) $(INC_HERMES) \
 #                  $(INC_CHEM_BASE) $(INC_CHEM_SHARED) $(INC_GFDL_FMS) $(INC_LANL_CICE) \
 #                  $(INC_GMAO_pFIO)
-INC_GMAO_SHARED = $(INC_MPEU)   $(INC_PILGRIM)   $(INC_MFHDF3) $(INC_GFIO) \
-                  $(INC_CFIO)   $(INC_MAPL_BASE) $(INC_GEOS_SHARED)      \
-                  $(INC_HERMES) $(INC_GFDL_FMS)  $(INC_GMAO_pFIO)
+INC_GMAO_SHARED = $(INC_MPEU)   $(INC_MFHDF3)  $(INC_GFIO) \
+                  $(INC_CFIO)   $(INC_MAPL_BASE)                           \
+                  $(INC_HERMES) $(INC_GMAO_pFIO)
+
+# NOTE: most of the rest of this is not used in GCHP, but leave as is for now:
 
 INC_PSAS = $(ESMAINC)/GMAO_psas
 LIB_PSAS = $(ESMALIB)/libGMAO_psas.a
