@@ -1,8 +1,0 @@
-
-OBSNAM: CMAP
-OBSDSC: CPC_MAP_(Jan_1979-July_2006)
-
-        filename:   'VERIFICATION/CMAP/cmap_mon_v0607.ctl'
-        filetype:   'BIN'
-        fields:     'TPREC'  , 'MOIST' , 'RAIN2' , 1
-                    ::

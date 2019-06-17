@@ -1,8 +1,0 @@
-
-OBSNAM: ecinterim
-OBSDSC: ECMWF_INTERIM
-
-        filename:   'VERIFICATION/ECMWF_Interim_FullRes/Interim_monthly_FLX.ctl'
-        filetype:   'BIN'
-        fields:     'TPREC'    , 'MOIST'         , 'tp' , 1000
-                    ::

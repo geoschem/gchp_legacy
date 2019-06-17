@@ -1,9 +1,0 @@
-
-OBSNAM: SSMI
-OBSDSC: SSMI_(Jan_1993-Dec_2002)
-
-        filename:   'VERIFICATION/SSMI/ssmi.ctl'
-        filetype:   'BIN'
-        fields:     'LWP'    , 'MOIST' , 'LWP'    , 1
-                    'TQV'    , 'AGCM'  , 'TPW'    , 1
-                    ::

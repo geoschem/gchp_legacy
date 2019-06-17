@@ -1,8 +1,0 @@
-
-OBSNAM: ssmi
-OBSDSC: SSMI_(1993-2002)
-
-        filename:   'VERIFICATION/SSMI/ssmi.ctl'
-        filetype:   'BIN'
-        fields:     'VENT'  , 'SURFACE'   , 'SPEED'  , 1 ,
-                    ::

@@ -1,7 +1,0 @@
-function sete (args)
-
-'getinfo edim'
-edim = result
-'set e 1 'edim
-if( args != "" ) ; say "setting e from 1 to "edim ; endif
-return

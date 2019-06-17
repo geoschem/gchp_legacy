@@ -48,11 +48,12 @@ else
     LCV2PRS_EOS = 
 endif
 
-ifeq ($(wildcard $(LIB_GEOS_SHARED)),)
-   BINS_MAPL = 
-else
-   BINS_MAPL = GFIO_remap.x GFIO_Shave.x lcv2prs.x $(LCV2PRS_EOS)
-endif
+# Comment out for GCHP sinc enot build GEOS_Shared
+#ifeq ($(wildcard $(LIB_GEOS_SHARED)),)
+#   BINS_MAPL = 
+#else
+#   BINS_MAPL = GFIO_remap.x GFIO_Shave.x lcv2prs.x $(LCV2PRS_EOS)
+#endif
 
 BINS =  ana5sfc.x diag2dyn.x drs2dyn.x dyn2drs.x dyn2dyn.x dyn_boot.x \
 	dyn2prs.x dyn2rs5.x dyn52dyn.x dyndiff.x dyndims.x dynp.x echorc.x \
@@ -64,8 +65,11 @@ BINS =  ana5sfc.x diag2dyn.x drs2dyn.x dyn2drs.x dyn2dyn.x dyn_boot.x \
 UT = ut_ana2dyn.x ut_fread.x ut_insitu.x ut_lp.x ut_ocean.x ut_sst.x \
 	blendq.x geos2fv.x rout2prs.x ut_dyn_ipert.x 
 
+# Remove GEOS_Shared for GCHP
+#MOD_DIRS = . $(INC_MPEU) $(INC_GFIO) $(INC_CFIO) $(INC_SDF) \
+#             $(INC_MAPL_BASE) $(INC_GEOS_SHARED)
 MOD_DIRS = . $(INC_MPEU) $(INC_GFIO) $(INC_CFIO) $(INC_SDF) \
-             $(INC_MAPL_BASE) $(INC_GEOS_SHARED)
+             $(INC_MAPL_BASE)
 
 PERLSCRIPTS = ana5sfc cnv2prs.pl
 PERLPKGS = 
@@ -272,20 +276,33 @@ fvsubset.x : $(LIB) fvsubset.o
 	${FC} $(LDFLAGS) -o $@ fvsubset.o $(LIB) \
 		$(LIB_EU) $(LIB_GFIO) $(LIB_SDF) $(LIB_SYS) $(LIB_SDF)
 
+# Remove GEOS_Shared for GCHP
+#lcv2prs.x : $(LIB) lcv2prs.o
+#	$(LD) $(LDFLAGS) -o $@ lcv2prs.o $(LIB) \
+#	      $(LIB_CFIO) $(LIB_EU) $(LIB_SDF) $(LIB_ESMF) $(LIB_SYS) \
+#	      $(LIB_MAPL_BASE) $(LIB_GEOS_SHARED) $(LIB_MPI)
 lcv2prs.x : $(LIB) lcv2prs.o
 	$(LD) $(LDFLAGS) -o $@ lcv2prs.o $(LIB) \
 	      $(LIB_CFIO) $(LIB_EU) $(LIB_SDF) $(LIB_ESMF) $(LIB_SYS) \
-	      $(LIB_MAPL_BASE) $(LIB_GEOS_SHARED) $(LIB_MPI)
+	      $(LIB_MAPL_BASE) $(LIB_MPI)
 
+#Chem_rst2aer_v.x : $(LIB) Chem_rst2aer_v.o
+#	$(LD) $(LDFLAGS) -o $@ Chem_rst2aer_v.o $(LIB) \
+#	      $(LIB_CFIO) $(LIB_EU) $(LIB_SDF) $(LIB_SYS) \
+#	      $(LIB_MAPL_BASE) $(LIB_GEOS_SHARED)
 Chem_rst2aer_v.x : $(LIB) Chem_rst2aer_v.o
 	$(LD) $(LDFLAGS) -o $@ Chem_rst2aer_v.o $(LIB) \
 	      $(LIB_CFIO) $(LIB_EU) $(LIB_SDF) $(LIB_SYS) \
-	      $(LIB_MAPL_BASE) $(LIB_GEOS_SHARED)
+	      $(LIB_MAPL_BASE)
 
+#lcv2prs_eos.x : $(LIB) lcv2prs_eos.o
+#	$(LD) $(LDFLAGS) -o $@ lcv2prs_eos.o $(LIB) \
+#	      $(LIB_CFIO_EOS) $(LIB_EU) $(LIB_SDF) $(LIB_SYS) \
+#	      $(LIB_MAPL_BASE) $(LIB_GEOS_SHARED) $(LIB_SDFEOS)
 lcv2prs_eos.x : $(LIB) lcv2prs_eos.o
 	$(LD) $(LDFLAGS) -o $@ lcv2prs_eos.o $(LIB) \
 	      $(LIB_CFIO_EOS) $(LIB_EU) $(LIB_SDF) $(LIB_SYS) \
-	      $(LIB_MAPL_BASE) $(LIB_GEOS_SHARED) $(LIB_SDFEOS)
+	      $(LIB_MAPL_BASE) $(LIB_SDFEOS)
 
 # Special deps
 # ------------

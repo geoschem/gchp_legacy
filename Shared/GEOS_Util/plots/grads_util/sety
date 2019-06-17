@@ -1,7 +1,0 @@
-function sett (args)
-
-'getinfo ydim'
-ydim = result
-'set y 1 'ydim
-if( args != "" ) ; say "setting y from 1 to "ydim ; endif
-return

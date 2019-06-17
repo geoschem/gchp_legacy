@@ -59,8 +59,9 @@ LIB_HERMES = $(ESMALIB)/libGMAO_hermes.a
 INC_CHEM_BASE = $(ESMAINC)/Chem_Base
 LIB_CHEM_BASE = $(ESMALIB)/libChem_Base.a
 
-INC_CHEM_SHARED = $(ESMAINC)/Chem_Shared
-LIB_CHEM_SHARED = $(ESMALIB)/libChem_Shared.a
+# Comment out for GCHP
+#INC_CHEM_SHARED = $(ESMAINC)/Chem_Shared
+#LIB_CHEM_SHARED = $(ESMALIB)/libChem_Shared.a
 
 INC_CHEM = $(ESMAINC)/GEOSchem_GridComp
 LIB_CHEM = $(ESMALIB)/libGEOSchem_GridComp.a
@@ -68,21 +69,25 @@ LIB_CHEM = $(ESMALIB)/libGEOSchem_GridComp.a
 INC_GEOS_BASE = $(ESMAINC)/GEOS_Base
 LIB_GEOS_BASE = $(ESMALIB)/libGEOS_Base.a
 
-INC_GEOS_SHARED = $(ESMAINC)/GEOS_Shared
-LIB_GEOS_SHARED = $(ESMALIB)/libGEOS_Shared.a
+# Comment out for GCHP
+#INC_GEOS_SHARED = $(ESMAINC)/GEOS_Shared
+#LIB_GEOS_SHARED = $(ESMALIB)/libGEOS_Shared.a
 
-INC_PILGRIM = $(ESMAINC)/GMAO_pilgrim
-LIB_PILGRIM = $(ESMALIB)/libGMAO_pilgrim.a
+# Comment out for GCHP
+#INC_PILGRIM = $(ESMAINC)/GMAO_pilgrim
+#LIB_PILGRIM = $(ESMALIB)/libGMAO_pilgrim.a
 
 THIS_GFDL_FMS = GFDL_fms
 INC_GFDL_FMS = $(ESMAINC)/$(THIS_GFDL_FMS)
 LIB_GFDL_FMS = $(ESMALIB)/lib$(THIS_GFDL_FMS).a
 
-INC_TRANSF = $(ESMAINC)/GMAO_transf
-LIB_TRANSF = $(ESMALIB)/libGMAO_transf.a
+# Comment out for GCHP
+#INC_TRANSF = $(ESMAINC)/GMAO_transf
+#LIB_TRANSF = $(ESMALIB)/libGMAO_transf.a
 
-INC_LANL_CICE = $(ESMAINC)/LANL_cice
-LIB_LANL_CICE = $(ESMALIB)/libLANL_cice.a
+# Comment out for GCHP
+#INC_LANL_CICE = $(ESMAINC)/LANL_cice
+#LIB_LANL_CICE = $(ESMALIB)/libLANL_cice.a
 
 INC_GMAO_pFIO = $(ESMAINC)/GMAO_pFIO
 LIB_GMAO_pFIO = $(ESMALIB)/libGMAO_pFIO.a

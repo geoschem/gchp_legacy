@@ -1,9 +1,0 @@
-#!/bin/csh -f
-if( -e $1 ) then
-    set froot = `/bin/basename $1`
-else
-    set froot = NULL
-endif
-if( -e FROOT.txt ) /bin/rm FROOT.txt
-echo $froot > FROOT.txt
-exit

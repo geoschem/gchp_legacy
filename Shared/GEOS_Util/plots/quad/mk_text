@@ -1,9 +1,0 @@
-#!/bin/csh -f
-
-/bin/rm -f sedfile
-/bin/rm -f zonal.vint.stack
-cat > sedfile << EOF
-s/Experiment/$1/g
-s/Validation/$2/g
-EOF
-sed -f sedfile $GEOSUTIL/plots/quad/zonal.vint.tmpl > zonal.vint.stack

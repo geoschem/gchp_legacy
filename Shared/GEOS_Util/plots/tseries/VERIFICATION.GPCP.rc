@@ -1,8 +1,0 @@
-
-OBSNAM: GPCPv2.1
-OBSDSC: GPCP_Version-2.1_satellite/gauge
-
-        filename:   'VERIFICATION/GPCPv2.1/gpcp_v2.1_psg.ctl'
-        filetype:   'BIN'
-        fields:     'TPREC'  , 'MOIST' , 'prec' , 1
-                    ::

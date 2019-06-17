@@ -1,8 +1,0 @@
-
-OBSNAM: merra
-OBSDSC: GEOSdas-2_1_4_(MERRA)
-
-        filename:   'VERIFICATION/MERRA_MEANS/tavg1_2d_flx_Nx.ddf'
-        filetype:   'HDF'
-        fields:     'VENT' , 'SURFACE'  , 'SPEED' , 1
-                    ::

@@ -7,10 +7,6 @@ esma_add_subdirectories(
   GMAO_hermes
   )
 
-if (PFUNIT)
-  add_subdirectory (MAPL_pFUnit EXCLUDE_FROM_ALL)
-endif ()
-
 # Special cases - MAPL_cfio, GMAO_gfio, and GFDL_fms are built twice with two
 # different precisions.
 add_subdirectory (MAPL_cfio MAPL_cfio_r4)

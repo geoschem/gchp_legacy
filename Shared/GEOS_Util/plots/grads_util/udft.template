@@ -1,5 +1,0 @@
-regrid2 1 8 expr value value char value value value value
-sequential
-GEOSUTIL/plots/grads_util/regrid2_ARCH.x
-udf.regrid.gfi
-udf.regrid.gfo
