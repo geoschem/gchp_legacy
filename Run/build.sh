@@ -143,9 +143,11 @@ if [[ $1 == "build" ]]; then
    cd ${gcdir}
    if [[ $2 == "--debug" ]]; then
       make -j${NUM_JOB_SLOTS} CHEM=standard EXTERNAL_GRID=y TRACEBACK=y    \
-                              DEBUG=y       BOUNDS=y        FPEX=y      hpc
+                              DEBUG=y       BOUNDS=y        FPEX=y         \
+                              BPCH_DIAG=n   hpc
    else 
-      make -j${NUM_JOB_SLOTS} CHEM=standard EXTERNAL_GRID=y TRACEBACK=y hpc
+      make -j${NUM_JOB_SLOTS} CHEM=standard EXTERNAL_GRID=y TRACEBACK=y    \
+                              BPCH_DIAG=n   hpc
    fi
 fi
 
