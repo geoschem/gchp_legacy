@@ -1222,8 +1222,8 @@ C2H6_2010_biofuel kgC/m2/s Y Y F2010-%m2-01T00:00:00 none none BIOFUEL_C2H6 ./Ma
 #==============================================================================
 # --- Xiao et al., JGR, 2008 (XIAO) ---
 #==============================================================================
-XIAO_C3H8    kgC/m2/s N Y - none none C3H8 ./MainDataDir/XIAO/v2014-09/C3H8_C2H6_ngas.geos.1x1.nc
-BIOFUEL_C3H8 kgC/m2/s N Y - none none C3H8 ./MainDataDir/BIOFUEL/v2014-07/biofuel.geos.4x5.nc
+XIAO_C3H8    kgC/m2/s N Y - none none C3H8         ./MainDataDir/XIAO/v2014-09/C3H8_C2H6_ngas.geos.1x1.nc
+BIOFUEL_C3H8 kgC/m2/s N Y - none none BIOFUEL_C3H8 ./MainDataDir/BIOFUEL/v2014-07/biofuel.geos.4x5.nc
 
 #==============================================================================
 # --- Very-short-lived bromocarbon (LIANG_BROMOCARB) ---

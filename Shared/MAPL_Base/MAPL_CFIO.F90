@@ -5088,7 +5088,7 @@ CONTAINS
     real, pointer    :: levsfile(:) => null()
     type(ESMF_CFIO), pointer :: cfiop
     type(CFIOCollection), pointer :: collection
-    character(len=63):: msg
+    character(len=255):: msg
 
     call ESMF_VMGetCurrent(vm,rc=status)
     _VERIFY(STATUS)
@@ -5173,7 +5173,9 @@ CONTAINS
              endif
           enddo
           if ( .NOT. found ) then
-             msg = 'search failed for: ' // trim(cfiovarname)
+             msg = 'ERROR: File search failed for variable name ' //       &
+                   trim(bundlevarname) // ' in file ' // trim(MCFIO%fname) &
+                   // '. Check that ExtData.rc contains correct variable name.'
              _ASSERT(found, msg)
           endif
           mcfio%varname(i)=bundleVarName

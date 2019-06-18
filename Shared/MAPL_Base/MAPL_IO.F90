@@ -8153,6 +8153,8 @@ module MAPL_IOMod
    irec = cwrd/4
    filetype = irec
    if (cwrd /= 4*irec) then
+      print *, 'ERROR: File not recognized as HDF5 or fortran binary: ' // &
+               TRIM(filename)
       _RETURN(ESMF_FAILURE)
    end if
 
