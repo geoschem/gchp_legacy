@@ -601,7 +601,12 @@ InvSEABIRDS_NH3      NH3    0    30  1   2   kg/m2/s  NH3_emission_flux_from_arc
 #=============================
 # C2H62010
 #=============================
-InvC2H62010anth_C2H6 C2H6   0    1  100 2 kg/m2/s C2H6_from_C2H62010_anthropogenic_inventory
+InvC2H62010_C2H6     C2H6   0    1  100 2 kg/m2/s C2H6_from_C2H62010_anthropogenic_inventory
+
+#=============================
+# XIAO_C3H8
+#=============================
+InvXIAO_C3H8         C3H8  0    1  100 2 kg/m2/s C3H8_from_XIAO_anthropogenic_inventory
 
 #=============================
 # LIANG_BROMOCARB
