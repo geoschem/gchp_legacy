@@ -79,9 +79,6 @@ Warnings:                    1
 ### NOTES:
 ### --> You can only select one biomass burning option (GFED, QFED2, FINN, GFAS).
 ###
-### --> The biomass burning SVOC scale factors (Scaling_POG1, Scaling POG2)
-###     should be the same as for the biofuel and anthro sources (POGSCAL). 
-###
 ### --> The NAP scale factor is determined as in the original simulation:
 ###     Obtain NAP emissions using scale factor from Hays 2002 ES&T 
 ###     (0.0253 g NAP/kg DM) and Andreae and Merlet 2001 GBC (92 g CO/kg DM)
@@ -173,8 +170,6 @@ Warnings:                    1
     --> GFED_daily             :       false
     --> GFED_3hourly           :       false
     --> Scaling_CO             :       1.05
-    --> Scaling_POG1           :       1.27
-    --> Scaling_POG2           :       1.27
     --> Scaling_NAP            :       2.75e-4
     --> hydrophilic BC         :       0.2
     --> hydrophilic OC         :       0.5
@@ -1666,7 +1661,7 @@ Warnings:                    1
 #==============================================================================
 (((C2H6_2010 
 0 C2H6_2010_oilgas   $ROOT/C2H6_2010/v2019-06/C2H6_global_anth_biof.2010$MM.nc ANTHR_C2H6   2010/1-12/1/0 C xy kgC/m2/s C2H6 - 1 100
-0 C2H6_2010_biofuel  $ROOT/C2H6_2010/v2019-06/C2H6_global_anth_biof.2010$MM.nc BIOFUEL_C2H6 2010/1-12/1/0 C xy kgC/m2/s C2H6 - 2 100
+0 C2H6_2010_biofuel  $ROOT/C2H6_2010/v2019-06/C2H6_global_anth_biof.2010$MM.nc BIOFUEL_C2H6 2010/1-12/1/0 C xy kgC/m2/s C2H6 - 1 100
 )))C2H6_2010 
 
 #==============================================================================
@@ -2289,19 +2284,19 @@ Warnings:                    1
 # NOTE: These are the base emissions in kgDM/m2/s.
 #==============================================================================
 (((GFED4
-111 GFED_TEMP       $ROOT/GFED4/v2015-10/$YYYY/GFED4_gen.025x025.$YYYY$MM.nc  DM_TEMP       1997-2016/1-12/01/0    C xy kgDM/m2/s * - 1 1
-111 GFED_AGRI       $ROOT/GFED4/v2015-10/$YYYY/GFED4_gen.025x025.$YYYY$MM.nc  DM_AGRI       1997-2016/1-12/01/0    C xy kgDM/m2/s * - 1 1
-111 GFED_DEFO       $ROOT/GFED4/v2015-10/$YYYY/GFED4_gen.025x025.$YYYY$MM.nc  DM_DEFO       1997-2016/1-12/01/0    C xy kgDM/m2/s * - 1 1
-111 GFED_BORF       $ROOT/GFED4/v2015-10/$YYYY/GFED4_gen.025x025.$YYYY$MM.nc  DM_BORF       1997-2016/1-12/01/0    C xy kgDM/m2/s * - 1 1
-111 GFED_PEAT       $ROOT/GFED4/v2015-10/$YYYY/GFED4_gen.025x025.$YYYY$MM.nc  DM_PEAT       1997-2016/1-12/01/0    C xy kgDM/m2/s * - 1 1
-111 GFED_SAVA       $ROOT/GFED4/v2015-10/$YYYY/GFED4_gen.025x025.$YYYY$MM.nc  DM_SAVA       1997-2016/1-12/01/0    C xy kgDM/m2/s * - 1 1
+111 GFED_TEMP       $ROOT/GFED4/v2015-10/$YYYY/GFED4_gen.025x025.$YYYY$MM.nc  DM_TEMP       1997-2016/1-12/01/0    RF xy kgDM/m2/s * - 1 1
+111 GFED_AGRI       $ROOT/GFED4/v2015-10/$YYYY/GFED4_gen.025x025.$YYYY$MM.nc  DM_AGRI       1997-2016/1-12/01/0    RF xy kgDM/m2/s * - 1 1
+111 GFED_DEFO       $ROOT/GFED4/v2015-10/$YYYY/GFED4_gen.025x025.$YYYY$MM.nc  DM_DEFO       1997-2016/1-12/01/0    RF xy kgDM/m2/s * - 1 1
+111 GFED_BORF       $ROOT/GFED4/v2015-10/$YYYY/GFED4_gen.025x025.$YYYY$MM.nc  DM_BORF       1997-2016/1-12/01/0    RF xy kgDM/m2/s * - 1 1
+111 GFED_PEAT       $ROOT/GFED4/v2015-10/$YYYY/GFED4_gen.025x025.$YYYY$MM.nc  DM_PEAT       1997-2016/1-12/01/0    RF xy kgDM/m2/s * - 1 1
+111 GFED_SAVA       $ROOT/GFED4/v2015-10/$YYYY/GFED4_gen.025x025.$YYYY$MM.nc  DM_SAVA       1997-2016/1-12/01/0    RF xy kgDM/m2/s * - 1 1
 
 (((GFED_daily
-111 GFED_FRAC_DAY   $ROOT/GFED4/v2015-10/$YYYY/GFED4_dailyfrac_gen.025x025.$YYYY$MM.nc GFED_FRACDAY 2003-2016/1-12/1-31/0  C xy 1 * - 1 1
+111 GFED_FRAC_DAY   $ROOT/GFED4/v2015-10/$YYYY/GFED4_dailyfrac_gen.025x025.$YYYY$MM.nc GFED_FRACDAY 2003-2016/1-12/1-31/0  RF xy 1 * - 1 1
 )))GFED_daily
 
 (((GFED_3hourly
-111 GFED_FRAC_3HOUR $ROOT/GFED4/v2015-10/$YYYY/GFED4_3hrfrac_gen.025x025.$YYYY$MM.nc   GFED_FRAC3HR 2003-2016/1-12/1/0-23  C xy 1 * - 1 1
+111 GFED_FRAC_3HOUR $ROOT/GFED4/v2015-10/$YYYY/GFED4_3hrfrac_gen.025x025.$YYYY$MM.nc   GFED_FRAC3HR 2003-2016/1-12/1/0-23  RF xy 1 * - 1 1
 )))GFED_3hourly
 )))GFED4
 
@@ -2309,21 +2304,21 @@ Warnings:                    1
 # --- FINN v1.5 biomass burning emissions (Extension 114) 
 #==============================================================================
 (((.not.FINN_daily
-114 FINN_VEGTYP1       $ROOT/FINN/v2015-02/FINN_monthly_$YYYY_0.25x0.25.compressed.nc fire_vegtype1 $YYYY/1-12/1/0 C xy kg/m2/s * - 1 1
-114 FINN_VEGTYP2       $ROOT/FINN/v2015-02/FINN_monthly_$YYYY_0.25x0.25.compressed.nc fire_vegtype2 $YYYY/1-12/1/0 C xy kg/m2/s * - 1 1
-114 FINN_VEGTYP3       $ROOT/FINN/v2015-02/FINN_monthly_$YYYY_0.25x0.25.compressed.nc fire_vegtype3 $YYYY/1-12/1/0 C xy kg/m2/s * - 1 1
-114 FINN_VEGTYP4       $ROOT/FINN/v2015-02/FINN_monthly_$YYYY_0.25x0.25.compressed.nc fire_vegtype4 $YYYY/1-12/1/0 C xy kg/m2/s * - 1 1
-114 FINN_VEGTYP5       $ROOT/FINN/v2015-02/FINN_monthly_$YYYY_0.25x0.25.compressed.nc fire_vegtype5 $YYYY/1-12/1/0 C xy kg/m2/s * - 1 1
-114 FINN_VEGTYP9       $ROOT/FINN/v2015-02/FINN_monthly_$YYYY_0.25x0.25.compressed.nc fire_vegtype9 $YYYY/1-12/1/0 C xy kg/m2/s * - 1 1
+114 FINN_VEGTYP1       $ROOT/FINN/v2015-02/FINN_monthly_$YYYY_0.25x0.25.compressed.nc fire_vegtype1 2002-2016/1-12/1/0 RF xy kg/m2/s * - 1 1
+114 FINN_VEGTYP2       $ROOT/FINN/v2015-02/FINN_monthly_$YYYY_0.25x0.25.compressed.nc fire_vegtype2 2002-2016/1-12/1/0 RF xy kg/m2/s * - 1 1
+114 FINN_VEGTYP3       $ROOT/FINN/v2015-02/FINN_monthly_$YYYY_0.25x0.25.compressed.nc fire_vegtype3 2002-2016/1-12/1/0 RF xy kg/m2/s * - 1 1
+114 FINN_VEGTYP4       $ROOT/FINN/v2015-02/FINN_monthly_$YYYY_0.25x0.25.compressed.nc fire_vegtype4 2002-2016/1-12/1/0 RF xy kg/m2/s * - 1 1
+114 FINN_VEGTYP5       $ROOT/FINN/v2015-02/FINN_monthly_$YYYY_0.25x0.25.compressed.nc fire_vegtype5 2002-2016/1-12/1/0 RF xy kg/m2/s * - 1 1
+114 FINN_VEGTYP9       $ROOT/FINN/v2015-02/FINN_monthly_$YYYY_0.25x0.25.compressed.nc fire_vegtype9 2002-2016/1-12/1/0 RF xy kg/m2/s * - 1 1
 ))).not.FINN_daily
 
 (((FINN_daily
-114 FINN_DAILY_VEGTYP1 $ROOT/FINN/v2015-02/FINN_daily_$YYYY_0.25x0.25.compressed.nc   fire_vegtype1 $YYYY/1-12/1/0 C xy kg/m2/s * - 1 1
-114 FINN_DAILY_VEGTYP2 $ROOT/FINN/v2015-02/FINN_daily_$YYYY_0.25x0.25.compressed.nc   fire_vegtype2 $YYYY/1-12/1/0 C xy kg/m2/s * - 1 1
-114 FINN_DAILY_VEGTYP3 $ROOT/FINN/v2015-02/FINN_daily_$YYYY_0.25x0.25.compressed.nc   fire_vegtype3 $YYYY/1-12/1/0 C xy kg/m2/s * - 1 1
-114 FINN_DAILY_VEGTYP4 $ROOT/FINN/v2015-02/FINN_daily_$YYYY_0.25x0.25.compressed.nc   fire_vegtype4 $YYYY/1-12/1/0 C xy kg/m2/s * - 1 1
-114 FINN_DAILY_VEGTYP5 $ROOT/FINN/v2015-02/FINN_daily_$YYYY_0.25x0.25.compressed.nc   fire_vegtype5 $YYYY/1-12/1/0 C xy kg/m2/s * - 1 1
-114 FINN_DAILY_VEGTYP9 $ROOT/FINN/v2015-02/FINN_daily_$YYYY_0.25x0.25.compressed.nc   fire_vegtype9 $YYYY/1-12/1/0 C xy kg/m2/s * - 1 1
+114 FINN_DAILY_VEGTYP1 $ROOT/FINN/v2015-02/FINN_daily_$YYYY_0.25x0.25.compressed.nc   fire_vegtype1 2002-2016/1-12/1/0 RF xy kg/m2/s * - 1 1
+114 FINN_DAILY_VEGTYP2 $ROOT/FINN/v2015-02/FINN_daily_$YYYY_0.25x0.25.compressed.nc   fire_vegtype2 2002-2016/1-12/1/0 RF xy kg/m2/s * - 1 1
+114 FINN_DAILY_VEGTYP3 $ROOT/FINN/v2015-02/FINN_daily_$YYYY_0.25x0.25.compressed.nc   fire_vegtype3 2002-2016/1-12/1/0 RF xy kg/m2/s * - 1 1
+114 FINN_DAILY_VEGTYP4 $ROOT/FINN/v2015-02/FINN_daily_$YYYY_0.25x0.25.compressed.nc   fire_vegtype4 2002-2016/1-12/1/0 RF xy kg/m2/s * - 1 1
+114 FINN_DAILY_VEGTYP5 $ROOT/FINN/v2015-02/FINN_daily_$YYYY_0.25x0.25.compressed.nc   fire_vegtype5 2002-2016/1-12/1/0 RF xy kg/m2/s * - 1 1
+114 FINN_DAILY_VEGTYP9 $ROOT/FINN/v2015-02/FINN_daily_$YYYY_0.25x0.25.compressed.nc   fire_vegtype9 2002-2016/1-12/1/0 RF xy kg/m2/s * - 1 1
 )))FINN_daily
 
 #==============================================================================
