@@ -4,7 +4,7 @@
 #SBATCH -N 1
 #SBATCH -t 0-1:00
 #SBATCH -p huce_intel
-#SBATCH --mem=50000
+#SBATCH --mem=MaxMemPerNode
 #SBATCH --mail-type=ALL
 
 # See SLURM documentation for descriptions of the above settings as well
@@ -52,8 +52,8 @@ if [[ $? == 0 ]]; then
     fi
 
     # Echo info from computational cores to log file for displaying results
-    echo "# of CPUs : $coreCount" >> ${log}
-    echo "# of nodes: $SLURM_NNODES" >> ${log}
+    echo "# of CPUs : ${coreCount}" >> ${log}
+    echo "# of nodes: ${SLURM_NNODES}" >> ${log}
     echo "-m plane  : ${planeCount}" >> ${log}
 
     # Optionally compile 
