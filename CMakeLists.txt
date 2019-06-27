@@ -49,8 +49,8 @@ target_compile_definitions(BaseTarget INTERFACE
         ESMF_ EXTERNAL_GRID USE_REAL8
 )
 target_link_libraries(BaseTarget INTERFACE 
-    MAPL_Base MAPL_cfio_r4 GMAO_mpeu GMAO_pilgrim
-    FVdycoreCubed_GridComp fvdycore GFDL_fms_r4 GEOS_Shared GMAO_hermes
+    MAPL_Base 
+    FVdycoreCubed_GridComp
 )
 
 # Add the registry

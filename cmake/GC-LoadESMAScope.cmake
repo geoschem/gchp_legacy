@@ -18,10 +18,7 @@ include_directories(${MPI_Fortran_INCLUDE_PATH})
 set(INC_NETCDF ${NETCDF_INCLUDE_DIRS})
 set(NETCDF_LIBRARIES ${NETCDF_LIBRARIES})
 add_definitions(-DHAS_NETCDF4)
-add_definitions(-DHAS_NETCDF3)
 add_definitions(-DH5_HAVE_PARALLEL)
-add_definitions(-DNETCDF_NEED_NF_MPIIO)
-add_definitions(-DHAS_NETCDF3)
 
 # ESMF
 set(INC_ESMF ${ESMF_INCLUDES_DIR} ${ESMF_HEADERS_DIR} ${ESMF_MOD_DIR})
@@ -31,6 +28,6 @@ set(INC_gFTL ${GFTL_INCLUDE_DIR})
 
 # Misc 
 set (FV_PRECISION R8)
-add_definitions(-Dsys${CMAKE_SYSTEM_NAME} -DESMA64)
+add_definitions(-Dsys${CMAKE_SYSTEM_NAME})
 set(ENV{USE_LATEX} NO)
 set(PFUNIT FALSE)

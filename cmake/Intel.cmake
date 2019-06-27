@@ -34,12 +34,12 @@ set (GEOS_Fortran_Debug_FPE_Flags "${common_Fortran_fpe_flags}")
 # GEOS Release
 # ------------
 set (GEOS_Fortran_Release_Flags "-O3 -g -qopt-report0 -ftz -align all -fno-alias")
-set (GEOS_Fortran_Release_FPE_Flags "${common_Fortran_fpe_flags} -fimf-arch-consistency=true")
+#set (GEOS_Fortran_Release_FPE_Flags "${common_Fortran_fpe_flags} -fimf-arch-consistency=true")
 
 # GEOS Vectorize
 # --------------
-set (GEOS_Fortran_Vect_Flags "-O3 -g -xCORE-AVX2 -fma -qopt-report0 -ftz -align all -fno-alias -align array32byte")
-set (GEOS_Fortran_Vect_FPE_Flags "-fpe3 -fp-model consistent -assume noold_maxminloc")
+#set (GEOS_Fortran_Vect_Flags "-O3 -g -xCORE-AVX2 -fma -qopt-report0 -ftz -align all -fno-alias -align array32byte")
+#set (GEOS_Fortran_Vect_FPE_Flags "-fpe3 -fp-model consistent -assume noold_maxminloc")
 
 # Common variables for every compiler
 include(GenericCompiler)
