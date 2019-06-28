@@ -2,6 +2,7 @@
 
 #SBATCH -n 6
 #SBATCH -N 1
+#SBATCH --exclusive
 #SBATCH -t 0-1:00
 #SBATCH -p huce_intel
 #SBATCH --mem=MaxMemPerNode
