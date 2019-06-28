@@ -12,7 +12,7 @@ if [[ -e cap_restart ]]; then
 fi
 
 # Sync all config files with settings in runConfig.sh                           
-./runConfig.sh > ${log}
+./runConfig.sh 2>&1 | tee ${log}
 if [[ $? == 0 ]]; then
 
     # Source your environment file. This requires first setting the gchp.env
@@ -31,24 +31,22 @@ if [[ $? == 0 ]]; then
        exit 1
     fi
     echo " " >> ${log}
-    echo "WARNING: You are using environment settings in ${gchp_env}" >> ${log}
+    echo "WARNING: You are using environment settings in ${gchp_env}" 2>&1 | tee -a ${log}
     source ${gchp_env} >> ${log}
 
     # Echo start date (overwrite last log)
-    echo ' ' >> ${log}
-    echo '===> Run started at' `date` >> ${log}
+    echo ' ' 2>&1 | tee -a ${log}
+    echo '===> Run started at' `date` 2>&1 | tee -a ${log}
 
     # Start the simulation. Use 6 cores.
-    time mpirun -np ${nCores} ./geos >> ${log}
+    time mpirun -np ${nCores} ./geos 2>&1 | tee -a ${log}
 
     # Rename the restart (checkpoint) file so MAPL does not crash upon rerun
     mv gcchem_internal_checkpoint.nc gccchem_internal_checkpoint.restart.nc
 
     # Echo end date
-    echo '===> Run ended at' `date` >> ${log}
+    echo '===> Run ended at' `date` 2>&1 | tee -a ${log}
 
-else
-    cat ${log}
 fi
 
 # Clear variable
