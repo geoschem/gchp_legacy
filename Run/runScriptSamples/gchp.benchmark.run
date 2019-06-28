@@ -65,28 +65,11 @@ if [[ $? == 0 ]]; then
     echo ' ' >> ${log}
     echo '===> Run started at' `date` >> ${log}
 
-    # If the shared memory option is on (USE_SHMEM: 1 in CAP.rc) then
-    # clean up existing shared memory segments before and after running 
-    # the model
-    if grep -q "USE_SHMEM.*1" CAP.rc; then
-        ipcs -a  # Show current shared memory segments
-        ipcs -l  # Show shared memory limits
-        /sbin/sysctl -A | grep shm
-        memCleaner=./runScriptSamples/rmshmem.sh
-        srun -w $SLURM_JOB_NODELIST -n $SLURM_NNODES --ntasks-per-node=1 ${memCleaner}
-        ipcs -a  # Show current shared memory segments again (should be none)
-    fi
-
     # Odyssey-specific setting to get around connection issues at high # cores
     export OMPI_MCL_btl=openib
 
     # Start the simulation
     time srun -n ${coreCount} -N ${SLURM_NNODES} -m plane=${planeCount} --mpi=pmix ./geos >> ${log}
-
-    # Clean up any shared memory segments owned by this user
-    if grep -q "USE_SHMEM.*1" CAP.rc; then
-        srun -w $SLURM_JOB_NODELIST -n $SLURM_NNODES --ntasks-per-node=1 ${memCleaner}
-    fi
 
     # Echo end date
     echo '===> Run ended at' `date` >> ${log}

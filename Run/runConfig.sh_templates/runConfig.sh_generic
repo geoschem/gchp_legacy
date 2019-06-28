@@ -25,13 +25,8 @@
 # cluster in your run script!!!
 NUM_NODES=1
 NUM_CORES_PER_NODE=6
-NY=6                  
-NX=1            
-
-# MAPL shared memory option (0: off, 1: on). Keep off unless you know what
-# you are doing. Contact GCST for more information if you have memory
-# problems you are unable to fix.
-USE_SHMEM=0
+NY=6  
+NX=1
 
 #------------------------------------------------
 #   Internal Cubed Sphere Resolution
@@ -265,10 +260,14 @@ if [[ ${ChemEmiss_Timestep_sec} -lt ${TransConv_Timestep_sec} ]]; then
     exit 1
 fi
 
-#### Check that NX*NY is less than or equal to number of cores
+#### Check that NX*NY is equal to number of cores
 num_cores=$((  ))
 if (( $NX*$NY > $NUM_NODES*$NUM_CORES_PER_NODE )); then
     echo "ERROR: NX*NY must not exceed number of nodes times cores per node. Update values in runConfig.sh."
+    exit 1    
+fi
+if (( $NX*$NY < $NUM_NODES*$NUM_CORES_PER_NODE )); then
+    echo "ERROR: NX*NY must be equal to number of nodes times cores per node. Update values in runConfig.sh."
     exit 1    
 fi
 
@@ -323,7 +322,6 @@ echo "Compute resources:"
 replace_val NX            ${NX}                 GCHP.rc
 replace_val NY            ${NY}                 GCHP.rc
 replace_val CoresPerNode  ${NUM_CORES_PER_NODE} HISTORY.rc
-replace_val USE_SHMEM     ${USE_SHMEM}          CAP.rc
 
 ####  set cubed-sphere resolution and related grid variables
 echo " "
