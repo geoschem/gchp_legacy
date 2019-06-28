@@ -68,7 +68,6 @@ copyfiles () {
 # Customize as needed to best fit your workflow
 
 # compilation logs
-copyfiles ${archivedir}/build lastbuild
 copyfiles ${archivedir}/build compile.log
 
 # config files
