@@ -17,14 +17,21 @@
 
 # Initial version: Lizzie Lundgren - 7/12/2018
 
-archivedir=$1
+if [[ $# == 1 ]]; then
+    archivedir=$1
+else
+   echo "Usage: ./archiveRun.sh {ArchiveDirName}"
+   exit 
+fi
+
 if [ -d "${archivedir}" ]; then
    echo "Warning: Directory ${archivedir} already exists."
    echo "Remove or rename that directory, or choose a different name."
    exit 1
 else
    mkdir -p ${archivedir}
-   mkdir -p ${archivedir}/data
+   mkdir -p ${archivedir}/output
+   mkdir -p ${archivedir}/plots
    mkdir -p ${archivedir}/build
    mkdir -p ${archivedir}/logs
    mkdir -p ${archivedir}/run
@@ -34,21 +41,24 @@ fi
 
 echo "Archiving files..."
 
-# Move diagnostic data
+# Move diagnostic output
 for f in OutputDir/*.nc4; do
    if [ -f $f ]; then
-      mv $f ${archivedir}/data
+      mv -v $f ${archivedir}/output
    else      
       echo "Warning: OutputDir is empty"
    fi
 done
+
+# Move plots
+mv -v Plots/* ${archivedir}/plots
 
 # Function to copy arg1 all files matching arg2
 copyfiles () {
    for file in $2; do
       if [ -e $file ]; then
          echo "-> $1/$file"
-         cp -t $1 $file
+         cp -tv $1 $file
       else
          echo "Warning: $file not found"
       fi
