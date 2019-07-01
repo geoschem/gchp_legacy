@@ -327,11 +327,12 @@ replace_val CoresPerNode  ${NUM_CORES_PER_NODE} HISTORY.rc
 echo " "
 echo "Cubed-sphere resolution:"
 CS_RES_x_6=$((CS_RES*6))
-replace_val IM        ${CS_RES}                     GCHP.rc
-replace_val JM        ${CS_RES_x_6}                 GCHP.rc
-replace_val npx       ${CS_RES}                     fvcore_layout.rc
-replace_val npy       ${CS_RES}                     fvcore_layout.rc
-replace_val GRIDNAME  PE${CS_RES}x${CS_RES_x_6}-CF  GCHP.rc
+replace_val GCHP.IM_WORLD  ${CS_RES}                     GCHP.rc
+replace_val GCHP.IM        ${CS_RES}                     GCHP.rc
+replace_val GCHP.JM        ${CS_RES_x_6}                 GCHP.rc
+replace_val npx            ${CS_RES}                     fvcore_layout.rc
+replace_val npy            ${CS_RES}                     fvcore_layout.rc
+replace_val GCHP.GRIDNAME  PE${CS_RES}x${CS_RES_x_6}-CF  GCHP.rc
 
 ####  set input restart filename
 echo " "
