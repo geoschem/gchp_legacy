@@ -34,6 +34,9 @@ module GIGC_GridCompMod
   use AdvCore_GridCompMod, only : AtmosAdvSetServices  => SetServices
   use GEOS_ctmEnvGridComp, only : EctmSetServices      => SetServices
 
+  ! ewl debugging
+  use MAPL_MemUtilsMod
+
   implicit none
   private
 
@@ -339,7 +342,10 @@ contains
    integer                             :: I, L
    integer                             :: IM, JM, LM
    real                                :: DT
-  
+
+   ! ewl debugging
+   type (ESMF_VM) :: vm
+
 !=============================================================================
 
 ! Begin... 
@@ -350,6 +356,11 @@ contains
     call ESMF_GridCompGet ( GC, name=COMP_NAME, config=CF, RC=STATUS )
     VERIFY_(STATUS)
     Iam = trim(COMP_NAME) // "::" // Iam
+
+    ! ewl debugging: print memory usage
+    call ESMF_VmGetCurrent(VM, rc=status)
+    call ESMF_VMBarrier(vm, rc = status)
+    call MAPL_MemUtilsWrite(VM, 'GIGC:Run:start', RC=STATUS )
 
     ! Get my internal MAPL_Generic state
     !-----------------------------------
@@ -382,6 +393,11 @@ contains
 
     ! Cinderella Component: to derive variables for other components
     !---------------------
+
+    ! ewl debugging: print memory usage
+    call ESMF_VMBarrier(vm, rc = status)
+    call MAPL_MemUtilsWrite(VM, 'GIGC:Run:before GEOS_ctmEnv', RC=STATUS )
+
     call MAPL_TimerOn ( STATE, GCNames(ECTM) )
     call ESMF_GridCompRun ( GCS(ECTM),               &
                             importState = GIM(ECTM), &
@@ -389,6 +405,10 @@ contains
                             clock       = CLOCK,     &
                             userRC      = STATUS  )
     VERIFY_(STATUS)
+
+    ! ewl debugging: print memory usage
+    call ESMF_VMBarrier(vm, rc = status)
+    call MAPL_MemUtilsWrite(VM, 'GIGC:Run:after GEOS_ctmEnv', RC=STATUS )
 
     call MAPL_TimerOff( STATE, GCNames(ECTM) )
 
@@ -398,6 +418,11 @@ contains
     ! responsible for the pressure level edge arrays. It already has an internal
     ! switch ("AdvCore_Advection") which can be used to prevent any actual
     ! transport taking place by bypassing the advection calculation.
+
+    ! ewl debugging: print memory usage
+    call ESMF_VMBarrier(vm, rc = status)
+    call MAPL_MemUtilsWrite(VM, 'GIGC:Run:before FV3', RC=STATUS )
+
     call MAPL_TimerOn ( STATE, GCNames(ADV) )
     call ESMF_GridCompRun ( GCS(ADV),               &
                             importState = GIM(ADV), &
@@ -409,8 +434,17 @@ contains
     VERIFY_(STATUS)
     call MAPL_TimerOff( STATE, GCNames(ADV) )
 
+    ! ewl debugging: print memory usage
+    call ESMF_VMBarrier(vm, rc = status)
+    call MAPL_MemUtilsWrite(VM, 'GIGC:Run:after FV3', RC=STATUS )
+
     ! Chemistry
     !------------------
+
+    ! ewl debugging: print memory usage
+    call ESMF_VMBarrier(vm, rc = status)
+    call MAPL_MemUtilsWrite(VM, 'GIGC:Run:before GEOSCHEM', RC=STATUS )
+
     call MAPL_TimerOn ( STATE, GCNames(CHEM) )
     call ESMF_GridCompRun ( GCS(CHEM),               &
                             importState = GIM(CHEM), &
@@ -422,8 +456,16 @@ contains
     VERIFY_(STATUS)
     call MAPL_TimerOff(STATE,GCNames(CHEM))
 
+    ! ewl debugging: print memory usage
+    call ESMF_VMBarrier(vm, rc = status)
+    call MAPL_MemUtilsWrite(VM, 'GIGC:Run:after GEOSCHEM', RC=STATUS )
+
     call MAPL_TimerOff(STATE,"RUN")
     call MAPL_TimerOff(STATE,"TOTAL")
+
+    ! ewl debugging: print memory usage
+    call ESMF_VMBarrier(vm, rc = status)
+    call MAPL_MemUtilsWrite(VM, 'GIGC:Run:start', RC=STATUS )
 
     RETURN_(ESMF_SUCCESS)
 

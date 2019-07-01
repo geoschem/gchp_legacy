@@ -419,27 +419,27 @@ module MAPL_MemUtilsMod
     end if
 
     if (MAPL_MemUtilsMode == MAPL_MemUtilsModeBase) then
-       write(outString,'(a64,2es11.3)') &
+       write(outString,'(a64,2es16.8)') &
             'Mem/Swap Used (MB) at '//trim(text)//'=', gmem, gswap
        call WRITE_PARALLEL(trim(outString),format='(a132)')
     end if
 
     if (MAPL_MemUtilsMode == MAPL_MemUtilsModeFull) then
-       write(outString,'(a64,5es11.3)') &
+       write(outString,'(a64,5es16.8)') &
             'Memuse(MB) at '//trim(text)//'=', ghwm, gmax, gmin, gavg, gmax-gmax_save
        gmax_save = gmax
        call WRITE_PARALLEL(trim(outString),format='(a132)')
-       write(outString,'(a64,2es11.3)') &
+       write(outString,'(a64,2es16.8)') &
             'Mem/Swap Used (MB) at '//trim(text)//'=', gmem, gswap
        call WRITE_PARALLEL(trim(outString),format='(a132)')
-       write(outString,'(a64,2es11.3)') &
+       write(outString,'(a64,2es16.8)') &
             'CommitLimit/Committed_AS (MB) at '//trim(text)//'=', gcommitlimit, gcommitted_as
        call WRITE_PARALLEL(trim(outString),format='(a132)')
     end if
 
     if (MAPL_MemUtilsMode == MAPL_MemUtilsModeNode) then
        if (MAPL_AmNodeRoot) then
-          write(*,'(a64,i3,a2,es11.3)')'Memory use at '//trim(text)//' on node ',MAPL_MyNodeNum,': ',memused
+          write(*,'(a64,i3,a2,es16.8)')'Memory use at '//trim(text)//' on node ',MAPL_MyNodeNum,': ',memused
        end if
 
     end if

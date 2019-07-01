@@ -1048,9 +1048,19 @@ contains
     ! Run the ExtData Component
     ! --------------------------
 
+    ! ewl debugging: print memory
+    call ESMF_VMBarrier(this%vm, rc = status)
+    call MAPL_MemUtilsWrite(this%vm, 'MAPL_CapGridComp:cap%step:pre-ExtDataRun:', rc = status)
+    _VERIFY(status)
+
     call ESMF_GridCompRun(this%gcs(this%extdata_id), importState = this%child_imports(this%extdata_id), &
          exportState = this%child_exports(this%extdata_id), &
          clock = this%clock, userrc = status)
+    _VERIFY(status)
+
+    ! ewl debugging: print memory
+    call ESMF_VMBarrier(this%vm, rc = status)
+    call MAPL_MemUtilsWrite(this%vm, 'MAPL_CapGridComp:cap%step:post-ExtDataRun:', rc = status)
     _VERIFY(status)
 
     ! Call Record for intermediate checkpoint (if desired)
@@ -1062,11 +1072,21 @@ contains
          clock = this%clock_hist, userrc = status)
     _VERIFY(status)
 
+    ! ewl debugging: print memory
+    call ESMF_VMBarrier(this%vm, rc = status)
+    call MAPL_MemUtilsWrite(this%vm, 'MAPL_CapGridComp:cap%step:pre-GIGCRun:', rc = status)
+    _VERIFY(status)
+
     ! Run the Gridded Component
     ! --------------------------
     call ESMF_GridCompRun(this%gcs(this%root_id), importstate = this%child_imports(this%root_id), &
          exportstate = this%child_exports(this%root_id), &
          clock = this%clock, userrc = status)
+    _VERIFY(status)
+
+    ! ewl debugging: print memory
+    call ESMF_VMBarrier(this%vm, rc = status)
+    call MAPL_MemUtilsWrite(this%vm, 'MAPL_CapGridComp:cap%step:post-GIGCRun:', rc = status)
     _VERIFY(status)
 
     ! Synchronize for Next TimeStep
@@ -1157,10 +1177,21 @@ contains
     ! Call History Run for Output
     ! ---------------------------
 
+    ! ewl debugging: print memory
+    call ESMF_VMBarrier(this%vm, rc = status)
+    call MAPL_MemUtilsWrite(this%vm, 'MAPL_CapGridComp:cap%step:pre-HistoryRun:', rc = status)
+    _VERIFY(status)
+
     call ESMF_GridCompRun(this%gcs(this%history_id), importstate=this%child_imports(this%history_id), &
          exportstate = this%child_exports(this%history_id), &
          clock = this%clock_hist, userrc = status)
     _VERIFY(status)
+
+    ! ewl debugging: print memory
+    call ESMF_VMBarrier(this%vm, rc = status)
+    call MAPL_MemUtilsWrite(this%vm, 'MAPL_CapGridComp:cap%step:post-HistoryRun:', rc = status)
+    _VERIFY(status)
+
 
     _RETURN(ESMF_SUCCESS)
   end subroutine step

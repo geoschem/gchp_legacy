@@ -75,6 +75,9 @@ MODULE Chem_GridCompMod
   USE PHYSCONSTANTS
 #endif
 
+  ! ewl debugging
+  USE MAPL_MemUtilsMod
+
   IMPLICIT NONE
   PRIVATE
 !
@@ -2961,6 +2964,9 @@ CONTAINS
     ! First call?
     LOGICAL, SAVE                :: FIRST = .TRUE.
 
+    ! Objects
+    TYPE(ESMF_VM)                :: VM            ! ESMF VM object
+
     __Iam__('Run_')
 
     !=======================================================================
@@ -2969,6 +2975,11 @@ CONTAINS
 
     ! Are we on the root PET?
     am_I_Root = MAPL_Am_I_Root()
+
+    ! ewl debugging: print memory usage
+    call ESMF_VmGetCurrent(VM, rc=status)
+    call ESMF_VMBarrier(vm, rc = status)
+    call MAPL_MemUtilsWrite(VM, 'Chem:Run_:start', RC=STATUS )
 
     ! Set up traceback info
     CALL ESMF_GridCompGet( GC, name=compName, __RC__ )
@@ -3832,6 +3843,10 @@ CONTAINS
              second = 0
 #endif
 
+             ! ewl debugging: print memory usage
+             call ESMF_VMBarrier(vm, rc = status)
+             call MAPL_MemUtilsWrite(VM, 'Chem:Run_:pre-chunk_run', RC=STATUS )
+
              ! Run the GEOS-Chem column chemistry code for the given phase
              CALL GIGC_Chunk_Run( am_I_Root  = am_I_Root,  & ! Is this root PET?
                                   GC         = GC,         & ! Grid comp ref. 
@@ -3859,6 +3874,10 @@ CONTAINS
                                   __RC__                  )  ! Success or fail?
        
              CALL MAPL_TimerOff(STATE, "DO_CHEM")
+
+             ! ewl debugging: print memory usage
+             call ESMF_VMBarrier(vm, rc = status)
+             call MAPL_MemUtilsWrite(VM, 'Chem:Run_:post-chunk_run', RC=STATUS )
        
           ! Restart file does not exist:
           ELSE
@@ -4318,6 +4337,10 @@ CONTAINS
     HcoState%IMPORT   => NULL() 
     HcoState%EXPORT   => NULL()
 #endif
+
+    ! ewl debugging: print memory usage
+    call ESMF_VMBarrier(vm, rc = status)
+    call MAPL_MemUtilsWrite(VM, 'Chem:Run_:end', RC=STATUS )
 
     ! Successful return
     RETURN_(ESMF_SUCCESS)

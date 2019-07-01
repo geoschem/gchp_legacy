@@ -415,6 +415,10 @@ CONTAINS
     USE DIAG_MOD,           ONLY : AD21
     USE HCOI_GC_MAIN_MOD,   ONLY : HCOI_GC_WriteDiagn
 #endif
+
+    ! ewl debugging
+    USE MAPL_MemUtilsMod
+
 !
 ! !INPUT PARAMETERS:
 !
@@ -527,12 +531,20 @@ CONTAINS
     LOGICAL, SAVE                  :: LSETH2O_orig
 #endif
 
+    ! ewl debugging
+    TYPE(ESMF_VM)                  :: VM            ! ESMF VM object
+
     !=======================================================================
     ! GIGC_CHUNK_RUN begins here 
     !=======================================================================
 
     ! Error trap
     Iam = 'GIGC_CHUNK_RUN (gigc_chunk_mod.F90)'
+
+    ! ewl debugging: print memory usage
+    call ESMF_VmGetCurrent(VM, rc=status)
+    call ESMF_VMBarrier(vm, rc = status)
+    call MAPL_MemUtilsWrite(VM, 'gigc_chunk_run:start', RC=STATUS )
 
     ! Assume success
     RC = GC_SUCCESS
@@ -715,6 +727,10 @@ CONTAINS
     ! Call PBL quantities. Those are always needed
     CALL COMPUTE_PBL_HEIGHT( am_I_Root, State_Grid, State_Met, RC )
 
+    ! ewl debugging: print memory usage
+    call ESMF_VMBarrier(vm, rc = status)
+    call MAPL_MemUtilsWrite(VM, 'gigc_chunk_run:1', RC=STATUS )
+
     !=======================================================================
     ! Convert State_Chm%Species units to kg/kg dry
     !=======================================================================
@@ -776,6 +792,10 @@ CONTAINS
        IF (Input_Opt%LSETH2O) Input_Opt%LSETH2O = .FALSE.
     ENDIF
 
+    ! ewl debugging: print memory usage
+    call ESMF_VMBarrier(vm, rc = status)
+    call MAPL_MemUtilsWrite(VM, 'gigc_chunk_run:2', RC=STATUS )
+
 #if defined( MODEL_GEOS )
     ! GEOS-5 only: needed in GCHP?
     ! Compute the cosine of the solar zenith angle array:
@@ -796,6 +816,10 @@ CONTAINS
     CALL EMISSIONS_RUN( am_I_Root,  Input_Opt, State_Chm, State_Diag, &
                         State_Grid, State_Met, DoEmis, HCO_PHASE, RC  )
     ASSERT_(RC==GC_SUCCESS)
+
+    ! ewl debugging: print memory usage
+    call ESMF_VMBarrier(vm, rc = status)
+    call MAPL_MemUtilsWrite(VM, 'gigc_chunk_run:3', RC=STATUS )
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !!!                                PHASE 1 or -1                           !!!
@@ -821,6 +845,10 @@ CONTAINS
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Convection done!'
     ENDIF   
 
+    ! ewl debugging: print memory usage
+    call ESMF_VMBarrier(vm, rc = status)
+    call MAPL_MemUtilsWrite(VM, 'gigc_chunk_run:4', RC=STATUS )
+
     !=======================================================================
     ! 2. Dry deposition
     !
@@ -841,6 +869,10 @@ CONTAINS
        CALL MAPL_TimerOff( STATE, 'GC_DRYDEP' )
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Drydep done!'
     ENDIF
+
+    ! ewl debugging: print memory usage
+    call ESMF_VMBarrier(vm, rc = status)
+    call MAPL_MemUtilsWrite(VM, 'gigc_chunk_run:5', RC=STATUS )
 
     !=======================================================================
     ! 3. Emissions (HEMCO)
@@ -893,6 +925,10 @@ CONTAINS
                                  ' --- Fluxes applied to tracers!' 
     ENDIF ! Tendencies 
 
+    ! ewl debugging: print memory usage
+    call ESMF_VMBarrier(vm, rc = status)
+    call MAPL_MemUtilsWrite(VM, 'gigc_chunk_run:6', RC=STATUS )
+
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !!!                              PHASE 2 or -1                             !!!
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -919,6 +955,10 @@ CONTAINS
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Turbulence done!'
     ENDIF
 
+    ! ewl debugging: print memory usage
+    call ESMF_VMBarrier(vm, rc = status)
+    call MAPL_MemUtilsWrite(VM, 'gigc_chunk_run:7', RC=STATUS )
+
     ! Set tropospheric CH4 concentrations and fill species array with
     ! current values. 
 #if defined( MODEL_GEOS )
@@ -933,6 +973,10 @@ CONTAINS
                       State_Grid, State_Met, RC )
        ASSERT_(RC==GC_SUCCESS)
     ENDIF
+
+    ! ewl debugging: print memory usage
+    call ESMF_VMBarrier(vm, rc = status)
+    call MAPL_MemUtilsWrite(VM, 'gigc_chunk_run:8', RC=STATUS )
 
     !=======================================================================
     ! 5. Chemistry
@@ -963,6 +1007,10 @@ CONTAINS
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Chemistry done!'
     ENDIF
 
+    ! ewl debugging: print memory usage
+    call ESMF_VMBarrier(vm, rc = status)
+    call MAPL_MemUtilsWrite(VM, 'gigc_chunk_run:9', RC=STATUS )
+
     !=======================================================================
     ! 6. Wet deposition
     !=======================================================================
@@ -978,6 +1026,10 @@ CONTAINS
        CALL MAPL_TimerOff( STATE, 'GC_WETDEP' )
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Wetdep done!'
     ENDIF
+
+    ! ewl debugging: print memory usage
+    call ESMF_VMBarrier(vm, rc = status)
+    call MAPL_MemUtilsWrite(VM, 'gigc_chunk_run:10', RC=STATUS )
 
     !=======================================================================
     ! Diagnostics 
@@ -1015,6 +1067,10 @@ CONTAINS
     ENDIF
 #endif
 
+    ! ewl debugging: print memory usage
+    call ESMF_VMBarrier(vm, rc = status)
+    call MAPL_MemUtilsWrite(VM, 'gigc_chunk_run:11', RC=STATUS )
+
     if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Do diagnostics now'
     CALL MAPL_TimerOn( STATE, 'GC_DIAGN' )
 
@@ -1041,6 +1097,10 @@ CONTAINS
     CALL Convert_Spc_Units ( am_I_Root, Input_Opt, State_Chm, State_Grid, &
                              State_Met, OrigUnit, RC )
 
+    ! ewl debugging: print memory usage
+    call ESMF_VMBarrier(vm, rc = status)
+    call MAPL_MemUtilsWrite(VM, 'gigc_chunk_run:12', RC=STATUS )
+
 #if defined( MODEL_GEOS )
     ! Save specific humidity and dry air mass for total mixing ratio 
     ! adjustment in next timestep, if needed (ewl, 11/8/18)
@@ -1056,6 +1116,10 @@ CONTAINS
 
     ! First call is done
     FIRST = .FALSE.
+
+    ! ewl debugging: print memory usage
+    call ESMF_VMBarrier(vm, rc = status)
+    call MAPL_MemUtilsWrite(VM, 'gigc_chunk_run:end', RC=STATUS )
 
     ! Return success
     RC = GC_SUCCESS

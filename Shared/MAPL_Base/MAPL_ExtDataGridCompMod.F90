@@ -47,6 +47,9 @@
    use MAPL_ErrorHandlingMod
    use MAPL_ServerManagerMod
 
+   ! ewl debugging
+   use MAPL_MemUtilsMod
+
    IMPLICIT NONE
    PRIVATE
 !
@@ -1295,7 +1298,6 @@ CONTAINS
    call ESMF_GridCompGet( GC, name=comp_name, __RC__ )
    Iam = trim(comp_name) // '::' // trim(Iam)
 
-
 !  Call Run for every Child
 !  -------------------------
 !ALT   call MAPL_GenericRunChildren ( GC, IMPORT, EXPORT, CLOCK,  __RC__)
@@ -1591,7 +1593,6 @@ CONTAINS
       Write(*,*) 'ExtData Run_: READ_LOOP: Done'
    ENDIF
 
-
    bundle_iter = IOBundles%begin()
    do while (bundle_iter /= IoBundles%end())
       io_bundle => bundle_iter%get()
@@ -1618,7 +1619,14 @@ CONTAINS
    _VERIFY(status)
    call MAPL_TimerOff(MAPLSTATE,"---CreateCFIO")
 
+   ! ewl debugging: Get vm to retrieve and print memory
+   call ESMF_VmGetCurrent(VM, rc=status)
+
    if (self%prefetch) then
+      ! ewl debugging: print memory usage
+      call ESMF_VMBarrier(vm, rc = status)
+      call MAPL_MemUtilsWrite(VM, 'ExtData:Run_:before Prefetch', RC=STATUS )
+
       call MAPL_TimerOn(MAPLSTATE,"---prefetch")
       call MAPL_ExtDataPrefetch(IOBundles,self%BlockSize,MAPLSTATE, rc=status)
       _VERIFY(status)
@@ -1630,19 +1638,50 @@ CONTAINS
 
       call MAPL_TimerOff(MAPLSTATE,"---IclientDone")
       _VERIFY(STATUS)
+
+      ! ewl debugging: print memory usage 
+      call ESMF_VMBarrier(vm, rc = status)
+      call MAPL_MemUtilsWrite(VM, 'ExtData:Run_:after Prefetch', RC=STATUS )
    end if
-  
+
    if (self%prefetch) then
+      ! ewl debugging: print memory usage
+      call ESMF_VMBarrier(vm, rc = status)
+      call MAPL_MemUtilsWrite(VM, 'ExtData:Run_:before ReadPrefetch',RC=STATUS)
+
       call MAPL_TimerOn(MAPLSTATE,"---read-prefetch")
       call MAPL_ExtDataReadPrefetch(IOBundles,self%BlockSize,MAPLSTATE,rc=status) 
       _VERIFY(status)
       call MAPL_TimerOff(MAPLSTATE,"---read-prefetch")
+
+      ! ewl debugging: print memory usage
+      call ESMF_VMBarrier(vm, rc = status)
+      call MAPL_MemUtilsWrite(VM, 'ExtData:Run_:after ReadPrefetch',RC=STATUS)
    else
+      ! ewl debugging: print memory usage
+      call ESMF_VMBarrier(vm, rc = status)
+      call MAPL_MemUtilsWrite(VM, 'ExtData:Run_:before ParallelRead',RC=STATUS)
+
       call MAPL_ExtDataParallelRead(IOBundles,self%blocksize,rc=status)
       _VERIFY(status)
+
+      ! ewl debugging: print memory usage
+      call ESMF_VMBarrier(vm, rc = status)
+      call MAPL_MemUtilsWrite(VM,'ExtData:Run_:after ParallelRead',RC=STATUS)
+
       if (self%distributed_trans) then
+         ! ewl debugging: print memory usage
+         call ESMF_VMBarrier(vm, rc = status)
+         call MAPL_MemUtilsWrite(VM,'ExtData:Run_:before SerialRead',RC=STATUS)
+
          call MAPL_ExtDataSerialRead(IOBundles,self%ignorecase,__RC__)
+
+         ! ewl debugging: print memory usage
+         call ESMF_VMBarrier(vm, rc = status)
+         call MAPL_MemUtilsWrite(VM,'ExtData:Run_:after SerialRead',RC=STATUS)
+
       end if
+
    end if
    _VERIFY(status)
    call MAPL_TimerOff(MAPLSTATE,"--PRead")
@@ -4928,6 +4967,11 @@ CONTAINS
 !!$     allocate(slices(blocksize),psize(blocksize),root(blocksize),reading(blocksize),stat=status)
 !!$     _VERIFY(STATUS)
 
+     ! ewl debugging
+     if ( mapl_am_i_root() .and. nfiles > 0 ) then
+        write (*,'(a,i4,a)') 'Calling MAPL_CFIOReadBundlePrefetch in loop over ', nfiles, ' files'
+     endif
+
      do n = 1, nfiles
         io_bundle => IOBundles%at(n)
         call MAPL_CFIOReadBundlePrefetch(io_bundle%cfio, io_bundle%time_index, io_bundle%template, state=state, init=init, rc=status)
@@ -4953,8 +4997,13 @@ CONTAINS
      type (ExtData_IoBundle), pointer :: io_bundle
      __Iam__('MAPL_ExtDataReadPrefetch')
 
-
      nfiles = IOBundles%size()
+
+     ! ewl debugging
+     if ( mapl_am_i_root() .and. nfiles > 0 ) then
+        write (*,'(a,i4,a)') 'Regridding data in loop over ', nfiles, ' files'
+     endif
+
      do n=1, nfiles
         io_bundle => IOBundles%at(n)
         call MAPL_CFIOReadBundleReadPrefetch(io_bundle%cfio,state=state,rc=status)
