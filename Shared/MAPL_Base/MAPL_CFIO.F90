@@ -5505,6 +5505,13 @@ CONTAINS
       end do
     call MAPL_TimerOff(state,"----request")
        
+    ! ewl debugging
+    if ( allocated(start) ) deallocate(start)
+    if ( allocated(global_start) ) deallocate(global_start)
+    if ( allocated(global_count) ) deallocate(global_count)
+ 
+    ! ewl debugging: do I need to nullify variable?
+    nullify(variable)
 
       _RETURN(ESMF_SUCCESS)
 
@@ -5541,15 +5548,18 @@ CONTAINS
     cfiop => collection%find(trim(mcfio%fname))
 
     if (present(state)) call MAPL_TimerOn(state,"----RegridStore")
+    ! ewl debugging: try turning off regridding? regridder made here.
     mcfio%new_regridder => make_esmf_regridder(mcfio, rc=status)
     _VERIFY(status)
     if (present(state)) call MAPL_TimerOff(state,"----RegridStore")
 
     if (present(state)) call MAPL_TimerOn(state,"----RegridApply")
+    ! ewl debugging: try turning off regridding? regrid data here.
     call regrid_data(mcfio, rc=status)
     _VERIFY(status)
     if (present(state)) call MAPL_TimerOff(state,"----RegridApply")
 
+    ! ewl: do any other parts of mcfio need deallocation? eg. regridder?
     deallocate(mcfio%variables, stat=status)
     _VERIFY(status)
 

@@ -750,6 +750,10 @@ contains
       _VERIFY(STATUS)
       DEALLOCATE( BK ,stat=STATUS )
       _VERIFY(STATUS)
+      DEALLOCATE( AK_r8 ,stat=STATUS )
+      _VERIFY(STATUS)
+      DEALLOCATE( BK_r8 ,stat=STATUS )
+      _VERIFY(STATUS)
 
       call MAPL_TimerOff(MAPL,"RUN")
       call MAPL_TimerOff(MAPL,"TOTAL")
