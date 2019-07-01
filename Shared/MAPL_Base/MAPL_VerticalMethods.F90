@@ -356,7 +356,8 @@ module MAPL_VerticalDataMod
                  call metadata%add_variable('lev',v,rc=status)
               end if
 
-           else if (this%regrid_type == VERTICAL_METHOD_ETA2LEV) then
+           else if (this%regrid_type == VERTICAL_METHOD_ETA2LEV .or. &
+                    this%regrid_type == VERTICAL_METHOD_SELECT) then
               call metadata%add_dimension('lev', size(this%levs), rc=status)
               v = Variable(PFIO_REAL64, dimensions='lev')
               call v%add_attribute('long_name','vertical level')
