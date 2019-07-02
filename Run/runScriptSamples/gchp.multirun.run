@@ -10,6 +10,19 @@
 #SBATCH -o slurm.%j.out
 #SBATCH -e slurm.%j.err
 
+# Resource request tips: 
+#  (1) Use #SBATCH -n 6 to request 6 cores total across all nodes
+#  (2) Use #SBATCH --exclusive to prevent other users from sharing nodes in use
+#      (ability to use --exclusive may be disabled on some clusters)
+#  (3) Use --mem=50G to request 50 Gigabytes per node, 
+#      or use --mem=MaxMemPerNode to request all memory per node
+#  (4) Performance is enhanced by requesting entire nodes and all memory
+#      even if GCHP is run on fewer cores per node than available.
+#
+# See SLURM documentation for descriptions of all possible settings.
+# Type 'man sbatch' at the command prompt to browse documentation.
+
+#-------------------------------------------------------------------------
 # Initial version: Lizzie Lundgren, 7/12/2018
 
 # This run script is for use within gchp.multirun.sh which submits 

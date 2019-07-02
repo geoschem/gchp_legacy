@@ -8,9 +8,17 @@
 #SBATCH --mem=MaxMemPerNode
 #SBATCH --mail-type=ALL
 
-# See SLURM documentation for descriptions of the above settings as well
-# as many other settings you may use. For best performance, request all
-# memory per node using --mem=MaxMemPerNode.
+# Resource request tips: 
+#  (1) Use #SBATCH -n 6 to request 6 cores total across all nodes
+#  (2) Use #SBATCH --exclusive to prevent other users from sharing nodes in use
+#      (ability to use --exclusive may be disabled on some clusters)
+#  (3) Use --mem=50G to request 50 Gigabytes per node, 
+#      or use --mem=MaxMemPerNode to request all memory per node
+#  (4) Performance is enhanced by requesting entire nodes and all memory
+#      even if GCHP is run on fewer cores per node than available.
+#
+# See SLURM documentation for descriptions of all possible settings.
+# Type 'man sbatch' at the command prompt to browse documentation.
 
 # Define GEOS-Chem log file
 log="gchp.log"
