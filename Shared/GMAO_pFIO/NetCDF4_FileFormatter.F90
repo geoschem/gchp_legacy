@@ -870,7 +870,9 @@ contains
             call cf%add_attribute(trim(attr_name), str)
             deallocate(str)
          case default
-            _RETURN(_FAILURE)
+            ! Assume this will throw a failure later if the attribute is actually needed
+            call cf%add_attribute(trim(attr_name), 'MANGLED ATTRIBUTE')
+            !_RETURN(_FAILURE)
          end select
             
       end do
