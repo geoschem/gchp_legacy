@@ -9,176 +9,100 @@
 #------------------------------------------------
 #   Compute Resources
 #------------------------------------------------
+# Set number of cores, number of nodes, and number of cores per node.
+# Cores per node should be number of cores divided by number of nodes.
+# Make sure you have these resources available.
+TOTAL_CORES={TotalCores}
+NUM_NODES={NumNodes}
+NUM_CORES_PER_NODE={NumCoresPerNode}
+
 # Cores are distributed across each of the six cubed sphere faces using
-# NX and NY set below. Each face is divided into NX by NY/6 regions 
-# and each of those regions is processed by a single core independent of
-# which node it belongs to.
+# configurable parameters NX and NY. Each face is divided into NX by NY/6
+# regions and each of those regions is processed by a single core 
+# independent of which node it belongs to.
 #
-# Rules for setting NX and NY:
+# Set NXNY_AUTO to either auto-calculate NX and NY (ON) (recommended)
+# or set them manually (OFF).
+NXNY_AUTO=ON
+
+# Rules and tips for setting NX and NY manually (NXNY_AUTO=OFF):
 #   1. NY must be an integer and a multiple of 6	  
-#   2. NX*NY must equal total number of cores		  
+#   2. NX*NY must equal total number of cores (NUM_NODES*NUM_CORES_PER_NODE)
 #   3. Choose NX and NY to optimize NX x NY/6 squareness 
-#      within contraint of total # of CPUs		  
-#      e.g., (NX=2,NY=12) if 24 cores, (NX=4,NY=12) if 48
-#
-# Make sure your settings here match the resources you request on your
-# cluster in your run script!!!
-NUM_NODES=3
-NUM_CORES_PER_NODE=16
-NY=12
-NX=4
+#         Good examples: (NX=4,NY=24)  -> 96  cores at 4x4
+#                        (NX=6,NY=24)  -> 144 cores at 6x4
+#         Bad examples:  (NX=8,NY=12)  -> 96  cores at 8x2
+#                        (NX=12,NY=12) -> 144 cores at 12x2
+NX=1 # Ignore if NXNY_AUTO=ON
+NY=6 # Ignore if NXNY_AUTO=ON
 
 #------------------------------------------------
 #   Internal Cubed Sphere Resolution
 #------------------------------------------------
-CS_RES=48    # 24 ~ 4x5, 48 ~ 2x2.5, 90 ~ 1x1.25, 180 ~ 1/2 deg, 360 ~ 1/4 deg
+CS_RES={GridRes} # 24 ~ 4x5, 48 ~ 2x2.5, 90 ~ 1x1.25, 180 ~ 1/2 deg, 360 ~ 1/4 deg
 
 #------------------------------------------------
-#    Initial Restart File
+#    Debug Options
 #------------------------------------------------
-# By default the linked restart files in the run directories will be 
-# used. Please note that HEMCO restart variables are stored in the same
-# restart file as species concentrations. Initial restart files available 
-# on gcgrid do not contain HEMCO variables which will have the same effect
-# as turning the HEMCO restart file option off in GC classic. However, all 
-# output restart files will contain HEMCO restart variables for your next run.
-INITIAL_RESTART=initial_GEOSChem_rst.c${CS_RES}_{SIMULATION}.nc
-
-# You can specify a custom initial restart file here to overwrite:
-# INITIAL_RESTART=your_restart_filename_here
-
-#------------------------------------------------
-#    Output Restart Files
-#------------------------------------------------
-# You can output restart files at regular intervals throughout your 
-# simulation. Unlike the end restart file, which is always produced, the
-# regularly output restart files (also called checkpoint files) will contain
-# the date and time in their filename. To configure output restart file
-# frequency, set the variable below to a string of format HHmmSS. More than 
-# 2 digits for the hours string is permitted (e.g. 1680000 for 7 days).
-# Setting the frequency to 0 will effectively turn off this feature by setting
-# the frequency to a very large number.
-Checkpoint_Freq="0"
-
-#------------------------------------------------
-#    Turn Components On/Off
-#------------------------------------------------
-# Automatically turns on/off GEOS-Chem components in input.geos
-Turn_on_Chemistry=T
-Turn_on_emissions=T
-Turn_on_Dry_Deposition=T
-Turn_on_Wet_Deposition=T
-Turn_on_Transport=T
-Turn_on_Cloud_Conv=T
-Turn_on_PBL_Mixing=T
-Turn_on_Non_Local_Mixing=T
-
-#------------------------------------------------
-#    Timesteps
-#------------------------------------------------
-# ***IMPORTANT NOTE***
-# If changing timesteps, set read frequency of SPHU2, TMPU2, and PS2 in 
-# ExtData.rc to match the dynamic timestep (TransConv) set below based 
-# on the cubed sphere grid resolution (e.g. 30 minutes for c24, 10 minutes 
-# for c90, 5 minutes for c180+ )
+# Set MAPL debug flag to 0 for no extra MAPL debug log output, or 1 to
+# print information to log. Using this flag is most helpful for debugging
+# issues with file read (MAPL ExtData).
 #
-# Timestep recommendation based on grid resolution (uncomment if using, and
-# comment out the defaults set further down):
-#    if [[ $CS_RES -lt 90 ]]; then
-#        TransConv_Timestep_sec=1800
-#        ChemEmiss_Timestep_sec=3600
-#    elif [[ $CS_RES -lt 180 ]]; then
-#        TransConv_Timestep_sec=600
-#        ChemEmiss_Timestep_sec=1200
-#    else
-#        TransConv_Timestep_sec=300
-#        ChemEmiss_Timestep_sec=600
-#    fi
+# For GEOS-Chem debug prints, turn on ND70 in input.geos manually.       
 #
-# Default is same as GEOS-Chem Classic (comment out if using above instead):
-TransConv_Timestep_sec=600
-ChemEmiss_Timestep_sec=1200
+# WARNING: Turning on debug prints significantly slows down the model!
+#
+MAPL_DEBUG_LEVEL=0   
 
 #------------------------------------------------
 #    Simulation Start/End/Duration
 #------------------------------------------------
+# For single-segment runs, duration should be less than or equal to the
+# difference between start and end time. If end time is past start time
+# plus duration, the simulation will end at start time plus duration rather
+# than end time.
+#
 # Setting duration such that two or more durations can occur between start
-# and end will enable multi-segmented runs where subsequent job submissions
-# will automatically use the last generated restart file as the starting
-# point. The new start time is stored in output file cap_restart. Use this
-# feature in conjunction with the multi-segmented runs / monthly diagnostics
-# section below.
+# and end will enable multi-segmented runs. At the end of each run the 
+# end time is stored as the new start time in output file cap_restart.
+# Rerunning without removing or editing cap_restart will start at the
+# start time in cap_restart rather than the start time listed below. 
+# Use this feature with the multi-segmented runs / monthly diagnostics
+# section below. See more information about this on the GCHP wiki.
+#
 Start_Time="{DATE1} {TIME1}"
 End_Time="{DATE2} {TIME2}"
 Duration="{dYYYYMMDD} {dHHmmss}"
 
 #------------------------------------------------
-#    Number of Runs / Monthly Diagnostics
-#------------------------------------------------
-# The simplest run is a single segment. Use this option as follows:
-#   1. Copy gchp.run from runScriptSamples/ to this directory
-#   1. Use or adapt gchp.run as your run script
-#   2. Set duration above to the difference between start and end
-#   3. Set Num_Runs below to 1
-#   4. Set Monthly_Diag below to 0 (off)
-#
-# For long runs it is advantageous to split up your simulation into 
-# multiple jobs. Doing this also enables outputting monthly diagnostics.
-# Use this option as follows:
-#   1. Copy gchp.multirun.sh and gchp.multirun.run from runScriptSamples/
-#      to this directory
-#   2. Use or adapt gchp.multirun.sh to submit your jobs in one step
-#   3. Use or adapt gchp.multirun.run as your reusable run script
-#   4. Set duration above to the duration of each individual run
-#   5. Set end date sufficiently after start date to span all runs
-#   6. Set Num_Runs below to number runs total
-#   7. For monthly diagnostics, set Monthly_Diag to 1 (on); else set to 0 (off)
-#
-# If using monthly diagnostics, please note the following: 
-#   - Run segment duration must be 1-month (00000100 000000)
-#   - Start date must be within the first 28 days of the month
-#   - There is no need to set diag frequency and duration below
-#
-Num_Runs=1
-Monthly_Diag=0
-
-#------------------------------------------------
 #    Diagnostics
-#------------------------------------------------
-# You may set frequency, duration, and mode used for all default
-# GCHP diagnostics collections defined in HISTORY.rc below. These
-# metrics are defined as follows:
+#------------------------------------------------        
+# Frequency, duration, and mode used for all default HISTORY.rc diagnostic
+# collections are set from within this file. These are defined as:
 #
 #   Frequency = frequency of diagnostic calculation (HHmmSS)
 #   Duration  = frequency of diagnostic file  write (HHmmSS)
 #   Mode      = computation of diagnostics (time-averaged or instantaneous)
 #
-# Edit the common frequency, duration, and mode below, and browse
-# what collections will be updated to what in HISTORY.rc. Add more collections
-# or customize different collections' frequency, duration, and/or mode
-# as needed
+# Edit the frequency, duration, and mode below to change global settings.
+# See the list further below of what HISTORY.rc collections will be updated.
 # 
 # NOTES: 
-#  1. Freq/duration # of hours may exceed 2 digits, e.g. 7440000 for 31 days
-#  2. Frequency and duration are ignored if Monthly_Diag is set to 1
-#  3. Collections in HISTORY.rc not listed below are ignored
+#  1. Freq and duration hours may exceed 2 digits, e.g. 7440000 for 31 days
+#  2. Freq and duration are ignored if Monthly_Diag is set to 1
+#  3. If you do not want settings for certain collections set automatically
+#     from this file, comment them out below.
+#  4. If you add a collection to HISTORY.rc and want its settings
+#     automatically updated from this file, add to the list below.
+#  5. To turn off collections completely, comment them out in HISTORY.rc.
 #
-common_freq="7440000"
-common_dur="7440000"
-common_mode="'time-averaged'"
+common_freq="{DiagFreq}"          # Ignore if using multi-run monthly diag option
+common_dur="{DiagDur}"           # Ignore if using multi-run monthly diag option
+common_mode="'time-averaged'" # "'time-averaged'" and "'instantaneous'"
 
-# Diagnostics enabled in benchmark simulation by default
 SpeciesConc_freq=${common_freq}
 SpeciesConc_dur=${common_dur}
 SpeciesConc_mode=${common_mode}
-StateMet_avg_freq=${common_freq}
-StateMet_avg_dur=${common_dur}
-StateMet_avg_mode=${common_mode}
-StateMet_inst_freq=${common_freq}
-StateMet_inst_dur=${common_dur}
-StateMet_inst_mode="'instantaneous'"
-
-# Other diagnostics (edit/add more as needed for convenience)
 AerosolMass_freq=${common_freq}
 AerosolMass_dur=${common_dur}
 AerosolMass_mode=${common_mode}
@@ -218,6 +142,15 @@ RadioNuclide_mode=${common_mode}
 StateChm_freq=${common_freq}
 StateChm_dur=${common_dur}
 StateChm_mode=${common_mode}
+StateMet_avg_freq=${common_freq}
+StateMet_avg_dur=${common_dur}
+StateMet_avg_mode=${common_mode}
+StateMet_inst_freq=${common_freq}
+StateMet_inst_dur=${common_dur}
+StateMet_inst_mode="'instantaneous'"
+Transport_freq=${common_freq}
+Transport_dur=${common_dur}
+Transport_mode="'instantaneous'"
 WetLossConv_freq=${common_freq}
 WetLossConv_dur=${common_dur}
 WetLossConv_mode=${common_mode}
@@ -226,17 +159,104 @@ WetLossLS_dur=${common_dur}
 WetLossLS_mode=${common_mode}
 
 #------------------------------------------------
-#    Debug Options
+#    Initial Restart File
 #------------------------------------------------
-# Set MAPL debug flag to 0 for no MAPL debug log output. Increase
-# amount of output to log by increasing value up to 20. Using this
-# flag is most helpful for debugging issues with file read (MAPL ExtData).
+# By default the linked restart files in the run directories will be 
+# used. Please note that HEMCO restart variables are stored in the same
+# restart file as species concentrations. Initial restart files available 
+# on gcgrid do not contain HEMCO variables which will have the same effect
+# as turning the HEMCO restart file option off in GC classic. However, all 
+# output restart files will contain HEMCO restart variables for your next run.
+INITIAL_RESTART=initial_GEOSChem_rst.c${CS_RES}_{SIMULATION}.nc
+
+# You can specify a custom initial restart file here to overwrite:
+# INITIAL_RESTART=your_restart_filename_here
+
+#------------------------------------------------
+#    Output Restart Files
+#------------------------------------------------
+# You can output restart files at regular intervals throughout your 
+# simulation. Unlike the end restart file, which is always produced, the
+# regularly output restart files (also called checkpoint files) will contain
+# the date and time in their filename. To configure output restart file
+# frequency, set the variable below to a string of format HHmmSS. More than 
+# 2 digits for the hours string is permitted (e.g. 1680000 for 7 days).
+# Setting the frequency to 0 will effectively turn off this feature by setting
+# the frequency to a very large number.
+Checkpoint_Freq="0"
+
+#------------------------------------------------
+#    Turn Components On/Off
+#------------------------------------------------
+# Automatically turns on/off GEOS-Chem components in input.geos.
 #
-# Auto update of ND70 (GC log debug output) is not available. Turn on 
-# ND70 in input.geos manually.       
+# WARNING: these settings will override manual updates you make to input.geos!
 #
-# Beware that turning on debug prints significantly slows down the model!
-MAPL_DEBUG_LEVEL=0   
+Turn_on_Chemistry=T
+Turn_on_emissions=T
+Turn_on_Dry_Deposition=T
+Turn_on_Wet_Deposition=T
+Turn_on_Transport=T
+Turn_on_Cloud_Conv=T
+Turn_on_PBL_Mixing=T
+Turn_on_Non_Local_Mixing=T
+
+#------------------------------------------------
+#    Timesteps
+#------------------------------------------------
+# Default timesteps are same as GEOS-Chem Classic
+#
+# WARNING: these settings will override manual updates you make to input.geos!
+#
+TransConv_Timestep_sec=600
+ChemEmiss_Timestep_sec=1200
+#
+# ***IMPORTANT NOTES***
+# If changing timesteps, set read frequency of SPHU2, TMPU2, and PS2 in 
+# ExtData.rc to match the dynamic timestep.
+#
+# Optimal timesteps are dependent on grid resolution. The GCHP Working Group's
+# recommendation based on grid resolution is as follows. To enable 
+# auto-setting of timesteps based on the recommendation, uncomment the 
+# code below:
+#    if [[ $CS_RES -lt 90 ]]; then
+#        TransConv_Timestep_sec=1800
+#        ChemEmiss_Timestep_sec=3600
+#    elif [[ $CS_RES -lt 180 ]]; then
+#        TransConv_Timestep_sec=600
+#        ChemEmiss_Timestep_sec=1200
+#    else
+#        TransConv_Timestep_sec=300
+#        ChemEmiss_Timestep_sec=600
+#    fi
+
+# The simplest run is a single segment. Use this option as follows:
+#   1. Copy gchp.run or gchp.local.run from runScriptSamples/ to run directory
+#   1. Use or adapt the *.run file as your run script
+#   2. Set duration above to the difference between start and end
+#   3. Set Num_Runs below to 1
+#   4. Set Monthly_Diag below to 0 (off)
+#
+# For long runs it is advantageous to split up your simulation into 
+# multiple jobs. Doing this also enables outputting monthly diagnostics.
+# Use this option as follows:
+#   1. Copy gchp.multirun.sh and gchp.multirun.run from runScriptSamples/
+#      to run directory
+#   2. Use or adapt gchp.multirun.sh to submit your jobs in one step
+#   3. Use or adapt gchp.multirun.run as your reusable run script
+#   4. Set duration above to the duration of each individual run
+#   5. Set end date sufficiently after start date to span all runs
+#   6. Set Num_Runs below to the total number of runs
+#   7. For monthly diagnostics, set Monthly_Diag to 1 (on); else set to 0 (off)
+#
+# If using monthly diagnostics, please note the following: 
+#   - Run segment duration must be 1-month (00000100 000000)
+#   - Start date must be within the first 28 days of the month
+#   - There is no need to set diag frequency and duration in this file
+#     since they will be calculated for each run based on days in the month
+#
+Num_Runs=1
+Monthly_Diag=0
 
 ##########################################################
 ##########################################################
@@ -244,40 +264,51 @@ MAPL_DEBUG_LEVEL=0
 ##########################################################
 ##########################################################
 
-###   Stop if settings not compatible   ###
-# Give relevant warnings about timesteps in input.geos.
-# Give warnings about CS resolution and timestep compatibility
-# Issue any other warnings/errors regarding input.geos and/or run settings
-# check that the transport settins are consistent
-
-#### Give error if that chem timestep is < dynamic timestep
-if [[ ${ChemEmiss_Timestep_sec} -lt ${TransConv_Timestep_sec} ]]; then
-    echo "ERROR: chemistry timestep must be >= dynamic timestep. Update values in runConfig.sh."
-    exit 1
+#### Check that resource allocation makes sense
+if (( $TOTAL_CORES%6 != 0 )); then
+   echo "ERROR: TOTAL_CORES must be divisible by 6. Update value in runConfig.sh."
+   exit 1    
+fi
+if (( $TOTAL_CORES != $NUM_NODES*$NUM_CORES_PER_NODE )); then
+   echo "ERROR: TOTAL_CORES must equal to NUM_NODES times NUM_CORES_PER_NODE. Update values in runConfig.sh."
+   exit 1    
 fi
 
-#### Check that NX*NY is equal to number of cores
-num_cores=$((  ))
-if (( $NX*$NY > $NUM_NODES*$NUM_CORES_PER_NODE )); then
-    echo "ERROR: NX*NY must not exceed number of nodes times cores per node. Update values in runConfig.sh."
-    exit 1    
-fi
-if (( $NX*$NY < $NUM_NODES*$NUM_CORES_PER_NODE )); then
-    echo "ERROR: NX*NY must equal number of nodes times cores per node. Update values in runConfig.sh."
-    exit 1    
+#### If on, auto-calculate NX and NY to maximize squareness of core regions
+if [[ ${NXNY_AUTO} == 'ON' ]]; then
+   Z=$(( $NUM_NODES*$NUM_CORES_PER_NODE/6 ))
+   SQRT=$(echo "sqrt ($Z)" | bc -l)  
+   N=$(echo $SQRT | awk '{print int($1+0.999)}') 
+   while [ N > 0 ]; do
+      if (( $Z%N == 0 )); then
+         NX=$N
+         NY=$(($Z/$N*6))
+         break
+      else
+         N=$(($N-1))
+      fi
+   done
 fi
 
-#### Check that NY is divisible by 6
+#### Check that NX and NY make sense
+if (( $NX*$NY != $TOTAL_CORES )); then
+   echo "ERROR: NX*NY must equal TOTAL_CORES. Check values in runConfig.sh."
+   exit 1    
+fi
 if (( $NY%6 != 0 )); then
-    echo "ERROR: NY must be an integer divisible by 6. Update value in runConfig.sh."
-    exit 1    
+   echo "ERROR: NY must be an integer divisible by 6. Check values in runConfig.sh."
+   exit 1    
 fi
 
 #### Check if domains are square enough (NOTE: approx using integer division)
-domain_ratio1=$(( $NX*6/$NY )) 
-domain_ratio2=$(( $NY/$NX/6 ))
-if [[ $(( $domain_ratio1*2 )) -ge 5 || $(( $domain_ratio2*2 )) -ge 5 ]] ; then
-    echo "WARNING: NX and NY are set such that NX x NY/6 is not square (side ratio >= 2.5). Consider adjusting to be square to avoid negative effects due to excessive communication between cores."
+if [[ $(( $NX*6/$NY*2 )) -ge 5 || $(( $NY/$NX/6*2 )) -ge 5 ]] ; then
+    echo "WARNING: NX and NY are set such that NX x NY/6 has side ratio >= 2.5. Consider adjusting resources in runConfig.sh to be more square. This will avoid negative effects due to excessive communication between cores."
+fi
+
+#### Give error if chem timestep is < dynamic timestep
+if [[ ${ChemEmiss_Timestep_sec} -lt ${TransConv_Timestep_sec} ]]; then
+    echo "ERROR: chemistry timestep must be >= dynamic timestep. Update values in runConfig.sh."
+    exit 1
 fi
 
 ## Check if restart file exists
@@ -404,6 +435,9 @@ replace_val RadioNuclide.mode          ${RadioNuclide_mode}     HISTORY.rc
 replace_val StateChm.frequency         ${StateChm_freq}	        HISTORY.rc
 replace_val StateChm.duration          ${StateChm_dur}	        HISTORY.rc
 replace_val StateChm.mode              ${StateChm_mode}	        HISTORY.rc
+replace_val Transport.frequency        ${Transport_freq}	HISTORY.rc
+replace_val Transport.duration         ${Transport_dur}	        HISTORY.rc
+replace_val Transport.mode             ${Transport_mode}	HISTORY.rc
 replace_val WetLossConv.frequency      ${WetLossConv_freq}      HISTORY.rc
 replace_val WetLossConv.duration       ${WetLossConv_dur}       HISTORY.rc
 replace_val WetLossConv.mode           ${WetLossConv_mode}      HISTORY.rc

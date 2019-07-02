@@ -223,6 +223,9 @@ mkdir -p ${rundir}
 #-----------------------------------------------------------------
 # Copy run directory files and subdirectories
 #-----------------------------------------------------------------
+cp -r ./environmentFileSamples ${rundir} 
+cp -r ./OutputDir              ${rundir} 
+cp -r ./runScriptSamples       ${rundir}
 cp ./archiveRun.sh             ${rundir} 
 cp ./build.sh                  ${rundir} 
 cp ./fvcore_layout.rc          ${rundir} 
@@ -232,23 +235,14 @@ cp ./setCodeDir                ${rundir}
 cp ./setEnvironment            ${rundir}
 cp ./Makefile                  ${rundir}
 cp ./gitignore                 ${rundir}/.gitignore
-cp ./GCHP.rc_template          ${rundir}/GCHP.rc
-cp ./CAP.rc_template           ${rundir}/CAP.rc
-cp -r ./environmentFileSamples ${rundir} 
-cp -r ./OutputDir              ${rundir} 
-cp -r ./runScriptSamples       ${rundir}
-cp ./HISTORY.rc_templates/HISTORY.rc.${sim_name}            ${rundir}/HISTORY.rc
-cp ./input.geos_templates/input.geos.${sim_name}            ${rundir}/input.geos
-cp ./ExtData.rc_templates/ExtData.rc.${sim_type}            ${rundir}/ExtData.rc
-cp ./HEMCO_Config.rc_templates/HEMCO_Config.rc.${sim_type}  ${rundir}/HEMCO_Config.rc
-cp ./HEMCO_Diagn.rc_templates/HEMCO_Diagn.rc.${sim_name}    ${rundir}/HEMCO_Diagn.rc
-
-# Special runConfig.sh for benchmark simulation
-if [ "${sim_name}" == "benchmark" ]; then
-    cp ./runConfig.sh_templates/runConfig.sh_benchmark ${rundir}/runConfig.sh
-else
-    cp ./runConfig.sh_templates/runConfig.sh_generic   ${rundir}/runConfig.sh
-fi
+cp ./GCHP.rc.template          ${rundir}/GCHP.rc
+cp ./CAP.rc.template           ${rundir}/CAP.rc
+cp ./runConfig.sh.template     ${rundir}/runConfig.sh
+cp ./HISTORY.rc.templates/HISTORY.rc.${sim_name}            ${rundir}/HISTORY.rc
+cp ./input.geos.templates/input.geos.${sim_name}            ${rundir}/input.geos
+cp ./ExtData.rc.templates/ExtData.rc.${sim_type}            ${rundir}/ExtData.rc
+cp ./HEMCO_Config.rc.templates/HEMCO_Config.rc.${sim_type}  ${rundir}/HEMCO_Config.rc
+cp ./HEMCO_Diagn.rc.templates/HEMCO_Diagn.rc.${sim_name}    ${rundir}/HEMCO_Diagn.rc
 
 # If benchmark simulation, put gchp.run script in directory; else do not.
 if [ "${sim_name}" == "benchmark" ]; then
@@ -297,48 +291,61 @@ sed -i -e "s|{PRES_UNIT}|${pressure_unit}|"  ${rundir}/ExtData.rc
 sed -i -e "s|{PRES_SCALE}|${pressure_scale}|" ${rundir}/ExtData.rc
 
 # Special handling for start/end date based on simulation so that
-# start matches default initial restart files. Run directory is
-# always initially set up for a 1-hour duration run except for the
-# benchmark simulation which is 1-month.
+# start year/month/day matches default initial restart file.
 if [ "${sim_type}" == "TransportTracers" ]; then
     startdate="20160101"
     enddate="20160101"
-    starttime="000000"
-    endtime="010000"    
-    dYYYYMMDD="00000000"
-    dHHmmSS="010000"
-
 elif [ "${sim_name}" == "benchmark" ]; then
     startdate="20160701"
     enddate="20160801"
-    starttime="000000"
-    endtime="000000"    
-    dYYYYMMDD="00000100"
-    dHHmmSS="000000"
-
 elif [ "${sim_type}" == "fullchem" ]; then
     startdate="20160701"
     enddate="20160701"
-    starttime="000000"
-    endtime="010000"
-    dYYYYMMDD="00000000"
-    dHHmmSS="010000"
-
 else
     printf "\nError: Start date is not defined for simulation ${sim_type}."
 fi
 sed -i -e "s|{DATE1}|${startdate}|"     ${rundir}/runConfig.sh
-sed -i -e "s|{TIME1}|${starttime}|"     ${rundir}/runConfig.sh
 sed -i -e "s|{DATE2}|${enddate}|"       ${rundir}/runConfig.sh
-sed -i -e "s|{TIME2}|${endtime}|"       ${rundir}/runConfig.sh
-sed -i -e "s|{dYYYYMMDD}|${dYYYYMMDD}|" ${rundir}/runConfig.sh
-sed -i -e "s|{dHHmmss}|${dHHmmSS}|"     ${rundir}/runConfig.sh
 sed -i -e "s|{DATE1}|${startdate}|"     ${rundir}/CAP.rc
-sed -i -e "s|{TIME1}|${starttime}|"     ${rundir}/CAP.rc
 sed -i -e "s|{DATE2}|${enddate}|"       ${rundir}/CAP.rc
-sed -i -e "s|{TIME2}|${endtime}|"       ${rundir}/CAP.rc
-sed -i -e "s|{dYYYYMMDD}|${dYYYYMMDD}|" ${rundir}/CAP.rc
-sed -i -e "s|{dHHmmss}|${dHHmmSS}|"     ${rundir}/CAP.rc
+
+# Special handling for benchmark simulation
+if [ "${sim_name}" == "benchmark" ]; then
+    total_cores=48
+    num_nodes=3
+    num_cores_per_node=16
+    grid_res=48
+    diag_freq="7440000"
+    start_time="000000"
+    end_time="000000"    
+    dYYYYMMDD="00000100"
+    dHHmmSS="000000"
+else
+    total_cores=6
+    num_nodes=1
+    num_cores_per_node=6
+    grid_res=24
+    diag_freq="010000"
+    start_time="000000"
+    end_time="010000"    
+    dYYYYMMDD="00000000"
+    dHHmmSS="010000"
+fi
+diag_dur=${diag_freq}
+sed -i -e "s|{TotalCores}|${total_cores}|"             ${rundir}/runConfig.sh
+sed -i -e "s|{NumNodes}|${num_nodes}|"                 ${rundir}/runConfig.sh
+sed -i -e "s|{NumCoresPerNode}|${num_cores_per_node}|" ${rundir}/runConfig.sh
+sed -i -e "s|{GridRes}|${grid_res}|"                   ${rundir}/runConfig.sh
+sed -i -e "s|{DiagFreq}|${diag_dur}|"                  ${rundir}/runConfig.sh
+sed -i -e "s|{DiagDur}|${diag_freq}|"                  ${rundir}/runConfig.sh
+sed -i -e "s|{TIME1}|${start_time}|"     ${rundir}/runConfig.sh
+sed -i -e "s|{TIME2}|${end_time}|"       ${rundir}/runConfig.sh
+sed -i -e "s|{dYYYYMMDD}|${dYYYYMMDD}|"  ${rundir}/runConfig.sh
+sed -i -e "s|{dHHmmss}|${dHHmmSS}|"      ${rundir}/runConfig.sh
+sed -i -e "s|{TIME1}|${start_time}|"     ${rundir}/CAP.rc
+sed -i -e "s|{TIME2}|${end_time}|"       ${rundir}/CAP.rc
+sed -i -e "s|{dYYYYMMDD}|${dYYYYMMDD}|"  ${rundir}/CAP.rc
+sed -i -e "s|{dHHmmss}|${dHHmmSS}|"      ${rundir}/CAP.rc
 
 #-----------------------------------------------------------------
 # Set permissions
