@@ -122,12 +122,13 @@ echo "Settings from runConfig.sh: "
 echo " "
 source ./runConfig.sh
 
-# Overwrite the input restart file specified in GCHP.rc with the checkpoint
-# file if cap_restart exists. Note that this is not done via runConfig.sh
-# so as to preserve the configuration of the initial restart file to be 
-# used in the first run.
+# Use the last run's output restart file as the input restart file if
+# cap_restart exists (meaning there was a previous run). Note that unlike
+# in single runs and the first run in the multirun series, the restart file
+# is set here rather than from runConfig.sh.
 if [ -e cap_restart ]; then
-   sed -i "s|GIGCchem_INTERNAL_RESTART_FILE\:.*|GIGCchem_INTERNAL_RESTART_FILE\:     +gcchem_internal_checkpoint.restart.nc|" ./GCHP.rc
+   restart_datetime=$(echo $(cat cap_restart) | sed 's/ /_/g')
+   sed -i "s|GIGCchem_INTERNAL_RESTART_FILE\:.*|GIGCchem_INTERNAL_RESTART_FILE\:     +gcchem_internal_checkpoint.restart.${restart_datetime}.nc|" ./GCHP.rc
 fi
 
 # Only run GCHP if runConfig.sh had no errors
@@ -161,9 +162,6 @@ if [[ $? == 0 ]]; then
    # SLURM_NTASKS is #SBATCH -n and SLURM_NNODES is #SBATCH -N above
    time srun -n ${coreCount} -N ${SLURM_NNODES} -m plane=${planeCount} --mpi=pmix ./geos
 
-   # Rename the restart (checkpoint) file so MAPL does not crash upon rerun
-   mv gcchem_internal_checkpoint.nc gcchem_internal_checkpoint.restart.nc
-   
    # Echo end date
    echo '===> Run ended at' `date`
 fi
@@ -178,6 +176,15 @@ if [ -f cap_restart ]; then
       echo "Error: cap_restart did not update to different date!" >> ${multirunlog}
       echo "Cancelling all jobs." >> ${multirunlog}
       cancel_all_jobs
+   else
+      # If all went well, rename the restart (checkpoint) file for clarity
+      # and to enable reuse as a restart file. MAPL cannot read in a file
+      # with the same name as the output checkpoint filename configured in
+      # GCHP.rc.
+      if [ -f cap_restart ]; then
+         restart_datetime=$(echo $(cat cap_restart) | sed 's/ /_/g')
+         mv gcchem_internal_checkpoint.nc gcchem_internal_checkpoint.restart.${restart_datetime}.nc
+      fi
    fi
 else
    echo " "

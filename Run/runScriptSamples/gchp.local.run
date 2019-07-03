@@ -41,8 +41,13 @@ if [[ $? == 0 ]]; then
     # Start the simulation. Use 6 cores.
     time mpirun -np ${nCores} ./geos 2>&1 | tee -a ${log}
 
-    # Rename the restart (checkpoint) file so MAPL does not crash upon rerun
-    mv gcchem_internal_checkpoint.nc gcchem_internal_checkpoint.restart.nc
+    # Rename the restart (checkpoint) file for clarity and to enable reuse as
+    # a restart file. MAPL cannot read in a file with the same name as the
+    # output checkpoint filename configured in GCHP.rc.
+    if [ -f cap_restart ]; then
+       restart_datetime=$(echo $(cat cap_restart) | sed 's/ /_/g')
+       mv gcchem_internal_checkpoint.nc gcchem_internal_checkpoint.restart.${restart_datetime}.nc
+    fi
 
     # Echo end date
     echo '===> Run ended at' `date` 2>&1 | tee -a ${log}
