@@ -265,43 +265,43 @@ Monthly_Diag=0
 ##########################################################
 
 #### Check that resource allocation makes sense
-if (( $TOTAL_CORES%6 != 0 )); then
+if (( ${TOTAL_CORES}%6 != 0 )); then
    echo "ERROR: TOTAL_CORES must be divisible by 6. Update value in runConfig.sh."
    exit 1    
 fi
-if (( $TOTAL_CORES != $NUM_NODES*$NUM_CORES_PER_NODE )); then
+if (( ${TOTAL_CORES} != ${NUM_NODES}*${NUM_CORES_PER_NODE} )); then
    echo "ERROR: TOTAL_CORES must equal to NUM_NODES times NUM_CORES_PER_NODE. Update values in runConfig.sh."
    exit 1    
 fi
 
 #### If on, auto-calculate NX and NY to maximize squareness of core regions
 if [[ ${NXNY_AUTO} == 'ON' ]]; then
-   Z=$(( $NUM_NODES*$NUM_CORES_PER_NODE/6 ))
-   SQRT=$(echo "sqrt ($Z)" | bc -l)  
-   N=$(echo $SQRT | awk '{print int($1+0.999)}') 
-   while [ N > 0 ]; do
-      if (( $Z%N == 0 )); then
-         NX=$N
-         NY=$(($Z/$N*6))
+   Z=$(( ${NUM_NODES}*${NUM_CORES_PER_NODE}/6 ))
+   SQRT=$(echo "sqrt (${Z})" | bc -l)  
+   N=$(echo $SQRT | awk '{print int($1+0.999)}')
+   while [[ "${N}" > 0 ]]; do
+      if (( ${Z} % ${N} == 0 )); then
+         NX=${N}
+         NY=$((${Z}/${N}*6))
          break
       else
-         N=$(($N-1))
+         N=$((${N}-1))
       fi
    done
 fi
 
 #### Check that NX and NY make sense
-if (( $NX*$NY != $TOTAL_CORES )); then
+if (( ${NX}*${NY} != ${TOTAL_CORES} )); then
    echo "ERROR: NX*NY must equal TOTAL_CORES. Check values in runConfig.sh."
    exit 1    
 fi
-if (( $NY%6 != 0 )); then
+if (( ${NY}%6 != 0 )); then
    echo "ERROR: NY must be an integer divisible by 6. Check values in runConfig.sh."
    exit 1    
 fi
 
 #### Check if domains are square enough (NOTE: approx using integer division)
-if [[ $(( $NX*6/$NY*2 )) -ge 5 || $(( $NY/$NX/6*2 )) -ge 5 ]] ; then
+if [[ $(( ${NX}*6/${NY}*2 )) -ge 5 || $(( ${NY}/${NX}/6*2 )) -ge 5 ]] ; then
     echo "WARNING: NX and NY are set such that NX x NY/6 has side ratio >= 2.5. Consider adjusting resources in runConfig.sh to be more square. This will avoid negative effects due to excessive communication between cores."
 fi
 
