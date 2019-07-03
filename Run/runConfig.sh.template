@@ -175,15 +175,14 @@ INITIAL_RESTART=initial_GEOSChem_rst.c${CS_RES}_{SIMULATION}.nc
 #------------------------------------------------
 #    Output Restart Files
 #------------------------------------------------
-# You can output restart files at regular intervals throughout your 
-# simulation. Unlike the end restart file, which is always produced, the
-# regularly output restart files (also called checkpoint files) will contain
-# the date and time in their filename. To configure output restart file
-# frequency, set the variable below to a string of format HHmmSS. More than 
-# 2 digits for the hours string is permitted (e.g. 1680000 for 7 days).
-# Setting the frequency to 0 will effectively turn off this feature by setting
-# the frequency to a very large number.
-Checkpoint_Freq="0"
+# You can output restart files at regular intervals throughout your
+# simulation. These restarts are in addition to the end-of-run restart
+# which is always produced. To configure output restart file frequency,
+# set the variable below to a string of format HHmmSS. More than 2
+# digits for the hours string is permitted (e.g. 1680000 for 7 days).
+# Setting the frequency to 000000 will turn off this feature by setting
+# it to a very large number.
+Checkpoint_Freq="000000"
 
 #------------------------------------------------
 #    Turn Components On/Off
@@ -375,7 +374,7 @@ replace_val JOB_SGMT  "${Duration}"   CAP.rc
 
 #### Set frequency of writing restart files
 # Set to a very large number if turned off
-if [[ ${Checkpoint_Freq} == '0' ]]; then
+if [[ ${Checkpoint_Freq} == '000000' ]]; then
    Checkpoint_Freq=100000000
 fi 
 echo " "
