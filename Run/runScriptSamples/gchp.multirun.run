@@ -7,8 +7,8 @@
 #SBATCH -p huce_intel
 #SBATCH --mem=MaxMemPerNode
 #SBATCH --mail-type=ALL
-#SBATCH -o slurm.%j.out
-#SBATCH -e slurm.%j.err
+#SBATCH -o slurm-%j.out
+#SBATCH -e slurm-%j.err
 
 # Resource request tips: 
 #  (1) Use #SBATCH -n 6 to request 6 cores total across all nodes
