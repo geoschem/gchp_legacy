@@ -85,7 +85,7 @@ if [[ $? == 0 ]]; then
     # output checkpoint filename configured in GCHP.rc.
     if [ -f cap_restart ]; then
        restart_datetime=$(echo $(cat cap_restart) | sed 's/ /_/g')
-       mv gcchem_internal_checkpoint.nc gcchem_internal_checkpoint.restart.${restart_datetime}.nc
+       mv gcchem_internal_checkpoint gcchem_internal_checkpoint.restart.${restart_datetime}.nc4
     fi
 
     # Echo end date
