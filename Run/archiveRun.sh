@@ -76,7 +76,6 @@ echo "Archiving files to directory $1"
 mkdir -p ${archivedir}
 mkdir -p ${archivedir}/diagnostics
 mkdir -p ${archivedir}/plots
-mkdir -p ${archivedir}/build
 mkdir -p ${archivedir}/logs
 mkdir -p ${archivedir}/config
 mkdir -p ${archivedir}/restart
@@ -89,7 +88,6 @@ movefiles "OutputDir" ${archivedir}/diagnostics FILLER
 
 # Copy everything else
 echo "Copying files..."
-copyfiles compile.log     ${archivedir}/build
 copyfiles input.geos      ${archivedir}/config
 copyfiles "*.rc"          ${archivedir}/config
 copyfiles runConfig.sh    ${archivedir}/config
