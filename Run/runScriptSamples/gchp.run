@@ -81,7 +81,7 @@ if [[ $? == 0 ]]; then
     time srun -n ${coreCount} -N ${SLURM_NNODES} -m plane=${planeCount} --mpi=pmix ./geos >> ${log}
 
     # Rename the restart (checkpoint) file so MAPL does not crash upon rerun
-    mv gcchem_internal_checkpoint.nc gccchem_internal_checkpoint.restart.nc
+    mv gcchem_internal_checkpoint.nc gcchem_internal_checkpoint.restart.nc
 
     # Echo end date
     echo '===> Run ended at' `date` >> ${log}

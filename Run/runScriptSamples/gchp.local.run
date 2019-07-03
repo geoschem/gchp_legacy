@@ -42,7 +42,7 @@ if [[ $? == 0 ]]; then
     time mpirun -np ${nCores} ./geos 2>&1 | tee -a ${log}
 
     # Rename the restart (checkpoint) file so MAPL does not crash upon rerun
-    mv gcchem_internal_checkpoint.nc gccchem_internal_checkpoint.restart.nc
+    mv gcchem_internal_checkpoint.nc gcchem_internal_checkpoint.restart.nc
 
     # Echo end date
     echo '===> Run ended at' `date` 2>&1 | tee -a ${log}
