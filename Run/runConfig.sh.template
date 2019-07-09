@@ -203,56 +203,56 @@ Turn_on_Non_Local_Mixing=T
 #------------------------------------------------
 #    Timesteps
 #------------------------------------------------
-# Default timesteps are same as GEOS-Chem Classic
+# Optimal timesteps are dependent on grid resolution and are automatically
+# set based on the GCHP Working Group's recommendation below. To override
+# these settings, comment out the code and manually define the following
+# variables:
+#    ChemEmiss_Timestep_sec     : chemistry timestep interval [s]
+#    TransConv_Timestep_sec     : dynamic timestep interval [s]
+#    TransConv_Timestep_HHMMSS  : dynamic timestep interval as HHMMSS string
 #
-# WARNING: these settings will override manual updates you make to input.geos!
+# WARNING: Settings in this file will override settings in input.geos!
 #
-TransConv_Timestep_sec=600
-ChemEmiss_Timestep_sec=1200
+# NOTE: Default timesteps for c24 and c48, the cubed-sphere rough equivalents
+# of 4x5 and 2x2.5, are the same as defaults timesteps in GEOS-Chem Classic
 #
-# ***IMPORTANT NOTES***
-# If changing timesteps, set read frequency of SPHU2, TMPU2, and PS2 in 
-# ExtData.rc to match the dynamic timestep.
-#
-# Optimal timesteps are dependent on grid resolution. The GCHP Working Group's
-# recommendation based on grid resolution is as follows. To enable 
-# auto-setting of timesteps based on the recommendation, uncomment the 
-# code below:
-#    if [[ $CS_RES -lt 90 ]]; then
-#        TransConv_Timestep_sec=1800
-#        ChemEmiss_Timestep_sec=3600
-#    elif [[ $CS_RES -lt 180 ]]; then
-#        TransConv_Timestep_sec=600
-#        ChemEmiss_Timestep_sec=1200
-#    else
-#        TransConv_Timestep_sec=300
-#        ChemEmiss_Timestep_sec=600
-#    fi
+if [[ $CS_RES -lt 90 ]]; then
+    ChemEmiss_Timestep_sec=1200
+    TransConv_Timestep_sec=600
+    TransConv_Timestep_HHMMSS=001000
+elif [[ $CS_RES -lt 180 ]]; then
+    ChemEmiss_Timestep_sec=600
+    TransConv_Timestep_sec=300
+    TransConv_Timestep_HHMMSS=000500
+else
+    ChemEmiss_Timestep_sec=600
+    TransConv_Timestep_sec=300
+    TransConv_Timestep_HHMMSS=000500
+fi
 
-# The simplest run is a single segment. Use this option as follows:
-#   1. Copy gchp.run or gchp.local.run from runScriptSamples/ to run directory
-#   1. Use or adapt the *.run file as your run script
-#   2. Set duration above to the difference between start and end
-#   3. Set Num_Runs below to 1
-#   4. Set Monthly_Diag below to 0 (off)
+#------------------------------------------------
+#    Multi-run option
+#------------------------------------------------        
+# The simplest run is a single segment. Set Num_Runs=1 and Monthly_Diag=0.
 #
-# For long runs it is advantageous to split up your simulation into 
-# multiple jobs. Doing this also enables outputting monthly diagnostics.
-# Use this option as follows:
-#   1. Copy gchp.multirun.sh and gchp.multirun.run from runScriptSamples/
+# In some cases it is advantageous to split up your simulation into 
+# multiple runs, what we call the multi-run option. Use this option as follows:
+#   1. Set Num_Runs below to total # of consecutive runs
+#   2. Set Monthly_Diag=1 to output monthly diagnostics; else 0.
+#   3. Copy gchp.multirun.sh and gchp.multirun.run from runScriptSamples/
 #      to run directory
-#   2. Use or adapt gchp.multirun.sh to submit your jobs in one step
-#   3. Use or adapt gchp.multirun.run as your reusable run script
-#   4. Set duration above to the duration of each individual run
-#   5. Set end date sufficiently after start date to span all runs
-#   6. Set Num_Runs below to the total number of runs
-#   7. For monthly diagnostics, set Monthly_Diag to 1 (on); else set to 0 (off)
+#   4. Configure resources at the top of gchp.multirun.run (assumes SLURM).
+#      This is the run script used for each individual run in the sequence.
+#   5. Set duration above to the duration of each INDIVIDUAL run
+#   6. Set end date after start date to span ALL runs
+#   7. Execute shell script gchp.multirun.sh at the command line
+#         $ ./gchp.multirun.sh
 #
-# If using monthly diagnostics, please note the following: 
+# When using monthly diagnostics:
 #   - Run segment duration must be 1-month (00000100 000000)
 #   - Start date must be within the first 28 days of the month
 #   - There is no need to set diag frequency and duration in this file
-#     since they will be calculated for each run based on days in the month
+#     since they will be over-written for each run based on days in month
 #
 Num_Runs=1
 Monthly_Diag=0
@@ -262,6 +262,10 @@ Monthly_Diag=0
 ####        END OF CONFIGURABLES SECTION
 ##########################################################
 ##########################################################
+
+###############################
+####   QUALITY CHECKS
+###############################
 
 #### Check that resource allocation makes sense
 if (( ${TOTAL_CORES}%6 != 0 )); then
@@ -316,9 +320,19 @@ if [[ ! -e ${INITIAL_RESTART} ]]; then
     exit 1
 fi
 
-###############################
-####   UPDATE FILES
-###############################
+#### Check transport setting. If okay, set binary indicator
+if [[ ${Turn_on_Transport} == 'T' ]]; then
+    ADVCORE_ADVECTION=1
+elif [[ ${Turn_on_Transport} == 'F' ]]; then
+    ADVCORE_ADVECTION=0
+else
+    echo "ERROR: Incorrect transport setting"
+    exit 1
+fi
+
+##########################################
+####   DEFINE FUNCTIONS TO UPDATE FILES
+##########################################
 
 #### Define function to replace values in .rc files
 replace_val() {
@@ -333,15 +347,39 @@ replace_val() {
     mv tmp ${FILE}
 }
 
-#### Define transport string for GCHP.rc
-if [[ ${Turn_on_Transport} == 'T' ]]; then
-    ADVCORE_ADVECTION=1
-elif [[ ${Turn_on_Transport} == 'F' ]]; then
-    ADVCORE_ADVECTION=0
-else
-    echo "ERROR: Incorrect transport setting"
-    exit 1
-fi
+#### Define function to replace met-field read frequency in ExtData.rc
+update_dyn_freq() {
+
+    # Check number of matches. Should be one; otherwise exit with an error.
+    numlines=$(grep -c "$1.*MetDir" $2)
+    if [[ ${numlines} == "0" ]]; then
+       echo "ERROR: met-field $1 missing in $2"
+       #exit 1
+    elif [[ ${numlines} > 1 ]]; then
+       echo "ERROR: more than one entry in $1 in $2. Reduce to one so that read frequency can be auto-synced with dynamic timestep from runConfig.sh."
+       exit 1
+    fi
+    
+    # Get line number
+    x=$(grep -n "$1.*MetDir" $2)
+    linenum=${x%%:*}
+    
+    # Get current ExtData.rc frequency read string
+    x=$(grep "$1.*MetDir" $2)
+    z=${x%%;*}
+    charnum=${#z}
+    currentstr=${x[0]:${charnum}+1:6}
+    
+    # Replace string with configured dynamic timestep
+    sed -i "${linenum}s/${currentstr}/${TransConv_Timestep_HHMMSS}/" $2
+
+    # Print what just happened
+    printf '%-30s : %-20s %-20s\n' "$1 read frequency" "0;${TransConv_Timestep_HHMMSS}" "$2"
+}
+
+###############################
+####   UPDATE FILES
+###############################
 
 #### Set # nodes, # cores, and shared memory option
 echo "Compute resources:"
@@ -444,7 +482,8 @@ replace_val WetLossLS.frequency        ${WetLossLS_freq}        HISTORY.rc
 replace_val WetLossLS.duration         ${WetLossLS_dur}         HISTORY.rc  
 replace_val WetLossLS.mode             ${WetLossLS_mode}        HISTORY.rc  
 
-#### Set timesteps based on input.geos
+#### Set timesteps. This includes updating ExtData.rc entries for PS2,
+#### SPHU2, and TMPU2 such that read frequency matches dynamic frequency
 echo " "
 echo "Timesteps:"
 replace_val HEARTBEAT_DT  ${TransConv_Timestep_sec}  GCHP.rc
@@ -455,6 +494,9 @@ replace_val GIGCchem_DT   ${ChemEmiss_Timestep_sec}  GCHP.rc
 replace_val DYNAMICS_DT   ${TransConv_Timestep_sec}  GCHP.rc
 replace_val HEARTBEAT_DT  ${TransConv_Timestep_sec}  CAP.rc
 replace_val dt            ${TransConv_Timestep_sec}  fvcore_layout.rc
+update_dyn_freq PS2   ExtData.rc
+update_dyn_freq SPHU2 ExtData.rc
+update_dyn_freq TMPU2 ExtData.rc
 
 #### Set debug level
 echo " "
