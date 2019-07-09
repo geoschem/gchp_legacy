@@ -10,8 +10,9 @@
 #   Compute Resources
 #------------------------------------------------
 # Set number of cores, number of nodes, and number of cores per node.
-# Cores per node should be number of cores divided by number of nodes.
-# Make sure you have these resources available.
+# Total cores must be divisible by 6. Cores per node must equal number
+# of cores divided by number of nodes. Make sure you have these
+# resources available.
 TOTAL_CORES={TotalCores}
 NUM_NODES={NumNodes}
 NUM_CORES_PER_NODE={NumCoresPerNode}
@@ -19,7 +20,8 @@ NUM_CORES_PER_NODE={NumCoresPerNode}
 # Cores are distributed across each of the six cubed sphere faces using
 # configurable parameters NX and NY. Each face is divided into NX by NY/6
 # regions and each of those regions is processed by a single core 
-# independent of which node it belongs to.
+# independent of which node it belongs to. Making NX by NY/6 as square
+# as possible reduces communication overhead in GCHP.
 #
 # Set NXNY_AUTO to either auto-calculate NX and NY (ON) (recommended)
 # or set them manually (OFF).
