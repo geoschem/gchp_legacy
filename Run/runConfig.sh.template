@@ -505,11 +505,6 @@ echo " "
 echo "MAPL Debug Level:"
 replace_val DEBUG_LEVEL ${MAPL_DEBUG_LEVEL} ExtData.rc
 
-#### Set advection on/off based on input.geos
-echo " "
-echo "Advection on/off:"
-replace_val AdvCore_Advection ${ADVCORE_ADVECTION} GCHP.rc
-
 ##### Set commonly changed settings in input.geos
 echo "Components on/off:"
 replace_val "Turn on Chemistry?"        ${Turn_on_Chemistry}        input.geos
@@ -520,6 +515,7 @@ replace_val "Turn on PBL Mixing?"	${Turn_on_PBL_Mixing}       input.geos
 replace_val " => Use non-local PBL?"	${Turn_on_Non_Local_Mixing} input.geos
 replace_val "Turn on Dry Deposition?"   ${Turn_on_Dry_Deposition}   input.geos
 replace_val "Turn on Wet Deposition?"   ${Turn_on_Wet_Deposition}   input.geos
+replace_val AdvCore_Advection           ${ADVCORE_ADVECTION}        GCHP.rc
 echo " "
 echo "Timesteps:"
 replace_val "Tran\/conv timestep \[sec\]"  ${TransConv_Timestep_sec}   input.geos
