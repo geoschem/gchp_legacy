@@ -91,7 +91,7 @@ COLLECTIONS: 'AerosolMass'
   Emissions.frequency:        010000
   Emissions.duration:         010000
   Emissions.mode:             'time-averaged'
-  Emissions.fields:           'EmisACET_Total       ', 'GIGCchem',     
+  Emissions.fields:           'EmisACET_Total       ', 'GIGCchem',
                               'EmisACET_Anthro      ', 'GIGCchem',
                               'EmisACET_BioBurn     ', 'GIGCchem',
                               'EmisACET_Biogenic    ', 'GIGCchem',
@@ -405,7 +405,7 @@ COLLECTIONS: 'AerosolMass'
                               'InvCEDS_XYLE         ', 'GIGCchem',
                               'InvGEIAnatural_NH3   ', 'GIGCchem',
                               'InvSEABIRDS_NH3      ', 'GIGCchem',
-                              'InvC2H62010anth_C2H6 ', 'GIGCchem',
+                              'InvC2H62010_C2H6     ', 'GIGCchem',
                               'InvXIAO_C3H8         ', 'GIGCchem',
                               'InvLIANG_CH2Br2      ', 'GIGCchem',
                               'InvLIANG_CHBr3       ', 'GIGCchem',
