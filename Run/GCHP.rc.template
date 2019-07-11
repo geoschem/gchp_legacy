@@ -87,3 +87,8 @@ HEMCO_CONFIG:         HEMCO_Config.rc
 #
 STDOUT_LOGFILE:       PET%%%%%.GEOSCHEMchem.log
 STDOUT_LOGLUN:        700
+
+#
+# %%% Memory debug print level (integer 0 to 3; 0=none, 3=highest)
+#
+MEMORY_DEBUG_LEVEL:   0

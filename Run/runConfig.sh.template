@@ -50,11 +50,15 @@ CS_RES={GridRes} # 24 ~ 4x5, 48 ~ 2x2.5, 90 ~ 1x1.25, 180 ~ 1/2 deg, 360 ~ 1/4 d
 # print information to log. Using this flag is most helpful for debugging
 # issues with file read (MAPL ExtData).
 #
+# Set memory debug flag to 0 to print memory only once per timestep. Set to
+# 1 to enable memory prints at additional locations throughout the run.
+#
 # For GEOS-Chem debug prints, turn on ND70 in input.geos manually.       
 #
 # WARNING: Turning on debug prints significantly slows down the model!
 #
-MAPL_DEBUG_LEVEL=0   
+MAPL_DEBUG_LEVEL=0
+MEMORY_DEBUG_LEVEL=0
 
 #------------------------------------------------
 #    Simulation Start/End/Duration
@@ -502,10 +506,12 @@ update_dyn_freq TMPU2 ExtData.rc
 
 #### Set debug level
 echo " "
-echo "MAPL Debug Level:"
+echo "Debug levels:"
 replace_val DEBUG_LEVEL ${MAPL_DEBUG_LEVEL} ExtData.rc
+replace_val MEMORY_DEBUG_LEVEL ${MEMORY_DEBUG_LEVEL} GCHP.rc
 
 ##### Set commonly changed settings in input.geos
+echo " "
 echo "Components on/off:"
 replace_val "Turn on Chemistry?"        ${Turn_on_Chemistry}        input.geos
 replace_val "Turn on emissions?"	${Turn_on_emissions}        input.geos

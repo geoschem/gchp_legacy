@@ -35,6 +35,8 @@ MODULE GIGC_Chunk_Mod
 #if defined( MODEL_GEOS )
   PRIVATE :: SET_OZONOPAUSE
 #endif
+
+  INTEGER  ::  MemDebugLevel
 !
 ! !REVISION HISTORY:
 !  22 Jun 2009 - R. Yantosca & P. Le Sager - Chunkized & cleaned up.
@@ -82,7 +84,6 @@ CONTAINS
 !
     USE Chemistry_Mod,           ONLY : Init_Chemistry
     USE Emissions_Mod,           ONLY : Emissions_Init
-    USE ESMF,                    ONLY : ESMF_KIND_R4
     USE GC_Environment_Mod
     USE GC_Grid_Mod,             ONLY : SetGridFromCtr
     USE GIGC_HistoryExports_Mod, ONLY : HistoryConfigObj
@@ -182,6 +183,7 @@ CONTAINS
 !
     INTEGER                        :: I, J, L, STATUS
     CHARACTER(LEN=ESMF_MAXSTR)     :: Iam
+    TYPE(ESMF_Config)              :: CF            ! Grid comp config object
 
     !=======================================================================
     ! GIGC_CHUNK_INIT begins here 
@@ -203,6 +205,13 @@ CONTAINS
     Input_Opt%LINOZ_NFIELDS = 7
     Input_Opt%RootCPU       = am_I_Root
 #endif
+
+    ! Get memory debug level
+    call ESMF_GridCompGet ( GC, config=CF, RC=STATUS )
+    VERIFY_(STATUS)
+    call ESMF_ConfigGetAttribute(CF, MemDebugLevel, &
+                                 Label="MEMORY_DEBUG_LEVEL:" , RC=STATUS)
+    VERIFY_(STATUS)
 
     ! Initialize Input_Opt fields to zeros or equivalent
     CALL Set_Input_Opt( am_I_Root, Input_Opt, RC )
@@ -400,6 +409,7 @@ CONTAINS
     USE ErrCode_Mod
     USE HCO_Error_Mod
     USE HCO_Interface_Mod,  ONLY : SetHcoTime
+    USE MAPL_MemUtilsMod
     USE Pressure_Mod,       ONLY : Accept_External_Pedge
     USE State_Chm_Mod,      ONLY : IND_
     USE Time_Mod,           ONLY : Accept_External_Date_Time
@@ -493,6 +503,7 @@ CONTAINS
 !------------------------------------------------------------------------------
 !BOC
     TYPE(MAPL_MetaComp), POINTER   :: STATE
+    TYPE(ESMF_VM)                  :: VM            ! ESMF VM object
     REAL*8                         :: DT
     CHARACTER(LEN=ESMF_MAXSTR)     :: Iam, OrigUnit
     INTEGER                        :: STATUS, HCO_PHASE
@@ -539,6 +550,13 @@ CONTAINS
 
     ! Get state object (needed for timers)
     CALL MAPL_GetObjectFromGC(GC, STATE, __RC__)
+
+    ! Get the VM for optional memory prints (level >= 2)
+    !-----------------------------------
+    if ( MemDebugLevel > 0 ) THEN
+       call ESMF_VmGetCurrent(VM, RC=STATUS)
+       VERIFY_(STATUS)
+    endif
 
     !=======================================================================
     ! Define processes to be covered in this phase
@@ -849,6 +867,15 @@ CONTAINS
     ! data lists are all properly set up. 
     !=======================================================================
     IF ( DoEmis ) THEN
+       ! Optional memory prints (level >= 3)
+       if ( MemDebugLevel > 0 ) THEN
+          call ESMF_VMBarrier(VM, RC=STATUS)
+          VERIFY_(STATUS)
+          call MAPL_MemUtilsWrite(VM, &
+                  'gigc_chunk_run, before Emissions_Run', RC=STATUS )
+          VERIFY_(STATUS)
+       endif
+
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Do emissions now'
        CALL MAPL_TimerOn( STATE, 'GC_EMIS' )
 
@@ -861,6 +888,16 @@ CONTAINS
 
        CALL MAPL_TimerOff( STATE, 'GC_EMIS' )
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Emissions done!'
+
+       ! Optional memory prints (level >= 3)
+       if ( MemDebugLevel > 0 ) THEN
+          call ESMF_VMBarrier(VM, RC=STATUS)
+          VERIFY_(STATUS)
+          call MAPL_MemUtilsWrite(VM,&
+                  'gigc_chunk_run, after  Emissions_Run', RC=STATUS )
+          VERIFY_(STATUS)
+       endif
+
     ENDIF
 
     !=======================================================================
@@ -954,6 +991,15 @@ CONTAINS
        ENDIF
 #endif
 
+       ! Optional memory prints (level >= 3)
+       if ( MemDebugLevel > 0 ) THEN
+          call ESMF_VMBarrier(VM, RC=STATUS)
+          VERIFY_(STATUS)
+          call MAPL_MemUtilsWrite(VM, &
+                  'gigc_chunk_run:, before Do_Chemistry', RC=STATUS )
+          VERIFY_(STATUS)
+       endif
+
        ! Do chemistry
        CALL Do_Chemistry( am_I_Root,  Input_Opt, State_Chm, State_Diag, &
                           State_Grid, State_Met, RC ) 
@@ -961,6 +1007,16 @@ CONTAINS
 
        CALL MAPL_TimerOff( STATE, 'GC_CHEM' )
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Chemistry done!'
+
+       ! Optional memory prints (level >= 3)
+       if ( MemDebugLevel > 0 ) THEN
+          call ESMF_VMBarrier(VM, RC=STATUS)
+          VERIFY_(STATUS)
+          call MAPL_MemUtilsWrite(VM, &
+                  'gigc_chunk_run, after  Do_Chemistry', RC=STATUS )
+          VERIFY_(STATUS)
+       endif
+
     ENDIF
 
     !=======================================================================
