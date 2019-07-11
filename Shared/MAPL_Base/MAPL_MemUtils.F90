@@ -419,9 +419,10 @@ module MAPL_MemUtilsMod
     end if
 
     if (MAPL_MemUtilsMode == MAPL_MemUtilsModeBase) then
-       write(outString,'(a64,2es11.3)') &
+       write(outString,'(a64,2es11.4)') &
             'Mem/Swap Used (MB) at '//trim(text)//'=', gmem, gswap
-       call WRITE_PARALLEL(trim(outString),format='(a132)')
+       !call WRITE_PARALLEL(trim(outString),format='(a132)')
+       call WRITE_PARALLEL(trim(outString))
     end if
 
     if (MAPL_MemUtilsMode == MAPL_MemUtilsModeFull) then
