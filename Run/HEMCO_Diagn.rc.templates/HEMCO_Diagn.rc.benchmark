@@ -776,7 +776,7 @@ InvGFED_XYLE         ACET   111  -1  -1  2   kg/m2/s  XYLE_emission_flux_from_GF
 # Volcano extension
 #=============================
 InvVOLCANOerupt_SO2  SO2    117  51  -1  3   kg/m2/s  SO2_eruptive_emission_flux_from_Volcano_extension
-InvVOLCANdegas_SO2   SO2    117  52  -1  3   kg/m2/s  SO2_degassing_emission_flux_from_Volcano_extension
+InvVOLCANOdegas_SO2  SO2    117  52  -1  3   kg/m2/s  SO2_degassing_emission_flux_from_Volcano_extension
 
 #=============================
 # INORG_IODINE Extension

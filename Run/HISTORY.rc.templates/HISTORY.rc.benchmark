@@ -520,7 +520,7 @@ COLLECTIONS: 'AerosolMass'
                               'InvGFED_TOLU         ', 'GIGCchem',
                               'InvGFED_XYLE         ', 'GIGCchem',
                               'InvVOLCANOerupt_SO2  ', 'GIGCchem',
-                              'InvVOLCANdegas_SO2   ', 'GIGCchem',
+                              'InvVOLCANOdegas_SO2  ', 'GIGCchem',
                               'InvIODINE_HOI        ', 'GIGCchem',
                               'InvIODINE_I2         ', 'GIGCchem',
 ::
