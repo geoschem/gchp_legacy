@@ -227,13 +227,13 @@ if [[ $CS_RES -lt 90 ]]; then
     TransConv_Timestep_sec=600
     TransConv_Timestep_HHMMSS=001000
 elif [[ $CS_RES -lt 180 ]]; then
-    ChemEmiss_Timestep_sec=600
+    ChemEmiss_Timestep_sec=1200
     TransConv_Timestep_sec=300
     TransConv_Timestep_HHMMSS=000500
 else
     ChemEmiss_Timestep_sec=600
-    TransConv_Timestep_sec=300
-    TransConv_Timestep_HHMMSS=000500
+    TransConv_Timestep_sec=150
+    TransConv_Timestep_HHMMSS=000230
 fi
 
 #------------------------------------------------
