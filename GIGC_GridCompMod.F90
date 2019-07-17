@@ -404,7 +404,7 @@ contains
     ! Cinderella Component: to derive variables for other components
     !---------------------
 
-    if ( MemDebugLevel >= 0 ) THEN
+    if ( MemDebugLevel > 0 ) THEN
        call ESMF_VMBarrier(VM, RC=STATUS)
        VERIFY_(STATUS)
        call MAPL_MemUtilsWrite(VM, &
@@ -422,7 +422,7 @@ contains
 
     call MAPL_TimerOff( STATE, GCNames(ECTM) )
 
-    if ( MemDebugLevel >= 0 ) THEN
+    if ( MemDebugLevel > 0 ) THEN
        call ESMF_VMBarrier(VM, RC=STATUS)
        VERIFY_(STATUS)
        call MAPL_MemUtilsWrite(VM, &
