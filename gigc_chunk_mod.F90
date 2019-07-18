@@ -525,9 +525,6 @@ CONTAINS
     ! First call?
     LOGICAL, SAVE                  :: FIRST = .TRUE.
 
-    ! Update mixing ratios during AirQnt due to pressure change?
-    LOGICAL                        :: pUpdate
-
     ! # of times this routine has been called. Only temporary for printing 
     ! processes on the first 10 calls.
     INTEGER, SAVE                  :: NCALLS = 0
@@ -707,19 +704,12 @@ CONTAINS
     CALL SET_FLOATING_PRESSURES( am_I_Root, State_Grid, State_Met, RC )
     IF ( RC /= GC_SUCCESS ) RETURN
 
-    ! Define airmass and related quantities, and determine whether to scale
-    ! species mixing ratios to account for mass conservation across 
-    ! pressure changes. Only scale mixing ratios if transport is OFF and
-    ! it is after the first timestep. If transport is ON then species
-    ! should be "insensitive" to changes in pressure. If it is the first 
-    ! timestep then pressure history is not available for the scaling.
-#if defined( MODEL_GEOS )
-    pUpdate = .FALSE.
-#else
-    pUpdate = ((.not.FIRST).and.(.not.Input_Opt%LTRAN))
-#endif
+    ! Define airmass and related quantities. Do not scale mixing ratio
+    ! since mass conservation across timesteps is handled in FV3 advection.
+    ! Beware that this means tracer mass will not be conserved across timesteps
+    ! if advection is turned off.
     CALL AirQnt( am_I_Root, Input_opt, State_Chm, State_Grid, &
-                 State_Met, RC,        pUpdate )
+                 State_Met, RC, .FALSE. )
     IF ( RC /= GC_SUCCESS ) RETURN
 
     ! Cap the polar tropopause pressures at 200 hPa, in order to avoid
