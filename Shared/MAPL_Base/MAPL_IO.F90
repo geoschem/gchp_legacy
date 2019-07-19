@@ -8628,7 +8628,7 @@ module MAPL_IOMod
           min  = 0
           sec  = 0
         else
-          print *, 'ParseTimeUnits: Assuming a starting time of 00z'
+          if ( mapl_am_i_root() ) print *, 'ParseTimeUnits: Assuming a starting time of 00z'
           hour = 0
           min  = 0
           sec  = 0

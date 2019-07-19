@@ -6,10 +6,10 @@
 #
 # Example usage: ./archiveRun.sh c48_1hr_emissionsOff
 #
-# The output data (OutputDir/*.nc4) is moved but everything else is copied, including 
-# log files (*.log, slurm-*), config files (*.rc, input.geos), run files (*.run, 
-# *.env, runConfig.sh), and restarts (only gcchem*). Files are stored in 
-# subdirectories within the archive directory.
+# The output data (OutputDir/*.nc4) is moved but everything else is copied, 
+# including log files (*.log, slurm-*), config files (*.rc, input.geos), 
+# run files (*.run, *.env, runConfig.sh), and restarts (only gcchem*). 
+# Files are stored in subdirectories within the archive directory.
 #
 # Clean the run directory after archiving with 'make cleanup_output' prior to
 # rerunning and archiving a new set of run outputs. Otherwise previous run files
@@ -17,6 +17,9 @@
 
 # Initial version: Lizzie Lundgren - 7/12/2018
 
+# Customize this script as needed to best fit your workflow.
+
+# Check that directory name passed
 if [[ $# == 1 ]]; then
     archivedir=$1
 else
@@ -24,69 +27,82 @@ else
    exit 
 fi
 
+# Check that directory does not already exist
 if [ -d "${archivedir}" ]; then
    echo "Warning: Directory ${archivedir} already exists."
    echo "Remove or rename that directory, or choose a different name."
    exit 1
-else
-   mkdir -p ${archivedir}
-   mkdir -p ${archivedir}/output
-   mkdir -p ${archivedir}/plots
-   mkdir -p ${archivedir}/build
-   mkdir -p ${archivedir}/logs
-   mkdir -p ${archivedir}/run
-   mkdir -p ${archivedir}/config
-   mkdir -p ${archivedir}/restarts
 fi
 
-echo "Archiving files..."
-
-# Move diagnostic output
-for f in OutputDir/*.nc4; do
-   if [ -f $f ]; then
-      mv -v $f ${archivedir}/output
-   else      
-      echo "Warning: OutputDir is empty"
+# Function to move files and subdirs in directory except if string match
+# ( arg1 : source, arg2 : target, arg3 : exclude string )
+movefiles () {
+   numMoved=0
+   for item in $1/*; do
+      if [[ $(basename $item) == $3 ]]; then
+         continue
+      elif [[ -e $item ]]; then
+         if [[ -d $item ]]; then
+            echo "   -> $2/$(basename $item)/"
+         else
+            echo "   -> $2/$(basename $item)"
+         fi
+         mv $item $2
+         numMoved=$numMoved+1
+      fi
+   done
+   if [[ $numMoved == "0" ]]; then
+      echo "   Warning: No files to move from $1" 
    fi
-done
+}
 
-# Move plots
-mv -v Plots/* ${archivedir}/plots
-
-# Function to copy arg1 all files matching arg2
+# Function to copy all files matching string (arg2) to directory (arg1)
+# ( arg1 : source, arg2 : target )
 copyfiles () {
-   for file in $2; do
+   for file in $1; do
       if [ -e $file ]; then
-         echo "-> $1/$file"
-         cp -tv $1 $file
+         echo "   -> $2/$file"
+         cp -t $2 $file
       else
-         echo "Warning: $file not found"
+         if [[ $file != "*.multirun.sh" ]]; then
+            echo "   Warning: $file not found"
+         fi
       fi
    done
 }
 
-# Customize as needed to best fit your workflow
+# Make Archive directory
+echo "Archiving files to directory $1"
+mkdir -p ${archivedir}
+mkdir -p ${archivedir}/diagnostics
+mkdir -p ${archivedir}/plots
+mkdir -p ${archivedir}/logs
+mkdir -p ${archivedir}/config
+mkdir -p ${archivedir}/restart
+mkdir -p ${archivedir}/checkpoints
 
-# compilation logs
-copyfiles ${archivedir}/build lastbuild
-copyfiles ${archivedir}/build compile.log
+# Move large files rather than copy (except initial restart)
+echo "Moving files and directories..."
+movefiles "Plots"     ${archivedir}/plots
+movefiles "OutputDir" ${archivedir}/diagnostics FILLER
 
-# config files
-copyfiles ${archivedir}/config input.geos
-copyfiles ${archivedir}/config "*.rc"
+# Copy everything else
+echo "Copying files..."
+copyfiles input.geos      ${archivedir}/config
+copyfiles "*.rc"          ${archivedir}/config
+copyfiles runConfig.sh    ${archivedir}/config
+copyfiles "*.run"         ${archivedir}/config
+copyfiles "*.env"         ${archivedir}/config
+copyfiles "*.multirun.sh" ${archivedir}/config
+copyfiles "*.log"         ${archivedir}/logs
+copyfiles "slurm-*"       ${archivedir}/logs
+copyfiles "gcchem_*"      ${archivedir}/checkpoints
+copyfiles cap_restart     ${archivedir}/checkpoints
 
-# restarts (add/remove as needed - beware this is copying so may take a while if high res!)
-copyfiles ${archivedir}/restarts "gcchem_*"
-
-# run logs
-copyfiles ${archivedir}/logs "*.log"
-copyfiles ${archivedir}/logs "slurm-*"
-
-# miscellaneous run files
-copyfiles ${archivedir}/run runConfig.sh
-copyfiles ${archivedir}/run "*.run"
-copyfiles ${archivedir}/run "*.env"
-copyfiles ${archivedir}/run *.multirun.sh
+# Special handling for copying initial restart (retrieve filename from config)
+x=$(grep "GIGCchem_INTERNAL_RESTART_FILE:" GCHP.rc)
+rst=${x:37}
+copyfiles $rst          ${archivedir}/restart
 
 printf "Complete!\n"
 

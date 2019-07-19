@@ -23,6 +23,7 @@
 !------------------------------------------------------------------------------
 ! !USES:
 
+      use ESMF
       use ESMF_CFIOBaseMod
       use netcdf
       use, intrinsic :: iso_fortran_env, only: INT16, INT32, INT64
@@ -2316,6 +2317,8 @@
       integer firstdash, lastdash
       integer firstcolon, lastcolon
       integer lastspace
+      integer deId, status
+      type (ESMF_VM) :: VM_
  
       strlen = LEN_TRIM (TimeUnits)
        
@@ -2359,7 +2362,9 @@
           min  = 0
           sec  = 0
         else
-          print *, 'ParseTimeUnits: Assuming a starting time of 00z'
+          call ESMF_VMGetCurrent(vm_, rc=status)
+          call ESMF_VMGet(vm_, localPet=deId, rc=status)
+          if ( deId == 0 ) print *, 'ParseTimeUnits: Assuming a starting time of 00z'
           hour = 0
           min  = 0
           sec  = 0

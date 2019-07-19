@@ -54,7 +54,7 @@ module GIGC_GridCompMod
  
 !EOP
 
-  integer ::  ADV, CHEM, ECTM
+  integer ::  ADV, CHEM, ECTM, MemDebugLevel
 
 contains
 
@@ -242,6 +242,7 @@ contains
    type (ESMF_FieldBundle)             :: BUNDLE
    type (ESMF_Field)                   :: FIELD
    type (ESMF_Grid)                    :: GRID
+   type (ESMF_Config)                  :: CF
    integer                             :: NUM_TRACERS
 
 !=============================================================================
@@ -251,9 +252,17 @@ contains
     ! Get the target component name and set-up traceback handle
     !----------------------------------------------------------
     Iam = "Initialize"
-    call ESMF_GridCompGet ( GC, name=COMP_NAME, RC=STATUS )
+    call ESMF_GridCompGet ( GC, name=COMP_NAME, Config=CF, RC=STATUS )
     VERIFY_(STATUS)
     Iam = trim(COMP_NAME) // "::" // Iam
+
+
+    ! Get memory debug level
+    !----------------------------------------------------------
+    call ESMF_ConfigGetAttribute(CF, MemDebugLevel, &
+                                 Label="MEMORY_DEBUG_LEVEL:" , RC=STATUS)
+    VERIFY_(STATUS)
+
 
     ! Get my MAPL_Generic state
     !--------------------------
@@ -308,6 +317,10 @@ contains
 
    subroutine Run ( GC, IMPORT, EXPORT, CLOCK, RC )
 
+! !USES:
+
+  use MAPL_MemUtilsMod                         ! Optional memory prints
+
 ! !ARGUMENTS:
 
   type(ESMF_GridComp), intent(inout) :: GC     ! Gridded component 
@@ -335,6 +348,7 @@ contains
    type (ESMF_State),         pointer  :: GEX(:)
    type (ESMF_State)                   :: INTERNAL
    type (ESMF_Config)                  :: CF
+   type (ESMF_VM)                      :: VM
    character(len=ESMF_MAXSTR),pointer  :: GCNames(:)
    integer                             :: I, L
    integer                             :: IM, JM, LM
@@ -355,6 +369,13 @@ contains
     !-----------------------------------
     call MAPL_GetObjectFromGC ( GC, STATE, RC=STATUS)
     VERIFY_(STATUS)
+
+    ! Get the VM for optional memory prints (level >= 1)
+    !-----------------------------------
+    if ( MemDebugLevel > 0 ) THEN
+       call ESMF_VmGetCurrent(VM, RC=STATUS)
+       VERIFY_(STATUS)
+    endif
 
     ! Start timers
     !-------------
@@ -382,6 +403,15 @@ contains
 
     ! Cinderella Component: to derive variables for other components
     !---------------------
+
+    if ( MemDebugLevel > 0 ) THEN
+       call ESMF_VMBarrier(VM, RC=STATUS)
+       VERIFY_(STATUS)
+       call MAPL_MemUtilsWrite(VM, &
+                  'GIGC, before GEOS_ctmE: ', RC=STATUS )
+       VERIFY_(STATUS)
+    endif
+
     call MAPL_TimerOn ( STATE, GCNames(ECTM) )
     call ESMF_GridCompRun ( GCS(ECTM),               &
                             importState = GIM(ECTM), &
@@ -392,12 +422,29 @@ contains
 
     call MAPL_TimerOff( STATE, GCNames(ECTM) )
 
+    if ( MemDebugLevel > 0 ) THEN
+       call ESMF_VMBarrier(VM, RC=STATUS)
+       VERIFY_(STATUS)
+       call MAPL_MemUtilsWrite(VM, &
+                  'GIGC, after  GEOS_ctmE: ', RC=STATUS )
+       VERIFY_(STATUS)
+    endif
+
     ! Dynamics & Advection
     !------------------
     ! SDE 2017-02-18: This needs to run even if transport is off, as it is
     ! responsible for the pressure level edge arrays. It already has an internal
     ! switch ("AdvCore_Advection") which can be used to prevent any actual
     ! transport taking place by bypassing the advection calculation.
+
+    if ( MemDebugLevel > 0 ) THEN
+       call ESMF_VMBarrier(VM, RC=STATUS)
+       VERIFY_(STATUS)
+       call MAPL_MemUtilsWrite(VM, &
+                  'GIGC, before Advection: ', RC=STATUS )
+       VERIFY_(STATUS)
+    endif
+
     call MAPL_TimerOn ( STATE, GCNames(ADV) )
     call ESMF_GridCompRun ( GCS(ADV),               &
                             importState = GIM(ADV), &
@@ -409,8 +456,25 @@ contains
     VERIFY_(STATUS)
     call MAPL_TimerOff( STATE, GCNames(ADV) )
 
+    if ( MemDebugLevel > 0 ) THEN
+       call ESMF_VMBarrier(VM, RC=STATUS)
+       VERIFY_(STATUS)
+       call MAPL_MemUtilsWrite(VM, &
+                  'GIGC, after  Advection: ', RC=STATUS )
+       VERIFY_(STATUS)
+    endif
+
     ! Chemistry
     !------------------
+
+    if ( MemDebugLevel > 0 ) THEN
+       call ESMF_VMBarrier(VM, RC=STATUS)
+       VERIFY_(STATUS)
+       call MAPL_MemUtilsWrite(VM, &
+                  'GIGC, before GEOS-Chem: ', RC=STATUS )
+       VERIFY_(STATUS)
+    endif
+
     call MAPL_TimerOn ( STATE, GCNames(CHEM) )
     call ESMF_GridCompRun ( GCS(CHEM),               &
                             importState = GIM(CHEM), &
@@ -421,6 +485,14 @@ contains
     call MAPL_GenericRunCouplers (STATE, CHEM, CLOCK, RC=STATUS );
     VERIFY_(STATUS)
     call MAPL_TimerOff(STATE,GCNames(CHEM))
+
+    if ( MemDebugLevel > 0 ) THEN
+       call ESMF_VMBarrier(VM, RC=STATUS)
+       VERIFY_(STATUS)
+       call MAPL_MemUtilsWrite(VM, &
+                  'GIGC, after  GEOS-Chem: ', RC=STATUS )
+       VERIFY_(STATUS)
+    endif
 
     call MAPL_TimerOff(STATE,"RUN")
     call MAPL_TimerOff(STATE,"TOTAL")

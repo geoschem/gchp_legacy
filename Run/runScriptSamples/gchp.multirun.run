@@ -2,13 +2,27 @@
 
 #SBATCH -n 6
 #SBATCH -N 1
+#SBATCH --exclusive
 #SBATCH -t 0-0:30
 #SBATCH -p huce_intel
-#SBATCH --mem=50000
+#SBATCH --mem=MaxMemPerNode
 #SBATCH --mail-type=ALL
-#SBATCH -o slurm.%j.out
-#SBATCH -e slurm.%j.err
+#SBATCH -o slurm-%j.out
+#SBATCH -e slurm-%j.err
 
+# Resource request tips: 
+#  (1) Use #SBATCH -n 6 to request 6 cores total across all nodes
+#  (2) Use #SBATCH --exclusive to prevent other users from sharing nodes in use
+#      (ability to use --exclusive may be disabled on some clusters)
+#  (3) Use --mem=50G to request 50 Gigabytes per node, 
+#      or use --mem=MaxMemPerNode to request all memory per node
+#  (4) Performance is enhanced by requesting entire nodes and all memory
+#      even if GCHP is run on fewer cores per node than available.
+#
+# See SLURM documentation for descriptions of all possible settings.
+# Type 'man sbatch' at the command prompt to browse documentation.
+
+#-------------------------------------------------------------------------
 # Initial version: Lizzie Lundgren, 7/12/2018
 
 # This run script is for use within gchp.multirun.sh which submits 
@@ -108,12 +122,13 @@ echo "Settings from runConfig.sh: "
 echo " "
 source ./runConfig.sh
 
-# Overwrite the input restart file specified in GCHP.rc with the checkpoint
-# file if cap_restart exists. Note that this is not done via runConfig.sh
-# so as to preserve the configuration of the initial restart file to be 
-# used in the first run.
+# Use the last run's output restart file as the input restart file if
+# cap_restart exists (meaning there was a previous run). Note that unlike
+# in single runs and the first run in the multirun series, the restart file
+# is set here rather than from runConfig.sh.
 if [ -e cap_restart ]; then
-   sed -i "s|GIGCchem_INTERNAL_RESTART_FILE\:.*|GIGCchem_INTERNAL_RESTART_FILE\:     +gcchem_internal_checkpoint.restart.nc|" ./GCHP.rc
+   restart_datetime=$(echo $(cat cap_restart) | sed 's/ /_/g')
+   sed -i "s|GIGCchem_INTERNAL_RESTART_FILE\:.*|GIGCchem_INTERNAL_RESTART_FILE\:     +gcchem_internal_checkpoint.restart.${restart_datetime}.nc4|" ./GCHP.rc
 fi
 
 # Only run GCHP if runConfig.sh had no errors
@@ -147,9 +162,6 @@ if [[ $? == 0 ]]; then
    # SLURM_NTASKS is #SBATCH -n and SLURM_NNODES is #SBATCH -N above
    time srun -n ${coreCount} -N ${SLURM_NNODES} -m plane=${planeCount} --mpi=pmix ./geos
 
-   # Rename the restart (checkpoint) file so MAPL does not crash upon rerun
-   mv gcchem_internal_checkpoint.nc gcchem_internal_checkpoint.restart.nc
-   
    # Echo end date
    echo '===> Run ended at' `date`
 fi
@@ -164,6 +176,15 @@ if [ -f cap_restart ]; then
       echo "Error: cap_restart did not update to different date!" >> ${multirunlog}
       echo "Cancelling all jobs." >> ${multirunlog}
       cancel_all_jobs
+   else
+      # If all went well, rename the restart (checkpoint) file for clarity
+      # and to enable reuse as a restart file. MAPL cannot read in a file
+      # with the same name as the output checkpoint filename configured in
+      # GCHP.rc.
+      if [ -f cap_restart ]; then
+         restart_datetime=$(echo $(cat cap_restart) | sed 's/ /_/g')
+         mv gcchem_internal_checkpoint gcchem_internal_checkpoint.restart.${restart_datetime}.nc4
+      fi
    fi
 else
    echo " "

@@ -2,14 +2,23 @@
 
 #SBATCH -n 6
 #SBATCH -N 1
+#SBATCH --exclusive
 #SBATCH -t 0-1:00
 #SBATCH -p huce_intel
 #SBATCH --mem=MaxMemPerNode
 #SBATCH --mail-type=ALL
 
-# See SLURM documentation for descriptions of the above settings as well
-# as many other settings you may use. For best performance, request all
-# memory per node using --mem=MaxMemPerNode.
+# Resource request tips: 
+#  (1) Use #SBATCH -n 6 to request 6 cores total across all nodes
+#  (2) Use #SBATCH --exclusive to prevent other users from sharing nodes in use
+#      (ability to use --exclusive may be disabled on some clusters)
+#  (3) Use --mem=50G to request 50 Gigabytes per node, 
+#      or use --mem=MaxMemPerNode to request all memory per node
+#  (4) Performance is enhanced by requesting entire nodes and all memory
+#      even if GCHP is run on fewer cores per node than available.
+#
+# See SLURM documentation for descriptions of all possible settings.
+# Type 'man sbatch' at the command prompt to browse documentation.
 
 # Define GEOS-Chem log file
 log="gchp.log"
@@ -65,30 +74,18 @@ if [[ $? == 0 ]]; then
     echo ' ' >> ${log}
     echo '===> Run started at' `date` >> ${log}
 
-    # If the shared memory option is on (USE_SHMEM: 1 in CAP.rc) then
-    # clean up existing shared memory segments before and after running 
-    # the model
-    if grep -q "USE_SHMEM.*1" CAP.rc; then
-        ipcs -a  # Show current shared memory segments
-        ipcs -l  # Show shared memory limits
-        /sbin/sysctl -A | grep shm
-        memCleaner=./runScriptSamples/rmshmem.sh
-        srun -w $SLURM_JOB_NODELIST -n $SLURM_NNODES --ntasks-per-node=1 ${memCleaner}
-        ipcs -a  # Show current shared memory segments again (should be none)
-    fi
-
     # Odyssey-specific setting to get around connection issues at high # cores
     export OMPI_MCL_btl=openib
 
     # Start the simulation
     time srun -n ${coreCount} -N ${SLURM_NNODES} -m plane=${planeCount} --mpi=pmix ./geos >> ${log}
 
-    # Rename the restart (checkpoint) file so MAPL does not crash upon rerun
-    mv gcchem_internal_checkpoint.nc gccchem_internal_checkpoint.restart.nc
-
-    # Clean up any shared memory segments owned by this user
-    if grep -q "USE_SHMEM.*1" CAP.rc; then
-        srun -w $SLURM_JOB_NODELIST -n $SLURM_NNODES --ntasks-per-node=1 ${memCleaner}
+    # Rename the restart (checkpoint) file for clarity and to enable reuse as
+    # a restart file. MAPL cannot read in a file with the same name as the
+    # output checkpoint filename configured in GCHP.rc.
+    if [ -f cap_restart ]; then
+       restart_datetime=$(echo $(cat cap_restart) | sed 's/ /_/g')
+       mv gcchem_internal_checkpoint gcchem_internal_checkpoint.restart.${restart_datetime}.nc4
     fi
 
     # Echo end date

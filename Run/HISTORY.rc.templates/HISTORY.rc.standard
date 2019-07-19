@@ -4,20 +4,34 @@ CoresPerNode: 6
 VERSION: 1
 
 #==============================================================================
-# Declare and define output grids. Add additional as needed.
+# Define output grids different from the native cubed sphere in this section.
+# Each diagnostics collection will be output on the native resolution cubed
+# sphere grid unless a different grid is configured. A few examples are
+# provided below.
+#
+# To use a grid for a specific collection, include the 'grid_label' field
+# in the collection definition. For example, 
+#
+#   SpeciesConc.grid_label:   REGIONAL1x1
+#
+# If you are outputting on a lat/lon grid, be sure to specify conservative
+# regridding. Otherwise regridding will be bi-linear.
+#
+#   SpeciesConc.conservative: 1
+#
 #==============================================================================
-GRID_LABELS: PC180x91-DC
+GRID_LABELS: PE24x144-CF
              PC360x181-DC
-             PE24x144-CF
+             REGIONAL1x1
     ::
-    
-    PC180x91-DC.GRID_TYPE: LatLon
-    PC180x91-DC.IM_WORLD: 180
-    PC180x91-DC.JM_WORLD: 91
-    PC180x91-DC.POLE: PC
-    PC180x91-DC.DATELINE: DC
-    PC180x91-DC.LM: 72
-    
+
+    # Example of cubed-sphere grid at c24 resolution
+    PE24x144-CF.GRID_TYPE: Cubed-Sphere
+    PE24x144-CF.IM_WORLD: 24
+    PE24x144-CF.JM_WORLD: 144
+    PE24x144-CF.LM: 72
+
+    # Example of lat-lon global grid at 1x1 resolution
     PC360x181-DC.GRID_TYPE: LatLon
     PC360x181-DC.IM_WORLD: 360
     PC360x181-DC.JM_WORLD: 181
@@ -25,12 +39,15 @@ GRID_LABELS: PC180x91-DC
     PC360x181-DC.DATELINE: DC
     PC360x181-DC.LM: 72
 
-    PE24x144-CF.GRID_TYPE: Cubed-Sphere
-    PE24x144-CF.IM_WORLD: 24
-    PE24x144-CF.JM_WORLD: 144
-    PE24x144-CF.POLE: PC
-    PE24x144-CF.DATELINE: DC
-    PE24x144-CF.LM: 72
+    # Example of lat-lon regional grid at 1x1 resolution
+    REGIONAL1x1.GRID_TYPE: LatLon
+    REGIONAL1x1.IM_WORLD: 80
+    REGIONAL1x1.JM_WORLD: 40
+    REGIONAL1x1.POLE: XY
+    REGIONAL1x1.DATELINE: XY
+    REGIONAL1x1.LON_RANGE:   0 80
+    REGIONAL1x1.LAT_RANGE: -30 10
+    REGIONAL1x1.LM: 72
 
 #===================================================================
 # Declare collection names and toggle on/off
@@ -43,7 +60,6 @@ COLLECTIONS: #'AerosolMass'
              #'DryDep',
              'Emissions',
              #'JValues',
-             #'JValuesLocalNoon', # This collection is in development. Do not use.
              #'LevelEdgeDiags',      
              #'ProdLoss',
              'SpeciesConc',
@@ -62,14 +78,12 @@ COLLECTIONS: #'AerosolMass'
 # WARNING: Frequency, duration, and mode will be over-written with
 # settings in runConfig.sh. Edit those settings there. Add collections
 # as needed to that file as needed or edit in place new collections here.
+#
 # NOTES:
-#    (1) Specify output grid in collection with grid_label keyword, referencing
-#        grid label defined above. For example,
-#           SpeciesConc.grid_label: PC180x91-DC
-#    (2) If output is on lat-lon grid, specify conservative regridding 
-#        with conservative keyword. For example,
-#           SpeciesConc.conservative: 1
-#    (3) Specifying output grid is optional; default is native cubed-sphere
+#    (1) See the GRID_LABELS sections above for details about output grids
+#    (2) To output a reduced set of levels, use the levels keyword, e.g.:
+#           SpeciesConc.levels: 1 2 3
+#
 #==============================================================================
 # Emissions (see HEMCO_Diagn.rc for additional config settings)
   Emissions.template:         '%y4%m2%d2_%h2%n2z.nc4',
@@ -929,127 +943,6 @@ COLLECTIONS: #'AerosolMass'
                               'Jval_PAN                ', 'GIGCchem',
                               'Jval_O3                 ', 'GIGCchem',
                               'Jval_NO                 ', 'GIGCchem',
-::
-#===================================================================
-# Photolysis rates at local noon (J-values)
-  JValuesLocalNoon.template:  '%y4%m2%d2_%h2%n2z.nc4',
-  JValuesLocalNoon.format:    'CFIO',
-  JValuesLocalNoon.frequency: 010000
-  JValuesLocalNoon.duration:  010000
-  JValuesLocalNoon.mode:      'time-averaged'
-  JValuesLocalNoon.fields:    'JNoonFrac               ', 'GIGCchem',
-                              'JNoon_O3O3P             ', 'GIGCchem',
-                              'JNoon_O3O1D             ', 'GIGCchem',
-                              'JNoon_O2                ', 'GIGCchem',
-                              'JNoon_INPN              ', 'GIGCchem',
-                              'JNoon_MRP               ', 'GIGCchem',
-                              'JNoon_MAOP              ', 'GIGCchem',
-                              'JNoon_ISNP              ', 'GIGCchem',
-                              'JNoon_ATOOH             ', 'GIGCchem',
-                              'JNoon_VRP               ', 'GIGCchem',
-                              'JNoon_IAP               ', 'GIGCchem',
-                              'JNoon_R4P               ', 'GIGCchem',
-                              'JNoon_PIP               ', 'GIGCchem',
-                              'JNoon_PRPN              ', 'GIGCchem',
-                              'JNoon_PP                ', 'GIGCchem',
-                              'JNoon_RP                ', 'GIGCchem',
-                              'JNoon_RB3P              ', 'GIGCchem',
-                              'JNoon_RA3P              ', 'GIGCchem',
-                              'JNoon_ETP               ', 'GIGCchem',
-                              'JNoon_I2O4              ', 'GIGCchem',
-                              'JNoon_I2O3              ', 'GIGCchem',
-                              'JNoon_I2O2              ', 'GIGCchem',
-                              'JNoon_IONO2             ', 'GIGCchem',
-                              'JNoon_IONO              ', 'GIGCchem',
-                              'JNoon_INO               ', 'GIGCchem',
-                              'JNoon_OIO               ', 'GIGCchem',
-                              'JNoon_IO                ', 'GIGCchem',
-                              'JNoon_ICl               ', 'GIGCchem',
-                              'JNoon_IBr               ', 'GIGCchem',
-                              'JNoon_I2                ', 'GIGCchem',
-                              'JNoon_HOI               ', 'GIGCchem',
-                              'JNoon_CH2IBr            ', 'GIGCchem',
-                              'JNoon_CH2ICl            ', 'GIGCchem',
-                              'JNoon_CH2I2             ', 'GIGCchem',
-                              'JNoon_CH3I              ', 'GIGCchem',
-                              'JNoon_CH2Cl2            ', 'GIGCchem',
-                              'JNoon_CHCl3             ', 'GIGCchem',
-                              'JNoon_Cl2O2             ', 'GIGCchem',
-                              'JNoon_Cl2               ', 'GIGCchem',
-                              'JNoon_OClO              ', 'GIGCchem',
-                              'JNoon_ClOO              ', 'GIGCchem',
-                              'JNoon_ClNO2             ', 'GIGCchem',
-                              'JNoon_ClNO3             ', 'GIGCchem',
-                              'JNoon_HOCl              ', 'GIGCchem',
-                              'JNoon_ClO               ', 'GIGCchem',
-                              'JNoon_H2402             ', 'GIGCchem',
-                              'JNoon_H1301             ', 'GIGCchem',
-                              'JNoon_H1211             ', 'GIGCchem',
-                              'JNoon_HCFC22            ', 'GIGCchem',
-                              'JNoon_CFC12             ', 'GIGCchem',
-                              'JNoon_CFC11             ', 'GIGCchem',
-                              'JNoon_HCFC142B          ', 'GIGCchem',
-                              'JNoon_HCFC141B          ', 'GIGCchem',
-                              'JNoon_HCFC123           ', 'GIGCchem',
-                              'JNoon_CFC115            ', 'GIGCchem',
-                              'JNoon_CFC114            ', 'GIGCchem',
-                              'JNoon_CFC113            ', 'GIGCchem',
-                              'JNoon_CH3CCl3           ', 'GIGCchem',
-                              'JNoon_CH3Cl             ', 'GIGCchem',
-                              'JNoon_CCl4              ', 'GIGCchem',
-                              'JNoon_BrCl              ', 'GIGCchem',
-                              'JNoon_OCS               ', 'GIGCchem',
-                              'JNoon_N2O               ', 'GIGCchem',
-                              'JNoon_IPMN              ', 'GIGCchem',
-                              'JNoon_HONIT             ', 'GIGCchem',
-                              'JNoon_MONITU            ', 'GIGCchem',
-                              'JNoon_MONITS            ', 'GIGCchem',
-                              'JNoon_RIPD              ', 'GIGCchem',
-                              'JNoon_RIPB              ', 'GIGCchem',
-                              'JNoon_RIPA              ', 'GIGCchem',
-                              'JNoon_ISN1              ', 'GIGCchem',
-                              'JNoon_ETHLN             ', 'GIGCchem',
-                              'JNoon_DHDC              ', 'GIGCchem',
-                              'JNoon_HPALD             ', 'GIGCchem',
-                              'JNoon_GLYX              ', 'GIGCchem',
-                              'JNoon_MGLY              ', 'GIGCchem',
-                              'JNoon_HNO2              ', 'GIGCchem',
-                              'JNoon_NO3               ', 'GIGCchem',
-                              'JNoon_NO2               ', 'GIGCchem',
-                              'JNoon_MAP               ', 'GIGCchem',
-                              'JNoon_MACRN             ', 'GIGCchem',
-                              'JNoon_MVKN              ', 'GIGCchem',
-                              'JNoon_GLYC              ', 'GIGCchem',
-                              'JNoon_HAC               ', 'GIGCchem',
-                              'JNoon_PROPNN            ', 'GIGCchem',
-                              'JNoon_ISOPNB            ', 'GIGCchem',
-                              'JNoon_ISOPND            ', 'GIGCchem',
-                              'JNoon_MPN               ', 'GIGCchem',
-                              'JNoon_CH3Br             ', 'GIGCchem',
-                              'JNoon_CH2Br2            ', 'GIGCchem',
-                              'JNoon_CHBr3             ', 'GIGCchem',
-                              'JNoon_BrNO3             ', 'GIGCchem',
-                              'JNoon_BrNO2             ', 'GIGCchem',
-                              'JNoon_HOBr              ', 'GIGCchem',
-                              'JNoon_BrO               ', 'GIGCchem',
-                              'JNoon_Br2               ', 'GIGCchem',
-                              'JNoon_SO4               ', 'GIGCchem',
-                              'JNoon_MP                ', 'GIGCchem',
-                              'JNoon_HNO4              ', 'GIGCchem',
-                              'JNoon_N2O5              ', 'GIGCchem',
-                              'JNoon_CH2O              ', 'GIGCchem',
-                              'JNoon_R4N2              ', 'GIGCchem',
-                              'JNoon_MACR              ', 'GIGCchem',
-                              'JNoon_MVK               ', 'GIGCchem',
-                              'JNoon_RCHO              ', 'GIGCchem',
-                              'JNoon_ALD2              ', 'GIGCchem',
-                              'JNoon_MEK               ', 'GIGCchem',
-                              'JNoon_ACET              ', 'GIGCchem',
-                              'JNoon_H2O2              ', 'GIGCchem',
-                              'JNoon_HNO3              ', 'GIGCchem',
-                              'JNoon_PAN               ', 'GIGCchem',
-                              'JNoon_O3                ', 'GIGCchem',
-                              'JNoon_NO                ', 'GIGCchem',
 ::
 #===================================================================
 # Level edge diagnostics (73-level only)

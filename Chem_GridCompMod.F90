@@ -158,6 +158,9 @@ MODULE Chem_GridCompMod
   ! Is this being run as a CTM?
   INTEGER                          :: IsCTM
 
+  ! Memory debug level
+  INTEGER                          :: MemDebugLevel
+
 #if defined( MODEL_GEOS )
   ! GEOS-5 only
   ! Flag to initialize species concentrations from external fields. Read 
@@ -1754,6 +1757,12 @@ CONTAINS
     ! MSL - shift from 0 - 360 to -180 - 180 degree grid
     where (lonCtr .gt. MAPL_PI ) lonCtr = lonCtr - 2*MAPL_PI
 
+    ! Get the memory debug level
+    call ESMF_ConfigGetAttribute(GeosCF, MemDebugLevel, &
+                                 Label="MEMORY_DEBUG_LEVEL:" , RC=STATUS)
+    VERIFY_(STATUS)
+
+
     ! Name of logfile for stdout redirect
     CALL ESMF_ConfigGetAttribute( GeosCF, logFile,              &
                                   Label   = "STDOUT_LOGFILE:",  &
@@ -2754,6 +2763,7 @@ CONTAINS
 ! !USES:
 !
     USE HCO_INTERFACE_MOD,       ONLY : HcoState
+    USE MAPL_MemUtilsMod
     USE Olson_Landmap_Mod,       ONLY : Compute_Olson_Landmap
     USE Precision_Mod
 
@@ -2833,6 +2843,7 @@ CONTAINS
     TYPE(ESMF_Config)            :: MaplCF        ! Config (MAPL.rc)
     TYPE(ESMF_Config)            :: GeosCF        ! Config (GEOSCHEM*.rc)
     TYPE(ESMF_Alarm)             :: ALARM
+    TYPE(ESMF_VM)                :: VM            ! ESMF VM object
                                                   
     ! Scalars                                     
     LOGICAL                      :: am_I_Root     ! Are we on the root PET?
@@ -2975,6 +2986,13 @@ CONTAINS
 
     ! Identify this routine to MAPL
     Iam = TRIM(compName)//'::Run_'
+
+    ! Get the VM for optional memory prints (level >= 2)
+    !-----------------------------------
+    if ( MemDebugLevel > 0 ) THEN
+       call ESMF_VmGetCurrent(VM, RC=STATUS)
+       VERIFY_(STATUS)
+    endif
 
     ! Get my MAPL_Generic state
     ! -------------------------
@@ -3819,6 +3837,15 @@ CONTAINS
        
           ! Only if restart file exists...
           IF ( Input_Opt%haveImpRst ) THEN
+
+             ! Optional memory prints (level >= 2)
+             if ( MemDebugLevel > 0 ) THEN
+                call ESMF_VMBarrier(vm, RC=STATUS)
+                VERIFY_(STATUS)
+                call MAPL_MemUtilsWrite(VM, &
+                  'Chem_GridCompMod, before chunk_run', RC=STATUS )
+                VERIFY_(STATUS)
+             endif
        
              CALL MAPL_TimerOn(STATE, "DO_CHEM")
        
@@ -3860,6 +3887,15 @@ CONTAINS
        
              CALL MAPL_TimerOff(STATE, "DO_CHEM")
        
+             ! Optional memory prints (level >= 2)
+             if ( MemDebugLevel > 0 ) THEN
+                call ESMF_VMBarrier(vm, RC=STATUS)
+                VERIFY_(STATUS)
+                call MAPL_MemUtilsWrite(VM, &
+                  'Chem_GridCompMod, after  chunk_run', RC=STATUS )
+                VERIFY_(STATUS)
+             endif
+
           ! Restart file does not exist:
           ELSE
              IF ( am_I_Root ) THEN

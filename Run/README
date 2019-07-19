@@ -63,9 +63,9 @@ Instructions to set up, compile, and run GCHP:
     (a) You can see all make options with 'make help' or simply 'make'
     (b) You can skip this step and copy an executable from another run
         directory, being very careful to use the same environment file
-        the executable was created with and not renaming or recompiling
-        the original source code. Also copying 'lastbuild' and 'compile.log'
-        is recommended.
+        the executable was created with. It is good practice also copy the 
+        compile log (compile.log) as well to have as a record of the last build.
+        That file includes git information about the version compiled.
     (c) A clean compile will take over a half-hour while subsequent
         compilations will be of time on par with GEOS-Chem classic compile 
         time.

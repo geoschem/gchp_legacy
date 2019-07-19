@@ -1,24 +1,37 @@
-
 EXPID:  OutputDir/GCHP
 EXPDSC: GEOS-Chem_devel
 CoresPerNode: 6
 VERSION: 1
 
 #==============================================================================
-# Declare and define output grids. Add additional as needed.
+# Define output grids different from the native cubed sphere in this section.
+# Each diagnostics collection will be output on the native resolution cubed
+# sphere grid unless a different grid is configured. A few examples are
+# provided below.
+#
+# To use a grid for a specific collection, include the 'grid_label' field
+# in the collection definition. For example, 
+#
+#   SpeciesConc.grid_label:   REGIONAL1x1
+#
+# If you are outputting on a lat/lon grid, be sure to specify conservative
+# regridding. Otherwise regridding will be bi-linear.
+#
+#   SpeciesConc.conservative: 1
+#
 #==============================================================================
-GRID_LABELS: PC180x91-DC
+GRID_LABELS: PE24x144-CF
              PC360x181-DC
-             PE24x144-CF
+             REGIONAL1x1
     ::
-    
-    PC180x91-DC.GRID_TYPE: LatLon
-    PC180x91-DC.IM_WORLD: 180
-    PC180x91-DC.JM_WORLD: 91
-    PC180x91-DC.POLE: PC
-    PC180x91-DC.DATELINE: DC
-    PC180x91-DC.LM: 72
-    
+
+    # Example of cubed-sphere grid at c24 resolution
+    PE24x144-CF.GRID_TYPE: Cubed-Sphere
+    PE24x144-CF.IM_WORLD: 24
+    PE24x144-CF.JM_WORLD: 144
+    PE24x144-CF.LM: 72
+
+    # Example of lat-lon global grid at 1x1 resolution
     PC360x181-DC.GRID_TYPE: LatLon
     PC360x181-DC.IM_WORLD: 360
     PC360x181-DC.JM_WORLD: 181
@@ -26,12 +39,15 @@ GRID_LABELS: PC180x91-DC
     PC360x181-DC.DATELINE: DC
     PC360x181-DC.LM: 72
 
-    PE24x144-CF.GRID_TYPE: Cubed-Sphere
-    PE24x144-CF.IM_WORLD: 24
-    PE24x144-CF.JM_WORLD: 144
-    PE24x144-CF.POLE: PC
-    PE24x144-CF.DATELINE: DC
-    PE24x144-CF.LM: 72
+    # Example of lat-lon regional grid at 1x1 resolution
+    REGIONAL1x1.GRID_TYPE: LatLon
+    REGIONAL1x1.IM_WORLD: 80
+    REGIONAL1x1.JM_WORLD: 40
+    REGIONAL1x1.POLE: XY
+    REGIONAL1x1.DATELINE: XY
+    REGIONAL1x1.LON_RANGE:   0 80
+    REGIONAL1x1.LAT_RANGE: -30 10
+    REGIONAL1x1.LM: 72
 
 #==============================================================================
 # Declare collection names and toggle on/off with #
@@ -58,14 +74,12 @@ COLLECTIONS: 'Emissions',
 # WARNING: Frequency, duration, and mode will be over-written with
 # settings in runConfig.sh. Edit those settings there. Add collections
 # as needed to that file as needed or edit in place new collections here.
+#
 # NOTES:
-#    (1) Specify output grid in collection with grid_label keyword, referencing
-#        grid label defined above. For example,
-#           SpeciesConc.grid_label: PC180x91-DC
-#    (2) If output is on lat-lon grid, specify conservative regridding 
-#        with conservative keyword. For example,
-#           SpeciesConc.conservative: 1
-#    (3) Specifying output grid is optional; default is native cubed-sphere
+#    (1) See the GRID_LABELS sections above for details about output grids
+#    (2) To output a reduced set of levels, use the levels keyword, e.g.:
+#           SpeciesConc.levels: 1 2 3
+#
 #==============================================================================
 # Emissions (see HEMCO_Diagn.rc for additional config settings)
   Emissions.template:         '%y4%m2%d2_%h2%n2z.nc4',
