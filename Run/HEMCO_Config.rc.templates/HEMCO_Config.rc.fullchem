@@ -39,7 +39,7 @@ ROOT:                        {DATA_ROOT}/HEMCO
 METDIR:                      not_used
 Logfile:                     HEMCO.log
 DiagnFile:                   HEMCO_Diagn.rc
-DiagnPrefix:                 HEMCO_diagnostics
+DiagnPrefix:                 ./OutputDir/HEMCO_diagnostics
 DiagnFreq:                   End
 Wildcard:                    *
 Separator:                   /
@@ -741,8 +741,8 @@ Warnings:                    1
 0 DICE_CARS_XYLE  $ROOT/DICE_Africa/v2016-10/DICE-Africa-cars-2013-v01-4Oct2016.nc  XYLE    2013/1/1/0 C xy g/m2/yr  XYLE  26/1008         1 60
 0 DICE_CARS_BCPI  $ROOT/DICE_Africa/v2016-10/DICE-Africa-cars-2013-v01-4Oct2016.nc  BC      2013/1/1/0 C xy g/m2/yr  BCPI  70/1008         1 60
 0 DICE_CARS_BCPO  -                                                                 -       -          - -  -        BCPO  71/1008         1 60
-0 DICE_CARS_OCPI  $ROOT/DICE_Africa/v2016-10/DICE-Africa-cars-2013-v01-4Oct2016.nc  OC      2013/1/1/0 C xy g/m2/yr  OCPI  72/1008         1 60
-0 DICE_CARS_OCPO  -                                                                 -       -          - -  -        OCPO  73/1008         1 60
+0 DICE_CARS_OCPI  $ROOT/DICE_Africa/v2016-10/DICE-Africa-cars-2013-v01-4Oct2016.nc  OC      2013/1/1/0 C xy g/m2/yr  OCPI  72/1008/330     1 60
+0 DICE_CARS_OCPO  -                                                                 -       -          - -  -        OCPO  73/1008/330     1 60
 
 # ------------------------
 #  Motorcycles 
@@ -796,23 +796,23 @@ Warnings:                    1
 # ------------------------
 #  Charcoal production 
 # ------------------------
-0 DICE_CHARCOALPROD_CO    $ROOT/DICE_Africa/v2016-10/DICE-Africa-charcoal-production-2013-v01-4Oct2016.nc  CO    2013/1/1/0 C xy g/m2/yr  CO    26/1008          1 60
-0 DICE_CHARCOALPROD_SOAP  -                                                                                -     -          - -  -        SOAP  26/1008/280      1 60
-0 DICE_CHARCOALPROD_NO    $ROOT/DICE_Africa/v2016-10/DICE-Africa-charcoal-production-2013-v01-4Oct2016.nc  NO    2013/1/1/0 C xy g/m2/yr  NO    25/30/1008       1 60
-0 DICE_CHARCOALPROD_NH3   $ROOT/DICE_Africa/v2016-10/DICE-Africa-charcoal-production-2013-v01-4Oct2016.nc  NH3   2013/1/1/0 C xy g/m2/yr  NH3   1008             1 60
-0 DICE_CHARCOALPROD_PRPE  $ROOT/DICE_Africa/v2016-10/DICE-Africa-charcoal-production-2013-v01-4Oct2016.nc  PRPE  2013/1/1/0 C xy g/m2/yr  PRPE  26/1008          1 60
-0 DICE_CHARCOALPROD_CH2O  $ROOT/DICE_Africa/v2016-10/DICE-Africa-charcoal-production-2013-v01-4Oct2016.nc  CH2O  2013/1/1/0 C xy g/m2/yr  CH2O  26/1008          1 60
-0 DICE_CHARCOALPROD_C2H6  $ROOT/DICE_Africa/v2016-10/DICE-Africa-charcoal-production-2013-v01-4Oct2016.nc  C2H6  2013/1/1/0 C xy g/m2/yr  C2H6  26/1008          1 60
-0 DICE_CHARCOALPROD_HAC   $ROOT/DICE_Africa/v2016-10/DICE-Africa-charcoal-production-2013-v01-4Oct2016.nc  HAC   2013/1/1/0 C xy g/m2/yr  HAC   26/1008          1 60
-#0 DICE_CHARCOALPROD_C2H2 $ROOT/DICE_Africa/v2016-10/DICE-Africa-charcoal-production-2013-v01-4Oct2016.nc  C2H2  2013/1/1/0 C xy g/m2/yr  C2H2  26/1008          1 60
-#0 DICE_CHARCOALPROD_C2H4 $ROOT/DICE_Africa/v2016-10/DICE-Africa-charcoal-production-2013-v01-4Oct2016.nc  C2H4  2013/1/1/0 C xy g/m2/yr  C2H4  26/1008          1 60
-0 DICE_CHARCOALPROD_TOLU  $ROOT/DICE_Africa/v2016-10/DICE-Africa-charcoal-production-2013-v01-4Oct2016.nc  TOLU  2013/1/1/0 C xy g/m2/yr  TOLU  26/1008          1 60
-0 DICE_CHARCOALPROD_HCOOH $ROOT/DICE_Africa/v2016-10/DICE-Africa-charcoal-production-2013-v01-4Oct2016.nc  HCOOH 2013/1/1/0 C xy g/m2/yr  HCOOH 26/1008          1 60
-#0 DICE_CHARCOALPROD_MOH  $ROOT/DICE_Africa/v2016-10/DICE-Africa-charcoal-production-2013-v01-4Oct2016.nc  MOH   2013/1/1/0 C xy g/m2/yr  MOH   26/1008          1 60
-0 DICE_CHARCOALPROD_BCPI  $ROOT/DICE_Africa/v2016-10/DICE-Africa-charcoal-production-2013-v01-4Oct2016.nc  BC    2013/1/1/0 C xy g/m2/yr  BCPI  70/1008          1 60
-0 DICE_CHARCOALPROD_BCPO  -                                                                                -     -          - -  -        BCPO  71/1008          1 60
-0 DICE_CHARCOALPROD_OCPI  $ROOT/DICE_Africa/v2016-10/DICE-Africa-charcoal-production-2013-v01-4Oct2016.nc  OC    2013/1/1/0 C xy g/m2/yr  OCPI  72/1008          1 60
-0 DICE_CHARCOALPROD_OCPO  -                                                                                -     -          - -  -        OCPO  73/1008          1 60
+0 DICE_CHARCOALPROD_CO    $ROOT/DICE_Africa/v2016-10/DICE-Africa-charcoal-production-2013-v01-4Oct2016.nc  CO    2013/1/1/0 C xy g/m2/yr  CO    26/1008/320      1 60
+0 DICE_CHARCOALPROD_SOAP  -                                                                                -     -          - -  -        SOAP  26/1008/280/320  1 60
+0 DICE_CHARCOALPROD_NO    $ROOT/DICE_Africa/v2016-10/DICE-Africa-charcoal-production-2013-v01-4Oct2016.nc  NO    2013/1/1/0 C xy g/m2/yr  NO    25/30/1008/320   1 60
+0 DICE_CHARCOALPROD_NH3   $ROOT/DICE_Africa/v2016-10/DICE-Africa-charcoal-production-2013-v01-4Oct2016.nc  NH3   2013/1/1/0 C xy g/m2/yr  NH3   1008/320         1 60
+0 DICE_CHARCOALPROD_PRPE  $ROOT/DICE_Africa/v2016-10/DICE-Africa-charcoal-production-2013-v01-4Oct2016.nc  PRPE  2013/1/1/0 C xy g/m2/yr  PRPE  26/1008/320      1 60
+0 DICE_CHARCOALPROD_CH2O  $ROOT/DICE_Africa/v2016-10/DICE-Africa-charcoal-production-2013-v01-4Oct2016.nc  CH2O  2013/1/1/0 C xy g/m2/yr  CH2O  26/1008/320      1 60
+0 DICE_CHARCOALPROD_C2H6  $ROOT/DICE_Africa/v2016-10/DICE-Africa-charcoal-production-2013-v01-4Oct2016.nc  C2H6  2013/1/1/0 C xy g/m2/yr  C2H6  26/1008/320      1 60
+0 DICE_CHARCOALPROD_HAC   $ROOT/DICE_Africa/v2016-10/DICE-Africa-charcoal-production-2013-v01-4Oct2016.nc  HAC   2013/1/1/0 C xy g/m2/yr  HAC   26/1008/320      1 60
+#0 DICE_CHARCOALPROD_C2H2 $ROOT/DICE_Africa/v2016-10/DICE-Africa-charcoal-production-2013-v01-4Oct2016.nc  C2H2  2013/1/1/0 C xy g/m2/yr  C2H2  26/1008/320      1 60
+#0 DICE_CHARCOALPROD_C2H4 $ROOT/DICE_Africa/v2016-10/DICE-Africa-charcoal-production-2013-v01-4Oct2016.nc  C2H4  2013/1/1/0 C xy g/m2/yr  C2H4  26/1008/320      1 60
+0 DICE_CHARCOALPROD_TOLU  $ROOT/DICE_Africa/v2016-10/DICE-Africa-charcoal-production-2013-v01-4Oct2016.nc  TOLU  2013/1/1/0 C xy g/m2/yr  TOLU  26/1008/320      1 60
+0 DICE_CHARCOALPROD_HCOOH $ROOT/DICE_Africa/v2016-10/DICE-Africa-charcoal-production-2013-v01-4Oct2016.nc  HCOOH 2013/1/1/0 C xy g/m2/yr  HCOOH 26/1008/320      1 60
+#0 DICE_CHARCOALPROD_MOH  $ROOT/DICE_Africa/v2016-10/DICE-Africa-charcoal-production-2013-v01-4Oct2016.nc  MOH   2013/1/1/0 C xy g/m2/yr  MOH   26/1008/320      1 60
+0 DICE_CHARCOALPROD_BCPI  $ROOT/DICE_Africa/v2016-10/DICE-Africa-charcoal-production-2013-v01-4Oct2016.nc  BC    2013/1/1/0 C xy g/m2/yr  BCPI  70/1008/320      1 60
+0 DICE_CHARCOALPROD_BCPO  -                                                                                -     -          - -  -        BCPO  71/1008/320      1 60
+0 DICE_CHARCOALPROD_OCPI  $ROOT/DICE_Africa/v2016-10/DICE-Africa-charcoal-production-2013-v01-4Oct2016.nc  OC    2013/1/1/0 C xy g/m2/yr  OCPI  72/1008/320      1 60
+0 DICE_CHARCOALPROD_OCPO  -                                                                                -     -          - -  -        OCPO  73/1008/320      1 60
 
 # ------------------------
 #  Flaring of natural gas 
@@ -999,6 +999,9 @@ Warnings:                    1
 #  Efficient Combustion Emissions from EDGAR
 #  This makes up for sources that DICE-Africa lacks
 # ---------------------------------------------------
+0 AF_EDGAR_BCPI_POW $ROOT/EDGARv43/v2016-11/EDGAR_v43.BC.POW.0.1x0.1.nc  emi_bc  1970-2010/1/1/0 C xy kg/m2/s BCPI 1201/1008/70         1 60
+0 AF_EDGAR_BCPO_POW -                                                    -       -               - -  -       BCPO 1201/1008/71         1 60
+
 0 AF_EDGAR_CO_POW   $ROOT/EDGARv43/v2016-11/EDGAR_v43.CO.POW.0.1x0.1.nc  emi_co  1970-2010/1/1/0 C xy kg/m2/s CO   1201/26/52/1008      1 60
 0 AF_EDGAR_SOAP_POW -                                                    -       -               - -  -       SOAP 1201/26/52/1008/280  1 60
 0 AF_EDGAR_CO_ENG   $ROOT/EDGARv43/v2016-11/EDGAR_v43.CO.ENG.0.1x0.1.nc  emi_co  1970-2010/1/1/0 C xy kg/m2/s CO   1202/26/52/1008      1 60
@@ -2924,6 +2927,18 @@ Warnings:                    1
 #==============================================================================
 311 QFED_PBL_FRAC 0.65 - - - xy 1 1
 312 QFED_FT_FRAC  0.35 - - - xy 1 1
+
+#==============================================================================
+# DICE-Africa charcoal production scale factor to reduce charcoal production
+# by a factor of 5 after finding error in implementation of emission factors.
+#==============================================================================
+320 DICE_CP_SF    0.20 - - - xy 1 1
+ 
+#==============================================================================
+# DICE-Africa car emissions of OCPI and OCPO scale factor to address a factor of 7 overestimate
+# in car OC emissions that results from incorrect emission factors used in the original inventory
+#==============================================================================
+330 DICE_CAR_OC_SF    0.14 - - - xy 1 1
 
 #==============================================================================
 # --- Offline dust emissions ---

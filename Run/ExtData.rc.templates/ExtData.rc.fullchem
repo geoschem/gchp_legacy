@@ -881,6 +881,8 @@ DICE_OTHERFUELWOOD_OCPI  g/m2/yr  N Y - none 3.171e-11 OC    ./MainDataDir/DICE_
 
 #  --- Efficient Combusions Emissions from EDGARv43    --- 
 #  --- This covers sectors not included in DICE-Africa ---
+AF_EDGAR_BCPI_POW kg/m2/s  N Y F%y4-01-01T00:00:00 none none emi_bc   ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.BC.POW.0.1x0.1.nc
+AF_EDGAR_BCPO_POW kg/m2/s  N Y F%y4-01-01T00:00:00 none none emi_bc   ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.BC.POW.0.1x0.1.nc
 AF_EDGAR_CO_POW   kg/m2/s  N Y F%y4-01-01T00:00:00 none none emi_co   ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.CO.POW.0.1x0.1.nc
 AF_EDGAR_CO_ENG   kg/m2/s  N Y F%y4-01-01T00:00:00 none none emi_co   ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.CO.ENG.0.1x0.1.nc
 AF_EDGAR_CO_IND   kg/m2/s  N Y F%y4-01-01T00:00:00 none none emi_co   ./MainDataDir/EDGARv43/v2016-11/EDGAR_v43.CO.IND.0.1x0.1.nc
