@@ -58,12 +58,10 @@ GRID_LABELS: PE24x144-CF
 # NOTE: These are the "default" collections for GEOS-Chem, but you can create
 # your own customized diagnostic collections as well.
 #==============================================================================
-COLLECTIONS: 'AdvFluxVert',
-             'AerosolMass',
+COLLECTIONS: 'AerosolMass',
              'Aerosols',
              'Budget',
              'CloudConvFlux',
-             'ConcAboveSfc',
              'ConcAfterChem',
              'DryDep',
              'Emissions',
@@ -533,20 +531,6 @@ COLLECTIONS: 'AdvFluxVert',
                               'InvIODINE_I2         ', 'GIGCchem',
 ::
 #==============================================================================
-# %%%%% THE AdvFluxVert COLLECTION %%%%%
-#
-# GEOS-Chem vertical mass flux of species in kg/s (default = O3 only)
-#
-# Available for all simulations
-#==============================================================================
-  AdvFluxVert.template:       '%y4%m2%d2_%h2%n2z.nc4',
-  AdvFluxVert.format:         'CFIO',
-  AdvFluxVert.frequency:      010000
-  AdvFluxVert.duration:       010000
-  AdvFluxVert.mode:           'time-averaged'
-  AdvFluxVert.fields:         'SpeciesConc_O3               ', 'GIGCchem',
-::
-#==============================================================================
 # %%%%% THE AerosolMass COLLECTION %%%%%
 #
 # Aerosol and PM2.5 mass
@@ -907,26 +891,6 @@ COLLECTIONS: 'AdvFluxVert',
                               'CloudConvFlux_ISALC    ', 'GIGCchem',
                               'CloudConvFlux_AERI     ', 'GIGCchem',
                               'CloudConvFlux_pFe      ', 'GIGCchem',
-::
-#==============================================================================
-# %%%%% THE ConcAboveSfc COLLECTION %%%%%
-#
-# Concentrations of O3 and HNO3 at a user-specified altitude above
-# the surface, such as 10m.  Set the desired output altitude in meters
-# in the DEPOSITION MENU of input.geos.
-#
-# NOTE: All of the fields in the collection must be turned on.
-#==============================================================================
-  ConcAboveSfc.template:      '%y4%m2%d2_%h2%n2z.nc4',
-  ConcAboveSfc.format:        'CFIO',
-  ConcAboveSfc.frequency:     010000
-  ConcAboveSfc.duration:      010000
-  ConcAboveSfc.mode:          'time-averaged'
-  ConcAboveSfc.fields:        'DryDepRa10m                  ', 'GIGCchem',
-                              'DryDepVelFor10m_O3           ', 'GIGCchem',
-                              'DryDepVelFor10m_HNO3         ', 'GIGCchem',
-                              'SpeciesConc10m_O3            ', 'GIGCchem',
-                              'SpeciesConc10m_HNO3          ', 'GIGCchem',
 ::
 #==============================================================================
 # %%%%% THE ConcAfterChem COLLECTION %%%%%
