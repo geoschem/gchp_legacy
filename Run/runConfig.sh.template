@@ -35,6 +35,15 @@ NXNY_AUTO=ON
 #                        (NX=6,NY=24)  -> 144 cores at 6x4
 #         Bad examples:  (NX=8,NY=12)  -> 96  cores at 8x2
 #                        (NX=12,NY=12) -> 144 cores at 12x2
+#   4. Domain decomposition requires that CS_RES/NX >= 4 and CS_RES*6/NY >= 4,
+#      which puts an upper limit on total cores per grid resolution.
+#         c24: 216 cores   (NX=6,  NY=36 )
+#         c48: 864 cores   (NX=12, NY=72 )
+#         c90: 3174 cores  (NX=22, NY=132)
+#        c180: 12150 cores (NX=45, NY=270)
+#        c360: 48600 cores (NX=90, NY=540)
+#      Using fewer cores may still trigger a domain decomposition error, e.g.:
+#         c48: 768 cores   (NX=16, NY=48)  --> 48/16=3 will trigger FV3 error
 NX=1 # Ignore if NXNY_AUTO=ON
 NY=6 # Ignore if NXNY_AUTO=ON
 
@@ -307,6 +316,12 @@ fi
 if (( ${NY}%6 != 0 )); then
    echo "ERROR: NY must be an integer divisible by 6. Check values in runConfig.sh."
    exit 1    
+fi
+
+#### Check that domain decomposition will not trigger a FV3 domain error
+if [[ $(( ${CS_RES}/${NX} )) -lt 4 || $(( ${CS_RES}*6/${NY} )) -lt 4  ]]; then
+   echo "ERROR: NX and NY are set such that face side length divided by NX or NY/6 is less than 4. The cubed sphere compute domain has a minimum requirement of 4 points in NX and NY/6. Adjust total number of cores in runConfig.sh."
+   exit 1
 fi
 
 #### Check if domains are square enough (NOTE: approx using integer division)
