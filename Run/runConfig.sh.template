@@ -130,6 +130,9 @@ Budget_mode=${common_mode}
 CloudConvFlux_freq=${common_freq}
 CloudConvFlux_dur=${common_dur}
 CloudConvFlux_mode=${common_mode}
+ConcAboveSfc_freq=${common_freq}
+ConcAboveSfc_dur=${common_dur}
+ConcAboveSfc_mode="'instantaneous'"
 ConcAfterChem_freq=${common_freq}
 ConcAfterChem_dur=${common_dur}
 ConcAfterChem_mode=${common_mode}
@@ -466,6 +469,9 @@ replace_val Budget.mode                ${Budget_mode}	        HISTORY.rc
 replace_val CloudConvFlux.frequency    ${CloudConvFlux_freq}    HISTORY.rc
 replace_val CloudConvFlux.duration     ${CloudConvFlux_dur}     HISTORY.rc
 replace_val CloudConvFlux.mode         ${CloudConvFlux_mode}    HISTORY.rc
+replace_val ConcAboveSfc.frequency     ${ConcAboveSfc_freq}     HISTORY.rc
+replace_val ConcAboveSfc.duration      ${ConcAboveSfc_dur}      HISTORY.rc
+replace_val ConcAboveSfc.mode          ${ConcAboveSfc_mode}     HISTORY.rc
 replace_val ConcAfterChem.frequency    ${ConcAfterChem_freq}    HISTORY.rc
 replace_val ConcAfterChem.duration     ${ConcAfterChem_dur}     HISTORY.rc
 replace_val ConcAfterChem.mode         ${ConcAfterChem_mode}    HISTORY.rc

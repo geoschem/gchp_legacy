@@ -62,6 +62,7 @@ COLLECTIONS: #'AerosolMass',
              #'Aerosols',
              #'Budget',
              #'CloudConvFlux',
+             #'ConcAboveSfc',
              #'ConcAfterChem',
              #'DryDep',
              'Emissions',
@@ -627,6 +628,29 @@ COLLECTIONS: #'AerosolMass',
                               'CloudConvFlux_ISALC    ', 'GIGCchem',
                               'CloudConvFlux_AERI     ', 'GIGCchem',
                               'CloudConvFlux_pFe      ', 'GIGCchem',
+::
+#==============================================================================
+# %%%%% THE ConcAboveSfc COLLECTION %%%%%
+#
+# Concentrations of O3 and HNO3 at a user-specified altitude above
+# the surface, such as 10m.  Set the desired output altitude in meters
+# in the DEPOSITION MENU of input.geos.
+#
+# NOTES: 
+# (1) This collection requires dry deposition to be turned on.
+# (2) All of the fields in the collection must be turned on.
+# (3) This collection is best used with mode "instantaneous".
+#==============================================================================
+  ConcAboveSfc.template:      '%y4%m2%d2_%h2%n2z.nc4',
+  ConcAboveSfc.format:        'CFIO',
+  ConcAboveSfc.frequency:     010000
+  ConcAboveSfc.duration:      010000
+  ConcAboveSfc.mode:          'instantaneous'
+  ConcAboveSfc.fields:        'DryDepRaALT1                  ', 'GIGCchem',
+                              'DryDepVelForALT1_O3           ', 'GIGCchem',
+                              'DryDepVelForALT1_HNO3         ', 'GIGCchem',
+                              'SpeciesConcALT1_O3            ', 'GIGCchem',
+                              'SpeciesConcALT1_HNO3          ', 'GIGCchem',
 ::
 #==============================================================================
 # %%%%% THE ConcAfterChem COLLECTION %%%%%
