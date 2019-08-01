@@ -210,7 +210,7 @@ contains
          PRECISION  = ESMF_KIND_R8,                                &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationEdge,             RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
     ! Add dry pressure 1 import for GCHP
     call MAPL_AddImportSpec ( gc,                                  &
@@ -220,7 +220,7 @@ contains
          PRECISION  = ESMF_KIND_R8,                                &
          DIMS       = MAPL_DimsHorzVert,                           &
          VLOCATION  = MAPL_VLocationEdge,             RC=STATUS  )
-     VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_AddImportSpec(GC,                                  &
        SHORT_NAME         = 'TRADV',                             &
@@ -249,7 +249,7 @@ contains
           PRECISION  = ESMF_KIND_R8,                                &
           DIMS       = MAPL_DimsHorzVert,                           &
           VLOCATION  = MAPL_VLocationEdge,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
      ! Add dry pressure export for GCHP
      call MAPL_AddExportSpec ( gc,                                  &
@@ -259,7 +259,7 @@ contains
           PRECISION  = ESMF_KIND_R8,                                &
           DIMS       = MAPL_DimsHorzVert,                           &
           VLOCATION  = MAPL_VLocationEdge,               RC=STATUS  )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
 ! 3D Tracers
      do ntracer=1,ntracers
@@ -737,11 +737,11 @@ contains
 
       ! Update the dry and wet pressure edge arrays
       call MAPL_GetPointer ( EXPORT, DryPLE, 'DryPLE', ALLOC=.TRUE., RC=STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       DryPLE(:,:,:) = DryPLE1(:,:,:)
 
       call MAPL_GetPointer ( EXPORT, PLE, 'PLE', ALLOC=.TRUE., RC=STATUS )
-      VERIFY_(STATUS)
+      _VERIFY(STATUS)
       PLE(:,:,:) = PLE1(:,:,:)
 
       deallocate( advTracers, stat=STATUS )

@@ -1,7 +1,7 @@
-      ALLOCATE( AP( LM+1 ), STAT=STATUS ); VERIFY_(STATUS)
+      ALLOCATE( AP( LM+1 ), STAT=STATUS ); _VERIFY(STATUS)
       AP = 1d0
 
-      ALLOCATE( BP( LM+1 ), STAT=STATUS ); VERIFY_(STATUS)
+      ALLOCATE( BP( LM+1 ), STAT=STATUS ); _VERIFY(STATUS)
       BP = 0d0
 
       !-----------------------------------------------------------------

@@ -751,7 +751,7 @@ CONTAINS
              IF ( RC /= ESMF_SUCCESS ) THEN
                 WRITE(*,*) 'Cannot fill AERO bundle - field not found in ' // &
                            'internal state: ' // TRIM(GCName)
-                ASSERT_(.FALSE.)
+                _ASSERT(.FALSE., 'informative message here')
              ENDIF
   
              ! Set number of fields to be created. This is only different from
@@ -865,7 +865,7 @@ CONTAINS
 
        ! O3_HIST is needed to store O3 field from previous chemistry time step
        ALLOCATE( O3_HIST(State_Grid%NX,State_Grid%NY,State_Grid%NZ), STAT=STAT )
-       ASSERT_(STAT==0)
+       _ASSERT(STAT==0, 'informative message here')
     ENDIF
 
     IF ( DoRATS ) THEN
@@ -878,7 +878,7 @@ CONTAINS
 
        ! H2O_HIST is needed to store H2O field from previous chemistry time step
        ALLOCATE( H2O_HIST(State_Grid%NX,State_Grid%NY,State_Grid%NZ), STAT=STAT)
-       ASSERT_(STAT==0)
+       _ASSERT(STAT==0, 'informative message here')
     ENDIF
 
     ! Successful return
@@ -1271,9 +1271,9 @@ CONTAINS
 
     ! Allocate local variables
     ALLOCATE( DUsLayerL(IM,JM), STAT=STAT )
-    VERIFY_(STAT)
+    _VERIFY(STAT)
     ALLOCATE( wgt(IM,JM), STAT=STAT )
-    VERIFY_(STAT)
+    _VERIFY(STAT)
  
     ! Calculate total ozone
     DO L = 1,LM 
@@ -1290,9 +1290,9 @@ CONTAINS
  
     ! Cleanup
     DEALLOCATE(DUsLayerL, STAT=STAT)
-    VERIFY_(STAT)
+    _VERIFY(STAT)
     DEALLOCATE(wgt, STAT=STAT)
-    VERIFY_(STAT)
+    _VERIFY(STAT)
 
     ! Successful return
     RC = ESMF_SUCCESS
@@ -1562,7 +1562,7 @@ CONTAINS
                              COL=Input_Opt%DIAG_COLLECTION ) 
 
              ! Error check 
-             ASSERT_( ERR == HCO_SUCCESS )
+             _ASSERT( ERR == HCO_SUCCESS, 'informative message here' )
 
              ! Add to array if diagnostics is defined
              ! GEOS-Chem diagnostics is in kg m-2 s-1.
@@ -1602,7 +1602,7 @@ CONTAINS
                                 COL=Input_Opt%DIAG_COLLECTION ) 
 
                 ! Error check 
-                ASSERT_( ERR == HCO_SUCCESS )
+                _ASSERT( ERR == HCO_SUCCESS, 'informative message here')
 
                 ! Add to array if diagnostics is defined. GEOS-Chem diagnostics
                 ! is already in kg m-2 s-1.

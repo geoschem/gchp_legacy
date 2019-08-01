@@ -100,7 +100,7 @@ contains
     !-----------------------------------------------------------
     Iam = 'SetServices'
     call ESMF_GridCompGet( GC, NAME=COMP_NAME, CONFIG=CF, RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     Iam = trim(COMP_NAME) // "::" // Iam
 
 ! Register services for this component
@@ -108,12 +108,12 @@ contains
 
    call MAPL_GridCompSetEntryPoint ( GC, ESMF_METHOD_INITIALIZE, Initialize, &
                                      RC=STATUS )
-   VERIFY_(STATUS)
+   _VERIFY(STATUS)
    call MAPL_GridCompSetEntryPoint ( GC, ESMF_METHOD_RUN, Run, RC=STATUS )
-   VERIFY_(STATUS)
+   _VERIFY(STATUS)
    call MAPL_GridCompSetEntryPoint ( GC, ESMF_METHOD_FINALIZE, Finalize, &
                                      RC=STATUS )
-   VERIFY_(STATUS)
+   _VERIFY(STATUS)
 
 !BOP
 
@@ -127,17 +127,17 @@ contains
    ! Add component for deriving variables for other components
    ECTM = MAPL_AddChild(GC, NAME='GIGCenv' , SS=EctmSetServices,      &
                             RC=STATUS)
-   VERIFY_(STATUS)
+   _VERIFY(STATUS)
 
    ! Add chemistry
    CHEM = MAPL_AddChild(GC, NAME='GIGCchem', SS=AtmosChemSetServices, &
                         RC=STATUS)
-   VERIFY_(STATUS)
+   _VERIFY(STATUS)
 
    ! Add dynamics
    ADV = MAPL_AddChild(GC, NAME='DYNAMICS',  SS=AtmosAdvSetServices,  &
                        RC=STATUS)
-   VERIFY_(STATUS)
+   _VERIFY(STATUS)
 
 ! Set internal connections between the children`s IMPORTS and EXPORTS
 ! -------------------------------------------------------------------
@@ -194,14 +194,14 @@ contains
                                      __RC__  )
 
     call MAPL_TimerAdd(GC, name="RUN", RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_GenericSetServices    ( GC, RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
 !EOP
 
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
   
   end subroutine SetServices
 
@@ -253,7 +253,7 @@ contains
     !----------------------------------------------------------
     Iam = "Initialize"
     call ESMF_GridCompGet ( GC, name=COMP_NAME, Config=CF, RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     Iam = trim(COMP_NAME) // "::" // Iam
 
 
@@ -261,23 +261,23 @@ contains
     !----------------------------------------------------------
     call ESMF_ConfigGetAttribute(CF, MemDebugLevel, &
                                  Label="MEMORY_DEBUG_LEVEL:" , RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
 
     ! Get my MAPL_Generic state
     !--------------------------
     call MAPL_GetObjectFromGC ( GC, STATE, RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     ! Create Atmospheric grid
     !------------------------
     call MAPL_GridCreate( GC, rc=status )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     ! Call Initialize for every Child
     !--------------------------------
     call MAPL_GenericInitialize ( GC, IMPORT, EXPORT, CLOCK, __RC__ )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_TimerOn(STATE,"TOTAL")
     !    call MAPL_TimerOn(STATE,"INITIALIZE")
@@ -285,26 +285,26 @@ contains
     ! Get children and their im/ex states from my generic state.
     !----------------------------------------------------------
     call MAPL_Get ( STATE, GCS=GCS, GIM=GIM, GEX=GEX, RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     ! AdvCore Tracers
     !----------------
     call ESMF_StateGet( GIM(ADV), 'TRADV', BUNDLE, RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     
     call MAPL_GridCompGetFriendlies(GCS(CHEM), "DYNAMICS", BUNDLE, RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     
     ! Count tracers
     !--------------
     call ESMF_FieldBundleGet(BUNDLE,FieldCount=NUM_TRACERS, RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
    
     ! Disable this erroneous MAPL_TimerOff to fix timing. J.W.Zhuang 2017/04 
     ! call MAPL_TimerOff(STATE,"RUN")
     call MAPL_TimerOff(STATE,"TOTAL")
 
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
  end subroutine Initialize
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -362,19 +362,19 @@ contains
     ! ---------------------------------------------------------
     Iam = "Run"
     call ESMF_GridCompGet ( GC, name=COMP_NAME, config=CF, RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     Iam = trim(COMP_NAME) // "::" // Iam
 
     ! Get my internal MAPL_Generic state
     !-----------------------------------
     call MAPL_GetObjectFromGC ( GC, STATE, RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     ! Get the VM for optional memory prints (level >= 1)
     !-----------------------------------
     if ( MemDebugLevel > 0 ) THEN
        call ESMF_VmGetCurrent(VM, RC=STATUS)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     endif
 
     ! Start timers
@@ -394,22 +394,22 @@ contains
                     GCNames = GCNames,               &
                     INTERNAL_ESMF_STATE = INTERNAL,  &
                     RC = STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     ! Get heartbeat
     !--------------
     call ESMF_ConfigGetAttribute(CF, DT, Label="RUN_DT:" , RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     ! Cinderella Component: to derive variables for other components
     !---------------------
 
     if ( MemDebugLevel > 0 ) THEN
        call ESMF_VMBarrier(VM, RC=STATUS)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
        call MAPL_MemUtilsWrite(VM, &
                   'GIGC, before GEOS_ctmE: ', RC=STATUS )
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     endif
 
     call MAPL_TimerOn ( STATE, GCNames(ECTM) )
@@ -418,16 +418,16 @@ contains
                             exportState = GEX(ECTM), &
                             clock       = CLOCK,     &
                             userRC      = STATUS  )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_TimerOff( STATE, GCNames(ECTM) )
 
     if ( MemDebugLevel > 0 ) THEN
        call ESMF_VMBarrier(VM, RC=STATUS)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
        call MAPL_MemUtilsWrite(VM, &
                   'GIGC, after  GEOS_ctmE: ', RC=STATUS )
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     endif
 
     ! Dynamics & Advection
@@ -439,10 +439,10 @@ contains
 
     if ( MemDebugLevel > 0 ) THEN
        call ESMF_VMBarrier(VM, RC=STATUS)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
        call MAPL_MemUtilsWrite(VM, &
                   'GIGC, before Advection: ', RC=STATUS )
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     endif
 
     call MAPL_TimerOn ( STATE, GCNames(ADV) )
@@ -451,17 +451,17 @@ contains
                             exportState = GEX(ADV), &
                             clock       = CLOCK,    &
                             userRC      = STATUS );
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call MAPL_GenericRunCouplers (STATE, ADV, CLOCK, RC=STATUS );
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call MAPL_TimerOff( STATE, GCNames(ADV) )
 
     if ( MemDebugLevel > 0 ) THEN
        call ESMF_VMBarrier(VM, RC=STATUS)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
        call MAPL_MemUtilsWrite(VM, &
                   'GIGC, after  Advection: ', RC=STATUS )
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     endif
 
     ! Chemistry
@@ -469,10 +469,10 @@ contains
 
     if ( MemDebugLevel > 0 ) THEN
        call ESMF_VMBarrier(VM, RC=STATUS)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
        call MAPL_MemUtilsWrite(VM, &
                   'GIGC, before GEOS-Chem: ', RC=STATUS )
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     endif
 
     call MAPL_TimerOn ( STATE, GCNames(CHEM) )
@@ -481,23 +481,23 @@ contains
                             exportState = GEX(CHEM), &
                             clock       = CLOCK,     &
                             userRC      = STATUS );
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call MAPL_GenericRunCouplers (STATE, CHEM, CLOCK, RC=STATUS );
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call MAPL_TimerOff(STATE,GCNames(CHEM))
 
     if ( MemDebugLevel > 0 ) THEN
        call ESMF_VMBarrier(VM, RC=STATUS)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
        call MAPL_MemUtilsWrite(VM, &
                   'GIGC, after  GEOS-Chem: ', RC=STATUS )
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     endif
 
     call MAPL_TimerOff(STATE,"RUN")
     call MAPL_TimerOff(STATE,"TOTAL")
 
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
 
   end subroutine Run
 
@@ -526,20 +526,20 @@ contains
      ! Get the target component name and set-up traceback handle
      Iam = "Finalize"
      call ESMF_GridCompGet ( GC, name=COMP_NAME, RC=STATUS )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
      Iam = trim(COMP_NAME) // Iam
 
      ! Call generic finalize
      call MAPL_GenericFinalize( GC, IMPORT, EXPORT, CLOCK, RC=STATUS )
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
      ! Destroy import and export states
      call ESMF_StateDestroy(IMPORT, rc=status)
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
      call ESMF_StateDestroy(EXPORT, rc=status)
-     VERIFY_(STATUS)
+     _VERIFY(STATUS)
 
-     RETURN_(ESMF_SUCCESS)
+     _RETURN(ESMF_SUCCESS)
    end subroutine Finalize
 
 !=============================================================================

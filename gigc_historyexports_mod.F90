@@ -156,7 +156,7 @@ CONTAINS
     HistoryConfig%ConfigFileRead     =  .FALSE.
     CALL Init_DiagList( am_I_Root, configFile, HistoryConfig%DiagList, RC )
     IF ( RC == GC_FAILURE ) THEN
-       ASSERT_(.FALSE.)
+       _ASSERT(.FALSE., 'informative message here')
        RETURN
     ENDIF
     ! Optional debugging
@@ -164,7 +164,7 @@ CONTAINS
 
     CALL Init_HistoryExportsList( am_I_Root, HistoryConfig, RC )
     IF ( RC == GC_FAILURE ) THEN
-       ASSERT_(.FALSE.)
+       _ASSERT(.FALSE., 'informative message here')
        RETURN
     ENDIF
     ! Optional debugging
@@ -365,7 +365,7 @@ CONTAINS
        HistoryConfig%ConfigFileRead = .TRUE.
     ELSE
        CALL GC_ERROR( ErrMsg, RC, Iam )
-       ASSERT_(.FALSE.)
+       _ASSERT(.FALSE., 'informative message here')
        RETURN
     ENDIF
 
@@ -616,7 +616,7 @@ CONTAINS
     IF ( .NOT. ASSOCIATED(HistoryConfig) ) THEN
        CALL Init_HistoryConfig( am_I_Root, HistoryConfig, config_file, RC )
        IF ( RC == GC_FAILURE ) THEN
-          ASSERT_(.FALSE.)
+          _ASSERT(.FALSE., 'informative message here')
           RETURN
        ENDIF
     ENDIF
@@ -681,7 +681,7 @@ CONTAINS
 
     IF ( RC == GC_FAILURE ) THEN
        CALL GC_ERROR( ErrMsg, RC, Iam )
-       ASSERT_(.FALSE.)
+       _ASSERT(.FALSE., 'informative message here')
        RETURN
     ENDIF
     
@@ -780,7 +780,7 @@ CONTAINS
     ! Error handling
     IF ( RC == GC_FAILURE ) THEN
        CALL GC_ERROR( ErrMsg, RC, Iam )
-       ASSERT_(.FALSE.)
+       _ASSERT(.FALSE., 'informative message here')
        RETURN
     ENDIF
 
@@ -789,7 +789,7 @@ CONTAINS
     IF ( RC == GC_FAILURE ) THEN
        ErrMsg = "Error copying emissions data to MAPL via HEMCO"
        CALL GC_ERROR( ErrMsg, RC, Iam )
-       ASSERT_(.FALSE.)
+       _ASSERT(.FALSE., 'informative message here')
        RETURN
     ENDIF
     
@@ -1007,7 +1007,7 @@ CONTAINS
 
     IF ( RC == GC_FAILURE ) THEN
        CALL GC_ERROR( ErrMsg, RC, Iam )
-       ASSERT_(.FALSE.)
+       _ASSERT(.FALSE., 'informative message here')
        RETURN
     ENDIF
     
@@ -1062,7 +1062,7 @@ CONTAINS
     IF ( ASSOCIATED( current ) ) next => current%next
     DO WHILE ( ASSOCIATED( current ) )
        DEALLOCATE( current, STAT=RC )
-       ASSERT_( RC == GC_SUCCESS )
+       _ASSERT( RC == GC_SUCCESS, 'informative message here' )
        IF ( .NOT. ASSOCIATED ( next ) ) EXIT
        current => next
        next => current%next
@@ -1070,11 +1070,11 @@ CONTAINS
 
     ! Deallocate the HistoryExportsList object
     DEALLOCATE( HistoryConfig%HistoryExportsList, STAT=RC )
-    ASSERT_( RC == GC_SUCCESS )
+    _ASSERT( RC == GC_SUCCESS, 'informative message here' )
 
     ! Deallocate the HistoryConfig object
     DEALLOCATE( HistoryConfig, STAT=RC )
-    ASSERT_( RC == GC_SUCCESS )
+    _ASSERT( RC == GC_SUCCESS, 'informative message here' )
 
     ! Final cleanup
     current => NULL()
