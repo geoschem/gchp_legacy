@@ -539,7 +539,7 @@ subroutine tracer_2d(q, dp1, mfx, mfy, cx, cy, gridstruct, bd, domain, npx, npy,
                enddo
             enddo
 
-         if ( it /= nsplt ) then
+         if ( it /= ksplt(k) ) then
               do j=js,je
                  do i=is,ie
                     dp1(i,j,k) = dp2(i,j)
