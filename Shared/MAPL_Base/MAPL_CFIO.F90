@@ -5578,6 +5578,11 @@ CONTAINS
         _VERIFY(status)
         
         regridder => new_regridder_manager%make_regridder(src_grid, dst_grid, regrid_method=mcfio%regrid_method, rc=status)
+        ! GCHP error handling. This issue is fixed in a newer version of MAPL.
+        if ( status /= 0 ) then
+           print *, 'ERROR: cannot create ESMF regridder for var in file. This may be because source grid is too coarse for number of cores. Try reducing number of cores for the simulation.'
+           print *, trim(mcfio%fname)
+        endif
         _VERIFY(status)
 
         _RETURN(ESMF_SUCCESS)
