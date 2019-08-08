@@ -1411,6 +1411,13 @@ RCP85_HCOOH   kg/m2/s N Y %y4-01-01T00:00:00 none none ACCMIP ./MainDataDir/RCP/
 #==============================================================================
 
 #==============================================================================
+# --- Anthropogenic dust emissions (Philip et al., 2017, ERL)---
+#==============================================================================
+PM25FINE_1 kg/m2/s  Y Y 2015-%m2-01T00:00:00 none none PM25FINE ./MainDataDir/ANTHRO_PM25_DUST/v2018-04/PM25FINE_ECLIPSE_2015.geos.2x25.nc
+PM25FINE_2 kg/m2/s  Y Y 2012-%m2-01T00:00:00 none none PM25FINE ./MainDataDir/ANTHRO_PM25_DUST/v2018-04/PM25FINE_MEIC_2012.generic.025x025.nc
+PM25FINE_3 kg/m2/s  Y Y 2013-%m2-01T00:00:00 none none PM25FINE ./MainDataDir/ANTHRO_PM25_DUST/v2018-04/PM25FINE_IITB_2013.generic.025x025.nc
+
+#==============================================================================
 # --- Offline dust emissions ---
 #==============================================================================
 EMIS_DST1 kg/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none EMIS_DST1 ./MainDataDir/OFFLINE_DUST/v2019-01/{NATIVE_RES}/%y4/%m2/dust_emissions_{LATRES}.%y4%m2%d2.nc
@@ -1421,26 +1428,19 @@ EMIS_DST4 kg/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none EMIS_DST4 ./MainDataDir/OF
 #==============================================================================
 # --- Offline biogenic VOC emissions ---
 #==============================================================================
-BIOGENIC_ACET kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none ACET_MEGAN    ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
-BIOGENIC_ALD2 kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none ALD2_MEGAN    ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
-BIOGENIC_C2H4 kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none C2H4_MEGAN    ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
-BIOGENIC_EOH  kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none EOH_MEGAN     ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
-BIOGENIC_ISOP kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none ISOP_MEGAN    ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
-BIOGENIC_PRPE kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none PRPE_MEGAN    ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
-BIOGENIC_SOAP kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none SOAP_MEGAN    ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
-BIOGENIC_SOAS kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none SOAS_MEGAN    ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
-BIOGENIC_CO   kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none BIOGENIC_CO   ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
-BIOGENIC_APIN kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none BIOGENIC_APIN ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
-BIOGENIC_BPIN kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none BIOGENIC_BPIN ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
-BIOGENIC_SABI kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none BIOGENIC_SABI ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
-BIOGENIC_CARE kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none BIOGENIC_CARE ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
-BIOGENIC_MYRC kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none BIOGENIC_MYRC ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
-BIOGENIC_OCIM kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none BIOGENIC_OCIM ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
-BIOGENIC_OMON kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none BIOGENIC_OMON ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
-BIOGENIC_LIMO kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none BIOGENIC_LIMO ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
-BIOGENIC_FARN kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none BIOGENIC_FARN ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
-BIOGENIC_BCAR kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none BIOGENIC_BCAR ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
-BIOGENIC_OSQT kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none BIOGENIC_OSQT ./MainDataDir/OFFLINE_BIOVOC/v2019-01/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}.%y4%m2%d2.nc
+BIOGENIC_ACET kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none ACET_MEGAN    ./MainDataDir/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}x{LONRES}.%y4%m2%d2.nc
+BIOGENIC_ALD2 kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none ALD2_MEGAN    ./MainDataDir/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}x{LONRES}.%y4%m2%d2.nc
+BIOGENIC_C2H4 kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none C2H4_MEGAN    ./MainDataDir/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}x{LONRES}.%y4%m2%d2.nc
+BIOGENIC_EOH  kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none EOH_MEGAN     ./MainDataDir/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}x{LONRES}.%y4%m2%d2.nc
+BIOGENIC_ISOP kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none ISOP_MEGAN    ./MainDataDir/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}x{LONRES}.%y4%m2%d2.nc
+BIOGENIC_PRPE kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none PRPE_MEGAN    ./MainDataDir/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}x{LONRES}.%y4%m2%d2.nc
+BIOGENIC_SOAP kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none SOAP_MEGAN    ./MainDataDir/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}x{LONRES}.%y4%m2%d2.nc
+BIOGENIC_SOAS kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none SOAS_MEGAN    ./MainDataDir/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}x{LONRES}.%y4%m2%d2.nc
+BIOGENIC_MTPA kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none MTPA_MEGAN    ./MainDataDir/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}x{LONRES}.%y4%m2%d2.nc
+BIOGENIC_MTPO kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none MTPO_MEGAN    ./MainDataDir/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}x{LONRES}.%y4%m2%d2.nc
+BIOGENIC_LIMO kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none LIMO_MEGAN    ./MainDataDir/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}x{LONRES}.%y4%m2%d2.nc
+BIOGENIC_SESQ kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none SESQ_MEGAN    ./MainDataDir/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}x{LONRES}.%y4%m2%d2.nc
+BIOGENIC_CO   kgC/m2/s N Y %y4-%m2-%d2T%h2:00:00 none none BIOGENIC_CO   ./MainDataDir/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/%y4/%m2/biovoc_{LATRES}x{LONRES}.%y4%m2%d2.nc
 
 #==============================================================================
 # --- Offline sea salt emissions ---
@@ -1488,9 +1488,6 @@ DEAD_MF_SND     fraction N Y -                    none none MF_SND   ./MainDataD
 DEAD_SFC_TYP    count    N V -                    none none SFC_TYP  ./MainDataDir/DUST_DEAD/v2019-06/dst_tibds.geos.4x5.nc
 DEAD_GOC_SRC    1        N Y -                    none none GOC_SRC  ./MainDataDir/DUST_DEAD/v2019-06/GOCART_src_fn.geos.4x5.nc
 DEAD_VAI        1        Y Y 1985-%m2-01T00:00:00 none none VAI      ./MainDataDir/DUST_DEAD/v2019-06/dst_tvbds.geos.4x5.nc
-DEAD_PM25FINE_1 kg/m2/s  Y Y 2015-%m2-01T00:00:00 none none PM25FINE ./MainDataDir/DUST_DEAD/v2018-04/PM25FINE_ECLIPSE_2015.geos.2x25.nc
-DEAD_PM25FINE_2 kg/m2/s  Y Y 2012-%m2-01T00:00:00 none none PM25FINE ./MainDataDir/DUST_DEAD/v2018-04/PM25FINE_MEIC_2012.generic.025x025.nc
-DEAD_PM25FINE_3 kg/m2/s  Y Y 2013-%m2-01T00:00:00 none none PM25FINE ./MainDataDir/DUST_DEAD/v2018-04/PM25FINE_IITB_2013.generic.025x025.nc
 
 #==============================================================================
 # --- Dust emissions using Paul Ginoux's mechanism (Extension 106) ---
@@ -1542,7 +1539,7 @@ GFED_FRAC_3HOUR 1 N Y %y4-%m2-01T%h2:00:00 none none GFED_FRAC3HR  ./MainDataDir
 #==============================================================================
 
 #==============================================================================
-# --- AeroCom Volcano (Extension 116) 
+# --- Volcano (Extension 117) 
 #==============================================================================
 # --- No external data --- 
 
