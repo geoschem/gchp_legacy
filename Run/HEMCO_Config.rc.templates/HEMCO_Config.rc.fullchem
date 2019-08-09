@@ -1644,7 +1644,7 @@ Warnings:                    1
 #==============================================================================
 (((GEIA_NH3
 # GEIA NH3 natural source
-0 GEIA_NH3_NATU $ROOT/NH3/v2014-07/NH3_geos.4x5.nc         NH3_NATU     1990/1-12/1/0 C xy  kg/m2/s NH3 - 3 1
+0 GEIA_NH3_NATU $ROOT/NH3/v2014-07/NH3_geos.1x1.nc         NH3_NATU     1990/1-12/1/0 C xy  kg/m2/s NH3 - 3 1
 
 # GEIA NH3 from arctic seabirds
 0 SEABIRD_NH3   $ROOT/NH3/v2018-04/NH3_Arctic_seabirds.nc  NH3_SEABIRDS 1990/1-12/1/0 C xy  kg/m2/s NH3 - 30 1
@@ -1664,8 +1664,8 @@ Warnings:                    1
 # - These C2H6 emissions are used in place of CEDS
 #==============================================================================
 (((C2H6_2010 
-0 C2H6_2010_oilgas   $ROOT/C2H6_2010/v2019-06/C2H6_global_anth_biof.2010$MM.nc ANTHR_C2H6   2010/1-12/1/0 C xy kgC/m2/s C2H6 - 1 100
-0 C2H6_2010_biofuel  $ROOT/C2H6_2010/v2019-06/C2H6_global_anth_biof.2010$MM.nc BIOFUEL_C2H6 2010/1-12/1/0 C xy kgC/m2/s C2H6 - 1 100
+0 C2H6_2010_oilgas   $ROOT/C2H6_2010/v2019-06/C2H6_global_anth_biof.2010$MM.2x25.nc ANTHR_C2H6   2010/1-12/1/0 C xy kgC/m2/s C2H6 - 1 100
+0 C2H6_2010_biofuel  $ROOT/C2H6_2010/v2019-06/C2H6_global_anth_biof.2010$MM.2x25.nc BIOFUEL_C2H6 2010/1-12/1/0 C xy kgC/m2/s C2H6 - 1 100
 )))C2H6_2010 
 
 #==============================================================================
@@ -1677,7 +1677,7 @@ Warnings:                    1
 #==============================================================================
 (((XIAO_C3H8
 0 XIAO_C3H8    $ROOT/XIAO/v2014-09/C3H8_C2H6_ngas.geos.1x1.nc C3H8         1985/1/1/0 C xy kgC/m2/s C3H8 6/7/26/22 1 10
-0 BIOFUEL_C3H8 $ROOT/BIOFUEL/v2014-07/biofuel.geos.4x5.nc     BIOFUEL_C3H8 1985/1/1/0 C xy kgC/m2/s C3H8 -         1 10
+0 BIOFUEL_C3H8 $ROOT/BIOFUEL/v2019-08/biofuel.geos.2x25.nc    BIOFUEL_C3H8 1985/1/1/0 C xy kgC/m2/s C3H8 -         1 10
 )))XIAO_C3H8
 
 #==============================================================================
@@ -2215,14 +2215,14 @@ Warnings:                    1
 #==============================================================================
 # --- Dust emissions using DEAD model (Extension 105) ---
 #==============================================================================
-105 DEAD_EF_GEO     $ROOT/DUST_DEAD/v2019-06/dst_tibds.geos.4x5.nc                  EF_GEO   1985/1/1/0    C xy factor   *    -    1 1
-105 DEAD_LF_DRY     $ROOT/DUST_DEAD/v2019-06/dst_tibds.geos.4x5.nc                  LF_DRY   1985/1/1/0    C xy factor   *    -    1 1
-105 DEAD_MF_CACO3   $ROOT/DUST_DEAD/v2019-06/dst_tibds.geos.4x5.nc                  MF_CaCO3 1985/1/1/0    C xy fraction *    -    1 1
-105 DEAD_MF_CLY     $ROOT/DUST_DEAD/v2019-06/dst_tibds.geos.4x5.nc                  MF_CLY   1985/1/1/0    C xy fraction *    -    1 1
-105 DEAD_MF_SND     $ROOT/DUST_DEAD/v2019-06/dst_tibds.geos.4x5.nc                  MF_SND   1985/1/1/0    C xy fraction *    -    1 1
-105 DEAD_SFC_TYP    $ROOT/DUST_DEAD/v2019-06/dst_tibds.geos.4x5.nc                  SFC_TYP  1985/1/1/0    C xy unitless *    -    1 1
-105 DEAD_GOC_SRC    $ROOT/DUST_DEAD/v2019-06/GOCART_src_fn.geos.4x5.nc              GOC_SRC  1985/1/1/0    C xy unitless *    -    1 1
-105 DEAD_VAI        $ROOT/DUST_DEAD/v2019-06/dst_tvbds.geos.4x5.nc                  VAI      1985/1-12/1/0 C xy unitless *    -    1 1
+105 DEAD_EF_GEO     $ROOT/DUST_DEAD/v2019-06/dst_tibds.geos.2x25.nc                  EF_GEO   1985/1/1/0    C xy factor   *    -    1 1
+105 DEAD_LF_DRY     $ROOT/DUST_DEAD/v2019-06/dst_tibds.geos.2x25.nc                  LF_DRY   1985/1/1/0    C xy factor   *    -    1 1
+105 DEAD_MF_CACO3   $ROOT/DUST_DEAD/v2019-06/dst_tibds.geos.2x25.nc                  MF_CaCO3 1985/1/1/0    C xy fraction *    -    1 1
+105 DEAD_MF_CLY     $ROOT/DUST_DEAD/v2019-06/dst_tibds.geos.2x25.nc                  MF_CLY   1985/1/1/0    C xy fraction *    -    1 1
+105 DEAD_MF_SND     $ROOT/DUST_DEAD/v2019-06/dst_tibds.geos.2x25.nc                  MF_SND   1985/1/1/0    C xy fraction *    -    1 1
+105 DEAD_SFC_TYP    $ROOT/DUST_DEAD/v2019-06/dst_tibds.geos.2x25.nc                  SFC_TYP  1985/1/1/0    C xy unitless *    -    1 1
+105 DEAD_GOC_SRC    $ROOT/DUST_DEAD/v2019-06/GOCART_src_fn.geos.2x25.nc              GOC_SRC  1985/1/1/0    C xy unitless *    -    1 1
+105 DEAD_VAI        $ROOT/DUST_DEAD/v2019-06/dst_tvbds.geos.2x25.nc                  VAI      1985/1-12/1/0 C xy unitless *    -    1 1
 
 #==============================================================================
 # --- Dust emissions using Paul Ginoux's mechanism (Extension 106) 

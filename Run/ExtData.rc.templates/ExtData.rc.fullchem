@@ -1207,7 +1207,7 @@ HTAP_NH3_AGR   kg/m2/s N Y F%y4-01-01T00:00:00 none none emi_nh3 ./MainDataDir/H
 #==============================================================================
 # --- GEIA (GEIA) ---
 #==============================================================================
-GEIA_NH3_NATU kg/m2/s Y Y F1990-%m2-01T00:00:00 none none NH3_NATU     ./MainDataDir/NH3/v2014-07/NH3_geos.4x5.nc
+GEIA_NH3_NATU kg/m2/s Y Y F1990-%m2-01T00:00:00 none none NH3_NATU     ./MainDataDir/NH3/v2014-07/NH3_geos.1x1.nc
 SEABIRD_NH3   kg/m2/s Y Y F1990-%m2-01T00:00:00 none none NH3_SEABIRDS ./MainDataDir/NH3/v2018-04/NH3_Arctic_seabirds.nc
 
 #==============================================================================
@@ -1218,14 +1218,14 @@ POET_EOH kgC/m2/s Y Y - none none EOH ./MainDataDir/POET/v2017-03/POET_EOH.geos.
 #==============================================================================
 # --- 2010 Global C2H6 fossil fuel and biofuel (C2H6_2010) ---
 #==============================================================================
-C2H6_2010_oilgas  kgC/m2/s Y Y F2010-%m2-01T00:00:00 none none ANTHR_C2H6   ./MainDataDir/C2H6_2010/v2019-06/C2H6_global_anth_biof.2010%m2.nc
-C2H6_2010_biofuel kgC/m2/s Y Y F2010-%m2-01T00:00:00 none none BIOFUEL_C2H6 ./MainDataDir/C2H6_2010/v2019-06/C2H6_global_anth_biof.2010%m2.nc
+C2H6_2010_oilgas  kgC/m2/s Y Y F2010-%m2-01T00:00:00 none none ANTHR_C2H6   ./MainDataDir/C2H6_2010/v2019-06/C2H6_global_anth_biof.2010%m2.2x25.nc
+C2H6_2010_biofuel kgC/m2/s Y Y F2010-%m2-01T00:00:00 none none BIOFUEL_C2H6 ./MainDataDir/C2H6_2010/v2019-06/C2H6_global_anth_biof.2010%m2.2x25.nc
 
 #==============================================================================
 # --- Xiao et al., JGR, 2008 (XIAO) ---
 #==============================================================================
 XIAO_C3H8    kgC/m2/s N Y - none none C3H8         ./MainDataDir/XIAO/v2014-09/C3H8_C2H6_ngas.geos.1x1.nc
-BIOFUEL_C3H8 kgC/m2/s N Y - none none BIOFUEL_C3H8 ./MainDataDir/BIOFUEL/v2014-07/biofuel.geos.4x5.nc
+BIOFUEL_C3H8 kgC/m2/s N Y - none none BIOFUEL_C3H8 ./MainDataDir/BIOFUEL/v2019-08/biofuel.geos.2x25.nc
 
 #==============================================================================
 # --- Very-short-lived bromocarbon (LIANG_BROMOCARB) ---
@@ -1480,14 +1480,14 @@ ALD2_SEAWATER  kg/m3 Y Y F1985-%m2-01T00:00:00 none none ALD2 ./MainDataDir/ALD2
 # --- Dust emissions using DEAD model (Extension 105) ---
 # Off by default. Use offline dust emissions above.
 #==============================================================================
-DEAD_EF_GEO     factor   N Y -                    none none EF_GEO   ./MainDataDir/DUST_DEAD/v2019-06/dst_tibds.geos.4x5.nc
-DEAD_LF_DRY     factor   N Y -                    none none LF_DRY   ./MainDataDir/DUST_DEAD/v2019-06/dst_tibds.geos.4x5.nc
-DEAD_MF_CACO3   fraction N Y -                    none none MF_CaCO3 ./MainDataDir/DUST_DEAD/v2019-06/dst_tibds.geos.4x5.nc
-DEAD_MF_CLY     fraction N Y -                    none none MF_CLY   ./MainDataDir/DUST_DEAD/v2019-06/dst_tibds.geos.4x5.nc
-DEAD_MF_SND     fraction N Y -                    none none MF_SND   ./MainDataDir/DUST_DEAD/v2019-06/dst_tibds.geos.4x5.nc
-DEAD_SFC_TYP    count    N V -                    none none SFC_TYP  ./MainDataDir/DUST_DEAD/v2019-06/dst_tibds.geos.4x5.nc
-DEAD_GOC_SRC    1        N Y -                    none none GOC_SRC  ./MainDataDir/DUST_DEAD/v2019-06/GOCART_src_fn.geos.4x5.nc
-DEAD_VAI        1        Y Y 1985-%m2-01T00:00:00 none none VAI      ./MainDataDir/DUST_DEAD/v2019-06/dst_tvbds.geos.4x5.nc
+DEAD_EF_GEO     factor   N Y -                    none none EF_GEO   ./MainDataDir/DUST_DEAD/v2019-06/dst_tibds.geos.2x25.nc
+DEAD_LF_DRY     factor   N Y -                    none none LF_DRY   ./MainDataDir/DUST_DEAD/v2019-06/dst_tibds.geos.2x25.nc
+DEAD_MF_CACO3   fraction N Y -                    none none MF_CaCO3 ./MainDataDir/DUST_DEAD/v2019-06/dst_tibds.geos.2x25.nc
+DEAD_MF_CLY     fraction N Y -                    none none MF_CLY   ./MainDataDir/DUST_DEAD/v2019-06/dst_tibds.geos.2x25.nc
+DEAD_MF_SND     fraction N Y -                    none none MF_SND   ./MainDataDir/DUST_DEAD/v2019-06/dst_tibds.geos.2x25.nc
+DEAD_SFC_TYP    count    N V -                    none none SFC_TYP  ./MainDataDir/DUST_DEAD/v2019-06/dst_tibds.geos.2x25.nc
+DEAD_GOC_SRC    1        N Y -                    none none GOC_SRC  ./MainDataDir/DUST_DEAD/v2019-06/GOCART_src_fn.geos.2x25.nc
+DEAD_VAI        1        Y Y 1985-%m2-01T00:00:00 none none VAI      ./MainDataDir/DUST_DEAD/v2019-06/dst_tvbds.geos.2x25.nc
 
 #==============================================================================
 # --- Dust emissions using Paul Ginoux's mechanism (Extension 106) ---
