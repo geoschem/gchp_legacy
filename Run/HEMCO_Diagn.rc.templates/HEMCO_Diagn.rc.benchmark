@@ -679,9 +679,9 @@ InvPLANTDECAY_ALD2   ALD2   0    3   1   2   kg/m2/s  ALD2_emission_flux_from_PL
 InvPLANTDECAY_EOH    EOH    0    3   1   2   kg/m2/s  EOH_emission_flux_from_PLANTDECAY_inventory
 
 #=============================
-# Anthropogenic dust emissions
+# AFCID emissions
 #=============================
-InvAnthroPM25_DST1   DST1   0    1  -1   2   kg/m2/s  DST1_emission_flux_from_Anthropogenic_PM25_inventory
+InvAFCID_DST1        DST1   0    1  -1   2   kg/m2/s  DST1_emission_flux_from_AFCID_inventory
 
 #=============================
 # Offline dust emissions
