@@ -1644,7 +1644,7 @@ Warnings:                    1
 #==============================================================================
 (((GEIA_NH3
 # GEIA NH3 natural source
-0 GEIA_NH3_NATU $ROOT/NH3/v2014-07/NH3_geos.1x1.nc         NH3_NATU     1990/1-12/1/0 C xy  kg/m2/s NH3 - 3 1
+0 GEIA_NH3_NATU $ROOT/NH3/v2014-07/NH3_geos.2x25.nc         NH3_NATU     1990/1-12/1/0 C xy  kg/m2/s NH3 - 3 1
 
 # GEIA NH3 from arctic seabirds
 0 SEABIRD_NH3   $ROOT/NH3/v2018-04/NH3_Arctic_seabirds.nc  NH3_SEABIRDS 1990/1-12/1/0 C xy  kg/m2/s NH3 - 30 1
