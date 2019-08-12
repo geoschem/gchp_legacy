@@ -279,11 +279,13 @@ sed -i -e "s|{MET}|${met_name}|"             ${rundir}/input.geos
 sed -i -e "s|{DATA_ROOT}|${GC_DATA_ROOT}|"   ${rundir}/HEMCO_Config.rc
 sed -i -e "s|{NATIVE_RES}|${met_native}|"    ${rundir}/HEMCO_Config.rc
 sed -i -e "s|{LATRES}|${met_latres}|"        ${rundir}/HEMCO_Config.rc
+sed -i -e "s|{LONRES}|${met_lonres}|"        ${rundir}/HEMCO_Config.rc
 sed -i -e "s|{MET_SOURCE}|${met_name}|"      ${rundir}/ExtData.rc # 1st in line
 sed -i -e "s|{MET_SOURCE}|${met_name}|"      ${rundir}/ExtData.rc # 2nd in line
 sed -i -e "s|{MET_RES}|${met_resolution}|"   ${rundir}/ExtData.rc
 sed -i -e "s|{NATIVE_RES}|${met_native}|"    ${rundir}/ExtData.rc
 sed -i -e "s|{LATRES}|${met_latres}|"        ${rundir}/ExtData.rc
+sed -i -e "s|{LONRES}|${met_lonres}|"        ${rundir}/ExtData.rc
 sed -i -e "s|{MET_EXT}|${met_extension}|"    ${rundir}/ExtData.rc
 sed -i -e "s|{MET_CN_YR}|${met_cn_year}|"    ${rundir}/ExtData.rc # 1st in line
 sed -i -e "s|{MET_CN_YR}|${met_cn_year}|"    ${rundir}/ExtData.rc # 2nd in line

@@ -1413,9 +1413,9 @@ RCP85_HCOOH   kg/m2/s N Y %y4-01-01T00:00:00 none none ACCMIP ./MainDataDir/RCP/
 #==============================================================================
 # --- Anthropogenic dust emissions (Philip et al., 2017, ERL)---
 #==============================================================================
-PM25FINE_1 kg/m2/s  Y Y 2015-%m2-01T00:00:00 none none PM25FINE ./MainDataDir/ANTHRO_PM25_DUST/v2018-04/PM25FINE_ECLIPSE_2015.geos.2x25.nc
-PM25FINE_2 kg/m2/s  Y Y 2012-%m2-01T00:00:00 none none PM25FINE ./MainDataDir/ANTHRO_PM25_DUST/v2018-04/PM25FINE_MEIC_2012.generic.025x025.nc
-PM25FINE_3 kg/m2/s  Y Y 2013-%m2-01T00:00:00 none none PM25FINE ./MainDataDir/ANTHRO_PM25_DUST/v2018-04/PM25FINE_IITB_2013.generic.025x025.nc
+PM25FINE_1 kg/m2/s  Y Y 2015-%m2-01T00:00:00 none none PM25FINE ./MainDataDir/AFCID/v2018-04/PM25FINE_ECLIPSE_2015.geos.2x25.nc
+PM25FINE_2 kg/m2/s  Y Y 2012-%m2-01T00:00:00 none none PM25FINE ./MainDataDir/AFCID/v2018-04/PM25FINE_MEIC_2012.generic.025x025.nc
+PM25FINE_3 kg/m2/s  Y Y 2013-%m2-01T00:00:00 none none PM25FINE ./MainDataDir/AFCID/v2018-04/PM25FINE_IITB_2013.generic.025x025.nc
 
 #==============================================================================
 # --- Offline dust emissions ---
