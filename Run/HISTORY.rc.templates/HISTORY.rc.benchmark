@@ -455,6 +455,7 @@ COLLECTIONS: 'AerosolMass'
                               'InvAEIC_SOAP         ', 'GIGCchem',
                               'InvPLANTDECAY_ALD2   ', 'GIGCchem',
                               'InvPLANTDECAY_EOH    ', 'GIGCchem',
+                              'InvAFCID_DST1        ', 'GIGCchem',
                               'InvOFFLINEDUST_DST1  ', 'GIGCchem',
                               'InvOFFLINEDUST_DST2  ', 'GIGCchem',
                               'InvOFFLINEDUST_DST3  ', 'GIGCchem',
