@@ -702,18 +702,11 @@ InvOFFLINEBIOVOC_ISOP ISOP  0    4   -1  2   kg/m2/s  ISOP_biogenic_emission_flu
 InvOFFLINEBIOVOC_PRPE PRPE  0    4   -1  2   kg/m2/s  PRPE_biogenic_emission_flux_from_offline_model
 InvOFFLINEBIOVOC_SOAP SOAP  0    4   -1  2   kg/m2/s  SOAP_biogenic_emission_flux_from_offline_model
 InvOFFLINEBIOVOC_SOAS SOAS  0    4   -1  2   kg/m2/s  SOAS_biogenic_emission_flux_from_offline_model
-InvOFFLINEBIOVOC_CO   CO    0    4   -1  2   kg/m2/s  CO_biogenic_emission_flux_from_offline_model
-InvOFFLINEBIOVOC_APIN APIN  0    4   -1  2   kg/m2/s  APIN_biogenic_emission_flux_from_offline_model
-InvOFFLINEBIOVOC_BPIN BPIN  0    4   -1  2   kg/m2/s  BPIN_biogenic_emission_flux_from_offline_model
-InvOFFLINEBIOVOC_SABI SABI  0    4   -1  2   kg/m2/s  SABI_biogenic_emission_flux_from_offline_model
-InvOFFLINEBIOVOC_CARE CARE  0    4   -1  2   kg/m2/s  CARE_biogenic_emission_flux_from_offline_model
-InvOFFLINEBIOVOC_MYRC MYRC  0    4   -1  2   kg/m2/s  MYRC_biogenic_emission_flux_from_offline_model
-InvOFFLINEBIOVOC_OCIM OCIM  0    4   -1  2   kg/m2/s  OCIM_biogenic_emission_flux_from_offline_model
-InvOFFLINEBIOVOC_OMON OMON  0    4   -1  2   kg/m2/s  OMON_biogenic_emission_flux_from_offline_model
+InvOFFLINEBIOVOC_MTPA MTPA  0    4   -1  2   kg/m2/s  MTPA_biogenic_emission_flux_from_offline_model
+InvOFFLINEBIOVOC_MTPO MTPO  0    4   -1  2   kg/m2/s  MTPO_biogenic_emission_flux_from_offline_model
 InvOFFLINEBIOVOC_LIMO LIMO  0    4   -1  2   kg/m2/s  LIMO_biogenic_emission_flux_from_offline_model
-InvOFFLINEBIOVOC_FARN FARN  0    4   -1  2   kg/m2/s  FARN_biogenic_emission_flux_from_offline_model
-InvOFFLINEBIOVOC_BCAR BCAR  0    4   -1  2   kg/m2/s  BCAR_biogenic_emission_flux_from_offline_model
-InvOFFLINEBIOVOC_OSQT OSQT  0    4   -1  2   kg/m2/s  OSQT_biogenic_emission_flux_from_offline_model
+InvOFFLINEBIOVOC_SESQ SESQ  0    4   -1  2   kg/m2/s  SESQ_biogenic_emission_flux_from_offline_model
+InvOFFLINEBIOVOC_CO   CO    0    4   -1  2   kg/m2/s  CO_biogenic_emission_flux_from_offline_model
 
 #=============================
 # Offline sea salt emissions
