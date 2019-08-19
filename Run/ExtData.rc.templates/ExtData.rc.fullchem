@@ -1207,7 +1207,7 @@ HTAP_NH3_AGR   kg/m2/s N Y F%y4-01-01T00:00:00 none none emi_nh3 ./MainDataDir/H
 #==============================================================================
 # --- GEIA (GEIA) ---
 #==============================================================================
-GEIA_NH3_NATU kg/m2/s Y Y F1990-%m2-01T00:00:00 none none NH3_NATU     ./MainDataDir/NH3/v2014-07/NH3_geos.2x25.nc
+GEIA_NH3_NATU kg/m2/s Y Y F1990-%m2-01T00:00:00 none none NH3_NATU     ./MainDataDir/NH3/v2019-08/NH3_geos.2x25.nc
 SEABIRD_NH3   kg/m2/s Y Y F1990-%m2-01T00:00:00 none none NH3_SEABIRDS ./MainDataDir/NH3/v2018-04/NH3_Arctic_seabirds.nc
 
 #==============================================================================
