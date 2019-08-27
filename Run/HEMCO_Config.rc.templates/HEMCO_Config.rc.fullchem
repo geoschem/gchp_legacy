@@ -159,7 +159,7 @@ Warnings:                    1
     --> Isoprene to SOAP       :       0.015
     --> Isoprene to SOAS       :       0.015
 #3% mass yield from isoprene to SOA
-109     MEGAN_Mono             : off   CO/MTPA/MTPO/LIMO/SESQ
+109     MEGAN_Mono             : off   MTPA/MTPO/LIMO/SESQ
     --> Monoterp to SOAP       :       0.050
     --> Monoterp to SOAS       :       0.050
 #10% mass yield from monoterpenes to SOA
@@ -2119,19 +2119,26 @@ Warnings:                    1
 #==============================================================================
 (((OFFLINE_BIOGENICVOC
 (((.not.MEGAN.or.MEGAN_Mono
-0 BIOGENIC_ACET $ROOT/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}x{LONRES}.$YYYY$MM$DD.nc ACET_MEGAN    1980-2017/1-12/1-31/0-23 C xy kgC/m2/s ACET - 4 2
-0 BIOGENIC_ALD2 $ROOT/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}x{LONRES}.$YYYY$MM$DD.nc ALD2_MEGAN    1980-2017/1-12/1-31/0-23 C xy kgC/m2/s ALD2 - 4 2
-0 BIOGENIC_C2H4 $ROOT/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}x{LONRES}.$YYYY$MM$DD.nc C2H4_MEGAN    1980-2017/1-12/1-31/0-23 C xy kgC/m2/s C2H4 - 4 2
-0 BIOGENIC_EOH  $ROOT/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}x{LONRES}.$YYYY$MM$DD.nc EOH_MEGAN     1980-2017/1-12/1-31/0-23 C xy kgC/m2/s EOH  - 4 2
-0 BIOGENIC_ISOP $ROOT/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}x{LONRES}.$YYYY$MM$DD.nc ISOP_MEGAN    1980-2017/1-12/1-31/0-23 C xy kgC/m2/s ISOP - 4 2
-0 BIOGENIC_PRPE $ROOT/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}x{LONRES}.$YYYY$MM$DD.nc PRPE_MEGAN    1980-2017/1-12/1-31/0-23 C xy kgC/m2/s PRPE - 4 2
-0 BIOGENIC_SOAP $ROOT/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}x{LONRES}.$YYYY$MM$DD.nc SOAP_MEGAN    1980-2017/1-12/1-31/0-23 C xy kgC/m2/s SOAP - 4 2
-0 BIOGENIC_SOAS $ROOT/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}x{LONRES}.$YYYY$MM$DD.nc SOAS_MEGAN    1980-2017/1-12/1-31/0-23 C xy kgC/m2/s SOAS - 4 2
-0 BIOGENIC_MTPA $ROOT/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}x{LONRES}.$YYYY$MM$DD.nc MTPA_MEGAN    1980-2017/1-12/1-31/0-23 C xy kgC/m2/s MTPA - 4 2
-0 BIOGENIC_MTPO $ROOT/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}x{LONRES}.$YYYY$MM$DD.nc MTPO_MEGAN    1980-2017/1-12/1-31/0-23 C xy kgC/m2/s MTPO - 4 2
-0 BIOGENIC_LIMO $ROOT/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}x{LONRES}.$YYYY$MM$DD.nc LIMO_MEGAN    1980-2017/1-12/1-31/0-23 C xy kgC/m2/s LIMO - 4 2
-0 BIOGENIC_SESQ $ROOT/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}x{LONRES}.$YYYY$MM$DD.nc SESQ_MEGAN    1980-2017/1-12/1-31/0-23 C xy kgC/m2/s SESQ - 4 2
-0 BIOGENIC_CO   $ROOT/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}x{LONRES}.$YYYY$MM$DD.nc BIOGENIC_CO   1980-2017/1-12/1-31/0-23 C xy kgC/m2/s CO   - 4 2
+0 BIOGENIC_ACET      $ROOT/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}x{LONRES}.$YYYY$MM$DD.nc ACET_MEGAN    1980-2017/1-12/1-31/0-23 C xy kgC/m2/s ACET -   4 2
+0 BIOGENIC_ALD2      $ROOT/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}x{LONRES}.$YYYY$MM$DD.nc ALD2_MEGAN    1980-2017/1-12/1-31/0-23 C xy kgC/m2/s ALD2 -   4 2
+0 BIOGENIC_C2H4      $ROOT/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}x{LONRES}.$YYYY$MM$DD.nc C2H4_MEGAN    1980-2017/1-12/1-31/0-23 C xy kgC/m2/s C2H4 -   4 2
+0 BIOGENIC_EOH       $ROOT/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}x{LONRES}.$YYYY$MM$DD.nc EOH_MEGAN     1980-2017/1-12/1-31/0-23 C xy kgC/m2/s EOH  -   4 2
+0 BIOGENIC_ISOP      $ROOT/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}x{LONRES}.$YYYY$MM$DD.nc ISOP_MEGAN    1980-2017/1-12/1-31/0-23 C xy kgC/m2/s ISOP -   4 2
+0 BIOGENIC_ISOP_SOAP -                                                                                            -             -                        - -  -        SOAP 610 4 2
+0 BIOGENIC_ISOP_SOAS -                                                                                            -             -                        - -  -        SOAS 610 4 2
+0 BIOGENIC_LIMO      $ROOT/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}x{LONRES}.$YYYY$MM$DD.nc LIMO_MEGAN    1980-2017/1-12/1-31/0-23 C xy kgC/m2/s LIMO -   4 2
+0 BIOGENIC_LIMO_SOAP -                                                                                            -             -                        - -  -        SOAP 611 4 2
+0 BIOGENIC_LIMO_SOAS -                                                                                            -             -                        - -  -        SOAS 611 4 2
+0 BIOGENIC_MTPA      $ROOT/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}x{LONRES}.$YYYY$MM$DD.nc MTPA_MEGAN    1980-2017/1-12/1-31/0-23 C xy kgC/m2/s MTPA -   4 2
+0 BIOGENIC_MTPA_SOAP -                                                                                            -             -                        - -  -        SOAP 611 4 2
+0 BIOGENIC_MTPA_SOAS -                                                                                            -             -                        - -  -        SOAS 611 4 2
+0 BIOGENIC_MTPO      $ROOT/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}x{LONRES}.$YYYY$MM$DD.nc MTPO_MEGAN    1980-2017/1-12/1-31/0-23 C xy kgC/m2/s MTPO -   4 2
+0 BIOGENIC_MTPO_SOAP -                                                                                            -             -                        - -  -        SOAP 611 4 2
+0 BIOGENIC_MTPO_SOAS -                                                                                            -             -                        - -  -        SOAS 611 4 2
+0 BIOGENIC_PRPE      $ROOT/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}x{LONRES}.$YYYY$MM$DD.nc PRPE_MEGAN    1980-2017/1-12/1-31/0-23 C xy kgC/m2/s PRPE -   4 2
+0 BIOGENIC_SESQ      $ROOT/OFFLINE_BIOVOC/v2019-08/{NATIVE_RES}/$YYYY/$MM/biovoc_{LATRES}x{LONRES}.$YYYY$MM$DD.nc SESQ_MEGAN    1980-2017/1-12/1-31/0-23 C xy kgC/m2/s SESQ -   4 2
+0 BIOGENIC_SESQ_SOAP -                                                                                            -             -                        - -  -        SOAP 612 4 2
+0 BIOGENIC_SESQ_SOAS -                                                                                            -             -                        - -  -        SOAS 612 4 2
 ))).not.MEGAN.or.MEGAN_Mono
 )))OFFLINE_BIOGENICVOC
 
@@ -2942,12 +2949,24 @@ Warnings:                    1
 330 DICE_CAR_OC_SF    0.14 - - - xy 1 1
 
 #==============================================================================
-# --- Offline dust emissions ---
+# --- Offline dust scale factors ---
 #
 # Scale annual emission totals for offline dust to 2x2.5 online dust values
 #==============================================================================
 606 DST1_SF           7.546e-5 - - - xy 1 1
 607 DST2_DST3_DST4_SF 6.422e-5 - - - xy 1 1
+
+#==============================================================================
+# --- Offline biogenic VOC scale factors ---
+#
+# Isoprene      : 1.5% mass yield SOAP, 1.5% mass yield SOAS
+# Monoterpenes  : 5.0% mass yield SOAP, 5.0% mass yield SOAS
+# Other terpenes: 5.0% mass yield SOAP, 5.0% mass yield SOAS
+#  --> Need to multiply by 1.133 to convert from carbon basis to mass basis
+#==============================================================================
+610 ISOPtoSOA 0.0170 - - - xy 1 1
+611 MONOtoSOA 0.0567 - - - xy 1 1
+612 OTHRtoSOA 0.0567 - - - xy 1 1
 
 ### END SECTION SCALE FACTORS ###
 

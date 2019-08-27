@@ -168,7 +168,6 @@ EmisCO_Aircraft    CO     0      20  -1   3   kg/m2/s  CO_emission_flux_from_air
 EmisCO_Anthro      CO     0      1   -1   3   kg/m2/s  CO_emission_flux_from_anthropogenic
 EmisCO_BioBurn     CO     111    -1  -1   2   kg/m2/s  CO_emission_flux_from_biomass_burning
 EmisCO_Ship        CO     0      10  -1   2   kg/m2/s  CO_emission_flux_from_ships
-EmisCO_Monoterp    CO     0      4   -1   2   kg/m2/s  CO_emission_flux_from_monoterpenes
 
 ###############################################################################
 #####  CO2 emissions                                                      ##### 
@@ -699,14 +698,13 @@ InvOFFLINEBIOVOC_ALD2 ALD2  0    4   -1  2   kg/m2/s  ALD2_biogenic_emission_flu
 InvOFFLINEBIOVOC_C2H4 C2H4  0    4   -1  2   kg/m2/s  C2H4_biogenic_emission_flux_from_offline_model
 InvOFFLINEBIOVOC_EOH  EOH   0    4   -1  2   kg/m2/s  EOH_biogenic_emission_flux_from_offline_model
 InvOFFLINEBIOVOC_ISOP ISOP  0    4   -1  2   kg/m2/s  ISOP_biogenic_emission_flux_from_offline_model
-InvOFFLINEBIOVOC_PRPE PRPE  0    4   -1  2   kg/m2/s  PRPE_biogenic_emission_flux_from_offline_model
-InvOFFLINEBIOVOC_SOAP SOAP  0    4   -1  2   kg/m2/s  SOAP_biogenic_emission_flux_from_offline_model
-InvOFFLINEBIOVOC_SOAS SOAS  0    4   -1  2   kg/m2/s  SOAS_biogenic_emission_flux_from_offline_model
+InvOFFLINEBIOVOC_LIMO LIMO  0    4   -1  2   kg/m2/s  LIMO_biogenic_emission_flux_from_offline_model
 InvOFFLINEBIOVOC_MTPA MTPA  0    4   -1  2   kg/m2/s  MTPA_biogenic_emission_flux_from_offline_model
 InvOFFLINEBIOVOC_MTPO MTPO  0    4   -1  2   kg/m2/s  MTPO_biogenic_emission_flux_from_offline_model
-InvOFFLINEBIOVOC_LIMO LIMO  0    4   -1  2   kg/m2/s  LIMO_biogenic_emission_flux_from_offline_model
+InvOFFLINEBIOVOC_PRPE PRPE  0    4   -1  2   kg/m2/s  PRPE_biogenic_emission_flux_from_offline_model
 InvOFFLINEBIOVOC_SESQ SESQ  0    4   -1  2   kg/m2/s  SESQ_biogenic_emission_flux_from_offline_model
-InvOFFLINEBIOVOC_CO   CO    0    4   -1  2   kg/m2/s  CO_biogenic_emission_flux_from_offline_model
+InvOFFLINEBIOVOC_SOAP SOAP  0    4   -1  2   kg/m2/s  SOAP_biogenic_emission_flux_from_offline_model
+InvOFFLINEBIOVOC_SOAS SOAS  0    4   -1  2   kg/m2/s  SOAS_biogenic_emission_flux_from_offline_model
 
 #=============================
 # Offline sea salt emissions
