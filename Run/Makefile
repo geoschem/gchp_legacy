@@ -39,7 +39,6 @@ RUN_DIR :=$(shell pwd)
 
 # Log files that will be written to the log directory
 BUILD_LOG  :="$(RUN_DIR)/compile.log"
-GCHP_LOG   :="$(RUN_DIR)/GCHP.log"
 
 # Executables
 EXE :=geos
@@ -59,7 +58,7 @@ EXE :=geos
 .PHONY: superclean       help           printbuildinfo
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-#  Default make is to build all without cleaning   %
+#  Default make is to print help screen            %
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 default:
 	@$(MAKE) help

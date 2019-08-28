@@ -208,22 +208,22 @@ CONTAINS
 
     ! Get memory debug level
     call ESMF_GridCompGet ( GC, config=CF, RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     call ESMF_ConfigGetAttribute(CF, MemDebugLevel, &
                                  Label="MEMORY_DEBUG_LEVEL:" , RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     ! Initialize Input_Opt fields to zeros or equivalent
     CALL Set_Input_Opt( am_I_Root, Input_Opt, RC )
-    ASSERT_(RC==GC_SUCCESS)
+    _ASSERT(RC==GC_SUCCESS, 'informative message here')
 
     ! Read input.geos at very beginning of simulation on every thread
     CALL Read_Input_File( am_I_Root, Input_Opt, State_Grid, RC )
-    ASSERT_(RC==GC_SUCCESS)
+    _ASSERT(RC==GC_SUCCESS, 'informative message here')
 
     ! Initialize GEOS-Chem horizontal grid structure
     CALL GC_Init_Grid( am_I_Root, Input_Opt, State_Grid, RC )
-    ASSERT_(RC==GC_SUCCESS)
+    _ASSERT(RC==GC_SUCCESS, 'informative message here')
 
     ! Set maximum number of levels in the chemistry grid
     IF ( Input_Opt%LUCX ) THEN
@@ -239,16 +239,16 @@ CONTAINS
     ! Read LINOZ climatology
     IF ( Input_Opt%LLINOZ ) THEN
        CALL Linoz_Read( am_I_Root, Input_Opt, RC ) 
-       ASSERT_(RC==GC_SUCCESS)
+       _ASSERT(RC==GC_SUCCESS, 'informative message here')
     ENDIF
 
     ! Allocate all lat/lon arrays
     CALL GC_Allocate_All( am_I_Root, Input_Opt, State_Grid, RC )
-    ASSERT_(RC==GC_SUCCESS)
+    _ASSERT(RC==GC_SUCCESS, 'informative message here')
 
     ! Set grid based on passed mid-points
     CALL SetGridFromCtr( am_I_Root, State_Grid, lonCtr, latCtr, RC )
-    ASSERT_(RC==GC_SUCCESS)
+    _ASSERT(RC==GC_SUCCESS, 'informative message here')
 
     ! Update Input_Opt with timing fields
     Input_Opt%NYMDb   = nymdB
@@ -275,12 +275,12 @@ CONTAINS
     ! Initialize derived-type objects for met, chem, and diag
     CALL GC_Init_StateObj( am_I_Root, HistoryConfig%DiagList, Input_Opt, &
                            State_Chm, State_Diag, State_Grid, State_Met, RC )
-    ASSERT_(RC==GC_SUCCESS)
+    _ASSERT(RC==GC_SUCCESS, 'informative message here')
 
     ! Initialize other GEOS-Chem modules
     CALL GC_Init_Extra( am_I_Root, HistoryConfig%DiagList, Input_Opt,    &
                         State_Chm, State_Diag, State_Grid, RC ) 
-    ASSERT_(RC==GC_SUCCESS)
+    _ASSERT(RC==GC_SUCCESS, 'informative message here')
 
     ! Set initial State_Chm%Species units to units expected in transport
 # if defined( MODEL_GEOS )
@@ -294,20 +294,20 @@ CONTAINS
 
     ! Initialize the PBL mixing module
     CALL INIT_PBL_MIX( am_I_Root, State_Grid, RC )
-    ASSERT_(RC==GC_SUCCESS)
+    _ASSERT(RC==GC_SUCCESS, 'informative message here')
 
     ! Initialize chemistry mechanism
     IF ( Input_Opt%ITS_A_FULLCHEM_SIM .OR. Input_Opt%ITS_AN_AEROSOL_SIM ) THEN
        CALL INIT_CHEMISTRY ( am_I_Root,  Input_Opt,  State_Chm, &
                              State_Diag, State_Grid, RC )
-       ASSERT_(RC==GC_SUCCESS)
+       _ASSERT(RC==GC_SUCCESS, 'informative message here')
     ENDIF
 
     ! Initialize HEMCO
     CALL EMISSIONS_INIT ( am_I_Root,  Input_Opt, State_Chm, &
                           State_Grid, State_Met, RC, &
                           HcoConfig=HcoConfig )
-    ASSERT_(RC==GC_SUCCESS)
+    _ASSERT(RC==GC_SUCCESS, 'informative message here')
 
     ! Stratosphere - can't be initialized without HEMCO because of STATE_PSC
     IF ( Input_Opt%LUCX ) THEN
@@ -338,14 +338,14 @@ CONTAINS
     ! only need to initialize the tendencies, which have not been initialized
     ! yet (ckeller, 11/29/17). 
     CALL Tend_Init ( am_I_Root, Input_Opt, State_Met, State_Chm, RC ) 
-    ASSERT_(RC==GC_SUCCESS)
+    _ASSERT(RC==GC_SUCCESS, 'informative message here')
 #endif
 
 #if !defined( MODEL_GEOS )
     ! GCHP only: Convert species units to internal state units (v/v dry)
     CALL Convert_Spc_Units( am_I_Root,  Input_Opt, State_Chm, &
                             State_Grid, State_Met, 'v/v dry', RC )
-    ASSERT_(RC==GC_SUCCESS)
+    _ASSERT(RC==GC_SUCCESS, 'informative message here')
 #endif
 
     ! Return success
@@ -552,7 +552,7 @@ CONTAINS
     !-----------------------------------
     if ( MemDebugLevel > 0 ) THEN
        call ESMF_VmGetCurrent(VM, RC=STATUS)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     endif
 
     !=======================================================================
@@ -778,7 +778,7 @@ CONTAINS
        ENDIF
        CALL SET_H2O_TRAC( am_I_Root, SetStratH2O, Input_Opt, & 
                           State_Chm, State_Grid,  State_Met, RC )
-       ASSERT_(RC==GC_SUCCESS)
+       _ASSERT(RC==GC_SUCCESS, 'informative message here')
 
       ! Only force strat once if using UCX
        IF (Input_Opt%LSETH2O) Input_Opt%LSETH2O = .FALSE.
@@ -792,7 +792,7 @@ CONTAINS
     !    COS(SZA) at the midpt of the chem timestep 5hrs ago is now
     !    calculated elsewhere, in the HEMCO PARANOx extension
     CALL GET_COSINE_SZA( am_I_Root, Input_Opt, State_Grid, State_Met, RC )
-    ASSERT_(RC==GC_SUCCESS)
+    _ASSERT(RC==GC_SUCCESS, 'informative message here')
 #endif
 
     !=======================================================================
@@ -803,7 +803,7 @@ CONTAINS
     HCO_PHASE = 1
     CALL EMISSIONS_RUN( am_I_Root,  Input_Opt, State_Chm, State_Diag, &
                         State_Grid, State_Met, DoEmis, HCO_PHASE, RC  )
-    ASSERT_(RC==GC_SUCCESS)
+    _ASSERT(RC==GC_SUCCESS, 'informative message here')
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !!!                                PHASE 1 or -1                           !!!
@@ -823,7 +823,7 @@ CONTAINS
 
        CALL DO_CONVECTION ( am_I_Root,  Input_Opt, State_Chm, State_Diag, &
                             State_Grid, State_Met, RC )
-       ASSERT_(RC==GC_SUCCESS)
+       _ASSERT(RC==GC_SUCCESS, 'informative message here')
  
        CALL MAPL_TimerOff( STATE, 'GC_CONV' )
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Convection done!'
@@ -844,7 +844,7 @@ CONTAINS
        ! Do dry deposition
        CALL Do_DryDep ( am_I_Root,  Input_Opt, State_Chm, State_Diag, &
                         State_Grid, State_Met, RC ) 
-       ASSERT_(RC==GC_SUCCESS)
+       _ASSERT(RC==GC_SUCCESS, 'informative message here')
 
        CALL MAPL_TimerOff( STATE, 'GC_DRYDEP' )
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Drydep done!'
@@ -860,10 +860,10 @@ CONTAINS
        ! Optional memory prints (level >= 3)
        if ( MemDebugLevel > 0 ) THEN
           call ESMF_VMBarrier(VM, RC=STATUS)
-          VERIFY_(STATUS)
+          _VERIFY(STATUS)
           call MAPL_MemUtilsWrite(VM, &
                   'gigc_chunk_run, before Emissions_Run', RC=STATUS )
-          VERIFY_(STATUS)
+          _VERIFY(STATUS)
        endif
 
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Do emissions now'
@@ -874,7 +874,7 @@ CONTAINS
        HCO_PHASE = 2
        CALL EMISSIONS_RUN ( am_I_Root,  Input_Opt, State_Chm, State_Diag, &
                             State_Grid, State_Met, DoEmis, HCO_PHASE, RC )
-       ASSERT_(RC==GC_SUCCESS)
+       _ASSERT(RC==GC_SUCCESS, 'informative message here')
 
        CALL MAPL_TimerOff( STATE, 'GC_EMIS' )
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Emissions done!'
@@ -882,10 +882,10 @@ CONTAINS
        ! Optional memory prints (level >= 3)
        if ( MemDebugLevel > 0 ) THEN
           call ESMF_VMBarrier(VM, RC=STATUS)
-          VERIFY_(STATUS)
+          _VERIFY(STATUS)
           call MAPL_MemUtilsWrite(VM,&
                   'gigc_chunk_run, after  Emissions_Run', RC=STATUS )
-          VERIFY_(STATUS)
+          _VERIFY(STATUS)
        endif
 
     ENDIF
@@ -903,13 +903,13 @@ CONTAINS
        CALL MAPL_TimerOn( STATE, 'GC_FLUXES' )
 
        ! Get emission time step [s]. 
-       ASSERT_(ASSOCIATED(HcoState))
+       _ASSERT(ASSOCIATED(HcoState), 'informative message here')
        DT = HcoState%TS_EMIS 
 
        ! Apply tendencies over entire PBL. Use emission time step.
        CALL DO_TEND ( am_I_Root,  Input_Opt, State_Chm, State_Diag, &
                       State_Grid, State_Met, .FALSE., RC, DT=DT )
-       ASSERT_(RC==GC_SUCCESS)
+       _ASSERT(RC==GC_SUCCESS, 'informative message here')
 
        ! testing only
        if(am_I_Root.and.NCALLS<10) write(*,*)   &
@@ -940,7 +940,7 @@ CONTAINS
        ! which is fine since this call will be executed on every time step. 
        CALL DO_MIXING ( am_I_Root,  Input_Opt, State_Chm, State_Diag, &
                         State_Grid, State_Met, RC )
-       ASSERT_(RC==GC_SUCCESS)
+       _ASSERT(RC==GC_SUCCESS, 'informative message here')
 
        CALL MAPL_TimerOff( STATE, 'GC_TURB' )
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Turbulence done!'
@@ -958,7 +958,7 @@ CONTAINS
 #endif
        CALL SET_CH4 ( am_I_Root,  Input_Opt, State_Chm, State_Diag, &
                       State_Grid, State_Met, RC )
-       ASSERT_(RC==GC_SUCCESS)
+       _ASSERT(RC==GC_SUCCESS, 'informative message here')
     ENDIF
 
     !=======================================================================
@@ -984,16 +984,16 @@ CONTAINS
        ! Optional memory prints (level >= 3)
        if ( MemDebugLevel > 0 ) THEN
           call ESMF_VMBarrier(VM, RC=STATUS)
-          VERIFY_(STATUS)
+          _VERIFY(STATUS)
           call MAPL_MemUtilsWrite(VM, &
                   'gigc_chunk_run:, before Do_Chemistry', RC=STATUS )
-          VERIFY_(STATUS)
+          _VERIFY(STATUS)
        endif
 
        ! Do chemistry
        CALL Do_Chemistry( am_I_Root,  Input_Opt, State_Chm, State_Diag, &
                           State_Grid, State_Met, RC ) 
-       ASSERT_(RC==GC_SUCCESS)
+       _ASSERT(RC==GC_SUCCESS, 'informative message here')
 
        CALL MAPL_TimerOff( STATE, 'GC_CHEM' )
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Chemistry done!'
@@ -1001,10 +1001,10 @@ CONTAINS
        ! Optional memory prints (level >= 3)
        if ( MemDebugLevel > 0 ) THEN
           call ESMF_VMBarrier(VM, RC=STATUS)
-          VERIFY_(STATUS)
+          _VERIFY(STATUS)
           call MAPL_MemUtilsWrite(VM, &
                   'gigc_chunk_run, after  Do_Chemistry', RC=STATUS )
-          VERIFY_(STATUS)
+          _VERIFY(STATUS)
        endif
 
     ENDIF
@@ -1019,7 +1019,7 @@ CONTAINS
        ! Do wet deposition
        CALL DO_WETDEP( am_I_Root,  Input_Opt, State_Chm, State_Diag, &
                        State_Grid, State_Met, RC )
-       ASSERT_(RC==GC_SUCCESS)
+       _ASSERT(RC==GC_SUCCESS, 'informative message here')
 
        CALL MAPL_TimerOff( STATE, 'GC_WETDEP' )
        if(am_I_Root.and.NCALLS<10) write(*,*) ' --- Wetdep done!'
@@ -1053,7 +1053,7 @@ CONTAINS
 #endif
        CALL RECOMPUTE_OD ( am_I_Root,  Input_Opt, State_Chm, State_Diag, &
                            State_Grid, State_Met, RC )
-       ASSERT_(RC==GC_SUCCESS)
+       _ASSERT(RC==GC_SUCCESS, 'informative message here')
 #if defined( MODEL_GEOS )
     !ENDIF
     !ENDIF
@@ -1069,13 +1069,13 @@ CONTAINS
     CALL Set_Diagnostics_EndofTimestep( am_I_Root,  Input_Opt,  &
                                         State_Chm,  State_Diag, &
                                         State_Grid, State_Met, RC )
-    ASSERT_(RC==GC_SUCCESS)
+    _ASSERT(RC==GC_SUCCESS, 'informative message here')
 
     ! Archive aerosol mass and PM2.5 diagnostics
     IF ( State_Diag%Archive_AerMass ) THEN
        CALL Set_AerMass_Diagnostic( am_I_Root,  Input_Opt,  State_Chm, &
                                     State_Diag, State_Grid, State_Met, RC )
-       ASSERT_(RC==GC_SUCCESS)
+       _ASSERT(RC==GC_SUCCESS, 'informative message here')
     ENDIF
 
     CALL MAPL_TimerOff( STATE, 'GC_DIAGN' )

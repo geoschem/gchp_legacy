@@ -168,7 +168,6 @@ EmisCO_Aircraft    CO     0      20  -1   3   kg/m2/s  CO_emission_flux_from_air
 EmisCO_Anthro      CO     0      1   -1   3   kg/m2/s  CO_emission_flux_from_anthropogenic
 EmisCO_BioBurn     CO     111    -1  -1   2   kg/m2/s  CO_emission_flux_from_biomass_burning
 EmisCO_Ship        CO     0      10  -1   2   kg/m2/s  CO_emission_flux_from_ships
-EmisCO_Monoterp    CO     0      4   -1   2   kg/m2/s  CO_emission_flux_from_monoterpenes
 
 ###############################################################################
 #####  CO2 emissions                                                      ##### 
@@ -186,6 +185,8 @@ EmisDMS_Ocean      DMS    101    -1  -1   2   kg/m2/s  DMS_emission_flux_from_oc
 ###############################################################################
 #####  Dust emissions                                                     ##### 
 ###############################################################################
+EmisDST1_Total     DST1   -1     -1  -1   2   kg/m2/s  DST1_emission_flux_from_all_sectors
+EmisDST1_Anthro    DST1   0      1   -1   2   kg/m2/s  DST1_emission_flux_from_anthropogenic
 EmisDST1_Natural   DST1   0      3   -1   2   kg/m2/s  DST1_emission_flux_from_natural_sources
 EmisDST2_Natural   DST2   0      3   -1   2   kg/m2/s  DST2_emission_flux_from_natural_sources
 EmisDST3_Natural   DST3   0      3   -1   2   kg/m2/s  DST3_emission_flux_from_natural_sources

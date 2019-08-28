@@ -523,7 +523,7 @@ CONTAINS
     ! Rename this to a "legacy state"
     !=======================================================================
     ALLOCATE( myState, stat=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     wrap%ptr => myState
 
     !=======================================================================
@@ -543,7 +543,7 @@ CONTAINS
     CALL MAPL_GetObjectFromGC( GC, STATE, __RC__ )
     call MAPL_GetResource( STATE, IsCTM, label='GEOSChem_CTM:', & 
                            default=1, rc=status )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 #endif
 
     !=======================================================================
@@ -562,7 +562,7 @@ CONTAINS
         
     ! Store internal state with Config object in the gridded component
     CALL ESMF_UserCompSetInternalState( GC, 'GEOSCHEM_State', wrap, STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
   
     !=======================================================================
     !                    %%% MAPL Data Services %%%
@@ -587,7 +587,7 @@ CONTAINS
        DIMS               = MAPL_DimsHorzVert,    &
        VLOCATION          = MAPL_VLocationEdge,    &
                                                       RC=STATUS  )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     call MAPL_AddImportSpec(GC, &
        SHORT_NAME         = 'DryPLE',  &
@@ -597,7 +597,7 @@ CONTAINS
        DIMS               = MAPL_DimsHorzVert,    &
        VLOCATION          = MAPL_VLocationEdge,    &
                                                       RC=STATUS  )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 #endif
 
 !
@@ -818,7 +818,7 @@ CONTAINS
                                   Default="HISTORY.rc", __RC__ )
     CALL HistoryExports_SetServices( MAPL_am_I_Root(), HistoryConfigFile, &
                                      GC, HistoryConfig, RC=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
 !EOP
 !BOC
@@ -1511,18 +1511,18 @@ CONTAINS
     ! Set the Profiling timers
     ! ------------------------
     CALL MAPL_TimerAdd(GC, NAME="INITIALIZE", RC=status)
-    VERIFY_(status)
+    _VERIFY(status)
     CALL MAPL_TimerAdd(GC, NAME="RUN", RC=status)
-    VERIFY_(status)
+    _VERIFY(status)
     CALL MAPL_TimerAdd(GC, NAME="FINALIZE", RC=status)
-    VERIFY_(status)
+    _VERIFY(status)
 
     CALL MAPL_TimerAdd(GC, NAME="DO_CHEM", RC=status)
-    VERIFY_(status)
+    _VERIFY(status)
     CALL MAPL_TimerAdd(GC, NAME="CP_BFRE", RC=status)
-    VERIFY_(status)
+    _VERIFY(status)
     CALL MAPL_TimerAdd(GC, NAME="CP_AFTR", RC=status)
-    VERIFY_(status)
+    _VERIFY(status)
 
     ! More timers to be called in gigc_chunk_run 
     CALL MAPL_TimerAdd(GC, NAME="GC_CONV"  , __RC__)
@@ -1537,12 +1537,12 @@ CONTAINS
     ! Generic Set Services
     ! --------------------
     CALL MAPL_GenericSetServices( GC, RC=status )
-    VERIFY_(status)
+    _VERIFY(status)
 
     !=======================================================================
     ! All done
     !=======================================================================
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
 
   END SUBROUTINE SetServices
 !EOC
@@ -1706,7 +1706,7 @@ CONTAINS
     ! Get my MAPL_Generic state
     ! -------------------------
     CALL MAPL_GetObjectFromGC(GC, STATE, RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     !  Start timers
     !  ------------
@@ -1760,7 +1760,7 @@ CONTAINS
     ! Get the memory debug level
     call ESMF_ConfigGetAttribute(GeosCF, MemDebugLevel, &
                                  Label="MEMORY_DEBUG_LEVEL:" , RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
 
     ! Name of logfile for stdout redirect
@@ -1784,7 +1784,7 @@ CONTAINS
     IF ((logLun.eq.5).or.(logLun.eq.6)) Then
        WRITE(*,'(a,I5,a)') 'Invalid LUN (',logLun,') chosen for log output'
        WRITE(*,'(a)'     ) 'An LUN other than 5 or 6 must be used'
-       ASSERT_(.FALSE.)
+       _ASSERT(.FALSE.,'informative message here')
     ENDIF
 #endif
 
@@ -1852,7 +1852,7 @@ CONTAINS
                                   Default = 2,                      &
                                   Label   = "RUN_PHASES:",          &
                                   __RC__                           )
-    ASSERT_(NPHASE==1.OR.NPHASE==2) 
+    _ASSERT(NPHASE==1.OR.NPHASE==2,'informative message here') 
 
 #if defined( MODEL_GEOS )
     ! Top stratospheric level
@@ -1904,7 +1904,7 @@ CONTAINS
 
     ! Initialize fields of the Grid State object
     CALL Init_State_Grid( am_I_Root, State_Grid, RC )
-    ASSERT_(RC==GC_SUCCESS)
+    _ASSERT(RC==GC_SUCCESS,'informative message here')
   
     ! Pass grid information obtained from Extract_ to State_Grid
     State_Grid%NX          = IM            ! # lons   on this PET
@@ -2018,7 +2018,7 @@ CONTAINS
              IF ( RC /= ESMF_SUCCESS ) THEN
                 WRITE(*,*) 'Cannot fill AERO bundle - field not found in ' // &
                            'internal state: ' // TRIM(GCName)
-                ASSERT_(.FALSE.)
+                _ASSERT(.FALSE.,'informative message here')
              ENDIF
   
              ! Set number of fields to be created. This is only different from
@@ -2262,7 +2262,7 @@ CONTAINS
     nFlds = State_Chm%nAdvect
 #endif
     ALLOCATE( Int2Spc(nFlds), STAT=STATUS )
-    ASSERT_(STATUS==0)
+    _ASSERT(STATUS==0,'informative message here')
 
     ! Do for every tracer in State_Chm
     DO I = 1, nFlds
@@ -2330,7 +2330,7 @@ CONTAINS
 #else
                         //TRIM(Int2Spc(I)%TrcName),I
           ENDIF
-          ASSERT_(.FALSE.)
+          _ASSERT(.FALSE.,'informative message here')
 #endif
        ENDIF
 
@@ -2353,7 +2353,7 @@ CONTAINS
                            TRIM(Int2Spc(I)%Name)
                 WRITE(*,*) ' '
              ENDIF
-             ASSERT_(.FALSE.)
+             _ASSERT(.FALSE.,'informative message here')
           ENDIF
        ENDIF
 
@@ -2372,7 +2372,7 @@ CONTAINS
                     TRIM(Int2Spc(I)%Name)
                 WRITE(*,*) ' '
              ENDIF
-             ASSERT_(.FALSE.)
+             _ASSERT(.FALSE.,'informative message here')
           ENDIF
        ENDIF
 
@@ -2439,7 +2439,7 @@ CONTAINS
        WRITE(*,*) 'GEOS-Chem chemistry time step                 : ', ChemTS
        WRITE(*,*) 'GEOS-Chem emission  time step                 : ', EmisTS
        WRITE(*,*) 'CHEMISTRY_TIMESTEP in GCHP.rc                 : ', tsChem
-       ASSERT_(.FALSE.)
+       _ASSERT(.FALSE.,'informative message here')
     ENDIF
 
     ! Also check for convection and dynamics time step.
@@ -2451,7 +2451,7 @@ CONTAINS
        WRITE(*,*) 'GEOS-Chem convection time step                : ', ChemTS
        WRITE(*,*) 'GEOS-Chem dynamics   time step                : ', EmisTS
        WRITE(*,*) 'RUN_DT in CAP.rc                              : ', tsDyn
-       ASSERT_(.FALSE.)
+       _ASSERT(.FALSE.,'informative message here')
     ENDIF
 
 #if !defined( MODEL_GEOS )
@@ -2589,7 +2589,7 @@ CONTAINS
     CALL MAPL_TimerOff( STATE, "TOTAL")
 
     ! Successful return
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
 
     ! Formats
 100 FORMAT( '### ',                                           / &
@@ -2665,7 +2665,7 @@ CONTAINS
     ENDIF
 
     ! Return w/ success
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
 
   END SUBROUTINE Run1 
 !EOC
@@ -2735,7 +2735,7 @@ CONTAINS
     CALL Run_ ( GC, IMPORT, EXPORT, CLOCK, PHASE, __RC__ )
 
     ! Return w/ success
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
 
   END SUBROUTINE Run2 
 !EOC
@@ -2991,7 +2991,7 @@ CONTAINS
     !-----------------------------------
     if ( MemDebugLevel > 0 ) THEN
        call ESMF_VmGetCurrent(VM, RC=STATUS)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     endif
 
     ! Get my MAPL_Generic state
@@ -3116,7 +3116,7 @@ CONTAINS
    ENDIF
 
        ! Link HEMCO state to gridcomp objects
-       ASSERT_(ASSOCIATED(HcoState))
+       _ASSERT(ASSOCIATED(HcoState),'informative message here')
        HcoState%GRIDCOMP => GC
        HcoState%IMPORT   => IMPORT
        HcoState%EXPORT   => EXPORT
@@ -3124,7 +3124,7 @@ CONTAINS
 
        ! Pass IMPORT/EXPORT object to HEMCO state object
        !CALL GetHcoState( HcoState )
-       ASSERT_(ASSOCIATED(HcoState))
+       _ASSERT(ASSOCIATED(HcoState),'informative message here')
        HcoState%GRIDCOMP => GC
        HcoState%IMPORT   => IMPORT
        HcoState%EXPORT   => EXPORT
@@ -3200,13 +3200,13 @@ CONTAINS
        ! Allocate GMAO_ZTH (declared at top of module)
        IF ( .not. ALLOCATED( zenith ) ) THEN
           ALLOCATE( zenith(State_Grid%NX,State_Grid%NY), STAT=STATUS)
-          VERIFY_(STATUS)
+          _VERIFY(STATUS)
        ENDIF
        
        ! Allocate GMAO_SLR (declared @ top of module)
        IF ( .not. ALLOCATED( solar ) ) THEN
           ALLOCATE( solar(State_Grid%NX,State_Grid%NY), STAT=STATUS)
-          VERIFY_(STATUS)
+          _VERIFY(STATUS)
        ENDIF
        
        ! Call EXTRACT a second time to get the solar zenith
@@ -3373,7 +3373,7 @@ CONTAINS
        IF ( ANY( GCCTROPP == MAPL_UNDEF ) ) THEN
           PRINT *,TRIM(Iam)//": At least one invalid tropopause pressure."
           STATUS = GC_FAILURE
-          VERIFY_(STATUS)
+          _VERIFY(STATUS)
        ENDIF
 
 !       !=======================================================================
@@ -3412,7 +3412,7 @@ CONTAINS
        
           ! Get Generic State
           call MAPL_GetObjectFromGC ( GC, STATE, RC=STATUS)
-          VERIFY_(STATUS)
+          _VERIFY(STATUS)
           ! Get Internal state
           CALL MAPL_Get ( STATE, INTERNAL_ESMF_STATE=INTERNAL, __RC__ ) 
        
@@ -3688,13 +3688,13 @@ CONTAINS
                 'You should not get this error if you compiled with '     // &
                 'ifort.'
              RC = GC_FAILURE
-             ASSERT_(RC==GC_SUCCESS)
+             _ASSERT(RC==GC_SUCCESS,'informative message here')
           ENDIF
 
           ! Compute State_Met variables IREG, ILAND, IUSE, and FRCLND
           CALL Compute_Olson_Landmap( am_I_Root, Input_Opt, State_Grid, &
                                       State_Met, RC )
-          ASSERT_(RC==GC_SUCCESS)
+          _ASSERT(RC==GC_SUCCESS,'informative message here')
        ENDIF
 
        !=======================================================================
@@ -3841,10 +3841,10 @@ CONTAINS
              ! Optional memory prints (level >= 2)
              if ( MemDebugLevel > 0 ) THEN
                 call ESMF_VMBarrier(vm, RC=STATUS)
-                VERIFY_(STATUS)
+                _VERIFY(STATUS)
                 call MAPL_MemUtilsWrite(VM, &
                   'Chem_GridCompMod, before chunk_run', RC=STATUS )
-                VERIFY_(STATUS)
+                _VERIFY(STATUS)
              endif
        
              CALL MAPL_TimerOn(STATE, "DO_CHEM")
@@ -3890,10 +3890,10 @@ CONTAINS
              ! Optional memory prints (level >= 2)
              if ( MemDebugLevel > 0 ) THEN
                 call ESMF_VMBarrier(vm, RC=STATUS)
-                VERIFY_(STATUS)
+                _VERIFY(STATUS)
                 call MAPL_MemUtilsWrite(VM, &
                   'Chem_GridCompMod, after  chunk_run', RC=STATUS )
-                VERIFY_(STATUS)
+                _VERIFY(STATUS)
              endif
 
           ! Restart file does not exist:
@@ -4095,7 +4095,7 @@ CONTAINS
 
        CALL CalcNO2Column_( am_I_Root, Input_Opt, PTR_NO2, PLE, &
                             PPBL, GCCTROPP, TNO2, SNO2, FNO2, RC )
-       ASSERT_(RC==ESMF_SUCCESS)
+       _ASSERT(RC==ESMF_SUCCESS,'informative message here')
        PTR_NO2 => NULL()
        TNO2    => NULL()
        SNO2    => NULL()
@@ -4248,9 +4248,9 @@ CONTAINS
        CALL MAPL_GetPointer( EXPORT, Ptr2D, 'LightningPotential', &
                              NotFoundOk=.TRUE., __RC__ )
        IF ( ASSOCIATED(Ptr2D) ) THEN
-          ASSERT_(ASSOCIATED(LWI))      ! Land-Water-Ice flag
-          ASSERT_(ASSOCIATED(LFR))      ! GEOS lightning flash rate
-          ASSERT_(ASSOCIATED(CNV_FRC))  ! Convective fraction
+          _ASSERT(ASSOCIATED(LWI),'informative message here')      ! Land-Water-Ice flag
+          _ASSERT(ASSOCIATED(LFR),'informative message here')      ! GEOS lightning flash rate
+          _ASSERT(ASSOCIATED(CNV_FRC),'informative message here')  ! Convective fraction
           CALL MAPL_GetPointer( EXPORT, PtrEmis, 'EMIS_NO_LGHT',  &
                                 NotFoundOk=.TRUE., __RC__ )
           Ptr2D = 0.0
@@ -4316,10 +4316,10 @@ CONTAINS
                                             HistoryConfig, State_Chm, &
                                             State_Diag,    State_Met, &
                                             STATUS )
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
     ENDIF
     CALL CopyGCStates2Exports( am_I_Root, Input_Opt, HistoryConfig, STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     !=======================================================================
     ! All done
@@ -4356,7 +4356,7 @@ CONTAINS
 #endif
 
     ! Successful return
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
 
     ! Formats
 100 FORMAT( '---> DATE: ', i4.4, '/', i2.2, '/', i2.2,      &
@@ -4482,7 +4482,7 @@ CONTAINS
     ! Get my MAPL_Generic state
     ! -------------------------
     CALL MAPL_GetObjectFromGC(GC, STATE, RC=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     ! Start timers
     ! ------------
@@ -4607,7 +4607,7 @@ CONTAINS
 
 #if defined( MODEL_GEOS )
     ! Link HEMCO state to gridcomp objects
-    ASSERT_(ASSOCIATED(HcoState))
+    _ASSERT(ASSOCIATED(HcoState),'informative message here')
     HcoState%GRIDCOMP => GC
     HcoState%IMPORT   => IMPORT
     HcoState%EXPORT   => EXPORT
@@ -4687,7 +4687,7 @@ CONTAINS
 !    CALL MAPL_TimerOff(STATE, "TOTAL")
 
     ! Successful return
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
 
   END SUBROUTINE Finalize_
 !EOC
@@ -4862,7 +4862,7 @@ CONTAINS
 
     ! Get the internal state which holds the private Config object
     CALL ESMF_UserCompGetInternalState( GC, 'GEOSCHEM_State', wrap, STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     myState => wrap%ptr
 
     ! Get generic state object
@@ -4931,7 +4931,7 @@ CONTAINS
 #endif
            ENDIF
            STATUS = 1
-           VERIFY_(STATUS)
+           _VERIFY(STATUS)
         ENDIF
     ENDIF
 
@@ -5144,7 +5144,7 @@ CONTAINS
     !=======================================================================
     ! All done
     !=======================================================================
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
 
   END SUBROUTINE Extract_
 !EOC
@@ -5225,7 +5225,7 @@ CONTAINS
     ENDIF
 
     ! Make sure O3 is defined
-    ASSERT_(ASSOCIATED(O3))
+    _ASSERT(ASSOCIATED(O3),'informative message here')
 
     ! Grid size
     IM = SIZE(O3,1)
@@ -5241,9 +5241,9 @@ CONTAINS
 
     ! Allocate local variables
     ALLOCATE(DUsLayerL(IM,JM), STAT=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     ALLOCATE(wgt(IM,JM), STAT=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     ! constant 
     const = 0.01 * MAPL_AVOGAD / ( MAPL_GRAV * (MAPL_AIRMW/1000.0) )
@@ -5271,9 +5271,9 @@ CONTAINS
  
     ! Cleanup
     DEALLOCATE(DUsLayerL, STAT=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     DEALLOCATE(wgt, STAT=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     ! Successful return
     RC = ESMF_SUCCESS
@@ -5359,7 +5359,7 @@ CONTAINS
     ENDIF
 
     ! Make sure O3 is defined
-    ASSERT_(ASSOCIATED(NO2))
+    _ASSERT(ASSOCIATED(NO2),'informative message here')
 
     ! Grid size
     IM = SIZE(NO2,1)
@@ -5377,13 +5377,13 @@ CONTAINS
 
     ! Allocate local variables
     ALLOCATE(DUsLayerL(IM,JM), STAT=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     ALLOCATE(wgt(IM,JM), STAT=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     IF ( ASSOCIATED(FNO2) ) THEN
-       ASSERT_(ASSOCIATED(PPBL))
+       _ASSERT(ASSOCIATED(PPBL),'informative message here')
        ALLOCATE(PBLTNO2(IM,JM), STAT=STATUS)
-       VERIFY_(STATUS)
+       _VERIFY(STATUS)
        PBLTNO2(:,:) = 0.0
     ENDIF
 
@@ -5439,9 +5439,9 @@ CONTAINS
 
     ! Cleanup
     DEALLOCATE(DUsLayerL, STAT=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     DEALLOCATE(wgt, STAT=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     IF ( ALLOCATED(PBLTNO2) ) DEALLOCATE(PBLTNO2)
     ! Successful return
     RC = ESMF_SUCCESS
@@ -5516,9 +5516,9 @@ CONTAINS
    
     ! Allocate local variables
     ALLOCATE(DUsLayerL(IM,JM), STAT=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     ALLOCATE(wgt(IM,JM), STAT=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
    
     ! Do for all species
     DO I=1,SIZE(COLLIST,1)
@@ -5572,9 +5572,9 @@ CONTAINS
  
     ! Cleanup
     DEALLOCATE(DUsLayerL, STAT=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     DEALLOCATE(wgt, STAT=STATUS)
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
 
     ! Successful return
     RC = ESMF_SUCCESS
@@ -5656,7 +5656,7 @@ CONTAINS
 
           ! Get O3 tracer ID
           IND = Ind_('O3')
-          ASSERT_(IND>0)
+          _ASSERT(IND>0,'informative message here')
 
           ! Get tracer tendency in kg/kg dry air/s 
           CALL Tend_Get( am_I_Root, Input_Opt, 'CHEM', IND, Stage, &
@@ -5717,7 +5717,7 @@ CONTAINS
           IF ( ASSOCIATED(Ptr2D) ) THEN
              ! Tracer index 
              IND = Ind_(TRIM(State_Chm%SpcData(N)%Info%Name))
-             ASSERT_(IND>0)
+             _ASSERT(IND>0,'informative message here')
              ! Get tracer tendency in kg/kg dry air/s 
              CALL Tend_Get( am_I_Root, Input_Opt, 'FLUX', IND, Stage, &
                             Tend, __RC__ )
@@ -5744,7 +5744,7 @@ CONTAINS
           IF ( ASSOCIATED(Ptr2D) ) THEN
              ! Tracer index 
              IND = Ind_(TRIM(State_Chm%SpcData(N)%Info%Name))
-             ASSERT_(IND>0)
+             _ASSERT(IND>0,'informative message here')
              ! Get tracer tendency in kg/kg dry air/s 
              CALL Tend_Get( am_I_Root, Input_Opt, 'WETD', IND, Stage, &
                             Tend, __RC__ )
@@ -5771,7 +5771,7 @@ CONTAINS
           IF ( ASSOCIATED(Ptr2D) ) THEN
              ! Tracer index 
              IND = Ind_(TRIM(State_Chm%SpcData(N)%Info%Name))
-             ASSERT_(IND>0)
+             _ASSERT(IND>0,'informative message here')
              ! Get tracer tendency in kg/kg dry air/s 
              CALL Tend_Get( am_I_Root, Input_Opt, 'CONV', IND, Stage, &
                             Tend, __RC__ )
@@ -5787,7 +5787,7 @@ CONTAINS
     ENDIF
 
     ! Successful return
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
 
   END SUBROUTINE CalcTendencies_ 
 !EOC
@@ -5884,10 +5884,10 @@ CONTAINS
              idk3 = I
           ENDIF 
        ENDDO
-       ASSERT_( idJNO2 > 0 )
-       ASSERT_( idk1   > 0 )
-       ASSERT_( ASSOCIATED(State_Diag%O3concAfterChem)  )
-       ASSERT_( ASSOCIATED(State_Diag%RO2concAfterChem) )
+       _ASSERT( idJNO2 > 0,'informative message here' )
+       _ASSERT( idk1   > 0,'informative message here' )
+       _ASSERT( ASSOCIATED(State_Diag%O3concAfterChem),'informative message here'  )
+       _ASSERT( ASSOCIATED(State_Diag%RO2concAfterChem),'informative message here' )
        ! Allocate local arrays
        IM = SIZE(State_Diag%O3concAfterChem,1)
        JM = SIZE(State_Diag%O3concAfterChem,2)
@@ -5920,8 +5920,8 @@ CONTAINS
        ENDIF
        ! Compute NOx chemical lifetime
        IF ( ASSOCIATED(NOxtau) ) THEN
-          ASSERT_( idk3 > 0 )
-          ASSERT_( ASSOCIATED(State_Diag%OHconcAfterChem) )
+          _ASSERT( idk3 > 0,'informative message here' )
+          _ASSERT( ASSOCIATED(State_Diag%OHconcAfterChem),'informative message here' )
           k3OH      = State_Diag%RxnRconst(:,:,LM:1:-1,idk3) &
                     * State_Diag%OHconcAfterChem(:,:,LM:1:-1)
           tmp3d = 0.0
@@ -5945,7 +5945,7 @@ CONTAINS
     ! All done 
     !=======================================================================
 
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
 
   END SUBROUTINE NOxDiagnostics_
 !EOC
@@ -6339,7 +6339,7 @@ CONTAINS
                    WRITE(*,*)     &
                        'Cannot compute 2M concentration - need diagnostics '// &
                        'of drydep velocity - please activate - ' //TRIM(SpcName)
-                   ASSERT_(.FALSE.)
+                   _ASSERT(.FALSE.,'informative message here')
                 ENDIF      
                 CONV(:,:) = 1.0 - ( State_Chm%DryDepRa2m(:,:) *  &
                             State_Diag%DryDepVel(:,:,DryID) )
@@ -6369,7 +6369,7 @@ CONTAINS
                    WRITE(*,*)      &
                      'Cannot compute 10M concentration - need diagnostics '// &
                      'of drydep velocity - please activate - ' //TRIM(SpcName)
-                   ASSERT_(.FALSE.)
+                   _ASSERT(.FALSE.,'informative message here')
                 ENDIF      
                 CONV(:,:) = 1.0 - ( State_Chm%DryDepRa10m(:,:) * &
                             State_Diag%DryDepVel(:,:,DryID) )
@@ -6402,7 +6402,7 @@ CONTAINS
 
     ! Successful return
     FIRST = .FALSE.
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
 
   END SUBROUTINE CalcSpeciesDiagnostics_
 !EOC
@@ -6514,7 +6514,7 @@ CONTAINS
     INQUIRE( FILE=TRIM(ifile), EXIST=FileExists )
     IF ( .NOT. FileExists ) THEN
        IF ( am_I_Root ) WRITE(*,*) 'File does not exist: ',TRIM(ifile)
-       ASSERT_(.FALSE.)
+       _ASSERT(.FALSE.,'informative message here')
     ENDIF
 
     ! Check for GMI flags
@@ -6533,11 +6533,11 @@ CONTAINS
 
     ! Get time stamp on file
     call GFIO_Open( ifile, 1, fid, STATUS )
-    ASSERT_(STATUS==0)
+    _ASSERT(STATUS==0,'informative message here')
     call GetBegDateTime ( fid, nymd, nhms, incSecs, STATUS )
-    ASSERT_(STATUS==0)
+    _ASSERT(STATUS==0,'informative message here')
     caLL GFIO_Close( fid, STATUS )
-    ASSERT_(STATUS==0)
+    _ASSERT(STATUS==0,'informative message here')
     yy = nymd/10000
     mm = (nymd-yy*10000) / 100
     dd = nymd - (10000*yy + mm*100)
@@ -6572,7 +6572,7 @@ CONTAINS
              IF ( am_I_Root ) THEN
                 WRITE(*,*) 'Wrong # of vert. levels for variable ',TRIM(FldName), ' ',LM2,' vs. ',LM1
              ENDIF
-             ASSERT_( LM1==LM2 )
+             _ASSERT( LM1==LM2,'informative message here' )
           ENDIF
 
           ! Pass to State_Chm, convert v/v to kg/kg. Assume that pointer data is
@@ -6614,11 +6614,11 @@ CONTAINS
    
              ! Get time stamp on file
              call GFIO_Open( Gmiifile, 1, fid, STATUS )
-             ASSERT_(STATUS==0)
+             _ASSERT(STATUS==0,'informative message here')
              call GetBegDateTime ( fid, nymd, nhms, incSecs, STATUS )
-             ASSERT_(STATUS==0)
+             _ASSERT(STATUS==0,'informative message here')
              caLL GFIO_Close( fid, STATUS )
-             ASSERT_(STATUS==0)
+             _ASSERT(STATUS==0,'informative message here')
              yy = nymd/10000
              mm = (nymd-yy*10000) / 100
              dd = nymd - (10000*yy + mm*100)
@@ -6647,7 +6647,7 @@ CONTAINS
 
     ! All done
     CALL MAPL_SimpleBundleDestroy ( VarBundle, __RC__ )
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
 
   END SUBROUTINE InitFromFile_ 
 !EOC
@@ -6789,7 +6789,7 @@ CONTAINS
                              COL=Input_Opt%DIAG_COLLECTION ) 
 
              ! Error check 
-             ASSERT_( ERR == HCO_SUCCESS )
+             _ASSERT( ERR == HCO_SUCCESS,'informative message here' )
 
              ! Add to array if diagnostics is defined
              ! GEOS-Chem diagnostics is in kg m-2 s-1.
@@ -6824,7 +6824,7 @@ CONTAINS
                                 COL=Input_Opt%DIAG_COLLECTION ) 
 
                 ! Error check 
-                ASSERT_( ERR == HCO_SUCCESS )
+                _ASSERT( ERR == HCO_SUCCESS,'informative message here' )
 
                 ! Add to array if diagnostics is defined. GEOS-Chem 
                 ! diagnostics is already in kg m-2 s-1.
@@ -7075,7 +7075,7 @@ CONTAINS
     !=======================================================================
     ! All done
     !=======================================================================
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
 
   END SUBROUTINE Print_Mean_OH
 !EOC
@@ -7152,7 +7152,7 @@ CONTAINS
        nSize = SIZE( dataPtr2D )
     ENDIF
     ALLOCATE( data1d( nSize ), STAT=STATUS )
-    VERIFY_(STATUS)
+    _VERIFY(STATUS)
     data1d(:) = 0.0
 
     ! Rearrange into a 1-D array
@@ -7434,7 +7434,7 @@ CONTAINS
 
     deallocate(aerosol_names, ext, ssa, asy, q_4d, __STAT__)
 
-    RETURN_(ESMF_SUCCESS)
+    _RETURN(ESMF_SUCCESS)
 
   contains 
 
@@ -7468,7 +7468,7 @@ CONTAINS
 
       na = size(aerosol)
 
-      ASSERT_ (na == size(q,4))
+      _ASSERT (na == size(q,4),'informative message here')
 
       ext_ = 0.0d0
       ssa_ = 0.0d0
@@ -7489,7 +7489,7 @@ CONTAINS
       ssa = ssa_
       asy = asy_
 
-      RETURN_(ESMF_SUCCESS)
+      _RETURN(ESMF_SUCCESS)
 
     end subroutine mie_
 
