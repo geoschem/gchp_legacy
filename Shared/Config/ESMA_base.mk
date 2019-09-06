@@ -230,6 +230,9 @@ LIB_ESMF := $(DIR_ESMF)/$(ARCH)/lib/libesmf.so
            INC_MPI := $(shell mpif90 --showme:incdirs)
            LIB_MPI := $(shell mpif90 --showme:link)
            LIB_MPI += $(shell mpicxx --showme:link)
+        else ifeq ($(ESMF_COMM),intelmpi)
+           INC_MPI := $(MPI_ROOT)/include
+           LIB_MPI := -L$(MPI_ROOT)/lib/release -lmpi
         else ifeq ($(ESMF_COMM),mpi)
            # Generic MPI
            INC_MPI := $(MPI_ROOT)/include
