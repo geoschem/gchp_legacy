@@ -65,7 +65,7 @@ else ifeq ($(ESMF_COMM),mpich2)
    MPI_LIB       := -L$(dir $(shell which mpif90))../lib64 -lmpich -lmpichf90
 else ifeq ($(ESMF_COMM),intelmpi)
    # %%%%% Intel MPI %%%%%
-   MPI_LIB       := -L$(dir $(shell which mpif90))../release/lib -lmpi
+   MPI_LIB       := -L$(dir $(shell which mpif90))../lib/release -lmpi
 else ifeq ($(ESMF_COMM),mpi)
    # %%%%% Generic MPI (works for SGI) %%%%%
    MPI_LIB       := -L$(dir $(shell which mpif90))../lib -lmpi -lmpi++
