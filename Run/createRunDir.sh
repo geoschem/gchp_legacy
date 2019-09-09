@@ -72,10 +72,12 @@ if [[ -z "${GFTL}" ]]; then
     printf "\n         $ git clone https://github.com/Goddard-Fortran-Ecosystem/gFTL"
     printf "\n         $ cd gFTL"
     printf "\n         $ git checkout v1.0.0"
-    printf "\n         $ cmake . -DCMAKE_INSTALL_PREFIX=."
+    printf "\n         $ mkdir build"
+    printf "\n         $ cd build"
+    printf "\n         $ cmake .. -DCMAKE_INSTALL_PREFIX=../install"
     printf "\n         $ make install"
-    printf "\n      3. Verify success by checking that include/templates and include/types exist\n" 
-    printf "\nEnter path for gFTL:\n"
+    printf "\n      3. Verify success by checking that gFTL/install/include/templates and gFTL/install/include/types exist\n" 
+    printf "\nEnter path for gFTL/install:\n"
     valid_path=0
     while [ "$valid_path" -eq 0 ]
     do
