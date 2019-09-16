@@ -6,16 +6,16 @@
 # !MODULE: HEMCO_Config.rc
 #
 # !DESCRIPTION: Contains configuration information for HEMCO. Define the
-#  emissions inventories and corresponding file paths here. Entire 
+#  emissions inventories and corresponding file paths here. Entire
 #  configuration files can be inserted into this configuration file with
-#  an '>>>include' statement, e.g. '>>>include HEMCO\_Config\_test.rc' 
+#  an '>>>include' statement, e.g. '>>>include HEMCO\_Config\_test.rc'
 #  The settings of include-files will be ignored.
 #\\
 #\\
 # !REMARKS:
 #  The following tokens will be replaced:
 #  (1) ROOT    : Filepath to HEMCO root directory
-#  (2) CFDIR   : Filepath to directory of this configuration file. 
+#  (2) CFDIR   : Filepath to directory of this configuration file.
 #  (3) MET     : Met field type (from G-C compilation command)
 #  (4) GRID    : Horizontal grid type (from G-C compilation command)
 #  (5) SIM     : Simulation type (from G-C compilation command)
@@ -24,8 +24,8 @@
 #                as used in some filenames (e.g. "23L", "30L", "47L")
 #  (8) LEVFULL : String w/ the # of levels in the full GEOS-Chem grid
 #                as used in some filenames (e.g. "55L", "72L")
-# 
-# !REVISION HISTORY: 
+#
+# !REVISION HISTORY:
 #  Navigate to your unit tester directory and type 'gitk' at the prompt
 #  to browse the revision history.
 #EOP
@@ -55,11 +55,11 @@ Warnings:                    1
 ### BEGIN SECTION EXTENSION SWITCHES
 ###############################################################################
 ###
-### This section lists all emission extensions available to HEMCO and whether 
-### they shall be used or not. Extension 'base' must have extension number 
-### zero, all other extension numbers can be freely chosen. Data fields in 
-### section 'base emissions' will only be read if the corresponding extension 
-### (identified by ExtNr) is enabled. Similarly, fields grouped into data 
+### This section lists all emission extensions available to HEMCO and whether
+### they shall be used or not. Extension 'base' must have extension number
+### zero, all other extension numbers can be freely chosen. Data fields in
+### section 'base emissions' will only be read if the corresponding extension
+### (identified by ExtNr) is enabled. Similarly, fields grouped into data
 ### collections ('(((CollectionName', ')))CollectionName') are only considered
 ### if the corresponding data collection is enabled in this section. Data
 ### listed within a disabled extension are always ignored, even if they are
@@ -70,17 +70,17 @@ Warnings:                    1
 ### collection name is *not* enabled. This is achieved by leading the
 ### collection name with '.not.', e.g. '(((.not.FINN_daily' ...
 ### '))).not.FINN_daily' for FINN monthly data (only used if daily data is
-### not being used). 
+### not being used).
 ###
 ### The ExtNr provided in this section must match with the ExtNr assigned to
-### the data listed in the base emissions sections. Otherwise, the listed 
+### the data listed in the base emissions sections. Otherwise, the listed
 ### files won't be read!
 ###
 ### NOTES:
 ### --> You can only select one biomass burning option (GFED, QFED2, FINN, GFAS).
 ###
 ### --> The NAP scale factor is determined as in the original simulation:
-###     Obtain NAP emissions using scale factor from Hays 2002 ES&T 
+###     Obtain NAP emissions using scale factor from Hays 2002 ES&T
 ###     (0.0253 g NAP/kg DM) and Andreae and Merlet 2001 GBC (92 g CO/kg DM)
 ###
 ### --> You can select either NEI2011_HOURLY or NEI2011_MONMEAN but not both.
@@ -97,7 +97,7 @@ Warnings:                    1
     --> NEI2011_SHIP_HOURLY    :       false
     --> NEI2011_SHIP_MONMEAN   :       false
     --> MIX                    :       true
-    --> DICE_Africa            :       true 
+    --> DICE_Africa            :       true
 # ----- GLOBAL INVENTORIES ------------------
     --> CEDS                   :       true
     --> EDGARv43               :       false
@@ -114,7 +114,7 @@ Warnings:                    1
     --> DECAYING_PLANTS        :       true
     --> AFCID                  :       true
 # ----- FUTURE EMISSIONS --------------------
-    --> RCP_3PD                :       false 
+    --> RCP_3PD                :       false
     --> RCP_45                 :       false
     --> RCP_60                 :       false
     --> RCP_85                 :       false
@@ -131,20 +131,20 @@ Warnings:                    1
     --> +TOMS_SBUV_O3+         :       true
     --> +LinStratChem+         :       true
 # -----------------------------------------------------------------------------
-100     Custom                 : off   - 
+100     Custom                 : off   -
 101     SeaFlux                : on    DMS/ACET/ALD2
 102     ParaNOx                : on    NO/NO2/O3/HNO3
     --> LUT data format        :       txt
     --> LUT source dir         :       $ROOT/PARANOX/v2015-02
 103     LightNOx               : on    NO
     --> CDF table              :       $ROOT/LIGHTNOX/v2014-07/light_dist.ott2010.dat
-104     SoilNOx                : off   NO 
+104     SoilNOx                : off   NO
     --> Use fertilizer NOx     :       true
-105     DustDead               : off   DST1/DST2/DST3/DST4 
+105     DustDead               : off   DST1/DST2/DST3/DST4
     --> Mass tuning factor     :       0.000768752630594
 106     DustGinoux             : off   DST1/DST2/DST3/DST4
 107     SeaSalt                : off   SALA/SALC/Br2/BrSALA/BrSALC
-    --> SALA lower radius      :       0.01 
+    --> SALA lower radius      :       0.01
     --> SALA upper radius      :       0.5
     --> SALC lower radius      :       0.5
     --> SALC upper radius      :       8.0
@@ -153,7 +153,7 @@ Warnings:                    1
     --> Model sea salt Br-     :       false
     --> Br- mass ratio         :       2.11e-3
 108     MEGAN                  : off   ISOP/ACET/PRPE/C2H4/ALD2/EOH/SOAP/SOAS
-    --> Isoprene scaling       :       1.0 
+    --> Isoprene scaling       :       1.0
     --> CO2 inhibition         :       true
     --> CO2 conc (ppmv)        :       390.0
     --> Isoprene to SOAP       :       0.015
@@ -184,7 +184,7 @@ Warnings:                    1
     --> hydrophilic BC         :       0.2
     --> hydrophilic OC         :       0.5
 115     DustAlk                : off   DSTAL1/DSTAL2/DSTAL3/DSTAL4
-116     MarinePOA              : off   MOPO/MOPI 
+116     MarinePOA              : off   MOPO/MOPI
 117     Volcano                : on    SO2
     --> Volcano_Source         :       AeroCom
     --> Volcano_Table          :       $ROOT/VOLCANO/v2019-08/$YYYY/$MM/so2_volcanic_emissions_Carns.$YYYY$MM$DD.rc
@@ -194,7 +194,7 @@ Warnings:                    1
 ### END SECTION EXTENSION SWITCHES ###
 
 ###############################################################################
-### BEGIN SECTION BASE EMISSIONS 
+### BEGIN SECTION BASE EMISSIONS
 ###############################################################################
 
 # ExtNr	Name sourceFile	sourceVar sourceTime C/R/E SrcDim SrcUnit Species ScalIDs Cat Hier
@@ -700,27 +700,27 @@ Warnings:                    1
 #==============================================================================
 # --- DICE-Africa emission inventory (Marais and Wiedinmyer, ES&T, 2016) ---
 #
-# DICE-Africa includes regional (Africa) emissions of biofuel and diffuse 
-# anthropogenic emissions from cars and motorcycles, biofuels, charcoal making 
-# and use, backup generators, agricultural waste burning for cooking, gas 
+# DICE-Africa includes regional (Africa) emissions of biofuel and diffuse
+# anthropogenic emissions from cars and motorcycles, biofuels, charcoal making
+# and use, backup generators, agricultural waste burning for cooking, gas
 # flares, and ad-hoc/informal oil refining.
 #
-# Other pollution sources (formal industry, power generation using fossil 
-# fuels) are from the EDGAR v4.3 inventory for CO, SO2, NH3, NOx BC, and OC. 
+# Other pollution sources (formal industry, power generation using fossil
+# fuels) are from the EDGAR v4.3 inventory for CO, SO2, NH3, NOx BC, and OC.
 #
-# NMVOCs from sources not accounted for in DICE-Africa aren't included here, 
-# as these emissions are likely to be low compared to the DICE pollution 
-# sources and RETRO v1 as implemented in GEOS-Chem doesn't distinguish 
+# NMVOCs from sources not accounted for in DICE-Africa aren't included here,
+# as these emissions are likely to be low compared to the DICE pollution
+# sources and RETRO v1 as implemented in GEOS-Chem doesn't distinguish
 # emissions by sector/activity.
 #
-# Emissions for 2013 are defined below, but DICE-Africa also includes 
-# emissions for 2006.  Developers recommend using population change to 
-# estimate emissions, if users want to use annual trends in pollutant 
+# Emissions for 2013 are defined below, but DICE-Africa also includes
+# emissions for 2006.  Developers recommend using population change to
+# estimate emissions, if users want to use annual trends in pollutant
 # emissions to estimate in other years.
 #==============================================================================
 (((DICE_Africa
 # ------------------------
-#  Cars 
+#  Cars
 # ------------------------
 0 DICE_CARS_CO    $ROOT/DICE_Africa/v2016-10/DICE-Africa-cars-2013-v01-4Oct2016.nc  CO      2013/1/1/0 C xy g/m2/yr  CO    26/1008         1 60
 0 DICE_CARS_SOAP  -                                                                 -       -          - -  -        SOAP  26/1008/280     1 60
@@ -746,7 +746,7 @@ Warnings:                    1
 0 DICE_CARS_OCPO  -                                                                 -       -          - -  -        OCPO  73/1008/330     1 60
 
 # ------------------------
-#  Motorcycles 
+#  Motorcycles
 # ------------------------
 0 DICE_MOTORCYCLES_CO    $ROOT/DICE_Africa/v2016-10/DICE-Africa-motorcycles-2013-v01-4Oct2016.nc  CO     2013/1/1/0 C xy g/m2/yr  CO    26/1008          1 60
 0 DICE_MOTORCYCLES_SOAP  -                                                                        -      -          - -  -        SOAP  26/1008/280      1 60
@@ -767,7 +767,7 @@ Warnings:                    1
 0 DICE_MOTORCYCLES_OCPO  -                                                                        -      -          - -  -        OCPO  73/1008          1 60
 
 # ------------------------
-#  Backup generators 
+#  Backup generators
 # ------------------------
 0 DICE_BACKUPGEN_CO    $ROOT/DICE_Africa/v2016-10/DICE-Africa-generator-use-2013-v01-4Oct2016.nc  CO   2013/1/1/0 C xy g/m2/yr  CO    26/1008          1 60
 0 DICE_BACKUPGEN_SOAP  -                                                                          -    -          - -  -        SOAP  26/1008/280      1 60
@@ -795,7 +795,7 @@ Warnings:                    1
 0 DICE_BACKUPGEN_OCPO  -                                                                          -        -          - -  -    OCPO  73/1008          1 60
 
 # ------------------------
-#  Charcoal production 
+#  Charcoal production
 # ------------------------
 0 DICE_CHARCOALPROD_CO    $ROOT/DICE_Africa/v2016-10/DICE-Africa-charcoal-production-2013-v01-4Oct2016.nc  CO    2013/1/1/0 C xy g/m2/yr  CO    26/1008/320      1 60
 0 DICE_CHARCOALPROD_SOAP  -                                                                                -     -          - -  -        SOAP  26/1008/280/320  1 60
@@ -816,7 +816,7 @@ Warnings:                    1
 0 DICE_CHARCOALPROD_OCPO  -                                                                                -     -          - -  -        OCPO  73/1008/320      1 60
 
 # ------------------------
-#  Flaring of natural gas 
+#  Flaring of natural gas
 # ------------------------
 0 DICE_GASFLARE_CO    $ROOT/DICE_Africa/v2016-10/DICE-Africa-gas-flares-2013-v01-4Oct2016.nc  CO    2013/1/1/0 C xy g/m2/yr  CO    26/1008          1 60
 0 DICE_GASFLARE_SOAP  -                                                                       -     -          - -  -        SOAP  26/1008/280      1 60
@@ -834,7 +834,7 @@ Warnings:                    1
 0 DICE_GASFLARE_OCPO  -                                                                       -     -          - -  -        OCPO  73/1008          1 60
 
 # ------------------------------
-#  Ag waste burning for energy 
+#  Ag waste burning for energy
 # ------------------------------
 0 DICE_AGBURNING_CO    $ROOT/DICE_Africa/v2016-10/DICE-Africa-household-crop-residue-use-2013-v01-4Oct2016.nc  CO    2013/1/1/0 C xy g/m2/yr  CO    26/1008          2 60
 0 DICE_AGBURNING_SOAP  -                                                                                       -     -          - -  -        SOAP  26/1008/280      2 60
@@ -872,7 +872,7 @@ Warnings:                    1
 0 DICE_AGBURNING_OCPO  -                                                                                       -     -          - -  g/m2/yr  OCPO  73/1008          2 60
 
 # ------------------------------
-#  Charcoal use 
+#  Charcoal use
 # ------------------------------
 0 DICE_CHARCOALUSE_CO    $ROOT/DICE_Africa/v2016-10/DICE-Africa-charcoal-use-2013-v01-4Oct2016.nc  CO    2013/1/1/0 C xy g/m2/yr  CO    26/1008          2 60
 0 DICE_CHARCOALUSE_SOAP  -                                                                         -     -          - -  -        SOAP  26/1008/280      2 60
@@ -892,7 +892,7 @@ Warnings:                    1
 0 DICE_CHARCOALUSE_OCPO  -                                                                         -     -          - -  -        OCPO  73/1008          2 60
 
 # ------------------------------
-#  Kerosene use 
+#  Kerosene use
 # ------------------------------
 0 DICE_KEROSENE_CO    $ROOT/DICE_Africa/v2016-10/DICE-Africa-kerosene-use-2013-v01-4Oct2016.nc  CO    2013/1/1/0 C xy g/m2/yr  CO    26/1008          1 60
 0 DICE_KEROSENE_SOAP  -                                                                         -     -          - -  -        SOAP  26/1008/280      1 60
@@ -902,7 +902,7 @@ Warnings:                    1
 0 DICE_KEROSENE_OCPO  -                                                                         -     -          - -  -        OCPO  73/1008          1 60
 
 # ------------------------------
-#  Artisanal oil refining 
+#  Artisanal oil refining
 # ------------------------------
 0 DICE_OILREFINING_CO    $ROOT/DICE_Africa/v2016-10/DICE-Africa-adhoc-oil-refining-2006-v01-4Oct2016.nc  CO    2013/1/1/0 C xy g/m2/yr  CO    26/1008          1 60
 0 DICE_OILREFINING_SOAP  -                                                                               -     -          - -  -        SOAP  26/1008/280      1 60
@@ -927,7 +927,7 @@ Warnings:                    1
 0 DICE_OILREFINING_OCPO  -                                                                               -     -          - -  -        OCPO  73/1008          1 60
 
 # --------------------------
-#  Household fuelwood use 
+#  Household fuelwood use
 # --------------------------
 0 DICE_HOUSEFUELWOOD_CO    $ROOT/DICE_Africa/v2016-10/DICE-Africa-household-fuelwood-use-2013-v01-4Oct2016.nc  CO    2013/1/1/0 C xy g/m2/yr  CO    26/1008          2 60
 0 DICE_HOUSEFUELWOOD_SOAP  -                                                                                   -     -          - -  -        SOAP  26/1008/280      2 60
@@ -962,7 +962,7 @@ Warnings:                    1
 0 DICE_HOUSEFUELWOOD_OCPO  -                                                                                   -     -          - -  -        OCPO  73/1008          2 60
 
 # ---------------------------------
-#  Commercial (other) fuelwood use 
+#  Commercial (other) fuelwood use
 # ---------------------------------
 0 DICE_OTHERFUELWOOD_CO    $ROOT/DICE_Africa/v2016-10/DICE-Africa-other-fuelwood-use-2013-v01-4Oct2016.nc  CO    2013/1/1/0 C xy g/m2/yr  CO    26/1008          2 60
 0 DICE_OTHERFUELWOOD_SOAP  -                                                                               -     -          - -  -        SOAP  26/1008/280      2 60
@@ -1002,6 +1002,14 @@ Warnings:                    1
 # ---------------------------------------------------
 0 AF_EDGAR_BCPI_POW $ROOT/EDGARv43/v2016-11/EDGAR_v43.BC.POW.0.1x0.1.nc  emi_bc  1970-2010/1/1/0 C xy kg/m2/s BCPI 1201/1008/70         1 60
 0 AF_EDGAR_BCPO_POW -                                                    -       -               - -  -       BCPO 1201/1008/71         1 60
+0 AF_EDGAR_BCPI_ENG $ROOT/EDGARv43/v2016-11/EDGAR_v43.BC.ENG.0.1x0.1.nc  emi_bc  1970-2010/1/1/0 C xy kg/m2/s BCPI 1202/1008/70         1 60
+0 AF_EDGAR_BCPO_ENG -                                                    -       -               - -  -       BCPO 1202/1008/71         1 60
+0 AF_EDGAR_BCPI_IND $ROOT/EDGARv43/v2016-11/EDGAR_v43.BC.IND.0.1x0.1.nc  emi_bc  1970-2010/1/1/0 C xy kg/m2/s BCPI 1203/1008/70         1 60
+0 AF_EDGAR_BCPO_IND -                                                    -       -               - -  -       BCPO 1203/1008/71         1 60
+0 AF_EDGAR_BCPI_TNG $ROOT/EDGARv43/v2016-11/EDGAR_v43.BC.TNG.0.1x0.1.nc  emi_bc  1970-2010/1/1/0 C xy kg/m2/s BCPI 1205/1008/70         1 60
+0 AF_EDGAR_BCPO_TNG -                                                    -       -               - -  -       BCPO 1205/1008/71         1 60
+0 AF_EDGAR_BCPI_SWD $ROOT/EDGARv43/v2016-11/EDGAR_v43.BC.SWD.0.1x0.1.nc  emi_bc  1970-2010/1/1/0 C xy kg/m2/s BCPI 1211/1008/70         1 60
+0 AF_EDGAR_BCPO_SWD -                                                    -       -               - -  -       BCPO 1211/1008/71         1 60
 
 0 AF_EDGAR_CO_POW   $ROOT/EDGARv43/v2016-11/EDGAR_v43.CO.POW.0.1x0.1.nc  emi_co  1970-2010/1/1/0 C xy kg/m2/s CO   1201/26/52/1008      1 60
 0 AF_EDGAR_SOAP_POW -                                                    -       -               - -  -       SOAP 1201/26/52/1008/280  1 60
@@ -1300,10 +1308,10 @@ Warnings:                    1
 # The following emissions are not included in EDGAR and will be added:
 #  * Wiedinmyer et al. (2014) global trash emissions
 #  * CEDS VOC emissions
-# 
+#
 # Aviation and shipping emissions from EDGAR are not included here.
 # We also do not include the following sources:
-#  - Soil emissions of NOx (SOL). These emissions are calculated via the 
+#  - Soil emissions of NOx (SOL). These emissions are calculated via the
 #    SoilNOx extension.
 #  - Open biomass burning (AWB). These emissions are obtained from
 #    GFED, QFED, FINN, or GFAS.
@@ -1440,7 +1448,7 @@ Warnings:                    1
 0  EDGAR_pFe_FFF  -                                                    -       -               - -  -       pFe  1212/66         1 2
 
 #==============================================================================
-# --- NAP ANTHROPOGENIC EMISSIONS: approximate from EDGAR BENZ --- 
+# --- NAP ANTHROPOGENIC EMISSIONS: approximate from EDGAR BENZ ---
 #
 # NOTE: Although this data comes from EDGAR version 2, we are storing it
 # in the EDGARv42 data path for convenience.
@@ -1663,10 +1671,10 @@ Warnings:                    1
 # NOTES:
 # - These C2H6 emissions are used in place of CEDS
 #==============================================================================
-(((C2H6_2010 
+(((C2H6_2010
 0 C2H6_2010_oilgas   $ROOT/C2H6_2010/v2019-06/C2H6_global_anth_biof.2010$MM.2x25.nc ANTHR_C2H6   2010/1-12/1/0 C xy kgC/m2/s C2H6 - 1 100
 0 C2H6_2010_biofuel  $ROOT/C2H6_2010/v2019-06/C2H6_global_anth_biof.2010$MM.2x25.nc BIOFUEL_C2H6 2010/1-12/1/0 C xy kgC/m2/s C2H6 - 1 100
-)))C2H6_2010 
+)))C2H6_2010
 
 #==============================================================================
 # --- Xiao et al., JGR, 2008 ---
@@ -1821,9 +1829,9 @@ Warnings:                    1
 #------------------------------------------------------------------------------
 # ### IF THE PARANOX EXTENSION IS TURNED ON ###
 #
-# Cosine(SZA) will be read from the restart file.  Use the PARANOX extension 
-# number (# 102) to specify these quantities and the NEI emissions.  
-# This will make sure everything will be passed to the HEMCO PARANOX extension 
+# Cosine(SZA) will be read from the restart file.  Use the PARANOX extension
+# number (# 102) to specify these quantities and the NEI emissions.
+# This will make sure everything will be passed to the HEMCO PARANOX extension
 # rather than sending them into the base emissions.
 #------------------------------------------------------------------------------
 #102 ICOADS_SHIP_NO    $ROOT/ICOADS_SHIP/v2014-07/ICOADS.generic.1x1.nc                NO     2002/1-12/1/0          C xy kg/m2/s  NO   1/5      10 1
@@ -1881,19 +1889,19 @@ Warnings:                    1
 #==============================================================================
 (((AEIC
 0 AEIC_NO   $ROOT/AEIC/v2015-01/AEIC.47L.gen.1x1.nc  NO2      2005/1-12/1/0 C xyz kg/m2/s NO   110/115 20 1
-0 AEIC_CO   $ROOT/AEIC/v2015-01/AEIC.47L.gen.1x1.nc  CO       2005/1-12/1/0 C xyz kg/m2/s CO   110     20 1 
-0 AEIC_SOAP -                                        -        -             - -   -       SOAP 110/280 20 1 
-0 AEIC_SO2  $ROOT/AEIC/v2015-01/AEIC.47L.gen.1x1.nc  FUELBURN 2005/1-12/1/0 C xyz kg/m2/s SO2  111     20 1 
-0 AEIC_SO4  -                                        -        -             - -   -       SO4  112     20 1 
-0 AEIC_BCPI -                                        -        -             - -   -       BCPI 113     20 1 
-0 AEIC_OCPI -                                        -        -             - -   -       OCPI 113     20 1 
+0 AEIC_CO   $ROOT/AEIC/v2015-01/AEIC.47L.gen.1x1.nc  CO       2005/1-12/1/0 C xyz kg/m2/s CO   110     20 1
+0 AEIC_SOAP -                                        -        -             - -   -       SOAP 110/280 20 1
+0 AEIC_SO2  $ROOT/AEIC/v2015-01/AEIC.47L.gen.1x1.nc  FUELBURN 2005/1-12/1/0 C xyz kg/m2/s SO2  111     20 1
+0 AEIC_SO4  -                                        -        -             - -   -       SO4  112     20 1
+0 AEIC_BCPI -                                        -        -             - -   -       BCPI 113     20 1
+0 AEIC_OCPI -                                        -        -             - -   -       OCPI 113     20 1
 0 AEIC_ACET $ROOT/AEIC/v2015-01/AEIC.47L.gen.1x1.nc  HC       2005/1-12/1/0 C xyz kg/m2/s ACET 114/101 20 1
 0 AEIC_ALD2 -                                        -        -             - -   -       ALD2 114/102 20 1
-0 AEIC_ALK4 -                                        -        -             - -   -       ALK4 114/103 20 1  
+0 AEIC_ALK4 -                                        -        -             - -   -       ALK4 114/103 20 1
 0 AEIC_C2H6 -                                        -        -             - -   -       C2H6 114/104 20 1
 0 AEIC_C3H8 -                                        -        -             - -   -       C3H8 114/105 20 1
 0 AEIC_CH2O -                                        -        -             - -   -       CH2O 114/106 20 1
-0 AEIC_PRPE -                                        -        -             - -   -       PRPE 114/107 20 1 
+0 AEIC_PRPE -                                        -        -             - -   -       PRPE 114/107 20 1
 0 AEIC_MACR -                                        -        -             - -   -       MACR 114/108 20 1
 0 AEIC_RCHO -                                        -        -             - -   -       RCHO 114/109 20 1
 )))AEIC
@@ -1936,7 +1944,7 @@ Warnings:                    1
 0 RCP3PD_HCOOH   $ROOT/RCP/v2015-02/RCP_3PD/RCPs_anthro_total_acids_2005-2100_23474.nc                    ACCMIP 2005-2100/1/1/0 I xy kg/m2/s  HCOOH 57/58 1 1
 )))RCP_3PD
 
-(((RCP_45 
+(((RCP_45
 0 RCP45_CH4     $ROOT/RCP/v2015-02/RCP_45/RCPs_anthro_CH4_2005-2100_27424.nc                            ACCMIP 2005-2100/1/1/0 I xy kg/m2/s  CH4   -     1 1
 0 RCP45_NOx     $ROOT/RCP/v2015-02/RCP_45/RCPs_anthro_NOx_2005-2100_27424.nc                            ACCMIP 2005-2100/1/1/0 I xy kg/m2/s  NO    -     1 1
 0 RCP45_CO      $ROOT/RCP/v2015-02/RCP_45/RCPs_anthro_CO_2005-2100_27424.nc                             ACCMIP 2005-2100/1/1/0 I xy kg/m2/s  CO    -     1 1
@@ -1963,7 +1971,7 @@ Warnings:                    1
 0 RCP45_HCOOH   $ROOT/RCP/v2015-02/RCP_45/RCPs_anthro_total_acids_2005-2100_27424.nc                    ACCMIP 2005-2100/1/1/0 I xy kg/m2/s  HCOOH 57/58 1 1
 )))RCP_45
 
-(((RCP_60 
+(((RCP_60
 0 RCP60_CH4     $ROOT/RCP/v2015-02/RCP_60/RCPs_anthro_CH4_2005-2100_43190.nc                            ACCMIP 2005-2100/1/1/0 I xy kg/m2/s  CH4   -     1 1
 0 RCP60_NOx     $ROOT/RCP/v2015-02/RCP_60/RCPs_anthro_NOx_2005-2100_43190.nc                            ACCMIP 2005-2100/1/1/0 I xy kg/m2/s  NO    -     1 1
 0 RCP60_CO      $ROOT/RCP/v2015-02/RCP_60/RCPs_anthro_CO_2005-2100_43190.nc                             ACCMIP 2005-2100/1/1/0 I xy kg/m2/s  CO    -     1 1
@@ -1990,7 +1998,7 @@ Warnings:                    1
 0 RCP60_HCOOH   $ROOT/RCP/v2015-02/RCP_60/RCPs_anthro_total_acids_2005-2100_43190.nc                    ACCMIP 2005-2100/1/1/0 I xy kg/m2/s  HCOOH 57/58 1 1
 )))RCP_60
 
-(((RCP_85 
+(((RCP_85
 0 RCP85_CH4     $ROOT/RCP/v2015-02/RCP_85/RCPs_anthro_CH4_2005-2100_43533.nc                            ACCMIP 2005-2100/1/1/0 I xy kg/m2/s  CH4   -     1 1
 0 RCP85_NOx     $ROOT/RCP/v2015-02/RCP_85/RCPs_anthro_NOx_2005-2100_43533.nc                            ACCMIP 2005-2100/1/1/0 I xy kg/m2/s  NO    -     1 1
 0 RCP85_CO      $ROOT/RCP/v2015-02/RCP_85/RCPs_anthro_CO_2005-2100_43533.nc                             ACCMIP 2005-2100/1/1/0 I xy kg/m2/s  CO    -     1 1
@@ -2021,44 +2029,44 @@ Warnings:                    1
 # --- QFED2 biomass burning (v2.5r1) ---
 #==============================================================================
 (((QFED2
-0 QFED_ACET_PBL  $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_acet.006.$YYYY$MM$DD.nc4 biomass 2000-2017/1-12/1-31/0 C xyL=1:PBL     kg/m2/s ACET 75/311        5 2 
-0 QFED_ACET_FT   $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_acet.006.$YYYY$MM$DD.nc4 biomass 2000-2017/1-12/1-31/0 C xyL=PBL:5500m kg/m2/s ACET 75/312        5 2 
-0 QFED_ALD2_PBL  $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_ald2.006.$YYYY$MM$DD.nc4 biomass 2000-2017/1-12/1-31/0 C xyL=1:PBL     kg/m2/s ALD2 75/311        5 2 
-0 QFED_ALD2_FT   $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_ald2.006.$YYYY$MM$DD.nc4 biomass 2000-2017/1-12/1-31/0 C xyL=PBL:5500m kg/m2/s ALD2 75/312        5 2 
-0 QFED_ALK4_PBL  $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_alk4.006.$YYYY$MM$DD.nc4 biomass 2000-2017/1-12/1-31/0 C xyL=1:PBL     kg/m2/s ALK4 75/311        5 2 
-0 QFED_ALK4_FT   $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_alk4.006.$YYYY$MM$DD.nc4 biomass 2000-2017/1-12/1-31/0 C xyL=PBL:5500m kg/m2/s ALK4 75/312        5 2 
-0 QFED_BCPI_PBL  $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_bc.006.$YYYY$MM$DD.nc4   biomass 2000-2017/1-12/1-31/0 C xyL=1:PBL     kg/m2/s BCPI 70/75/311     5 2 
+0 QFED_ACET_PBL  $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_acet.006.$YYYY$MM$DD.nc4 biomass 2000-2017/1-12/1-31/0 C xyL=1:PBL     kg/m2/s ACET 75/311        5 2
+0 QFED_ACET_FT   $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_acet.006.$YYYY$MM$DD.nc4 biomass 2000-2017/1-12/1-31/0 C xyL=PBL:5500m kg/m2/s ACET 75/312        5 2
+0 QFED_ALD2_PBL  $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_ald2.006.$YYYY$MM$DD.nc4 biomass 2000-2017/1-12/1-31/0 C xyL=1:PBL     kg/m2/s ALD2 75/311        5 2
+0 QFED_ALD2_FT   $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_ald2.006.$YYYY$MM$DD.nc4 biomass 2000-2017/1-12/1-31/0 C xyL=PBL:5500m kg/m2/s ALD2 75/312        5 2
+0 QFED_ALK4_PBL  $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_alk4.006.$YYYY$MM$DD.nc4 biomass 2000-2017/1-12/1-31/0 C xyL=1:PBL     kg/m2/s ALK4 75/311        5 2
+0 QFED_ALK4_FT   $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_alk4.006.$YYYY$MM$DD.nc4 biomass 2000-2017/1-12/1-31/0 C xyL=PBL:5500m kg/m2/s ALK4 75/312        5 2
+0 QFED_BCPI_PBL  $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_bc.006.$YYYY$MM$DD.nc4   biomass 2000-2017/1-12/1-31/0 C xyL=1:PBL     kg/m2/s BCPI 70/75/311     5 2
 0 QFED_BCPO_PBL  -                                                                 -       -                     - -             -       BCPO 71/75/311     5 2
-0 QFED_BCPI_FT   $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_bc.006.$YYYY$MM$DD.nc4   biomass 2000-2017/1-12/1-31/0 C xyL=PBL:5500m kg/m2/s BCPI 70/75/312     5 2 
-0 QFED_BCPO_FT   -                                                                 -       -                     - -             -       BCPO 71/75/312     5 2 
-0 QFED_OCPI_PBL  $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_oc.006.$YYYY$MM$DD.nc4   biomass 2000-2017/1-12/1-31/0 C xyL=1:PBL     kg/m2/s OCPI 72/75/311     5 2 
-0 QFED_OCPO_PBL  -                                                                 -       -                     - -             -       OCPO 73/75/311     5 2 
-0 QFED_OCPI_FT   $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_oc.006.$YYYY$MM$DD.nc4   biomass 2000-2017/1-12/1-31/0 C xyL=PBL:5500m kg/m2/s OCPI 72/75/312     5 2 
-0 QFED_OCPO_FT   -                                                                 -       -                     - -             -       OCPO 73/75/312     5 2 
-0 QFED_C2H6_PBL  $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_c2h6.006.$YYYY$MM$DD.nc4 biomass 2000-2017/1-12/1-31/0 C xyL=1:PBL     kg/m2/s C2H6 75/311        5 2 
-0 QFED_C2H6_FT   $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_c2h6.006.$YYYY$MM$DD.nc4 biomass 2000-2017/1-12/1-31/0 C xyL=PBL:5500m kg/m2/s C2H6 75/312        5 2 
-0 QFED_C3H8_PBL  $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_c3h8.006.$YYYY$MM$DD.nc4 biomass 2000-2017/1-12/1-31/0 C xyL=1:PBL     kg/m2/s C3H8 75/311        5 2 
-0 QFED_C3H8_FT   $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_c3h8.006.$YYYY$MM$DD.nc4 biomass 2000-2017/1-12/1-31/0 C xyL=PBL:5500m kg/m2/s C3H8 75/312        5 2 
-0 QFED_CH2O_PBL  $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_ch2o.006.$YYYY$MM$DD.nc4 biomass 2000-2017/1-12/1-31/0 C xyL=1:PBL     kg/m2/s CH2O 75/311        5 2 
-0 QFED_CH2O_FT   $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_ch2o.006.$YYYY$MM$DD.nc4 biomass 2000-2017/1-12/1-31/0 C xyL=PBL:5500m kg/m2/s CH2O 75/312        5 2 
-0 QFED_CH4_PBL   $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_ch4.006.$YYYY$MM$DD.nc4  biomass 2000-2017/1-12/1-31/0 C xyL=1:PBL     kg/m2/s CH4  75/311        5 2 
-0 QFED_CH4_FT    $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_ch4.006.$YYYY$MM$DD.nc4  biomass 2000-2017/1-12/1-31/0 C xyL=PBL:5500m kg/m2/s CH4  75/312        5 2 
-0 QFED_CO_PBL    $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_co.006.$YYYY$MM$DD.nc4   biomass 2000-2017/1-12/1-31/0 C xyL=1:PBL     kg/m2/s CO   54/75/311     5 2 
+0 QFED_BCPI_FT   $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_bc.006.$YYYY$MM$DD.nc4   biomass 2000-2017/1-12/1-31/0 C xyL=PBL:5500m kg/m2/s BCPI 70/75/312     5 2
+0 QFED_BCPO_FT   -                                                                 -       -                     - -             -       BCPO 71/75/312     5 2
+0 QFED_OCPI_PBL  $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_oc.006.$YYYY$MM$DD.nc4   biomass 2000-2017/1-12/1-31/0 C xyL=1:PBL     kg/m2/s OCPI 72/75/311     5 2
+0 QFED_OCPO_PBL  -                                                                 -       -                     - -             -       OCPO 73/75/311     5 2
+0 QFED_OCPI_FT   $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_oc.006.$YYYY$MM$DD.nc4   biomass 2000-2017/1-12/1-31/0 C xyL=PBL:5500m kg/m2/s OCPI 72/75/312     5 2
+0 QFED_OCPO_FT   -                                                                 -       -                     - -             -       OCPO 73/75/312     5 2
+0 QFED_C2H6_PBL  $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_c2h6.006.$YYYY$MM$DD.nc4 biomass 2000-2017/1-12/1-31/0 C xyL=1:PBL     kg/m2/s C2H6 75/311        5 2
+0 QFED_C2H6_FT   $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_c2h6.006.$YYYY$MM$DD.nc4 biomass 2000-2017/1-12/1-31/0 C xyL=PBL:5500m kg/m2/s C2H6 75/312        5 2
+0 QFED_C3H8_PBL  $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_c3h8.006.$YYYY$MM$DD.nc4 biomass 2000-2017/1-12/1-31/0 C xyL=1:PBL     kg/m2/s C3H8 75/311        5 2
+0 QFED_C3H8_FT   $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_c3h8.006.$YYYY$MM$DD.nc4 biomass 2000-2017/1-12/1-31/0 C xyL=PBL:5500m kg/m2/s C3H8 75/312        5 2
+0 QFED_CH2O_PBL  $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_ch2o.006.$YYYY$MM$DD.nc4 biomass 2000-2017/1-12/1-31/0 C xyL=1:PBL     kg/m2/s CH2O 75/311        5 2
+0 QFED_CH2O_FT   $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_ch2o.006.$YYYY$MM$DD.nc4 biomass 2000-2017/1-12/1-31/0 C xyL=PBL:5500m kg/m2/s CH2O 75/312        5 2
+0 QFED_CH4_PBL   $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_ch4.006.$YYYY$MM$DD.nc4  biomass 2000-2017/1-12/1-31/0 C xyL=1:PBL     kg/m2/s CH4  75/311        5 2
+0 QFED_CH4_FT    $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_ch4.006.$YYYY$MM$DD.nc4  biomass 2000-2017/1-12/1-31/0 C xyL=PBL:5500m kg/m2/s CH4  75/312        5 2
+0 QFED_CO_PBL    $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_co.006.$YYYY$MM$DD.nc4   biomass 2000-2017/1-12/1-31/0 C xyL=1:PBL     kg/m2/s CO   54/75/311     5 2
 0 QFED_SOAP_PBL  -                                                                 -       -                     - -             -       SOAP 54/75/281/311 5 2
-0 QFED_CO_FT     $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_co.006.$YYYY$MM$DD.nc4   biomass 2000-2017/1-12/1-31/0 C xyL=PBL:5500m kg/m2/s CO   54/75/312     5 2 
+0 QFED_CO_FT     $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_co.006.$YYYY$MM$DD.nc4   biomass 2000-2017/1-12/1-31/0 C xyL=PBL:5500m kg/m2/s CO   54/75/312     5 2
 0 QFED_SOAP_FT   -                                                                 -       -                     - -             -       SOAP 54/75/281/312 5 2
-0 QFED_CO2_PBL   $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_co2.006.$YYYY$MM$DD.nc4  biomass 2000-2017/1-12/1-31/0 C xyL=1:PBL     kg/m2/s CO2  75/311        5 2 
-0 QFED_CO2_FT    $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_co2.006.$YYYY$MM$DD.nc4  biomass 2000-2017/1-12/1-31/0 C xyL=PBL:5500m kg/m2/s CO2  75/312        5 2 
-0 QFED_MEK_PBL   $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_mek.006.$YYYY$MM$DD.nc4  biomass 2000-2017/1-12/1-31/0 C xyL=1:PBL     kg/m2/s MEK  75/311        5 2 
-0 QFED_MEK_FT    $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_mek.006.$YYYY$MM$DD.nc4  biomass 2000-2017/1-12/1-31/0 C xyL=PBL:5500m kg/m2/s MEK  75/312        5 2 
-0 QFED_NH3_PBL   $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_nh3.006.$YYYY$MM$DD.nc4  biomass 2000-2017/1-12/1-31/0 C xyL=1:PBL     kg/m2/s NH3  75/311        5 2 
-0 QFED_NH3_FT    $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_nh3.006.$YYYY$MM$DD.nc4  biomass 2000-2017/1-12/1-31/0 C xyL=PBL:5500m kg/m2/s NH3  75/312        5 2 
-0 QFED_NO_PBL    $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_no.006.$YYYY$MM$DD.nc4   biomass 2000-2017/1-12/1-31/0 C xyL=1:PBL     kg/m2/s NO   75/311        5 2 
-0 QFED_NO_FT     $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_no.006.$YYYY$MM$DD.nc4   biomass 2000-2017/1-12/1-31/0 C xyL=PBL:5500m kg/m2/s NO   75/312        5 2 
-0 QFED_SO2_PBL   $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_so2.006.$YYYY$MM$DD.nc4  biomass 2000-2017/1-12/1-31/0 C xyL=1:PBL     kg/m2/s SO2  75/311        5 2 
-0 QFED_SO2_FT    $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_so2.006.$YYYY$MM$DD.nc4  biomass 2000-2017/1-12/1-31/0 C xyL=PBL:5500m kg/m2/s SO2  75/312        5 2 
-0 QFED_C3H6_PBL  $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_c3h6.006.$YYYY$MM$DD.nc4 biomass 2000-2017/1-12/1-31/0 C xyL=1:PBL     kg/m2/s PRPE 75/311        5 2 
-0 QFED_C3H6_FT   $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_c3h6.006.$YYYY$MM$DD.nc4 biomass 2000-2017/1-12/1-31/0 C xyL=PBL:5500m kg/m2/s PRPE 75/312        5 2 
+0 QFED_CO2_PBL   $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_co2.006.$YYYY$MM$DD.nc4  biomass 2000-2017/1-12/1-31/0 C xyL=1:PBL     kg/m2/s CO2  75/311        5 2
+0 QFED_CO2_FT    $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_co2.006.$YYYY$MM$DD.nc4  biomass 2000-2017/1-12/1-31/0 C xyL=PBL:5500m kg/m2/s CO2  75/312        5 2
+0 QFED_MEK_PBL   $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_mek.006.$YYYY$MM$DD.nc4  biomass 2000-2017/1-12/1-31/0 C xyL=1:PBL     kg/m2/s MEK  75/311        5 2
+0 QFED_MEK_FT    $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_mek.006.$YYYY$MM$DD.nc4  biomass 2000-2017/1-12/1-31/0 C xyL=PBL:5500m kg/m2/s MEK  75/312        5 2
+0 QFED_NH3_PBL   $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_nh3.006.$YYYY$MM$DD.nc4  biomass 2000-2017/1-12/1-31/0 C xyL=1:PBL     kg/m2/s NH3  75/311        5 2
+0 QFED_NH3_FT    $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_nh3.006.$YYYY$MM$DD.nc4  biomass 2000-2017/1-12/1-31/0 C xyL=PBL:5500m kg/m2/s NH3  75/312        5 2
+0 QFED_NO_PBL    $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_no.006.$YYYY$MM$DD.nc4   biomass 2000-2017/1-12/1-31/0 C xyL=1:PBL     kg/m2/s NO   75/311        5 2
+0 QFED_NO_FT     $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_no.006.$YYYY$MM$DD.nc4   biomass 2000-2017/1-12/1-31/0 C xyL=PBL:5500m kg/m2/s NO   75/312        5 2
+0 QFED_SO2_PBL   $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_so2.006.$YYYY$MM$DD.nc4  biomass 2000-2017/1-12/1-31/0 C xyL=1:PBL     kg/m2/s SO2  75/311        5 2
+0 QFED_SO2_FT    $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_so2.006.$YYYY$MM$DD.nc4  biomass 2000-2017/1-12/1-31/0 C xyL=PBL:5500m kg/m2/s SO2  75/312        5 2
+0 QFED_C3H6_PBL  $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_c3h6.006.$YYYY$MM$DD.nc4 biomass 2000-2017/1-12/1-31/0 C xyL=1:PBL     kg/m2/s PRPE 75/311        5 2
+0 QFED_C3H6_FT   $ROOT/QFED/v2018-07/$YYYY/$MM/qfed2.emis_c3h6.006.$YYYY$MM$DD.nc4 biomass 2000-2017/1-12/1-31/0 C xyL=PBL:5500m kg/m2/s PRPE 75/312        5 2
 )))QFED2
 
 #==============================================================================
@@ -2167,11 +2175,11 @@ Warnings:                    1
 ###############################################################################
 ### EXTENSION DATA (subsection of BASE EMISSIONS SECTION)
 ###
-### These fields are needed by the extensions listed above. The assigned ExtNr 
-### must match the ExtNr entry in section 'Extension switches'. These fields 
+### These fields are needed by the extensions listed above. The assigned ExtNr
+### must match the ExtNr entry in section 'Extension switches'. These fields
 ### are only read if the extension is enabled.  The fields are imported by the
-### extensions by field name.  The name given here must match the name used 
-### in the extension's source code. 
+### extensions by field name.  The name given here must match the name used
+### in the extension's source code.
 ###############################################################################
 
 #==============================================================================
@@ -2179,7 +2187,7 @@ Warnings:                    1
 #==============================================================================
 #101 CH3I_SEAWATER  $ROOT/CH3I/v2014-07/ocean_ch3i.geos.4x5.nc       CH3I_OCEAN 1985/1-12/1/0 C xy kg/m3 CH3I - 1 1
 101 DMS_SEAWATER    $ROOT/DMS/v2015-07/DMS_lana.geos.1x1.nc          DMS_OCEAN  1985/1-12/1/0 C xy kg/m3 DMS  - 1 1
-101 ACET_SEAWATER   $ROOT/ACET/v2014-07/ACET_seawater.generic.1x1.nc ACET       2005/1/1/0    C xy kg/m3 ACET - 1 1 
+101 ACET_SEAWATER   $ROOT/ACET/v2014-07/ACET_seawater.generic.1x1.nc ACET       2005/1/1/0    C xy kg/m3 ACET - 1 1
 101 ALD2_SEAWATER   $ROOT/ALD2/v2017-03/ALD2_seawater.geos.2x25.nc   ALD2       1985/1-12/1/0 C xy kg/m3 ALD2 - 1 1
 
 #==============================================================================
@@ -2233,24 +2241,24 @@ Warnings:                    1
 105 DEAD_VAI        $ROOT/DUST_DEAD/v2019-06/dst_tvbds.geos.2x25.nc                  VAI      1985/1-12/1/0 C xy unitless *    -    1 1
 
 #==============================================================================
-# --- Dust emissions using Paul Ginoux's mechanism (Extension 106) 
+# --- Dust emissions using Paul Ginoux's mechanism (Extension 106)
 #==============================================================================
-106 GINOUX_SAND   $ROOT/DUST_GINOUX/v2014-07/NSP.dust.geos.4x5.nc  SAND  1985/1/1/0 C xy unitless * - 1 1 
-106 GINOUX_SILT   $ROOT/DUST_GINOUX/v2014-07/NSP.dust.geos.4x5.nc  SILT  1985/1/1/0 C xy unitless * - 1 1 
-106 GINOUX_CLAY   $ROOT/DUST_GINOUX/v2014-07/NSP.dust.geos.4x5.nc  CLAY  1985/1/1/0 C xy unitless * - 1 1 
+106 GINOUX_SAND   $ROOT/DUST_GINOUX/v2014-07/NSP.dust.geos.4x5.nc  SAND  1985/1/1/0 C xy unitless * - 1 1
+106 GINOUX_SILT   $ROOT/DUST_GINOUX/v2014-07/NSP.dust.geos.4x5.nc  SILT  1985/1/1/0 C xy unitless * - 1 1
+106 GINOUX_CLAY   $ROOT/DUST_GINOUX/v2014-07/NSP.dust.geos.4x5.nc  CLAY  1985/1/1/0 C xy unitless * - 1 1
 
 #==============================================================================
-# --- Sea salt emissions (Extension 107) 
+# --- Sea salt emissions (Extension 107)
 #==============================================================================
-# --- No external data --- 
+# --- No external data ---
 
 #==============================================================================
 # --- MEGAN biogenic emissions (Extension 108)
 #
-# NOTE: These are the base emissions, which will be converted to kgC/m2/s by 
-# HEMCO. The specified species (OCPI/ISOP/ACET) are required for proper unit 
-# conversion. Since netCDF files are already in mass carbon (ug(C)), the only 
-# important thing is to specify a VOC with a specified MW of 12g/mol. 
+# NOTE: These are the base emissions, which will be converted to kgC/m2/s by
+# HEMCO. The specified species (OCPI/ISOP/ACET) are required for proper unit
+# conversion. Since netCDF files are already in mass carbon (ug(C)), the only
+# important thing is to specify a VOC with a specified MW of 12g/mol.
 # This is the case for OCPI, ISOP and ACET.
 #
 # We don't need to read EF maps for acetone, a-pinene or myrcene. We now
@@ -2291,7 +2299,7 @@ Warnings:                    1
 109  MEGAN_ORVC                   $ROOT/SOA/v2014-07/NVOC.geos.1x1.nc                     OCPI                    1990/1-12/1/0     C xy kgC/m2/s * - 1 1
 
 #==============================================================================
-# --- GFED biomass burning emissions (Extension 111) 
+# --- GFED biomass burning emissions (Extension 111)
 # NOTE: These are the base emissions in kgDM/m2/s.
 #==============================================================================
 (((GFED4
@@ -2312,7 +2320,7 @@ Warnings:                    1
 )))GFED4
 
 #==============================================================================
-# --- FINN v1.5 biomass burning emissions (Extension 114) 
+# --- FINN v1.5 biomass burning emissions (Extension 114)
 #==============================================================================
 (((.not.FINN_daily
 114 FINN_VEGTYP1       $ROOT/FINN/v2015-02/FINN_monthly_$YYYY_0.25x0.25.compressed.nc fire_vegtype1 2002-2016/1-12/1/0 RF xy kg/m2/s * - 1 1
@@ -2333,17 +2341,17 @@ Warnings:                    1
 )))FINN_daily
 
 #==============================================================================
-# --- Inorganic iodine emissions (Extension 115) 
+# --- Inorganic iodine emissions (Extension 115)
 #==============================================================================
-# --- No external data --- 
+# --- No external data ---
 
 ###############################################################################
 ### NON-EMISSIONS DATA (subsection of BASE EMISSIONS SECTION)
 ###
-### Non-emissions data. The following fields are read through HEMCO but do 
-### not contain emissions data. The extension number is set to wildcard 
-### character denoting that these fields will not be considered for emission 
-### calculation. A given entry is only read if the assigned species name is 
+### Non-emissions data. The following fields are read through HEMCO but do
+### not contain emissions data. The extension number is set to wildcard
+### character denoting that these fields will not be considered for emission
+### calculation. A given entry is only read if the assigned species name is
 ### an HEMCO species.
 ###############################################################################
 
@@ -2366,7 +2374,7 @@ Warnings:                    1
 * TOMS_O3_COL   $ROOT/TOMS_SBUV/v2019-06/TOMS_O3col_$YYYY.a.geos.1x1.nc TOMS   1971-2010/1-12/1/0 CY xy dobsons     * - 1 1
 * TOMS1_O3_COL  -                                                       TOMS1  -                  -  -  dobsons/day * - 1 1
 * TOMS2_O3_COL  -                                                       TOMS2  -                  -  -  dobsons/day * - 1 1
-* DTOMS1_O3_COL -                                                       DTOMS1 -                  -  -  dobsons/day * - 1 1 
+* DTOMS1_O3_COL -                                                       DTOMS1 -                  -  -  dobsons/day * - 1 1
 * DTOMS2_O3_COL -                                                       DTOMS2 -                  -  -  dobsons/day * - 1 1
 )))+TOMS_SBUV_O3+
 
@@ -2648,7 +2656,7 @@ Warnings:                    1
 #* GMI_PROD_VRP       $ROOT/GMI/v2015-02/gmi.clim.VRP.geos5.2x25.nc            prod    2000/1-12/1/0 C xyz v/v/s VRP      - 1  1
 
 # Archived OH concentrations. These are always needed, so set species to wildcard (*) to make
-# sure that this entry will always be read. 
+# sure that this entry will always be read.
 * STRAT_OH            $ROOT/GMI/v2015-02/gmi.clim.OH.geos5.2x25.nc             species 2000/1-12/1/0 C xyz v/v   *        - 1  1
 )))+LinStratChem+
 
@@ -2663,12 +2671,12 @@ Warnings:                    1
 #==============================================================================
 # --- NOAA GMD monthly mean surface CH4 ---
 #==============================================================================
-* NOAA_GMD_CH4 $ROOT/NOAA_GMD/v2018-01/monthly.gridded.surface.methane.1979-2020.1x1.nc SFC_CH4 1979-2020/1-12/1/0 C xy ppbv * - 1 1 
+* NOAA_GMD_CH4 $ROOT/NOAA_GMD/v2018-01/monthly.gridded.surface.methane.1979-2020.1x1.nc SFC_CH4 1979-2020/1-12/1/0 C xy ppbv * - 1 1
 
 ### END SECTION BASE EMISSIONS ###
 
 ###############################################################################
-### BEGIN SECTION SCALE FACTORS 
+### BEGIN SECTION SCALE FACTORS
 ###############################################################################
 
 # ScalID Name sourceFile sourceVar sourceTime C/R/E SrcDim SrcUnit Oper
@@ -2705,16 +2713,16 @@ Warnings:                    1
 24 TOTFUEL_2008      $ROOT/AnnualScalar/v2014-07/AnnualScalar.geos.1x1.nc NOxscalar 2008/1/1/0      C xy 1 -1
 
 #==============================================================================
-# --- diurnal scale factors --- 
+# --- diurnal scale factors ---
 #==============================================================================
 25 EDGAR_TODNOX $ROOT/EDGARv42/v2015-02/NO/EDGAR_hourly_NOxScal.nc NOXscale 2000/1/1/* C xy unitless 1
 26 GEIA_TOD_FOSSIL 0.45/0.45/0.6/0.6/0.6/0.6/1.45/1.45/1.45/1.45/1.4/1.4/1.4/1.4/1.45/1.45/1.45/1.45/0.65/0.65/0.65/0.65/0.45/0.45 - - - xy unitless 1
 
 #==============================================================================
 # --- day-of-week scale factors ---
-# ==> data is Sun/Mon/.../Sat 
+# ==> data is Sun/Mon/.../Sat
 #==============================================================================
-22 GEIA_DOW_HC  0.671/1.1102/1.1102/1.1102/1.1102/1.1102/0.768 - - - xy unitless 1 
+22 GEIA_DOW_HC  0.671/1.1102/1.1102/1.1102/1.1102/1.1102/0.768 - - - xy unitless 1
 
 #==============================================================================
 # --- seasonal scale factors ---
@@ -2727,9 +2735,9 @@ Warnings:                    1
 39 BROMOCARB_SEASON $ROOT/BROMINE/v2015-02/BromoCarb_Season.nc CHXBRY_scale 2000/1-12/1/0 C xy unitless 1
 
 # for EDGAR 4.3.1:
-# Using data of 2010, the calculated seasonal ratio for different species in the 
+# Using data of 2010, the calculated seasonal ratio for different species in the
 # same sector are nearly identical, possibly due to consistent activity data used.
-# Therefore we use the seasonal scale factors of CO in 2010 for most sectors, 
+# Therefore we use the seasonal scale factors of CO in 2010 for most sectors,
 # except for AGR, AWB and SOL.
 # For AGR, the NH3 AGR seasonal scale factors are used.
 # For AWB, the CO AGR seasonal scale factors are used.
@@ -2814,22 +2822,22 @@ Warnings:                    1
 
 # NAPTOTSCAL: factor to scale total NAP emissions to POA (hotp 7/24/09)
 #REAL*8, PARAMETER    :: NAPTOTALSCALE = 66.09027d0
- 
-# = CO emissions * emissions ratio of mol NAP / mol CO 
-# * kg C / mol NAP * mol CO / kg CO 
-# mmol NAP / mol CO = 0.025 g NAP/ kg DM / 
+
+# = CO emissions * emissions ratio of mol NAP / mol CO
+# * kg C / mol NAP * mol CO / kg CO
+# mmol NAP / mol CO = 0.025 g NAP/ kg DM /
 #              ( 78 g CO/ kg DM ) * 28 g CO / mol CO
 #            / ( 128 g NAP / mol NAP ) *1000 mmol/mol
 # scale emissions down if appropriate to remove the
 # effect of VOC ox on CO emission
 # EF for NAP from Andreae and Merlet 2001 Glob Biog Cyc
 # EF for CO  from Andreae and Merlet 2001 Glob Biog Cyc
-#BIOFUEL_KG(N,:,:) = BIOFUEL_KG(IDBFCO,:,:) * 0.0701d-3 
+#BIOFUEL_KG(N,:,:) = BIOFUEL_KG(IDBFCO,:,:) * 0.0701d-3
 #                  * 120d0 / 28d0 * COSCALEDOWN
 #==============================================================================
 80 NAPEMISS   1.0     - - - xy unitless 1
 81 NAPTOTSCAL 66.09   - - - xy unitless 1
-82 BENZTONAP  6.86e-2 - - - xy unitless 1 
+82 BENZTONAP  6.86e-2 - - - xy unitless 1
 
 #==============================================================================
 # --- BIOGENIC EMISSIONS FROM DRY LEAF MATTER ---
@@ -2848,17 +2856,17 @@ Warnings:                    1
 #==============================================================================
 # --- AEIC aircraft emissions ---
 #
-# Sulfur conversion factors are calculated as 
+# Sulfur conversion factors are calculated as
 #     so4 = 3 * a * b and so2 = 2 * a * (1-b)
 #
-# where 
-#     a = fraction by mass (6.0e-4) and 
+# where
+#     a = fraction by mass (6.0e-4) and
 #     b = conversion efficiency (2.0e-2).
 #
 # The factors 2 and 3 come from sulfur mass conversions (96/32 and 64/32).
 # All factors are taken from AEIC_mod.F, following Seb Estham's appraoch.
-# Note that all emissions become multiplied by a factor of 1e-3 (except for 
-# the fuelburn emissions) in the original AEIC code. I'm not sure if this 
+# Note that all emissions become multiplied by a factor of 1e-3 (except for
+# the fuelburn emissions) in the original AEIC code. I'm not sure if this
 # is because the netCDF data is in g instead of kg?
 #==============================================================================
 101 AEICACET 3.693477e-3 - -  - xy unitless 1
@@ -2897,13 +2905,13 @@ Warnings:                    1
 #==============================================================================
 # --- NEI 2011 scale factors ---
 #==============================================================================
-251 NEI11_NO_YRSCALE  1.337/1.255/1.172/1.097/1.034/1.0/0.939/0.887 - 2006-2013/1/1/0 C xy 1 1 
-252 NEI11_CO_YRSCALE  1.271/1.227/1.104/0.998/1.019/1.0/0.981/0.962 - 2006-2013/1/1/0 C xy 1 1 
-253 NEI11_NH3_YRSCALE 0.966/1.002/1.019/1.015/1.010/1.0/0.999/0.998 - 2006-2013/1/1/0 C xy 1 1 
-254 NEI11_VOC_YRSCALE 1.083/1.093/1.011/1.000/1.016/1.0/0.986/0.971 - 2006-2013/1/1/0 C xy 1 1 
-255 NEI11_SO2_YRSCALE 2.038/1.813/1.600/1.408/1.200/1.0/0.800/0.738 - 2006-2013/1/1/0 C xy 1 1 
-256 NEI11_BC_YRSCALE  1.006/1.034/0.996/0.995/0.993/1.0/0.995/0.991 - 2006-2013/1/1/0 C xy 1 1 
-257 NEI11_OC_YRSCALE  1.006/1.034/0.996/0.995/0.993/1.0/0.995/0.991 - 2006-2013/1/1/0 C xy 1 1 
+251 NEI11_NO_YRSCALE  1.337/1.255/1.172/1.097/1.034/1.0/0.939/0.887 - 2006-2013/1/1/0 C xy 1 1
+252 NEI11_CO_YRSCALE  1.271/1.227/1.104/0.998/1.019/1.0/0.981/0.962 - 2006-2013/1/1/0 C xy 1 1
+253 NEI11_NH3_YRSCALE 0.966/1.002/1.019/1.015/1.010/1.0/0.999/0.998 - 2006-2013/1/1/0 C xy 1 1
+254 NEI11_VOC_YRSCALE 1.083/1.093/1.011/1.000/1.016/1.0/0.986/0.971 - 2006-2013/1/1/0 C xy 1 1
+255 NEI11_SO2_YRSCALE 2.038/1.813/1.600/1.408/1.200/1.0/0.800/0.738 - 2006-2013/1/1/0 C xy 1 1
+256 NEI11_BC_YRSCALE  1.006/1.034/0.996/0.995/0.993/1.0/0.995/0.991 - 2006-2013/1/1/0 C xy 1 1
+257 NEI11_OC_YRSCALE  1.006/1.034/0.996/0.995/0.993/1.0/0.995/0.991 - 2006-2013/1/1/0 C xy 1 1
 260 NEI11_PAR2ACET    0.06                                          - -               - xy 1 1
 261 NEI11_PAR2C3H8    0.03                                          - -               - xy 1 1
 262 NEI11_PAR2MEK     0.02                                          - -               - xy 1 1
@@ -2917,7 +2925,7 @@ Warnings:                    1
 #==============================================================================
 # --- SOA-Precursor scale factors ---
 #
-# from Kim, P.S., et. al. 2015 "Sources, seasonality, and trends 
+# from Kim, P.S., et. al. 2015 "Sources, seasonality, and trends
 # of southeast US aerosol: ..."
 #
 #   AVOCs and BBVOCs are emitted in proportion to CO, with an emission ratio of
@@ -2941,7 +2949,7 @@ Warnings:                    1
 # by a factor of 5 after finding error in implementation of emission factors.
 #==============================================================================
 320 DICE_CP_SF    0.20 - - - xy 1 1
- 
+
 #==============================================================================
 # DICE-Africa car emissions of OCPI and OCPO scale factor to address a factor of 7 overestimate
 # in car OC emissions that results from incorrect emission factors used in the original inventory
@@ -2971,7 +2979,7 @@ Warnings:                    1
 ### END SECTION SCALE FACTORS ###
 
 ###############################################################################
-### BEGIN SECTION MASKS 
+### BEGIN SECTION MASKS
 ###############################################################################
 
 # ScalID Name sourceFile sourceVar sourceTime C/R/E SrcDim SrcUnit Oper Lon1/Lat1/Lon2/Lat2
