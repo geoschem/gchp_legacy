@@ -1706,6 +1706,7 @@ COLLECTIONS: 'AerosolMass',
                               #'Met_V               ', 'GIGCchem',
                               #'Met_V10M            ', 'GIGCchem',
                               #'Met_Z0              ', 'GIGCchem',
+			      'FracOfTimeInTrop     ', 'GIGCchem',
 ::
 #==============================================================================
 # %%%%% The StateMet instantaneous COLLECTION %%%%%
