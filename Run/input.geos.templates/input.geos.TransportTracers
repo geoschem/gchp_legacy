@@ -1,4 +1,3 @@
-GEOS-CHEM SIMULATION    : gchp_TransportTracers
 ------------------------+------------------------------------------------------
 %%% SIMULATION MENU %%% :
 Start YYYYMMDD, hhmmss  : 20160101 000000
@@ -6,6 +5,7 @@ End   YYYYMMDD, hhmmss  : 20160101 010000
 Run directory           : ./
 Root data directory     : {DATA_ROOT}
 Met field               : {MET}
+Simulation name         : TransportTracers
 ------------------------+------------------------------------------------------
 %%% TIMESTEP MENU %%%   :
 Tran/conv timestep [sec]: 600
