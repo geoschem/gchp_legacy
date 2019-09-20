@@ -189,12 +189,6 @@ SRC = $(wildcard *.F) $(wildcard *.F90)
 TMP = $(SRC:.F=.o)
 OBJ = $(TMP:.F90=.o)
 
-REGDIR    := Registry
-ACGS      := GIGCchem_ExportSpec___.h GIGCchem_GetPointer___.h \
-             GIGCchem_DeclarePointer___.h GIGCchem_History___.rc
-#LIB_ESMF  := $(ESMF_DIR)/$(ARCH)/lib/libesmf.so
-#LIB_MAPL  := $(ESMADIR)/$(ARCH)/libMAPL_Base.a # At this point, we only check for MAPL_Base
-
 ###############################################################################
 ###                                                                         ###
 ###  Makefile targets: type "make help" for a complete listing!             ###
@@ -234,14 +228,9 @@ ifeq ($(wildcard $(FVDIR)/fvdycore.install),)
 	@touch $(FVDIR)/fvdycore.install
 endif
 
-lib: $(ACGS) $(OBJ)
+lib: $(OBJ)
 	$(AR) crs libGIGC.a $(OBJ)
 	mv libGIGC.a $(LIB)
-
-$(ACGS) : $(REGDIR)/Chem_Registry.rc $(REGDIR)/HEMCO_Registry.rc $(ACG) #$(REGDIR)/Dyn_Registry.rc
-	@$(ACG) $(ACG_FLAGS) $(REGDIR)/Chem_Registry.rc
-##	@$(ACG) $(ACG_FLAGS) $(REGDIR)/Dyn_Registry.rc
-	@$(ACG) $(ACG_FLAGS) $(REGDIR)/HEMCO_Registry.rc
 
 libesmf:
 	@$(MAKE) -C $(GCHP) esmf
@@ -250,7 +239,7 @@ libmapl:
 	@$(MAKE) -C $(GCHP) mapl
 
 clean:
-	rm -f *.o *.mod *___.h *___.rc
+	rm -f *.o *.mod
 
 help:
 	@$(MAKE) -C $(HELP)
@@ -354,23 +343,10 @@ wipeout_fvdycore:
 GEOSChem.o		    : GEOSChem.F90                                  \
                               GIGC_GridCompMod.o
 
-Chem_GridCompMod.o          : Chem_GridCompMod.F90                          \
-			      gigc_chunk_mod.o                              \
-                              gigc_historyexports_mod.o                     \
-                              gigc_providerservices_mod.o
-
 GIGC_GridCompMod.o          : GIGC_GridCompMod.F90                          \
-                              Chem_GridCompMod.o                            \
 	                      GEOS_ctmEnvGridComp.o
 
 GEOS_ctmEnvGridComp.o	    : GEOS_ctmEnvGridComp.F90
-
-gigc_chunk_mod.o            : gigc_chunk_mod.F90                            \
-                              gigc_historyexports_mod.o                     \
-
-gigc_historyexports_mod.o   : gigc_historyexports_mod.F90
-
-gigc_providerservices_mod.o : gigc_providerservices_mod.F90
 
 #EOC
 
