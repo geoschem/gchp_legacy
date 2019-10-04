@@ -6,10 +6,15 @@ NY: 6
 GCHP.GRID_TYPE: Cubed-Sphere
 GCHP.GRIDNAME: PE24x144-CF
 GCHP.NF: 6
-GCHP.LM: 72
 GCHP.IM_WORLD: 24
 GCHP.IM: 24
 GCHP.JM: 144
+GCHP.LM: 72
+
+# For FV advection do not use grid comp name prefix
+IM: 24
+JM: 144
+LM: 72
 
 GEOSChem_CTM: 1
 

@@ -12,8 +12,6 @@ Tran/conv timestep [sec]: 600
 Chem/emis timestep [sec]: 1200
 ------------------------+------------------------------------------------------
 %%% ADVECTED SPECIES MENU %%%:
-Type of simulation      : 1
-Species Entries ------->: Name
 Species name            : Rn222
 Species name            : Pb210
 Species name            : Pb210Strat
