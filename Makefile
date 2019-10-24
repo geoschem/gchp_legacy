@@ -78,6 +78,13 @@ ifeq ($(ESMF_COMPILER),intel)
   MAJORVERSION     :=$(subst ., ,$(LONGVERSION))
   MAJORVERSION     :=$(firstword $(MAJORVERSION))
   MAJORVERSION     :=$(strip $(MAJORVERSION))
+else ifeq ($(ESMF_COMPILER),intelgcc)
+  INTELVERSIONTEXT :=$(shell ifort --version))
+  INTELVERSIONTEXT :=$(sort $(INTELVERSIONTEXT))
+  LONGVERSION      :=$(word 3, $(INTELVERSIONTEXT))
+  MAJORVERSION     :=$(subst ., ,$(LONGVERSION))
+  MAJORVERSION     :=$(firstword $(MAJORVERSION))
+  MAJORVERSION     :=$(strip $(MAJORVERSION))
 else ifeq ($(ESMF_COMPILER),gfortran)
   GNUVERSIONTEXT   :=$(shell gfortran -dumpversion))
   LONGVERSION      :=$(GNUVERSIONTEXT))
@@ -134,6 +141,8 @@ export ESMF_INSTALL_HEADERDIR=$(ESMF_DIR)/$(ARCH)/include
 
 # Other ESMF compilation settings
 ifeq ($(ESMF_COMPILER),intel)
+  export ESMF_F90COMPILEOPTS=-align all -fPIC -traceback 
+else ifeq ($(ESMF_COMPILER),intelgcc)
   export ESMF_F90COMPILEOPTS=-align all -fPIC -traceback 
 else ifeq ($(ESMF_COMPILER),gfortran)
   export ESMF_F90COMPILEOPTS=-falign-commons -fPIC -fbacktrace
