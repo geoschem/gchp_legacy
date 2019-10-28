@@ -2,13 +2,14 @@
 
 # createRunDir.sh: Create GCHP run directory
 #
-# Optional argument: run directory name
+# Optional arguments:
+#   1. -s or --silent : turn on silent mode (non-interactive) (optional)
+#   2. filename       : config file for silent model (optional)
+#                       default filename is createRunDir.cfg
 #
-# If optional run directory name argument is not passed then the user
-# will be prompted to enter a name interactively, or choose to use the
-# default name gchp_{simulation}/
-#
-# Usage: ./createRunDir.sh [rundirname]
+# Usage:
+#    Interactive mode: ./createRunDir.sh
+#    Silent model    : ./createRundir.sh -s createRunDir.cfg
 #
 # Initial version: E. Lundgren,10/5/2018
 
@@ -20,28 +21,74 @@ gcdir=$(pwd)
 cd ${curdir}
 
 #-----------------------------------------------------------------
-# Export data root path in ~/.geoschem/config if file exists
+# Silent mode handling (optional)
+#
+# WARNING: ExtData and gFTL paths will be taken from config file
+#          if running in silent mode
 #-----------------------------------------------------------------
-if [[ -f ${HOME}/.geoschem/config ]]; then
-    source ${HOME}/.geoschem/config
-    if [[ ! -d ${GC_DATA_ROOT} ]]; then
-	printf "\nWarning: Default root data directory does not exist!"
-        printf "\nSet new path below or manually edit ${HOME}/.geoschem/config.\n"
-    fi
-    if [[ ! -d ${GFTL} ]]; then
-	printf "\nWarning: Default Goddard Fortran Template Library (gFTL) does not exist!"
-        printf "\nSet new path below or manually edit ${HOME}/.geoschem/config.\n"
-    fi
-else
-    printf "\nDefine paths to ExtData and the Goddard Fortran Template Library (gFTL)."
-    printf "\nThese will be stored in ${HOME}/.geoschem/config for future automatic use.\n"
-    mkdir -p ${HOME}/.geoschem
+silent=
+configfile=
+while [ "$1" != "" ]; do
+    case $1 in
+        -s )  silent=1
+              shift
+              configfile=$1
+              ;;
+        * )   usage
+              exit 1
+    esac
+    shift
+done
+if [ "$silent" == "1" ]; then
+   if [[ -z "$configfile" ]]; then
+      configfile=createRunDir.cfg
+   source $configfile; fi
+   if [[ ! -f ${configfile} ]]; then
+      printf "Config file ${configfile} does not exist.\n"
+      exit 1
+   fi
+   if [[ ! -d ${extdata} ]]; then
+      printf "${extdata} does not exist. Update path in ${configfile}.\n"
+      exit 1
+   fi
+   if [[ ! -d ${gftl} ]]; then
+      printf "${gftl} does not exist. Update path in ${configfile}.\n"
+      exit 1
+   fi
+   if [[ ! -d ${rundir_path} ]]; then
+      printf "${rundir_path} does not exist. Update path in ${configfile}.\n"
+      exit 1
+   fi
+   GC_DATA_ROOT=${extdata}
+   GFTL=${gftl}
 fi
 
 #-----------------------------------------------------------------
-# One-time configuration of data root path in ~/.geoschem/config
+# If interactive, export data root path in ~/.geoschem/config if file exists
 #-----------------------------------------------------------------
-if [[ -z "${GC_DATA_ROOT}" ]]; then
+if [[ -z "$silent" ]]; then
+   if [[ -f ${HOME}/.geoschem/config ]]; then
+       source ${HOME}/.geoschem/config
+       if [[ ! -d ${GC_DATA_ROOT} ]]; then
+          printf "\nWarning: Default root data directory does not exist!"
+          printf "\nSet new path below or manually edit ${HOME}/.geoschem/config.\n"
+       fi
+       if [[ ! -d ${GFTL} ]]; then
+          printf "\nWarning: Default Goddard Fortran Template Library (gFTL) does not exist!"
+          printf "\nSet new path below or manually edit ${HOME}/.geoschem/config.\n"
+       fi
+   else
+       printf "\nDefine paths to ExtData and the Goddard Fortran Template Library (gFTL)."
+       printf "\nThese will be stored in ${HOME}/.geoschem/config for future automatic use.\n"
+       mkdir -p ${HOME}/.geoschem
+   fi
+fi
+
+#-----------------------------------------------------------------
+# If interactive, one-time configuration of data root path
+# in ~/.geoschem/config.
+#-----------------------------------------------------------------
+if [[ -z "${GC_DATA_ROOT}" && -z "$silent" ]]; then
     printf "\nEnter path for ExtData:\n"
     valid_path=0
     while [ "$valid_path" -eq 0 ]
@@ -54,17 +101,17 @@ if [[ -z "${GC_DATA_ROOT}" ]]; then
             printf "\nError: ${extdata} does not exist. Enter a new path or hit q to quit.\n"
 	else
 	    valid_path=1
-	    echo "export GC_DATA_ROOT=${extdata}" >> ${HOME}/.geoschem/config
+            echo "export GC_DATA_ROOT=${extdata}" >> ${HOME}/.geoschem/config
             source ${HOME}/.geoschem/config
 	fi
     done
 fi
 
 #-----------------------------------------------------------------
-# One-time configuration of Goddard Fortran template library (gFTL)
-#  path in ~/.geoschem/config
+# If interactive, one-time configuration of Goddard Fortran template
+# library (gFTL) path in ~/.geoschem/config. Only in interactive mode.
 #-----------------------------------------------------------------
-if [[ -z "${GFTL}" ]]; then
+if [[ -z "${GFTL}" && -z "$silent" ]]; then
     printf "\nIf you have not downloaded gFTL then enter q to exit."
     printf "\nFollow these instructions at the command prompt to install:\n"
     printf "\n      1. Navigate to directory where you want to download gFTL" 
@@ -96,16 +143,18 @@ if [[ -z "${GFTL}" ]]; then
 fi
 
 #-----------------------------------------------------------------
-# Ask user to select simulation type
+# Set simulation type
 #-----------------------------------------------------------------
-printf "\nChoose simulation type:\n"
-printf "  1. TransportTracers\n"
-printf "  2. Standard\n"
-printf "  3. Benchmark\n"
+if [[ -z "$silent" ]]; then
+   printf "\nChoose simulation type:\n"
+   printf "  1. TransportTracers\n"
+   printf "  2. Standard\n"
+   printf "  3. Benchmark\n"
+fi
 valid_sim=0
 while [ "${valid_sim}" -eq 0 ]
 do
-    read sim_num
+    if [[ -z "$silent" ]]; then read sim_num; fi
     if [[ ${sim_num} = "1" ]]; then
 	sim_name=TransportTracers
 	sim_name_long=${sim_name}
@@ -123,19 +172,22 @@ do
 	valid_sim=1
     else
 	printf "Invalid simulation option. Try again.\n"
+        if [[ "$silent" == "1" ]]; then exit 1; fi
     fi
 done
 
 #-----------------------------------------------------------------
-# Ask user to select meteorology source
+# Set meteorology source
 #-----------------------------------------------------------------
-printf "\nChoose meteorology source:\n"
-printf "  1. GEOS-FP\n"
-printf "  2. MERRA2\n"
+if [[ -z "$silent" ]]; then
+   printf "\nChoose meteorology source:\n"
+   printf "  1. GEOS-FP\n"
+   printf "  2. MERRA2\n"
+fi
 valid_met=0
 while [ "${valid_met}" -eq 0 ]
 do
-    read met_num
+    if [[ -z "$silent" ]]; then read met_num; fi
     if [[ ${met_num} = "1" ]]; then
 	met_name='GEOSFP'
 	met_resolution='025x03125'
@@ -160,43 +212,47 @@ do
 	valid_met=1
     else
 	printf "Invalid meteorology option. Try again.\n"
+        if [[ "$silent" == "1" ]]; then exit 1; fi
     fi
 done
 
 #-----------------------------------------------------------------
-# Ask user to define path where directoy will be created
+# If interactive, ask user to define path where directoy will be
+# created
 #-----------------------------------------------------------------
-printf "\nEnter path where the run directory will be created:\n"
-valid_path=0
-while [ "$valid_path" -eq 0 ]
-do
-    read rundir_path
-    if [[ ${rundir_path} = "q" ]]; then
-	printf "\nExiting.\n"
-	exit 1
-    elif [[ ! -d ${rundir_path} ]]; then
-        printf "\nError: ${rundir_path} does not exist. Enter a new path or hit q to quit.\n"
-    else
-	valid_path=1
-    fi
-done
- 
-#-----------------------------------------------------------------
-# Ask user to define run directoy name if not passed as argument
-#-----------------------------------------------------------------
-if [ -z "$1" ]; then
-    printf "\nEnter run directory name, or press return to use default:\n"
-    read rundir_name
-    if [[ -z "${rundir_name}" ]]; then
-	rundir_name=gchp_${sim_name}
-	printf "Using default directory name ${rundir_name}\n"
-    fi
-else
-    rundir_name=$1
+if [[ -z "$silent" ]]; then
+   printf "\nEnter path where the run directory will be created:\n";
+   read rundir_path
+   valid_path=0
+   while [ "$valid_path" -eq 0 ]
+   do
+       if [[ ${rundir_path} = "q" ]]; then
+           printf "\nExiting.\n"
+           exit 1
+       elif [[ ! -d ${rundir_path} ]]; then
+           printf "\nError: ${rundir_path} does not exist. Enter a new path or hit q to quit.\n"
+       else
+   	valid_path=1
+       fi
+   done
 fi
 
 #-----------------------------------------------------------------
-# Ask user for a new run directory name if specified one exists
+# Define run directoy name. Set run directory path to default if
+# not provided.
+#-----------------------------------------------------------------
+if [[ -z "$silent" ]]; then
+   printf "\nEnter run directory name:\n"
+   read rundir_name
+fi
+if [[ -z "${rundir_name}" ]]; then
+   rundir_name=gchp_${sim_name}
+   printf "Using default directory name ${rundir_name}\n"
+fi
+
+#-----------------------------------------------------------------
+# Check if run directory already exists. If yes and in interactive
+# mode, ask user for a new run directory name.
 #-----------------------------------------------------------------
 rundir=${rundir_path}/${rundir_name}
 valid_rundir=0
@@ -204,6 +260,7 @@ while [ "${valid_rundir}" -eq 0 ]
 do
     if [[ -d ${rundir} ]]; then
 	printf "Warning! ${rundir} already exists.\n"
+        if [[ "$silent" == "1" ]]; then exit 1; fi
         printf "Enter a different run directory name, or q to quit:\n"
 	read new_rundir
 	if [[ ${new_rundir} = "q" ]]; then
@@ -387,13 +444,15 @@ printf "\n  User: ${commit_user}"      >> ${version_log}
 printf "\n  Hash: ${commit_hash}"      >> ${version_log}
 
 #-----------------------------------------------------------------
-# Ask user whether to track run directory changes with git
+# Set whether to track run directory changes with git
 #-----------------------------------------------------------------
-printf "\nDo you want to track run directory changes with git? (y/n)\n"
+if [[ -z "$silent" ]]; then
+   printf "\nDo you want to track run directory changes with git? (y/n)\n"
+fi
 valid_response=0
 while [ "$valid_response" -eq 0 ]
 do
-    read enable_git
+    if [[ -z "$silent" ]]; then read enable_git; fi
     if [[ ${enable_git} = "y" ]]; then
 	cd ${rundir}
 	printf "\n\nChanges to the following run directory files are tracked by git:\n\n" >> ${version_log}
@@ -408,6 +467,7 @@ do
 	valid_response=1
     else
 	printf "Input not recognized. Try again.\n"
+        if [[ "$silent" == "1" ]]; then exit 1; fi
     fi
 done
 
