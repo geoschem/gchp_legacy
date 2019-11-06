@@ -4539,8 +4539,7 @@ CONTAINS
                           notFoundOK=.TRUE., __RC__ ) 
     IF ( ASSOCIATED(Ptr3d) .AND. &
          ASSOCIATED(State_Chm%H2O2AfterChem) ) THEN
-       Ptr3d(:,:,State_Grid%NZ:1:-1) = &
-          State_Chm%H2O2AfterChem(:,:,State_Grid%NZ:1:-1)
+       Ptr3d(:,:,State_Grid%NZ:1:-1) = State_Chm%H2O2AfterChem
     ENDIF
     Ptr3d => NULL()
     
