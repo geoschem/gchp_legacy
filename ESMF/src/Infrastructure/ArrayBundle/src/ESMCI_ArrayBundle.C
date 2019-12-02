@@ -553,13 +553,6 @@ int ArrayBundle::print()const{
   // initialize return code; assume routine not implemented
   int rc = ESMC_RC_NOT_IMPL;              // final return code
 
-  // return with errors for NULL pointer
-  if (this == NULL){
-    ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-      "Not a valid pointer to ArrayBundle", ESMC_CONTEXT, &rc);
-    return rc;
-  }
-
   // print info about the ESMCI::ArrayBundle object
   printf("--- ESMCI::ArrayBundle::print start ---\n");
   printf("ArrayBundle: %s\n", getName());
@@ -1491,7 +1484,7 @@ int ArrayBundle::sparseMatMul(
 
       // get a handle on the XXE stored in routehandle
       XXE *xxe = (XXE *)(*routehandle)->getStorage();
-      
+      XXE::SubRecursiveSearch look;  // prepare for search
       if (srcArraybundle != NULL || dstArraybundle != NULL){
         int k=0;  // init
         for (int i=0; i<count; i++){
@@ -1512,7 +1505,7 @@ int ArrayBundle::sparseMatMul(
             }
           }
           // see if xxe sub element indicates okay for super-vectorization
-          bool superVectorOkay = xxe->getNextSubSuperVectorOkay(&k);
+          bool superVectorOkay = xxe->getNextSubSuperVectorOkay(look);
           int vectorL = 0;  // initialize
           // src-side super vectorization
           int srcLocalDeCount = 0;

@@ -43,6 +43,8 @@ ESMF_F90DEFAULT         = mpif90
 ESMF_CXXDEFAULT         = mpicxx
 ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
 ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
+ESMF_F90COMPILECPPFLAGS+= -DESMF_NO_MPI3
+ESMF_CXXCOMPILECPPFLAGS+= -DESMF_NO_MPI3
 else
 ifeq ($(ESMF_COMM),mpich3)
 # Mpich3 ---------------------------------------------------
@@ -195,3 +197,8 @@ ESMF_CXXLINKOPTS += -Wl,--enable-auto-import
 #
 ESMF_SL_LIBOPTS       += -shared
 ESMF_SL_LIBLIBS       += -L$(ESMF_CXXLIBFULLPATH) -lgcc -L$(ESMF_F90LIBFULLPATH) -lf95
+
+############################################################
+# Turn off trace lib building. It is currently not supported on Cygwin
+#
+ESMF_TRACE_LIB_BUILD = OFF

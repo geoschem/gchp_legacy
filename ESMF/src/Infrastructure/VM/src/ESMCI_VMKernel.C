@@ -311,6 +311,7 @@ void VMK::init(MPI_Comm mpiCommunicator){
   // because signal blocking might not reach all of the threads again...
   int initialized;
   MPI_Initialized(&initialized);
+#ifndef ESMF_MPIUNI
   if (!initialized){
 #ifdef ESMF_MPICH
     // MPICH1.2 is not standard compliant and needs valid args
@@ -324,7 +325,14 @@ void VMK::init(MPI_Comm mpiCommunicator){
 #else
     MPI_Init_thread(NULL, NULL, VM_MPI_THREAD_LEVEL, &mpi_thread_level);
 #endif
+  }else{
+    // query the MPI thread support level as set by external MPI initialization
+    MPI_Query_thread(&mpi_thread_level);
   }
+#else
+  // MPIUNI simply set the thread level
+  mpi_thread_level = MPI_THREAD_SERIALIZED;
+#endif
   // so now MPI is for sure initialized...
   wtime0 = MPI_Wtime();
   // TODO: now it should be safe to call obtain_args() for all MPI impl.
@@ -1893,24 +1901,22 @@ void VMK::enter(class VMKPlan *vmp, void *arg, void *argvmkt){
   // Enter into VMK by its registered function, i.e. release vmkt
   // First need to cast arg into its correct type
   SpawnArg *sarg = (SpawnArg *)arg;
+  bool simpleBlockingCallback = false;
   // simple case is that where the child runs in the parent VM, then all this
-  // degenerates into a simple blocking callback 
-  if (vmp->parentVMflag){
-    if (argvmkt==NULL)
-      sarg[0].fctp((void *)sarg[0].myvm, sarg[0].cargo);
-    else
-      sarg[0].fctp((void *)sarg[0].myvm, argvmkt);
-    return;
-  }
+  // degenerates into a simple blocking callback
+  simpleBlockingCallback |= vmp->parentVMflag;
   // the non-thread based VMs simply do a blocking callback for all the 
   // spawning PETs.
-  if (vmp->nothreadflag && vmp->spawnflag[mypet]==1){
+  simpleBlockingCallback |= (vmp->nothreadflag && vmp->spawnflag[mypet]==1);
+  // finally execute the simple blocking callback
+  if (simpleBlockingCallback){
     if (argvmkt==NULL)
       sarg[0].fctp((void *)sarg[0].myvm, sarg[0].cargo);
     else
       sarg[0].fctp((void *)sarg[0].myvm, argvmkt);
     return;
   }
+  // continue with the more complicated case, where threads must be released...
   // pets that do not spawn but contribute need to release their blocker and
   // sigcatcher _before_ the actual spawner threads get released 
   // (this is so that no signals get missed!)
@@ -2123,7 +2129,12 @@ int VMK::getLpid(int i){
 int VMK::getMaxTag(){
   int *value;
   int flag;
+#if MPI_VERSION >= 2
+  MPI_Comm_get_attr(MPI_COMM_WORLD, MPI_TAG_UB, &value, &flag);
+#else
+  // MPI_Attr_get is deprecated in MPI 2.0
   MPI_Attr_get(MPI_COMM_WORLD, MPI_TAG_UB, &value, &flag);
+#endif
   if (flag)
     return *value;
   else
@@ -5304,7 +5315,8 @@ void VMK::wtimedelay(double delay){
 
 #undef DEBUGLOG
 
-int VMK::ssishmAllocate(vector<unsigned long>&bytes, memhandle *memh){
+int VMK::ssishmAllocate(vector<unsigned long>&bytes, memhandle *memh, 
+  bool contigFlag){
 #ifndef ESMF_NO_MPI3
 #ifndef ESMF_MPIUNI
   MPI_Comm_rank(mpi_c_ssi, &(memh->localPet));
@@ -5342,8 +5354,11 @@ int VMK::ssishmAllocate(vector<unsigned long>&bytes, memhandle *memh){
     if (i<count) size = bytes[i];
 #ifndef ESMF_MPIUNI
     MPI_Info info;
-    MPI_Info_create(&info); // allow system to allocate non-contiguous over SSI
-    MPI_Info_set(info, "alloc_shared_noncontig", "true");
+    MPI_Info_create(&info);
+    if (!contigFlag){
+      // allow system to allocate non-contiguous over SSI
+      MPI_Info_set(info, "alloc_shared_noncontig", "true");
+    }
     MPI_Win_allocate_shared(size, 1, info, mpi_c_ssi, &dummyPtr,
       &(memh->wins[i]));
     MPI_Info_free(&info);

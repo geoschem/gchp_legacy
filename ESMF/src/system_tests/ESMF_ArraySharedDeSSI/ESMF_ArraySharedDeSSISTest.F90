@@ -92,6 +92,7 @@ program ESMF_ArraySharedDeSSISTest
   if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
     call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
+
   call ESMF_LogSet(flush=.true., rc=localrc)
   if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
     ESMF_CONTEXT, rcToReturn=rc)) &
@@ -129,7 +130,12 @@ program ESMF_ArraySharedDeSSISTest
     ESMF_CONTEXT, rcToReturn=rc)) &
     call ESMF_Finalize(rc=rc, endflag=ESMF_END_ABORT)
   if (ssiSharedMemoryEnabled) then
-    pinflag=ESMF_PIN_DE_TO_SSI  ! requires support for SSI shared memory
+    ! requires support for SSI shared memory
+#if 0
+    pinflag=ESMF_PIN_DE_TO_SSI        ! non-contiguous across DEs on SSI okay
+#else
+    pinflag=ESMF_PIN_DE_TO_SSI_CONTIG ! request contigous memory across DEs
+#endif
   else
     pinflag=ESMF_PIN_DE_TO_PET
   endif

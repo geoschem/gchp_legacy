@@ -1104,7 +1104,7 @@ static const char *const version = "$Id$";
 
   refCount = 1;
   strcpy(className, "global");
-  sprintf(baseName, "%s%3d", "unnamed", ID);
+  sprintf(baseName, "%s%03d", "unnamed", ID);
   ESMC_CtoF90string(baseName, baseNameF90, ESMF_MAXSTR);
   
 #if 0
@@ -1169,7 +1169,7 @@ static const char *const version = "$Id$";
 
   refCount = 1;
   strcpy(className, "global");
-  sprintf(baseName, "%s%3d", "unnamed", ID);
+  sprintf(baseName, "%s%03d", "unnamed", ID);
   ESMC_CtoF90string(baseName, baseNameF90, ESMF_MAXSTR);
   
 #if 0
@@ -1204,7 +1204,8 @@ static const char *const version = "$Id$";
 // !IROUTINE:  ESMC_Base - native C++ constructor for ESMC_Base class
 //
 // !INTERFACE:
-      ESMC_Base::ESMC_Base(const char *superclass, const char *name, int nattrs) {
+      ESMC_Base::ESMC_Base(const char *superclass, const char *name, int nattrs,
+        ESMCI::VM *vmArg){
 //
 // !RETURN VALUE:
 //    none
@@ -1219,9 +1220,17 @@ static const char *const version = "$Id$";
 //EOPI
   int rc;
   
-  vmID = ESMCI::VM::getCurrentID(&rc);  // get vmID of current VM context
-  vm = ESMCI::VM::getCurrent(&rc);
-//  ESMCI::VMIdPrint(vmID);
+  if (vmArg==NULL){
+    // no VM passed in -> get vmID of the current VM context
+    vmID = ESMCI::VM::getCurrentID(&rc);
+    vm = ESMCI::VM::getCurrent(&rc);
+  }else{
+    // VM was passed in -> get vmID of the specified VM context
+    vmID = vmArg->getVMId(&rc);
+    vm = vmArg;
+  }
+
+  //ESMCI::VMIdPrint(vmID);
   vmIDCreator = false;  // vmID points into global table
   
   // set ID to objectCount

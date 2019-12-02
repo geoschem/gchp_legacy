@@ -56,12 +56,13 @@
 ! !PUBLIC TYPES:
 
   type ESMF_Mosaic
-    character(len=ESMF_MAXSTR)  :: name
+    character(len=ESMF_MAXSTR)               :: name
     integer                                  :: ntiles      ! number of tiles
     integer                                  :: nx, ny      ! the size of the tile, maybe a rectangular grid
     integer                                  :: ncontacts   ! number of contacts
     character(len=ESMF_MAXPATHLEN)           :: tileDirectory  ! the path of the tile files
     character(len=ESMF_MAXPATHLEN), pointer  :: filenames(:)  ! the tile filename array
+    character(len=ESMF_MAXSTR), pointer      :: tilenames(:)  ! the tile names  
     integer, allocatable                     :: contact(:,:)   ! pair of tiles in each contact
     integer, allocatable                     :: connindex(:,:,:)  ! the end points of the contact edges
   end type
@@ -79,6 +80,24 @@
   public ESMF_GridspecQueryTileSize
   public ESMF_GridspecQueryTileGlobal
   public ESMF_MosaicDestroy
+
+! -------------------------- ESMF-public method -------------------------------
+!BOPI
+! !IROUTINE: ESMF_GridspecReadStagger -- Generic interface
+
+! !INTERFACE:
+interface ESMF_GridspecReadStagger
+
+! !PRIVATE MEMBER FUNCTIONS:
+!
+      module procedure ESMF_GridspecReadStaggerR8
+      module procedure ESMF_GridspecReadStaggerR4
+
+! !DESCRIPTION:
+! This interface provides a single entry point for the various
+!  types of {\tt ESMF\_GridspecReadStagger} functions.
+!EOPI
+end interface
 
 !==============================================================================
 
@@ -135,6 +154,7 @@ subroutine ESMF_GridspecReadMosaic(filename, mosaic, tileFilePath, rc)
 !   both local indices within the tile with 1-based index.
 !   (i1,j1) is the same point as (i3,j3) and (i2,j2) is the same point as (i4,j4)
 !
+!EOPI
 #ifdef ESMF_NETCDF
 
     integer   :: ncid, varid
@@ -145,7 +165,6 @@ subroutine ESMF_GridspecReadMosaic(filename, mosaic, tileFilePath, rc)
     character(len=ESMF_MAXPATHLEN) :: tempname
     integer            :: strlen
     character(len=1), allocatable :: temptilenames(:,:)
-    character(len=ESMF_MAXSTR), allocatable :: tilenames(:)
     character(len=1),  allocatable :: tilefilenames(:,:)
     integer, pointer :: contact(:,:)
     integer, pointer :: connindex(:,:,:)
@@ -228,7 +247,7 @@ subroutine ESMF_GridspecReadMosaic(filename, mosaic, tileFilePath, rc)
                rc)) return
              mosaic%ntiles = ntiles
              ! get the tile names
-             allocate(tilenames(ntiles), temptilenames(strlen, ntiles))
+             allocate(mosaic%tilenames(ntiles), temptilenames(strlen, ntiles))
              ncStatus = nf90_get_var(ncid, varid, temptilenames, start=(/1,1/), count=(/strlen, ntiles/))
              if (CDFCheckError (ncStatus, &
                ESMF_METHOD,  &
@@ -237,8 +256,8 @@ subroutine ESMF_GridspecReadMosaic(filename, mosaic, tileFilePath, rc)
                rc)) return
               ! replace null character by blank
              do j=1,ntiles
-              tilenames(j) = ESMF_UtilArray2String(temptilenames(:,j))
-              call trim_null(tilenames(j))
+              mosaic%tilenames(j) = ESMF_UtilArray2String(temptilenames(:,j))
+              call trim_null(mosaic%tilenames(j))
              enddo
              
             if (ntiles > 1) then
@@ -285,7 +304,7 @@ subroutine ESMF_GridspecReadMosaic(filename, mosaic, tileFilePath, rc)
                  rc)) return
               allocate(mosaic%contact(2,dims(2)))
               allocate(mosaic%connindex(2,4,dims(2)))
-              call readContacts(ncid, varid, dims, mosaicname, tilenames, &
+              call readContacts(ncid, varid, dims, mosaicname, mosaic%tilenames, &
                    mosaic%contact, mosaic%connindex, localrc)
               if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, &
                  ESMF_CONTEXT, rcToReturn=rc)) return
@@ -366,19 +385,18 @@ subroutine ESMF_GridspecReadMosaic(filename, mosaic, tileFilePath, rc)
         do k=1,ESMF_MAXPATHLEN
             mosaic%filenames(ntiles)(k:k)=char(0)
         enddo
-      enddo
-      ncStatus = nf90_get_var(ncid, varid, tilefilenames, start=(/1,1/), count=(/dims(1), ntiles/))
-      if (CDFCheckError (ncStatus, &
+     enddo
+     ncStatus = nf90_get_var(ncid, varid, tilefilenames, start=(/1,1/), count=(/dims(1), ntiles/))
+     if (CDFCheckError (ncStatus, &
                ESMF_METHOD,  &
                ESMF_SRCLINE, &
                "fail to get gridfiles", &
                rc)) return
-      ! replace null character by blank
-      do j=1,ntiles
+     ! replace null character by blank
+     do j=1,ntiles
           mosaic%filenames(j)=ESMF_UtilArray2String(tilefilenames(:,j))
           call trim_null(mosaic%filenames(j))
-      enddo
-
+     enddo
 
       ncStatus = nf90_close(ncid)
       if (CDFCheckError (ncStatus, &
@@ -685,7 +703,7 @@ end subroutine ESMF_GridspecQueryTileSize
 #undef  ESMF_METHOD
 #define ESMF_METHOD "ESMF_GridspecReadTile"
 
-!BOP
+!BOPI
 ! !INTERFACE:
 ! Read in a tile file that defines the supergrid of a given tile
 ! A tile file should have a dummy variable that has the standard_name attribute set to "grid_tile_spec".  
@@ -706,6 +724,7 @@ subroutine ESMF_GridspecReadTile(filename, nx, ny, centerLon, centerLat, cornerL
     integer, optional, intent(in)              :: start(2)
     integer, optional, intent(in)              :: count(2)
     integer, optional, intent(out)             :: rc
+!EOPI
 
     integer :: ncid, nvars, attlen, i
     integer :: nx1, ny1
@@ -877,9 +896,11 @@ end subroutine ESMF_GridspecReadTile
 
 ! -------------------------- ESMF-public method -------------------------------
 #undef  ESMF_METHOD
-#define ESMF_METHOD "ESMF_GridspecReadStagger"
+#define ESMF_METHOD "ESMF_GridspecReadStaggerR8"
 
-!BOP
+!BOPI
+! !IROUTINE: ESMF_GridspecReadStagger - Read in a tile file that defines the supergrid of a given tile from a GRIDSPEC Tile file..
+
 ! !INTERFACE:
 ! Read in a tile file that defines the supergrid of a given tile
 ! A tile file should have a dummy variable that has the standard_name attribute set to "grid_tile_spec".  
@@ -887,18 +908,19 @@ end subroutine ESMF_GridspecReadTile
 ! and their dimensions should be (2*nx+1, 2*ny+1).  It defines the corner coordinates, edge coordinates and 
 ! the center coordinates in one variable called "super grid".
 ! This subroutine reads one stagger location at a time
-subroutine ESMF_GridspecReadStagger(filename, nx, ny, lon, lat, staggerLoc, start, count, rc)
+subroutine ESMF_GridspecReadStaggerR8(filename, nx, ny, lon, lat, staggerLoc, start, count, rc)
 
 ! !ARGUMENTS:
  
     character(len=*), intent(in)               :: filename
     integer, intent(in)                        :: nx, ny
-    real(ESMF_KIND_R8), pointer                :: lon(:,:)
-    real(ESMF_KIND_R8), pointer                :: lat(:,:)
+    real(ESMF_KIND_R8), TARGET                 :: lon(:,:)
+    real(ESMF_KIND_R8), TARGET                 :: lat(:,:)
     type(ESMF_StaggerLoc)                      :: staggerLoc
     integer, optional, intent(in)              :: start(2)
     integer, optional, intent(in)              :: count(2)
     integer, optional, intent(out)             :: rc
+!EOPI
 
     integer :: ncid, nvars, attlen, i
     integer :: nx1, ny1
@@ -1057,7 +1079,194 @@ subroutine ESMF_GridspecReadStagger(filename, nx, ny, lon, lat, staggerLoc, star
     return
 #endif
 
-end subroutine ESMF_GridspecReadStagger
+end subroutine ESMF_GridspecReadStaggerR8
+
+! -------------------------- ESMF-public method -------------------------------
+#undef  ESMF_METHOD
+#define ESMF_METHOD "ESMF_GridspecReadStaggerR4"
+
+!BOPI
+! !IROUTINE: ESMF_GridspecReadStagger - Read in a tile file that defines the supergrid of a given tile from a GRIDSPEC Tile file..
+
+! !INTERFACE:
+! Read in a tile file that defines the supergrid of a given tile
+! A tile file should have a dummy variable that has the standard_name attribute set to "grid_tile_spec".  
+! The latitude and longitude variables should have standard name called "geographic_longitude" and "geographic_latitude" 
+! and their dimensions should be (2*nx+1, 2*ny+1).  It defines the corner coordinates, edge coordinates and 
+! the center coordinates in one variable called "super grid".
+! This subroutine reads one stagger location at a time
+subroutine ESMF_GridspecReadStaggerR4(filename, nx, ny, lon, lat, staggerLoc, start, count, rc)
+
+! !ARGUMENTS:
+ 
+    character(len=*), intent(in)               :: filename
+    integer, intent(in)                        :: nx, ny
+    real(ESMF_KIND_R4), TARGET                 :: lon(:,:)
+    real(ESMF_KIND_R4), TARGET                 :: lat(:,:)
+    type(ESMF_StaggerLoc)                      :: staggerLoc
+    integer, optional, intent(in)              :: start(2)
+    integer, optional, intent(in)              :: count(2)
+    integer, optional, intent(out)             :: rc
+!EOPI
+
+    integer :: ncid, nvars, attlen, i
+    integer :: nx1, ny1
+    integer :: ncStatus
+    integer :: ndims, dimids(2)
+    character(len=128) :: attstr
+    integer :: start1(2), count1(2)
+    real(ESMF_KIND_R8), allocatable :: supercoord(:,:)
+    integer :: localrc
+    logical :: foundit
+
+    if (present(rc)) rc=ESMF_SUCCESS
+
+    call ESMF_VMGetCurrent(vm, rc=localrc)
+    if (ESMF_LogFoundError(localrc, &
+                           ESMF_ERR_PASSTHRU, &
+                           ESMF_CONTEXT, rcToReturn=rc)) return
+
+    ! set up local pet info
+    call ESMF_VMGet(vm, localPet=PetNo, petCount=PetCnt, rc=localrc)
+    if (ESMF_LogFoundError(localrc, &
+                           ESMF_ERR_PASSTHRU, &
+                           ESMF_CONTEXT, rcToReturn=rc)) return
+
+#ifdef ESMF_NETCDF
+    foundit = .false.
+    ncStatus = nf90_open(path=filename, mode=nf90_nowrite, ncid=ncid)
+    if (CDFCheckError (ncStatus, &
+        ESMF_METHOD,  &
+        ESMF_SRCLINE, &
+        filename, &
+        rc)) return
+    ncStatus = nf90_inquire(ncid, nVariables=nvars)
+    if (CDFCheckError (ncStatus, &
+        ESMF_METHOD,  &
+        ESMF_SRCLINE, &
+        filename, &
+        rc)) return
+    do i=1,nvars
+       ! Check its standard_name attribute
+       ncStatus = nf90_inquire_attribute(ncid, i, 'standard_name', len=attlen)
+       if (ncStatus == nf90_noerr) then
+          ncStatus = nf90_get_att(ncid, i, 'standard_name', values=attstr)
+          if (attstr(1:attlen) .eq. 'grid_tile_spec') then
+            ! skip checking the attributes -- not sure which one should be set to what
+            ! but makesure this dummy variable exists
+            foundit = .true.
+#if 0
+            ! check the projection attribute
+            ncStatus = nf90_inquire_attribute(ncid, i, 'projection', len=attlen)  
+            if (CDFCheckError (ncStatus, &
+               ESMF_METHOD,  &
+               ESMF_SRCLINE, &
+               "projection attribute does not exist", &
+               rc)) return
+            ncStatus = nf90_get_att(ncid, i, 'projection', values=attstr)
+            if (attstr(1:attlen) .ne. 'cube_gnomonic') then
+              call ESMF_LogSetError(rcToCheck=ESMF_FAILURE, & 
+                 msg="- Only Cube Gnomonic projection is currently supported", & 
+                 ESMF_CONTEXT, rcToReturn=rc) 
+              return
+            endif
+#endif
+          elseif (attstr(1:attlen) .eq. 'geographic_longitude' .or. &
+                 attstr(1:attlen) .eq. 'geographic_latitude') then
+            ! read the longitude or latitude variable
+            ! First find the dimension of this variable
+            ncStatus = nf90_inquire_variable(ncid, i, ndims=ndims, dimids=dimids)
+            if (ndims /= 2) then
+              call ESMF_LogSetError(rcToCheck=ESMF_FAILURE, & 
+                 msg="- The longitude variable should have dimension 2", & 
+                 ESMF_CONTEXT, rcToReturn=rc) 
+              return
+            endif
+            ! find out the dimenison size
+            ncStatus = nf90_inquire_dimension(ncid, dimids(1), len=nx1)
+            if (CDFCheckError (ncStatus, &
+               ESMF_METHOD,  &
+               ESMF_SRCLINE, &
+               "contact dimension inquire", &
+               rc)) return
+            ncStatus = nf90_inquire_dimension(ncid, dimids(2), len=ny1)
+            if (CDFCheckError (ncStatus, &
+               ESMF_METHOD,  &
+               ESMF_SRCLINE, &
+               "contact dimension inquire", &
+               rc)) return
+            if (nx1 /= (nx*2+1)) then
+              call ESMF_LogSetError(rcToCheck=ESMF_FAILURE, & 
+                 msg="- The x dimension of the tile does not match with the supergrid dimension", & 
+                 ESMF_CONTEXT, rcToReturn=rc) 
+              return
+            endif
+            if (ny1 /= (ny*2+1)) then
+              call ESMF_LogSetError(rcToCheck=ESMF_FAILURE, & 
+                 msg="- The y dimension of the tile does not match with the supergrid dimension", & 
+                 ESMF_CONTEXT, rcToReturn=rc) 
+              return
+            endif
+            
+            if (present(start) .and. present(count)) then
+               ! read a block instead of the entire array
+               count1 = count
+               if (staggerLoc == ESMF_STAGGERLOC_CENTER) then
+                  start1=start*2
+               elseif (staggerLoc == ESMF_STAGGERLOC_CORNER) then
+                  start1=start*2-1
+               elseif (staggerLoc == ESMF_STAGGERLOC_EDGE1) then
+                  start1(1)=start(1)*2-1
+                  start1(2)=start(2)*2
+               elseif (staggerLoc == ESMF_STAGGERLOC_EDGE2) then
+                  start1(1)=start(1)*2
+                  start1(2)=start(2)*2-1
+               endif
+            else
+               count1(1) = nx
+               count1(2) = ny
+               if (staggerLoc == ESMF_STAGGERLOC_CENTER) then
+                  start1=2
+               elseif (staggerLoc == ESMF_STAGGERLOC_CORNER) then
+                  start1=1
+               elseif (staggerLoc == ESMF_STAGGERLOC_EDGE1) then
+                  start1(1)=1
+                  start1(2)=2
+               elseif (staggerLoc == ESMF_STAGGERLOC_EDGE2) then
+                  start1(1)=2
+                  start1(2)=1
+               endif
+            endif
+            if (attstr(1:attlen) .eq. 'geographic_latitude') then
+               ncStatus = nf90_get_var(ncid, i, lat, start=start1, count=count1, stride=(/2,2/))
+            else
+               ncStatus = nf90_get_var(ncid, i, lon, start=start1, count=count1, stride=(/2,2/))
+            endif
+            if (CDFCheckError (ncStatus, &
+               ESMF_METHOD,  &
+               ESMF_SRCLINE, &
+               "error reading stagger coordinates", &
+               rc)) return
+         endif
+       endif
+     enddo
+     ncStatus = nf90_close(ncid)
+     if (CDFCheckError (ncStatus, &
+               ESMF_METHOD,  &
+               ESMF_SRCLINE, &
+               "close tile file", &
+               rc)) return
+     if (.not. foundit .and. present(rc)) rc=ESMF_FAILURE
+     return
+#else       
+
+    call ESMF_LogSetError(ESMF_RC_LIB_NOT_PRESENT, & 
+                 msg="- ESMF_NETCDF not defined when lib was compiled", & 
+                 ESMF_CONTEXT, rcToReturn=rc) 
+    return
+#endif
+
+end subroutine ESMF_GridspecReadStaggerR4
 
 ! -------------------------- ESMF-private method -------------------------------
 #undef  ESMF_METHOD
@@ -1334,6 +1543,8 @@ subroutine ESMF_MosaicDestroy(mosaic, rc)
  
     type(ESMF_Mosaic), intent(inout)       :: mosaic
     integer, optional, intent(out)         :: rc
+
+!EOPI
 
    ! Only allocated when there is netcdf
 #ifdef ESMF_NETCDF

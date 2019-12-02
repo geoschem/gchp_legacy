@@ -29,7 +29,7 @@
 
 int main(void){
 
-  ESMC_Config cf;              // ESMC_Config object
+  ESMC_Config cf, cf1, cfs;              // ESMC_Config objects
   const char* fileName = "ESMF_Resource_File_Sample.rc";   // file name
   const char* fileName2= "ESMF_Resource_File_Sample2.rc";  // file name
   char name[80];
@@ -38,6 +38,7 @@ int main(void){
   int result = 0;
   int rc = ESMF_RC_NOT_IMPL;
   int unique = 0;
+  int present = 0;
 
   //----------------------------------------------------------------------------
   ESMC_TestStart(__FILE__, __LINE__, 0);
@@ -120,19 +121,10 @@ int main(void){
 
   //----------------------------------------------------------------------------
   //EX_UTest
-  //Destroy Config object
-  strcpy(name, "ConfigDestroy Unit test");
-  strcpy(failMsg, "Did not return ESMF_SUCCESS");
-  rc = ESMC_ConfigDestroy(&cf);
-  ESMC_Test((rc == ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__,0);
-  //----------------------------------------------------------------------------
-
-  //----------------------------------------------------------------------------
-  //EX_UTest
-  // Create a config object -- cf
+  // Create a config object -- cf1
   strcpy(name, "ConfigCreate Unit test");
   strcpy(failMsg, "Did not return ESMF_SUCCESS");
-  cf = ESMC_ConfigCreate(&rc);
+  cf1 = ESMC_ConfigCreate(&rc);
   ESMC_Test((rc == ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__,0);
   //----------------------------------------------------------------------------
 
@@ -141,12 +133,137 @@ int main(void){
   //Load resource file into memory
   //This UTest tests whether the code will recognize that the input file 
   //repeats the definition of an attribute
+  unique = 0;
   strcpy(name, "ConfigLoadFile Unit test");
   strcpy(failMsg, "Did not return ESMF_SUCCESS");
-  rc = ESMC_ConfigLoadFile(cf, fileName, ESMCI_ConfigArgUniqueID, unique,
+  rc = ESMC_ConfigLoadFile(cf1, fileName, ESMCI_ConfigArgUniqueID, unique,
     ESMC_ArgLast);
-  ESMC_Test((rc == ESMF_RC_DUP_NAME), name, failMsg, &result, __FILE__, 
-    __LINE__, 0);
+  ESMC_Test((rc == ESMF_SUCCESS), name, failMsg, &result, __FILE__,__LINE__, 0);
+  //----------------------------------------------------------------------------
+
+  //----------------------------------------------------------------------------
+  //EX_UTest
+  // Create a config object (cfs) from section of existing config object (cf1)
+  strcpy(name, "ConfigCreateFromSection Empty Unit test");
+  strcpy(failMsg, "Did not return ESMF_SUCCESS");
+  const char* openlabelempty ="%section_empty_open";
+  const char* closelabelempty="%section_empty_close";
+  cfs = ESMC_ConfigCreateFromSection(cf1, openlabelempty, closelabelempty, &rc);
+  ESMC_Test((rc == ESMF_SUCCESS), name, failMsg, &result, __FILE__,__LINE__, 0);
+  //----------------------------------------------------------------------------
+
+  //----------------------------------------------------------------------------
+  //EX_UTest
+  // Print the content of a config object
+  strcpy(name, "ConfigPrint Empty Section Unit test");
+  strcpy(failMsg, "Did not return ESMF_SUCCESS");
+  rc = ESMC_ConfigPrint(cfs);
+  ESMC_Test((rc == ESMF_SUCCESS), name, failMsg, &result, __FILE__,__LINE__, 0);
+  //----------------------------------------------------------------------------
+
+  //----------------------------------------------------------------------------
+  //EX_UTest
+  //Destroy Config from section object
+  strcpy(name, "ConfigDestroy from Empty Section Unit test");
+  strcpy(failMsg, "Did not return ESMF_SUCCESS");
+  rc = ESMC_ConfigDestroy(&cfs);
+  ESMC_Test((rc == ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__,0);
+  //----------------------------------------------------------------------------
+
+  //----------------------------------------------------------------------------
+  //EX_UTest
+  // Create a config object (cfs) from section of existing config object (cf1)
+  strcpy(name, "ConfigCreateFromSection Unit test");
+  strcpy(failMsg, "Did not return ESMF_SUCCESS");
+  const char* openlabel ="%section_open";
+  const char* closelabel="%section_close";
+  cfs = ESMC_ConfigCreateFromSection(cf1, openlabel, closelabel, &rc);
+  ESMC_Test((rc == ESMF_SUCCESS), name, failMsg, &result, __FILE__,__LINE__, 0);
+  //----------------------------------------------------------------------------
+
+  //----------------------------------------------------------------------------
+  //EX_UTest
+  // Print the content of a config object
+  strcpy(name, "ConfigPrint Section Unit test");
+  strcpy(failMsg, "Did not return ESMF_SUCCESS");
+  rc = ESMC_ConfigPrint(cfs);
+  ESMC_Test((rc == ESMF_SUCCESS), name, failMsg, &result, __FILE__,__LINE__, 0);
+  //----------------------------------------------------------------------------
+
+  //----------------------------------------------------------------------------
+  //EX_UTest
+  //Destroy Config from section object
+  strcpy(name, "ConfigDestroy from Section Unit test");
+  strcpy(failMsg, "Did not return ESMF_SUCCESS");
+  rc = ESMC_ConfigDestroy(&cfs);
+  ESMC_Test((rc == ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__,0);
+  //----------------------------------------------------------------------------
+
+  //----------------------------------------------------------------------------
+  //EX_UTest
+  // Create a config object (cfs) from section of existing config object (cf1)
+  strcpy(name, "ConfigCreateFromSection with Table Unit test");
+  strcpy(failMsg, "Did not return ESMF_SUCCESS");
+  const char* openlabeltable ="%section_with_table";
+  const char* closelabeltable="%%";
+  cfs = ESMC_ConfigCreateFromSection(cf1, openlabeltable, closelabeltable, &rc);
+  ESMC_Test((rc == ESMF_SUCCESS), name, failMsg, &result, __FILE__,__LINE__, 0);
+  //----------------------------------------------------------------------------
+
+  //----------------------------------------------------------------------------
+  //EX_UTest
+  // Print the content of a config object
+  strcpy(name, "ConfigPrint Section with Table Unit test");
+  strcpy(failMsg, "Did not return ESMF_SUCCESS");
+  rc = ESMC_ConfigPrint(cfs);
+  ESMC_Test((rc == ESMF_SUCCESS), name, failMsg, &result, __FILE__,__LINE__, 0);
+  //----------------------------------------------------------------------------
+
+  //----------------------------------------------------------------------------
+  //EX_UTest
+  //Destroy Config from section object
+  strcpy(name, "ConfigFindLabel in Section with Table Unit test");
+  strcpy(failMsg, "Did not return ESMF_SUCCESS");
+  const char* label1="section_table_token:";
+  present = 0;
+  rc = ESMC_ConfigFindLabel(cfs, label1, &present);
+  ESMC_Test((rc == ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__,0);
+  //----------------------------------------------------------------------------
+
+  //----------------------------------------------------------------------------
+  //EX_UTest
+  //Presence of a non-present label in the loaded resource file
+  strcpy(name, "ConfigFindLabel in Section presence Unit test");
+  strcpy(failMsg, "Did not return present");
+  ESMC_Test(present, name, failMsg, &result, __FILE__, __LINE__,0);
+  //----------------------------------------------------------------------------
+
+  //----------------------------------------------------------------------------
+  //EX_UTest
+  //Destroy Config from section object
+  strcpy(name, "ConfigFindNextLabel in Section with Table Unit test");
+  strcpy(failMsg, "Did not return ESMF_SUCCESS");
+  const char* label2="section_data_values:";
+  present = 0;
+  rc = ESMC_ConfigFindNextLabel(cfs, label2, &present);
+  ESMC_Test((rc == ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__,0);
+  //----------------------------------------------------------------------------
+
+  //----------------------------------------------------------------------------
+  //EX_UTest
+  //Presence of a non-present label in the loaded resource file
+  strcpy(name, "ConfigFindNextLabel in Section presence Unit test");
+  strcpy(failMsg, "Did not return present");
+  ESMC_Test(present, name, failMsg, &result, __FILE__, __LINE__,0);
+  //----------------------------------------------------------------------------
+
+  //----------------------------------------------------------------------------
+  //EX_UTest
+  //Destroy Config from section object
+  strcpy(name, "ConfigDestroy from Section with Table Unit test");
+  strcpy(failMsg, "Did not return ESMF_SUCCESS");
+  rc = ESMC_ConfigDestroy(&cfs);
+  ESMC_Test((rc == ESMF_SUCCESS), name, failMsg, &result, __FILE__, __LINE__,0);
   //----------------------------------------------------------------------------
 #endif
 
@@ -154,7 +271,7 @@ int main(void){
   //NEX_UTest
   //Find a label in the loaded resource file
   const char* label="Number_of_Members:";
-  int present;
+  present = 0;
   strcpy(name, "ConfigFindLabel Unit test");
   strcpy(failMsg, "Did not return ESMF_SUCCESS");
   rc = ESMC_ConfigFindLabel(cf, label, &present);

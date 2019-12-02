@@ -185,6 +185,7 @@ module ESMF_MeshMod
 ! !PUBLIC MEMBER FUNCTIONS:
 
 ! - ESMF-public methods:
+  public assignment(=)
   public operator(==)
   public operator(/=)
 
@@ -249,6 +250,14 @@ module ESMF_MeshMod
      module procedure ESMF_MeshCreateFromGrid
    end interface
 
+!------------------------------------------------------------------------------
+!BOPI
+! !INTERFACE:
+      interface assignment (=)
+         module procedure ESMF_MeshLocToInt
+         module procedure ESMF_IntToMeshLoc
+      end interface
+!
 !------------------------------------------------------------------------------
 !BOPI
 ! !INTERFACE:
@@ -452,6 +461,18 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+
+subroutine ESMF_MeshLocToInt(lhsInt, rhsMeshLoc)
+  integer,                   intent(out) :: lhsInt
+  type(ESMF_MeshLoc),        intent(in)  :: rhsMeshLoc
+  lhsInt = rhsMeshLoc%meshloc
+end subroutine
+
+subroutine ESMF_IntToMeshLoc(lhsMeshLoc, rhsInt)
+  type(ESMF_MeshLoc),        intent(out) :: lhsMeshLoc
+  integer,                   intent(in)  :: rhsInt
+  lhsMeshLoc = ESMF_MeshLoc(rhsInt)
+end subroutine
 
 !-------------------------------------------------------------------------------
 #undef  ESMF_METHOD
@@ -1569,7 +1590,13 @@ end function ESMF_MeshCreateFromDG
 
 !
 ! !DESCRIPTION:
-!   Create a Mesh from an ESMF Grid. 
+!   Create an ESMF Mesh from an ESMF Grid. This method creates the elements of 
+!  the Mesh from the cells of the Grid, and the nodes of the Mesh from the corners of 
+!  the Grid. Corresponding locations in the Grid and new Mesh will have the same 
+!  coordinates, sequence indices, masking, and area information.
+!
+!   This method currently only works for 2D Grids. In addition, this method requires 
+!   the input Grid to have coordinates in the corner stagger location.  
 !
 !   \begin{description}
 !   \item [grid]
@@ -1908,8 +1935,8 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 !         The name of the grid file
 !   \item[fileformat]
 !         The file format. The valid options are {\tt ESMF\_FILEFORMAT\_SCRIP}, {\tt ESMF\_FILEFORMAT\_ESMFMESH} and
-!         {\tt ESMF\_FILEFORMAT\_UGRID}. If the file is a SCRIP file, the dimension {\tt grid\_rank} in the file has to
-!         be equal to 1.  Please see Section~\ref{const:fileformatflag} for a detailed description of the options.
+!         {\tt ESMF\_FILEFORMAT\_UGRID}. 
+!         Please see Section~\ref{const:fileformatflag} for a detailed description of the options.
 !   \item[{[convertToDual]}]
 !         if {\tt .true.}, the mesh will be converted to its dual. If not specified,
 !         defaults to {\tt .false.}.
@@ -4735,7 +4762,7 @@ end function ESMF_MeshEmptyCreate
     integer  :: localrc
     logical  :: isCreated
     integer, parameter :: maxElemArrays=2
-    integer            :: numElemArrays=0
+    integer            :: numElemArrays
     type(ESMF_Pointer) :: elemArrays(maxElemArrays)
     integer :: infoTypeElemArrays(maxElemArrays)
     integer,parameter :: infoTypeElem_Mask=1
@@ -4896,6 +4923,9 @@ end function ESMF_MeshEmptyCreate
 
     ! Get number owned elements
     if (present(numOwnedElements)) numOwnedElements =mesh%numOwnedElements
+
+    ! Init number of elem arrays for which user is asking
+    numElemArrays=0
 
     ! Get elem mask information
     if (present(elemMaskArray)) then
@@ -5452,12 +5482,18 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     integer, intent(out) , optional            :: rc
 !
 ! !DESCRIPTION:
+!   This method is only temporary. It was created to enable testing during the stage in ESMF development while 
+!   we have two internal mesh implementations. At some point it will be removed. 
+!
 !   This method can be employed to turn on or off using the MOAB library
 !   to hold the internal structure of the Mesh. When set to .true. the following
 !   Mesh create calls create a Mesh using MOAB internally. When set to .false. the following
 !   Mesh create calls use the ESMF native internal mesh respresentation. Note that ESMF Meshes
 !   created on MOAB are only supported in a limited set of operations and should be used
 !   with caution as they haven't yet been tested as thoroughly as the native version.
+!   Also, operations that use a pair of Meshes (e.g. regrid weight generation) are only supported between
+!   meshes of the same type (e.g. you can regrid between two MOAB meshes, but not between a MOAB and
+!   a native mesh). 
 !
 !   \begin{description}
 !   \item [moabOn]

@@ -1337,12 +1337,6 @@ int DELayout::print()const{
   // initialize return code; assume routine not implemented
   int rc = ESMC_RC_NOT_IMPL;              // final return code
 
-  // return with errors for NULL pointer
-  if (this == NULL){
-    ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-      " - 'this' pointer is NULL.", ESMC_CONTEXT, &rc);
-    return rc;
-  }
   // print info about the DELayout object
   printf("--- ESMCI::DELayout::print() start ---\n");
   if (oldstyle){
@@ -1435,12 +1429,7 @@ int DELayout::validate()const{
   // initialize return code; assume routine not implemented
   int rc = ESMC_RC_NOT_IMPL;              // final return code
 
-  // check against NULL pointer
-  if (this == ESMC_NULL_POINTER){
-    ESMC_LogDefault.MsgFoundError(ESMC_RC_PTR_NULL,
-      " - 'this' pointer is NULL.", ESMC_CONTEXT, &rc);
-    return rc;
-  }
+  //TODO: complete this method
 
   // return successfully
   rc = ESMF_SUCCESS;
@@ -3555,8 +3544,10 @@ void XXE::streamify(stringstream &streami){
 
   // HEADER
   append(streami, count);                 // number of elements in op-stream
-  append(streami, dataMap.size());        // number of data elements
-  append(streami, bufferInfoList.size()); // number of buffer elements
+  map<void *, unsigned long>::size_type dataMapSize = dataMap.size();
+  append(streami, dataMapSize);           // number of data elements
+  vector<BufferInfo *>::size_type bufferInfoListSize = bufferInfoList.size();
+  append(streami, bufferInfoListSize);    // number of buffer elements
   append(streami, commhandleCount);       // number of commhandles
   append(streami, xxeSubCount);           // number of subs
   for (int i=0; i<10; i++)

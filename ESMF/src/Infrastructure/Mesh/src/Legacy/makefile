@@ -58,7 +58,6 @@ SOURCEC	  = \
            ESMCI_SparseMsg.C \
            ESMCI_WriteWeights.C \
            ESMCI_WriteWeightsPar.C \
-           ESMCI_SpaceDir.C \
            ESMCI_FindPnts.C \
            ESMCI_SM.C \
 
@@ -86,7 +85,7 @@ endif
 DIRS	  = Legacy Regridding Zoltan
 ifeq ($(ESMF_LAPACK),internal)
 DIRS	 += Lapack BLAS
-STOREH   += ESMF_LapackBlas.inc
+STOREH   +=
 endif
 ifeq ($(ESMF_MOAB),internal)
 DIRS     += Moab

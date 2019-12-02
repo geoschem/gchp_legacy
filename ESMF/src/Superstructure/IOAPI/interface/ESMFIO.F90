@@ -363,7 +363,10 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
           ESMF_CONTEXT, rcToReturn=rc)) return  ! bail out
       end do
       do item = 1, size(fieldList)
-        call ESMFIO_FieldAccess(IOComp, fieldList(item), 'write', iofmt=liofmt, rc=localrc)
+        call ESMFIO_FieldAccess(IOComp, fieldList(item), 'write', &
+          iofmt=liofmt, rc=localrc)
+        if (ESMF_LogFoundError(rcToCheck=localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return  ! bail out
       end do
       do localDe = 0, localDeCount - 1
         call IONCClose(IOComp, localDe=localDe, rc=localrc)
@@ -424,7 +427,10 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
           ESMF_CONTEXT, rcToReturn=rc)) return  ! bail out
       end do
       do item = 1, size(fieldList)
-        call ESMFIO_FieldAccess(IOComp, fieldList(item), 'read', iofmt=liofmt, rc=localrc)
+        call ESMFIO_FieldAccess(IOComp, fieldList(item), 'read', iofmt=liofmt, &
+          rc=localrc)
+        if (ESMF_LogFoundError(rcToCheck=localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return  ! bail out
       end do
       do localDe = 0, localDeCount - 1
         call IONCClose(IOComp, localDe=localDe, rc=localrc)
@@ -491,10 +497,17 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       if (ESMF_LogFoundError(rcToCheck=localrc, ESMF_ERR_PASSTHRU, &
         ESMF_CONTEXT, rcToReturn=rc)) return  ! bail out
       if (grid /= iogrid) then
+#if 0
         call ESMF_LogSetError(ESMF_RC_NOT_IMPL, &
           msg="I/O fields and I/O component must be defined on the same grid", &
           ESMF_CONTEXT, rcToReturn=rc)
         return  ! bail out
+#else
+        call ESMF_LogWrite("I/O field and I/O component may not be on same grid", &
+          ESMF_LOGMSG_WARNING, rc=localrc)
+        if (ESMF_LogFoundError(rcToCheck=localrc, ESMF_ERR_PASSTHRU, &
+          ESMF_CONTEXT, rcToReturn=rc)) return  ! bail out
+#endif
       end if
       if (rank /= 2) then
         call ESMF_LogSetError(ESMF_RC_NOT_IMPL, &
@@ -618,7 +631,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     real(ESMF_KIND_R8),    dimension(:),   allocatable :: recvbuf_r8
     real(ESMF_KIND_R8),    dimension(:,:), allocatable :: buf_r8
     real(ESMF_KIND_R8),    dimension(:,:), pointer     :: fp_r8 => null()
-    character(len=ESMF_MAXSTR) :: fieldName
+    character(len=ESMF_MAXSTR) :: fieldName, dataSetName
     type(ESMF_TypeKind_Flag) :: typekind
 
     ! -- begin
@@ -750,12 +763,14 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       if (iofmt == ESMF_IOFMT_NETCDF) then
 #ifdef ESMF_NETCDF
         lncid = 0
+        dataSetName = "NetCDF data set"
         if (present(ncid)) then
           lncid = ncid
         else if (present(fileName)) then
+          dataSetName = trim(dataSetName) // " " // trim(fileName)
           ncStatus = nf90_open(trim(fileName), NF90_WRITE, lncid)
           if (ESMF_LogFoundNetCDFError(ncerrToCheck=ncStatus, &
-            msg="Field "//trim(fieldName)//" not defined in NetCDF data set "//trim(fileName), &
+            msg="Field "//trim(fieldName)//" not defined in "//trim(dataSetName), &
             ESMF_CONTEXT, rcToReturn=rc)) return  ! bail out
         end if
 
@@ -763,23 +778,23 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         if (lncid /= 0) then
           ncStatus = nf90_inq_varid(lncid, trim(fieldName), varId)
           if (ESMF_LogFoundNetCDFError(ncerrToCheck=ncStatus, &
-            msg="Field "//trim(fieldName)//" not defined in NetCDF data set "//trim(fileName), &
+            msg="Field "//trim(fieldName)//" not defined in "//trim(dataSetName), &
             ESMF_CONTEXT, rcToReturn=rc)) return  ! bail out
         
           if (typekind == ESMF_TYPEKIND_I4) then
             ncStatus = nf90_put_var(lncid, varId, buf_i4)
             if (ESMF_LogFoundNetCDFError(ncerrToCheck=ncStatus, &
-              msg="Error writing field "//trim(fieldName)//" to NetCDF data set "//trim(fileName), &
+              msg="Error writing field "//trim(fieldName)//" to "//trim(dataSetName), &
               ESMF_CONTEXT, rcToReturn=rc)) return  ! bail out
           else if (typekind == ESMF_TYPEKIND_R4) then
             ncStatus = nf90_put_var(lncid, varId, buf_r4)
             if (ESMF_LogFoundNetCDFError(ncerrToCheck=ncStatus, &
-              msg="Error writing field "//trim(fieldName)//" to NetCDF data set "//trim(fileName), &
+              msg="Error writing field "//trim(fieldName)//" to "//trim(dataSetName), &
               ESMF_CONTEXT, rcToReturn=rc)) return  ! bail out
           else if (typekind == ESMF_TYPEKIND_R8) then
             ncStatus = nf90_put_var(lncid, varId, buf_r8)
             if (ESMF_LogFoundNetCDFError(ncerrToCheck=ncStatus, &
-              msg="Error writing field "//trim(fieldName)//" to NetCDF data set "//trim(fileName), &
+              msg="Error writing field "//trim(fieldName)//" to "//trim(dataSetName), &
               ESMF_CONTEXT, rcToReturn=rc)) return  ! bail out
           end if
         end if
@@ -841,7 +856,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
     real(ESMF_KIND_R8),    dimension(:),   allocatable :: bcstbuf_r8
     real(ESMF_KIND_R8),    dimension(:,:), allocatable :: buf_r8
     real(ESMF_KIND_R8),    dimension(:,:), pointer     :: fp_r8 => null()
-    character(len=ESMF_MAXSTR) :: fieldName
+    character(len=ESMF_MAXSTR) :: fieldName, dataSetName
     type(ESMF_TypeKind_Flag) :: typekind
 
     ! -- begin
@@ -887,12 +902,14 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
       if (iofmt == ESMF_IOFMT_NETCDF) then
 #ifdef ESMF_NETCDF
         lncid = 0
+        dataSetName = "NetCDF data set"
         if (present(ncid)) then
           lncid = ncid
         else if (present(fileName)) then
+          dataSetName = trim(dataSetName) // " " // trim(fileName)
           ncStatus = nf90_open(trim(fileName), NF90_NOWRITE, lncid)
           if (ESMF_LogFoundNetCDFError(ncerrToCheck=ncStatus, &
-            msg="Field "//trim(fieldName)//" not defined in NetCDF data set "//trim(fileName), &
+            msg="Field "//trim(fieldName)//" not defined in "//trim(dataSetName), &
             ESMF_CONTEXT, rcToReturn=rc)) return  ! bail out
         end if
 
@@ -900,12 +917,12 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
         if (lncid /= 0) then
           ncStatus = nf90_inq_varid(lncid, trim(fieldName), varId)
           if (ESMF_LogFoundNetCDFError(ncerrToCheck=ncStatus, &
-            msg="Field "//trim(fieldName)//" not defined in NetCDF data set "//trim(fileName), &
+            msg="Field "//trim(fieldName)//" not defined in "//trim(dataSetName), &
             ESMF_CONTEXT, rcToReturn=rc)) return  ! bail out
         
           ncStatus = nf90_inquire_variable(lncid, varId, xtype=xtype, ndims=ndims)
           if (ESMF_LogFoundNetCDFError(ncerrToCheck=ncStatus, &
-            msg="Error inquiring variable "//trim(fieldName)//" in NetCDF data set "//trim(fileName), &
+            msg="Error inquiring variable "//trim(fieldName)//" in "//trim(dataSetName), &
             ESMF_CONTEXT, rcToReturn=rc)) return  ! bail out
 
           if (ndims /= rank) then
@@ -926,7 +943,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
             ncStatus = nf90_get_var(lncid, varId, buf_i4)
             if (ESMF_LogFoundNetCDFError(ncerrToCheck=ncStatus, &
-              msg="Error reading field "//trim(fieldName)//" from NetCDF data set "//trim(fileName), &
+              msg="Error reading field "//trim(fieldName)//" from "//trim(dataSetName), &
               ESMF_CONTEXT, rcToReturn=rc)) return  ! bail out
 
           else if (typekind == ESMF_TYPEKIND_R4) then
@@ -940,7 +957,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
             ncStatus = nf90_get_var(lncid, varId, buf_r4)
             if (ESMF_LogFoundNetCDFError(ncerrToCheck=ncStatus, &
-              msg="Error reading field "//trim(fieldName)//" from NetCDF data set "//trim(fileName), &
+              msg="Error reading field "//trim(fieldName)//" from "//trim(dataSetName), &
               ESMF_CONTEXT, rcToReturn=rc)) return  ! bail out
 
           else if (typekind == ESMF_TYPEKIND_R8) then
@@ -954,7 +971,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
             ncStatus = nf90_get_var(lncid, varId, buf_r8)
             if (ESMF_LogFoundNetCDFError(ncerrToCheck=ncStatus, &
-              msg="Error reading field "//trim(fieldName)//" from NetCDF data set "//trim(fileName), &
+              msg="Error reading field "//trim(fieldName)//" from "//trim(dataSetName), &
               ESMF_CONTEXT, rcToReturn=rc)) return  ! bail out
 
           else
@@ -1182,7 +1199,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
     ncStatus = nf90_create(trim(fullName), NF90_CLOBBER, ncid)
     if (ESMF_LogFoundNetCDFError(ncerrToCheck=ncStatus, &
-      msg="Error opening NetCDF data set: "//trim(fileName), &
+      msg="Error opening NetCDF data set: "//trim(fullName), &
       ESMF_CONTEXT, rcToReturn=rc)) return  ! bail out
 
     allocate(dimIds(dimCount, 0:staggerlocCount-1), stat=localrc)
@@ -1271,7 +1288,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
     ncStatus = nf90_enddef(ncid)
     if (ESMF_LogFoundNetCDFError(ncerrToCheck=ncStatus, &
-      msg="Error defining NetCDF data set: "//trim(fileName), &
+      msg="Error defining NetCDF data set: "//trim(fullName), &
       ESMF_CONTEXT, rcToReturn=rc)) return  ! bail out
 
     deallocate(dimIds, stat=localrc)
@@ -1340,7 +1357,7 @@ type(ESMF_KeywordEnforcer), optional:: keywordEnforcer ! must use keywords below
 
       ncStatus = nf90_open(trim(fullName), NF90_NOWRITE, is % IO % IOLayout(de) % ncid)
       if (ESMF_LogFoundNetCDFError(ncerrToCheck=ncStatus, &
-        msg="Error opening NetCDF data set: "//trim(fileName), &
+        msg="Error opening NetCDF data set: "//trim(fullName), &
         ESMF_CONTEXT, rcToReturn=rc)) return  ! bail out
 
     end if

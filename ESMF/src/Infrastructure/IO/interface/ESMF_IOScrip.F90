@@ -176,7 +176,7 @@ subroutine ESMF_OutputWeightFile (weightFile, factorList, factorIndexList, rc)
     integer(ESMF_KIND_I4), allocatable, dimension(:,:,:) :: deBlockList
     
     ! ==============================================================================
-    
+
     if (present(rc)) then
       localrc = rc
     else
@@ -258,7 +258,10 @@ subroutine ESMF_OutputWeightFile (weightFile, factorList, factorIndexList, rc)
       call ESMF_OutputSimpleWeightFile(weightFile, factorList, factorIndexList, &
                                        rc=localrc)
       if (ESMF_LogFoundError(localrc, ESMF_ERR_PASSTHRU, ESMF_CONTEXT, &
-        rcToReturn=rc)) return
+        rcToReturn=rc)) return ! bail on error
+
+      ! return successfully
+      if (present(rc)) rc = ESMF_SUCCESS
       return
     endif
     !-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
@@ -3510,7 +3513,6 @@ subroutine ESMF_OutputScripWeightFile (wgtFile, factorList, factorIndexList, &
        end if
     end if
 
-    call ESMF_VMBarrier(vm)
     deallocate(allCounts, stat=memstat)
     if (ESMF_LogFoundDeallocError(memstat,  &
         ESMF_CONTEXT, rcToReturn=rc)) return
@@ -3524,8 +3526,9 @@ subroutine ESMF_OutputScripWeightFile (wgtFile, factorList, factorIndexList, &
        deallocate(weightbuf, stat=memstat)
        if (ESMF_LogFoundDeallocError(memstat,  &
            ESMF_CONTEXT, rcToReturn=rc)) return
-
     end if
+    call ESMF_VMBarrier(vm)
+
     deallocate(indexbuf, stat=memstat)
     if (ESMF_LogFoundDeallocError(memstat,  &
          ESMF_CONTEXT, rcToReturn=rc)) return
@@ -3843,7 +3846,6 @@ subroutine ESMF_OutputSimpleWeightFile (wgtFile, factorList, factorIndexList, &
        end if
      end if
 
-     call ESMF_VMBarrier(vm)
      deallocate(allCounts, stat=memstat)
       if (ESMF_LogFoundDeallocError(memstat,  &
           ESMF_CONTEXT, rcToReturn=rc)) return
@@ -3857,8 +3859,9 @@ subroutine ESMF_OutputSimpleWeightFile (wgtFile, factorList, factorIndexList, &
        deallocate(weightbuf, stat=memstat)
        if (ESMF_LogFoundDeallocError(memstat,  &
            ESMF_CONTEXT, rcToReturn=rc)) return
-
      end if
+     call ESMF_VMBarrier(vm)
+
      deallocate(indexbuf, stat=memstat)
      if (ESMF_LogFoundAllocError(memstat,  &
          ESMF_CONTEXT, rcToReturn=rc)) return
@@ -4406,7 +4409,12 @@ subroutine ESMF_EsmfGetElement (filename, elementConn, &
     character(len=*), intent(in)   :: filename
     integer(ESMF_KIND_I4), pointer :: elementConn (:)
     integer(ESMF_KIND_I4), pointer :: elmtNums (:)
+#if defined (ESMF_NO_INTEGER_1_BYTE)
+    ! TODO: Eventually use F2008 kind 'int8'.
     integer(selected_int_kind(1)), allocatable :: elmtNums_i1(:)
+#else
+    integer(ESMF_KIND_I1), allocatable :: elmtNums_i1(:)
+#endif
     integer,           intent(out) :: startElmt
     integer(ESMF_KIND_I4), pointer, optional :: elementMask (:)
     real(ESMF_KIND_R8), pointer, optional :: elementArea (:)
@@ -4517,6 +4525,10 @@ subroutine ESMF_EsmfGetElement (filename, elementConn, &
       ESMF_SRCLINE, errmsg, &
       rc)) return
 
+    ! Even though NetCDF would automatically do data conversion, special casing NF90_BYTE
+    ! can mitigate memory issues when reading very large arrays.  In particular, the
+    ! Intel compiler can place large temporaries on the stack, rather than heap, causing
+    ! problems.  (See ticket 3614272.)
     select case (VarType)
     case (NF90_INT)
       ncStatus = nf90_get_var (ncid, VarNo, elmtNums, start=(/startElmt/), count=(/localcount/))

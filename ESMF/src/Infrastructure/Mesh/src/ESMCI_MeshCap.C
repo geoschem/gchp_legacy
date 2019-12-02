@@ -603,6 +603,11 @@ void MeshCap::regrid_create(
                          norm_type,
                          regridPoleType, regridPoleNPnts,
                          regridScheme,
+                         extrapMethod,
+                         extrapNumSrcPnts,
+                         extrapDistExponent,
+                         extrapNumLevels,
+                         extrapNumInputLevels,
                          unmappedaction, _ignoreDegenerate,
                          srcTermProcessing, pipelineDepth,
                          rh, has_rh, has_iw,
@@ -722,7 +727,7 @@ void MeshCap::meshwritewarrays(char *fname, ESMCI_FortranStrLenArg nlen,
 #undef ESMC_METHOD
 #define ESMC_METHOD "MeshCap::meshwritewarrays()"
 
-  printf("nna=%d\n",num_nodeArrays);
+  //  printf("nna=%d\n",num_nodeArrays);
 
 
   // Call into func. depending on mesh type

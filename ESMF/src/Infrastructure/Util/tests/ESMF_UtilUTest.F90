@@ -286,7 +286,14 @@
     ! Get command line argument count
     write (name, *) "Testing ESMF_UtilGetArgC, command line argument count"
     write (failMsg, *) "Obtaining the command line argument count"
-    call ESMF_UtilGetArgC (nargs)
+    call ESMF_UtilGetArgC (nargs, rc=rc)
+    call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
+
+  !------------------------------------------------------------------------
+    !EX_UTest
+    ! Test command line argument count value
+    write (name, *) "Testing ESMF_UtilGetArgC, command line argument count value"
+    write (failMsg, *) "Bad command line argument count"
     call ESMF_Test(nargs >= 0, name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
@@ -714,7 +721,7 @@
     call ESMF_Test(rc == ESMF_SUCCESS, name, failMsg, result, ESMF_SRCLINE)
 
   !------------------------------------------------------------------------
-  ! String to integer
+  ! String to integer (and vice versa)
   !------------------------------------------------------------------------
 
   !------------------------------------------------------------------------
@@ -731,6 +738,22 @@
   write(name, *) "ESMF_UtilString2Int() - no blanks - Test"
   write(failMsg, *) "Did not convert correctly"
   call ESMF_Test((valueInt == 123), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+
+  !------------------------------------------------------------------------
+  !EX_UTest
+  ! Test converting integer to string
+  write(name, *) "ESMF_UtilStringInt2String() - Test"
+  write(failMsg, *) "Did not return ESMF_SUCCESS"
+  str = ESMF_UtilStringInt2String(123, rc=rc)
+  call ESMF_Test((rc == ESMF_SUCCESS), name, failMsg, result, ESMF_SRCLINE)
+  !------------------------------------------------------------------------
+  
+  !------------------------------------------------------------------------
+  !EX_UTest
+  write(name, *) "String -> Integer -> String conversion correctness - Test"
+  write(failMsg, *) "Did not convert correctly"
+  call ESMF_Test((trim(str)=="123"), name, failMsg, result, ESMF_SRCLINE)
   !------------------------------------------------------------------------
 
   !------------------------------------------------------------------------

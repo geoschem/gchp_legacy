@@ -22,6 +22,11 @@
 
 #include <limits>
 
+// #define ESMF_REGRID_DEBUG_MAP_ELEM1 836800
+// #define ESMF_REGRID_DEBUG_MAP_ELEM2 836801
+// #define ESMF_REGRID_DEBUG_MAP_NODE 4323801
+// #define ESMF_REGRID_DEBUG_MAP_ANY
+
 //-----------------------------------------------------------------------------
 // leave the following line as-is; it will insert the cvs ident string
 // into the object file for tracking purposes.
@@ -191,7 +196,8 @@ static void GetObject(void *user, int numGlobalIds, int numLids, int numObjs,
                      freeze_src(freeze_src_),
                      srcplist_rend(NULL),
                      dstplist_rend(NULL),
-                     on_sph(_on_sph)
+                     on_sph(_on_sph),
+                     status(GEOMREND_STATUS_UNINIT)
 {
 
   if (_srcplist != NULL) {
@@ -371,6 +377,17 @@ static void rcb_isect(Zoltan_Struct *zz, MEField<> &coord, std::vector<MeshObj*>
 
     MeshObj &elem = **si;
 
+    int id;
+#ifdef ESMF_REGRID_DEBUG_MAP_ANY
+    id = elem.get_id();
+#endif
+#ifdef ESMF_REGRID_DEBUG_MAP_ELEM1
+    id = elem.get_id();
+#endif
+#ifdef ESMF_REGRID_DEBUG_MAP_ELEM2
+    id = elem.get_id();
+#endif
+
     BBox ebox(coord, elem, geom_tol, on_sph);
 
     // Insersect with the cuts
@@ -383,6 +400,19 @@ static void rcb_isect(Zoltan_Struct *zz, MEField<> &coord, std::vector<MeshObj*>
                              &procs[0],
                              &numprocs);
 
+// need to find object id and put into an if statement
+#ifdef ESMF_REGRID_DEBUG_MAP_ANY
+    printf("%d# Elem %d send to procs [", Par::Rank(), id);
+#endif
+#ifdef ESMF_REGRID_DEBUG_MAP_ELEM1
+    if (id==ESMF_REGRID_DEBUG_MAP_ELEM1)
+      printf("%d# Elem %d send to procs [", Par::Rank(), id);
+#endif
+#ifdef ESMF_REGRID_DEBUG_MAP_ELEM2
+    if (id==ESMF_REGRID_DEBUG_MAP_ELEM2)
+      printf("%d# Elem %d send to procs [", Par::Rank(), id);
+#endif
+
     // Add to comm
     for (UInt i = 0; i < (UInt) numprocs; i++) {
       CommRel::CommNode cnode(&elem, procs[i]);
@@ -393,8 +423,29 @@ static void rcb_isect(Zoltan_Struct *zz, MEField<> &coord, std::vector<MeshObj*>
       // Add if not already there
       if (lb == mignode.end() || *lb != cnode)
         mignode.insert(lb, cnode);
-
+#ifdef ESMF_REGRID_DEBUG_MAP_ANY
+    printf("%d, ", i);
+#endif
+#ifdef ESMF_REGRID_DEBUG_MAP_ELEM1
+    if (id==ESMF_REGRID_DEBUG_MAP_ELEM1)
+      printf("%d, ", i);
+#endif
+#ifdef ESMF_REGRID_DEBUG_MAP_ELEM2
+    if (id==ESMF_REGRID_DEBUG_MAP_ELEM2)
+      printf("%d, ", i);
+#endif
     } // for nproc
+#ifdef ESMF_REGRID_DEBUG_MAP_ANY
+    printf("]\n");
+#endif
+#ifdef ESMF_REGRID_DEBUG_MAP_ELEM1
+    if (id==ESMF_REGRID_DEBUG_MAP_ELEM1)
+      printf("]\n");
+#endif
+#ifdef ESMF_REGRID_DEBUG_MAP_ELEM2
+    if (id==ESMF_REGRID_DEBUG_MAP_ELEM2)
+      printf("]\n");
+#endif
   } // for si
 }
 
@@ -547,7 +598,6 @@ void GeomRend::build_src_mig_plist(ZoltanUD &zud, int numExport,
       idx_list2.push_back(idx_list[i]);
     }
   }
-
 
   // Setup pattern and sizes
   if (num_snd_procs >0) {
@@ -764,6 +814,9 @@ void GeomRend::build_dst_mig_plist(ZoltanUD &zud, int numExport,
       proc_counts[exportProcs[i]]++;
       idx_list[exportProcs[i]].push_back(exportGids[i*2+1]);
       mymoving[exportGids[i*2+1]]=1;
+#ifdef ESMF_REGRID_DEBUG_MAP_ANY
+      printf("%d# LOOP1: Node %d send by [%d]\n", Par::Rank(), exportGids[i*2+1], exportProcs[i]);
+#endif
     }
   }
 
@@ -780,6 +833,12 @@ void GeomRend::build_dst_mig_plist(ZoltanUD &zud, int numExport,
       snd_sizes.push_back(proc_counts[i]*snd_size);
       snd_counts.push_back(proc_counts[i]);
       idx_list2.push_back(idx_list[i]);
+#ifdef ESMF_REGRID_DEBUG_MAP_ANY
+      printf("%d# LOOP2: Proc %d to send nodes [", Par::Rank(), i);
+      for (int j = 0 ; j < idx_list[i].size(); ++j)
+        printf("%d, ", idx_list[i].at(j));
+      printf("]\n");
+#endif
     }
   }
 
@@ -842,7 +901,7 @@ void GeomRend::build_dst_mig_plist(ZoltanUD &zud, int numExport,
 
   if (plist_rend_size >= 0) {
 
-    //    dstplist_rend = new ESMCI::PointList(plist_rend_size,sdim);
+    // dstplist_rend = new ESMCI::PointList(plist_rend_size,sdim);
 
     int orig_dstpointlist_size = dstplist->get_curr_num_pts();
     for (int i=0; i<orig_dstpointlist_size; i++) {
@@ -1368,6 +1427,7 @@ void GeomRend::Build(UInt nsrcF, MEField<> **srcF, UInt ndstF, MEField<> **dstF,
 
   if(freeze_src) {
     Build_Merge(nsrcF, srcF, ndstF, dstF, zzp);
+    status=GEOMREND_STATUS_COMPLETE;
     return;
   }
 
@@ -1386,17 +1446,47 @@ void GeomRend::Build(UInt nsrcF, MEField<> **srcF, UInt ndstF, MEField<> **dstF,
   ZoltanUD zud(sdim, src_coordField_ptr, dst_coordField_ptr, srcplist, dstplist, iter_is_obj);
 
   // Gather the destination points.  Also get a min/max
+  int num_dst_local=0;
   double cmin[3], cmax[3];
-
-  if (dstplist != NULL)
+  if (dstplist != NULL)  {
     build_dest_plist(cmin, cmax, dstplist);
-  else
+    num_dst_local=dstplist->get_curr_num_pts(); 
+  } else {
     build_dest(cmin, cmax, zud);
+    num_dst_local=zud.dstObj.size();
+  }
 
   BBox dstBound = BBoxParUnion(BBox(sdim, cmin, cmax));
 
-  if (srcplist == NULL)
+  // Get src mesh (within dst bounding box)
+  int num_src_local=0;
+  if (srcplist == NULL) {
     build_src(dstBound, zud);
+    num_src_local = zud.srcObj.size();
+  } else {
+    num_src_local=srcplist->get_curr_num_pts(); 
+  }
+
+  // Compute global sums
+  int local[2];
+  int global_tot[2];
+  local[0]=num_dst_local;
+  local[1]=num_src_local;
+  MPI_Allreduce(local,global_tot,2,MPI_INT,MPI_SUM,Par::Comm());
+
+  // Leave if there are no destination points
+  if (global_tot[0] == 0) {
+    status=GEOMREND_STATUS_NO_DST;
+    std::vector<MeshObj*>().swap(zud.dstObj);
+    std::vector<MeshObj*>().swap(zud.srcObj);
+    return;
+  } else if (global_tot[1] == 0) {
+    status=GEOMREND_STATUS_DST_BUT_NO_SRC;
+    std::vector<MeshObj*>().swap(zud.dstObj);
+    std::vector<MeshObj*>().swap(zud.srcObj);
+    return;
+  }
+
 
   float ver;
   int rc = Zoltan_Initialize(0, NULL, &ver);
@@ -1516,6 +1606,9 @@ void GeomRend::Build(UInt nsrcF, MEField<> **srcF, UInt ndstF, MEField<> **dstF,
   if(free_zz){
     Zoltan_Destroy(&zz);
   }
+
+  // Set status before leaving
+  status=GEOMREND_STATUS_COMPLETE;
 }
 
 } // namespace ESMCI

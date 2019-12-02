@@ -36,13 +36,14 @@ else
 ifeq ($(ESMF_COMM),mpt)
 # MPT with compiler wrappers -------------------------------
 ESMF_F90DEFAULT         = mpif90
+ESMF_F90LINKLIBS       += -lmpi++
 ESMF_CXXDEFAULT         = mpicxx
 ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
 ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
 # Under ticket #3614573 found that MPT has issues. One of the following macros
 # must be set!
-ESMF_CXXCOMPILEOPTS    += -DMUST_USE_BLOCKING_SEND
-#ESMF_CXXCOMPILEOPTS    += -DMUST_NOTUSE_MALLOC_TRIM
+#ESMF_CXXCOMPILEOPTS    += -DMUST_USE_BLOCKING_SEND
+ESMF_CXXCOMPILEOPTS    += -DMUST_NOTUSE_MALLOC_TRIM
 else
 ifeq ($(ESMF_COMM),mpich)
 # Mpich ----------------------------------------------------
@@ -60,6 +61,8 @@ ESMF_F90DEFAULT         = mpif90
 ESMF_CXXDEFAULT         = mpicxx
 ESMF_MPIRUNDEFAULT      = mpirun $(ESMF_MPILAUNCHOPTIONS)
 ESMF_MPIMPMDRUNDEFAULT  = mpiexec $(ESMF_MPILAUNCHOPTIONS)
+ESMF_F90COMPILECPPFLAGS+= -DESMF_NO_MPI3
+ESMF_CXXCOMPILECPPFLAGS+= -DESMF_NO_MPI3
 else
 ifeq ($(ESMF_COMM),mpich3)
 # Mpich3 ---------------------------------------------------
@@ -226,7 +229,7 @@ endif
 
 ############################################################
 # OpenMP compiler and linker flags
-
+#
 ifeq ($(shell [ $(ESMF_F90MAJORVERSION) -ge 16 ] && echo true), true)
 ESMF_OPENMP_F90COMPILEOPTS += -qopenmp
 ESMF_OPENMP_F90LINKOPTS    += -qopenmp
@@ -244,6 +247,7 @@ endif
 
 ############################################################
 # MKL specific options for external LAPACK
+#
 ifeq ($(ESMF_LAPACK),mkl)
 ifndef ESMF_LAPACK_LIBS
 ESMF_LAPACK_LIBS = -mkl

@@ -44,10 +44,12 @@ using namespace moab;
 using namespace std;
 
 // #define DEBUG_SPLIT
+// #define DEBUG_UNIQUE_ELEMS
 // #define DEBUG_CONNECTIVITY
 // #define DEBUG_CONNECTIVITY_ADJACENCIES
 // #define DEBUG_MASK
 // #define DEBUG_WRITE_MESH
+ // #define DEBUG_TRI
 
 //-----------------------------------------------------------------------------
 // leave the following line as-is; it will insert the cvs ident string
@@ -85,7 +87,8 @@ namespace ESMCI {
   void add_ghost_elems_to_split_orig_id_map(MBMesh *mesh);
 
   void get_unique_elems_around_node(const EntityHandle *node, MBMesh *mesh, 
-                                    MDSS *tmp_mdss, int *_num_ids, int *ids);
+                                    MDSS *tmp_mdss, int *_num_ids, int *ids,
+                                    bool &allnotowned);
 
   void mb_triangulate(int sdim, int num_p, double *p, double *td, int *ti, int *tri_ind, 
                    double *tri_frac);
@@ -124,15 +127,100 @@ namespace ESMCI {
     Throw() <<" Creation of a dual mesh requires element coordinates. \n";
   }
 
+#ifdef DEBUG_TRI
+{
+  // Get a range containing all nodes
+  Range range_node;
+  merr=src_mesh->mesh->get_entities_by_dimension(0,0,range_node);
+  MBMESH_CHECK_ERR(merr, localrc);
+
+  int nn = 0;
+  int on = 0;
+  for(Range::iterator it=range_node.begin(); it !=range_node.end(); it++) {
+    ++nn;
+    const EntityHandle *node=&(*it);
+    int owner;
+    merr=src_mesh->mesh->tag_get_data(src_mesh->owner_tag, node, 1, &owner);
+    MBMESH_CHECK_ERR(merr, localrc);
+    if (owner != Par::Rank()) on++;
+  }
+
+  // Get a range containing all elems
+  Range range_elem;
+  merr=src_mesh->mesh->get_entities_by_dimension(0,src_mesh->pdim,range_elem);
+  MBMESH_CHECK_ERR(merr, localrc);
+
+  int ne = 0;
+  int oe = 0;
+  for(Range::iterator it=range_elem.begin(); it !=range_elem.end(); it++) {
+    ++ne;
+    const EntityHandle *elem=&(*it);
+    int owner;
+    merr=src_mesh->mesh->tag_get_data(src_mesh->owner_tag, elem, 1, &owner);
+    MBMESH_CHECK_ERR(merr, localrc);
+    if (owner != Par::Rank()) oe++;
+  }
+
+  printf("%d# BEFORE GHOST nodes %d owned %d elems %d owned %d\n", Par::Rank(), nn, on, ne, oe);
+}
+#endif
+
+#ifdef DEBUG_WRITE_MESH
+  {void *mbptr = (void *) src_mesh;
+  int len = 25; char fname[len];
+  sprintf(fname, "MBMeshBeforeGhost_%d", Par::Rank());
+  MBMesh_write(&mbptr, fname, rc, len);}
+#endif
+
+
   // TODO: add elem mask fields and mask_val fields   
   src_mesh->CreateGhost();
 
 #ifdef DEBUG_WRITE_MESH
   {void *mbptr = (void *) src_mesh;
-  int len = 16; char fname[len];
-  sprintf(fname, "meshsrcghost_%d", Par::Rank());
+  int len = 25; char fname[len];
+  sprintf(fname, "MBMeshAfterGhost_%d", Par::Rank());
   MBMesh_write(&mbptr, fname, rc, len);}
 #endif
+
+#ifdef DEBUG_TRI
+{
+  // Get a range containing all nodes
+  Range range_node;
+  merr=src_mesh->mesh->get_entities_by_dimension(0,0,range_node);
+  MBMESH_CHECK_ERR(merr, localrc);
+
+  int nn = 0;
+  int on = 0;
+  for(Range::iterator it=range_node.begin(); it !=range_node.end(); it++) {
+    ++nn;
+    const EntityHandle *node=&(*it);
+    int owner;
+    merr=src_mesh->mesh->tag_get_data(src_mesh->owner_tag, node, 1, &owner);
+    MBMESH_CHECK_ERR(merr, localrc);
+    if (owner != Par::Rank()) on++;
+  }
+
+  // Get a range containing all elems
+  Range range_elem;
+  merr=src_mesh->mesh->get_entities_by_dimension(0,src_mesh->pdim,range_elem);
+  MBMESH_CHECK_ERR(merr, localrc);
+
+  int ne = 0;
+  int oe = 0;
+  for(Range::iterator it=range_elem.begin(); it !=range_elem.end(); it++) {
+    ++ne;
+    const EntityHandle *elem=&(*it);
+    int owner;
+    merr=src_mesh->mesh->tag_get_data(src_mesh->owner_tag, elem, 1, &owner);
+    MBMESH_CHECK_ERR(merr, localrc);
+    if (owner != Par::Rank()) oe++;
+  }
+
+  printf("%d# AFTER GHOST nodes %d owned %d elems %d owned %d\n", Par::Rank(), nn, on, ne, oe);
+}
+#endif
+  
 
 #ifdef DEBUG_CONNECTIVITY_ADJACENCIES
   {
@@ -372,13 +460,25 @@ namespace ESMCI {
 
     // Get list of element ids
     int num_elems_around_node_ids=0;
+    bool allnotowned = true; // init to true, false if one elem is owned
     get_unique_elems_around_node(node, src_mesh, tmp_mdss,
                           &num_elems_around_node_ids,
-                          elems_around_node_ids);
-    
+                          elems_around_node_ids, allnotowned);
+
+#ifdef DEBUG_UNIQUE_ELEMS
+    {int nid;
+    merr=src_mesh->mesh->tag_get_data(src_mesh->gid_tag, node, 1, &nid);
+    MBMESH_CHECK_ERR(merr, localrc);
+    printf("%d# mesh node id %d, unique elems %d [", Par::Rank(), nid, num_elems_around_node_ids);
+    for (int i=0; i<num_elems_around_node_ids; i++) {  
+      printf("%d, ", elems_around_node_ids[i]);
+    }
+    printf("]\n");}
+#endif
+
     // If less than 3 (a triangle) then don't make an element
-    if (num_elems_around_node_ids < 3) continue;
-    
+    if (num_elems_around_node_ids < 3 || allnotowned) continue;
+
     // Save elemType/number of connections 
     elemType[num_elems]=num_elems_around_node_ids;
     
@@ -895,8 +995,6 @@ namespace ESMCI {
       merr=dual_mesh->mesh->create_element(etype,elem_verts,num_elem_verts,new_elem);
       MBMESH_CHECK_ERR(merr, localrc);
 
-      // printf("PET %d add an element with %d verts\n", localPet, num_elem_verts);
-
        // Set global id
       merr=dual_mesh->mesh->tag_set_data(dual_mesh->gid_tag, &new_elem, 1, elemId+e);
       MBMESH_CHECK_ERR(merr, localrc);
@@ -950,84 +1048,86 @@ namespace ESMCI {
     }
 
 
-// triangulate > 4 sided
-// sdim = spatial dim
-// num_p = number of points in poly
-// p     = poly coords size=num_p*sdim
-// td    = temporary buffer size=num_p*sdim
-// ti    = temporary integer buffer size = num_p
-// tri_ind = output array  size = 3*(nump-2)
-// tri_frac = fraction each triangle is of whole poly size=(num_p-2)
-void mb_triangulate(int sdim, int num_p, double *p, double *td, int *ti, int *tri_ind, 
-                 double *tri_frac) {
-          int localrc;
-          
-
-          // Call into triagulation routines
-          int ret;
-          if (sdim==2) {
-            ret=triangulate_poly<GEOM_CART2D>(num_p, p, td,
-                                              ti, tri_ind);
-          } else if (sdim==3) {
-            ret=triangulate_poly<GEOM_SPH2D3D>(num_p, p, td, 
-                                               ti, tri_ind);
-          } else {
-            Throw() <<" - triangulate can't be used for polygons with spatial dimension not equal to 2 or 3";
-          }
-          
-
-          // Check return code
-          if (ret != ESMCI_TP_SUCCESS) {
-            if (ret == ESMCI_TP_DEGENERATE_POLY) {
-              Throw() << " - can't triangulate a polygon with less than 3 sides"; 
-            } else if (ret == ESMCI_TP_CLOCKWISE_POLY) {
-              Throw() <<" - there was a problem with triangulation (e.g. repeated points, clockwise poly, etc.)";
-            } else {
-              Throw() <<" - unknown error in triangulation";
-            }
-          }
-
-
-          // Calculate triangule areas
-          double tot_area=0.0;
-          int ti_pos=0;
-          for (int i=0; i<num_p-2; i++) {
-            // Copy triangle coordinates into td
-            int td_pos=0;
-            for (int j=0; j<3; j++) {
-              double *pnt=p+sdim*tri_ind[ti_pos+j];
-              for (int k=0; k<sdim; k++) {
-                td[td_pos]=pnt[k];
-                td_pos++;
-              }
-            }
-
-            // compute area of triangle
-            double tri_area;
-            if (sdim == 2) {
-              tri_area = area_of_flat_2D_polygon(3, td);
-            } else if (sdim == 3) {
-              tri_area = great_circle_area(3, td);
-            } // Other sdim caught above
-
-            // Save areas to use for computing fractions
-            tri_frac[i]=tri_area;
-            
-            // compute total
-            tot_area += tri_area;
-
-            // Advance to next triangle
-            ti_pos +=3;
-          }
-
-          // Calculate triangle fractions
-          for (int i=0; i<num_p-2; i++) {
-            if (tot_area >0.0) tri_frac[i]=tri_frac[i]/tot_area;
-            else tri_frac[i]=0.0;
-          }
-
-    return;
-}
+  // triangulate > 4 sided
+  // sdim = spatial dim
+  // num_p = number of points in poly
+  // p     = poly coords size=num_p*sdim
+  // td    = temporary buffer size=num_p*sdim
+  // ti    = temporary integer buffer size = num_p
+  // tri_ind = output array  size = 3*(nump-2)
+  // tri_frac = fraction each triangle is of whole poly size=(num_p-2)
+  void mb_triangulate(int sdim, int num_p, double *p, double *td, int *ti, int *tri_ind, 
+                   double *tri_frac) {
+#undef  ESMC_METHOD
+#define ESMC_METHOD "mb_triangulate()"
+  
+  int localrc;
+  
+  // Call into triagulation routines
+  int ret;
+  if (sdim==2) {
+    ret=triangulate_poly<GEOM_CART2D>(num_p, p, td,
+                                      ti, tri_ind);
+  } else if (sdim==3) {
+    ret=triangulate_poly<GEOM_SPH2D3D>(num_p, p, td, 
+                                       ti, tri_ind);
+  } else {
+    Throw() <<" - triangulate can't be used for polygons with spatial dimension not equal to 2 or 3";
+  }
+  
+  
+  // Check return code
+  if (ret != ESMCI_TP_SUCCESS) {
+    if (ret == ESMCI_TP_DEGENERATE_POLY) {
+      Throw() << " - can't triangulate a polygon with less than 3 sides"; 
+    } else if (ret == ESMCI_TP_CLOCKWISE_POLY) {
+      Throw() <<" - there was a problem with triangulation (e.g. repeated points, clockwise poly, etc.)";
+    } else {
+      Throw() <<" - unknown error in triangulation";
+    }
+  }
+  
+  
+  // Calculate triangule areas
+  double tot_area=0.0;
+  int ti_pos=0;
+  for (int i=0; i<num_p-2; i++) {
+    // Copy triangle coordinates into td
+    int td_pos=0;
+    for (int j=0; j<3; j++) {
+      double *pnt=p+sdim*tri_ind[ti_pos+j];
+      for (int k=0; k<sdim; k++) {
+        td[td_pos]=pnt[k];
+        td_pos++;
+      }
+    }
+  
+    // compute area of triangle
+    double tri_area;
+    if (sdim == 2) {
+      tri_area = area_of_flat_2D_polygon(3, td);
+    } else if (sdim == 3) {
+      tri_area = great_circle_area(3, td);
+    } // Other sdim caught above
+  
+    // Save areas to use for computing fractions
+    tri_frac[i]=tri_area;
+    
+    // compute total
+    tot_area += tri_area;
+  
+    // Advance to next triangle
+    ti_pos +=3;
+  }
+  
+  // Calculate triangle fractions
+  for (int i=0; i<num_p-2; i++) {
+    if (tot_area >0.0) tri_frac[i]=tri_frac[i]/tot_area;
+    else tri_frac[i]=0.0;
+  }
+  
+  return;
+  }
 
   // sort MDSS by id
   bool mb_less_by_ids(MDSS a, MDSS b) {
@@ -1052,8 +1152,11 @@ void mb_triangulate(int sdim, int num_p, double *p, double *td, int *ti, int *tr
   // _num_ids = the number of ids
   // _ids = where the ids will be put (needs to be allocated large enough to hold all the ids)
   void get_unique_elems_around_node(const EntityHandle *node, MBMesh *mesh, 
-                                    MDSS *tmp_mdss, int *_num_ids, int *ids) {
-    
+                                    MDSS *tmp_mdss, int *_num_ids, int *ids, 
+                                    bool &allnotowned) {
+#undef  ESMC_METHOD
+#define ESMC_METHOD "get_unique_elems_around_node()"
+
     int merr, localrc;
     
     // Get useful info
@@ -1096,6 +1199,24 @@ void mb_triangulate(int sdim, int num_p, double *p, double *td, int *ti, int *tr
     merr = mesh->mesh->get_adjacencies(node, 1, pdim, false, range_elem);
     MBMESH_CHECK_ERR(merr, localrc);
     
+    for(Range::iterator it=range_elem.begin(); it !=range_elem.end(); it++) {
+      const EntityHandle *elem=&(*it);
+      
+
+    }
+    
+#ifdef DEBUG_TRI
+{int nid;
+merr=mesh->mesh->tag_get_data(mesh->gid_tag, node, 1, &nid);
+MBMESH_CHECK_ERR(merr, localrc);
+int owner;
+merr = mesh->mesh->tag_get_data(mesh->owner_tag, node, 1, &owner);
+MBMESH_CHECK_ERR(merr, localrc);
+
+if (range_elem.size() == 3) printf("%d# 3 adjacencies, node %d owener %d\n", Par::Rank(), nid, owner);
+}
+#endif
+    
 #ifdef DEBUG_CONNECTIVITY_ADJACENCIES
     {int nid;
     merr=mesh->mesh->tag_get_data(mesh->gid_tag, node, 1, &nid);
@@ -1127,6 +1248,13 @@ void mb_triangulate(int sdim, int num_p, double *p, double *td, int *ti, int *tr
     double max_elem_coords[3];
     for(Range::iterator it=range_elem.begin(); it !=range_elem.end(); it++) {
       const EntityHandle *elem=&(*it);
+      
+      // Get owner
+      int owner;
+      merr = mesh->mesh->tag_get_data(mesh->owner_tag, elem, 1, &owner);
+      MBMESH_CHECK_ERR(merr, localrc);
+      
+      if (owner == Par::Rank()) allnotowned = false;
       
       // Get element id
       int elem_id;
@@ -1269,6 +1397,8 @@ void mb_triangulate(int sdim, int num_p, double *p, double *td, int *ti, int *tr
 
   // Add the elements in the ghost to the local split_orig_id map
   void add_ghost_elems_to_split_orig_id_map(MBMesh *mesh) {
+#undef  ESMC_METHOD
+#define ESMC_METHOD "add_ghost_elems_to_split_orig_id_map()"
 
     int merr, localrc;
     
@@ -1379,7 +1509,7 @@ void mb_triangulate(int sdim, int num_p, double *p, double *td, int *ti, int *tr
   for(Range::iterator it=range_elem.begin(); it !=range_elem.end(); it++) {
     const EntityHandle *elem=&(*it);
   
-    // Only do local 
+    // Only do non-local 
     int owner;
     merr = mesh->mesh->tag_get_data(mesh->owner_tag, elem, 1, &owner);
     MBMESH_CHECK_ERR(merr, localrc);
@@ -1408,7 +1538,7 @@ void mb_triangulate(int sdim, int num_p, double *p, double *td, int *ti, int *tr
   for(Range::iterator it=range_elem.begin(); it !=range_elem.end(); it++) {
     const EntityHandle *elem=&(*it);
   
-    // Only do local 
+    // Only do non-local 
     int owner;
     merr = mesh->mesh->tag_get_data(mesh->owner_tag, elem, 1, &owner);
     MBMESH_CHECK_ERR(merr, localrc);

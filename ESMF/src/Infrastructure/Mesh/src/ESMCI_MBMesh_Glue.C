@@ -55,6 +55,7 @@ using namespace ESMCI;
 // #define DEBUG_OUTPUT
 // #define DEBUG_NODE_COORDS
 // #define DEBUG_ELEM_COORDS
+// #define DEBUG_OWNED
 
 
 
@@ -179,6 +180,9 @@ void MBMesh_addnodes(void **mbmpp, int *num_nodes, int *nodeId,
                      ESMC_CoordSys_Flag *_coordSys, int *_orig_sdim,
                        int *rc)
 {
+#undef  ESMC_METHOD
+#define ESMC_METHOD "MBMesh_addnodes()"
+
 
   // Should we do exception handling in here, since MOAB doesn't???
    try {
@@ -459,7 +463,8 @@ int ElemType2NumNodes(int pdim, int sdim, int etype) {
 static void triangulate(int sdim, int num_p, double *p, double *td, int *ti, int *tri_ind,
                  double *tri_frac) {
           int localrc;
-
+#undef  ESMC_METHOD
+#define ESMC_METHOD "triangulate()"
 
           // Call into triagulation routines
           int ret;
@@ -623,8 +628,8 @@ void MBMesh_addelements(void **mbmpp,
                         ESMC_CoordSys_Flag *_coordSys, int *_orig_sdim,
                         int *rc)
 {
-
-  /* XMRKX */
+#undef  ESMC_METHOD
+#define ESMC_METHOD "MBMesh_addelements()"
 
    try {
 
@@ -1428,7 +1433,29 @@ void MBMesh_addelements(void **mbmpp,
       }
 #endif
 
- #if 0
+#ifdef DEBUG_OWNED
+      {
+        int localrc = 0;
+        int merr = 0;
+
+        int node_owners[num_verts];
+        Range nodes;
+        merr=mbmp->mesh->get_entities_by_dimension(0, 0, nodes);
+        if (merr != MB_SUCCESS) throw (ESMC_RC_MOAB_ERROR);
+        merr=mbmp->mesh->tag_get_data(mbmp->owner_tag, nodes, &node_owners);
+        if (merr != MB_SUCCESS)
+          if(ESMC_LogDefault.MsgFoundError(ESMC_RC_MOAB_ERROR,
+            moab::ErrorCodeStr[merr], ESMC_CONTEXT,&localrc)) throw localrc;
+
+        printf("%d# MBMesh node_owners = [", Par::Rank());
+        for (int i = 0; i < num_verts; ++i)
+          printf("%d, ", node_owners[i]);
+        printf("]\n");
+      }
+#endif
+
+
+#if 0
   // Time loops
   {
    /* XMRKX */
@@ -1456,7 +1483,6 @@ void MBMesh_addelements(void **mbmpp,
   // Perhaps commit will be a separate call, but for now commit the mesh here.
   mesh.build_sym_comm_rel(MeshObj::NODE);
   mesh.Commit();
-
 
   // Set Mask values
   if (has_elem_mask) {
@@ -1621,6 +1647,8 @@ void MBMesh_addelements(void **mbmpp,
 }
 
 void MBMesh_turnonnodemask(void **mbmpp, ESMCI::InterArray<int> *maskValuesArg,  int *rc) {
+#undef  ESMC_METHOD
+#define ESMC_METHOD "MBMesh_turnonnodemask()"
 
   int merr, localrc;
 
@@ -1724,6 +1752,8 @@ void MBMesh_turnonnodemask(void **mbmpp, ESMCI::InterArray<int> *maskValuesArg, 
 
 // Turn OFF masking
  void MBMesh_turnoffnodemask(void **mbmpp, int *rc) {
+#undef  ESMC_METHOD
+#define ESMC_METHOD "MBMesh_turnoffnodemask()"
 
   int merr, localrc;
 
@@ -1794,6 +1824,8 @@ void MBMesh_turnonnodemask(void **mbmpp, ESMCI::InterArray<int> *maskValuesArg, 
 }
 
 void MBMesh_turnonelemmask(void **mbmpp, ESMCI::InterArray<int> *maskValuesArg,  int *rc) {
+#undef  ESMC_METHOD
+#define ESMC_METHOD "MBMesh_turnonelemmask()"
 
   int merr, localrc;
 
@@ -1898,6 +1930,8 @@ void MBMesh_turnonelemmask(void **mbmpp, ESMCI::InterArray<int> *maskValuesArg, 
 
 // Turn OFF masking
  void MBMesh_turnoffelemmask(void **mbmpp, int *rc) {
+#undef  ESMC_METHOD
+#define ESMC_METHOD "MBMesh_turnoffelemmask()"
 
   int merr, localrc;
 
@@ -1970,6 +2004,8 @@ void MBMesh_turnonelemmask(void **mbmpp, ESMCI::InterArray<int> *maskValuesArg, 
 
 
 void MBMesh_destroy(void **mbmpp, int *rc) {
+#undef  ESMC_METHOD
+#define ESMC_METHOD "MBMesh_destroy()"
 
   try {
 
@@ -2025,6 +2061,8 @@ void MBMesh_destroy(void **mbmpp, int *rc) {
 
 void MBMesh_write(void **mbmpp, char *fname, int *rc,
     ESMCI_FortranStrLenArg nlen) {
+#undef  ESMC_METHOD
+#define ESMC_METHOD "MBMesh_write()"
 
  #if 0
   // Initialize the parallel environment for mesh (if not already done)
@@ -2178,6 +2216,8 @@ void MBMesh_createnodedistgrid(void **mbmpp, int *ngrid, int *num_lnodes, int *r
 
 // DO THIS BETTER, HAVE A FIELD THAT CONTAINS THE POSITION IN THE FINAL ARRAY AND -1 FOR ANYTHING NOT LOCAL OR SPLIT
 void getElemGIDS(MBMesh *mbmp, std::vector<int> &egids) {
+#undef  ESMC_METHOD
+#define ESMC_METHOD "getElemGIDS()"
 
   // Get localPet
   int localrc;
@@ -2254,6 +2294,8 @@ void getElemGIDS(MBMesh *mbmp, std::vector<int> &egids) {
 
 
 void MBMesh_createelemdistgrid(void **mbmpp, int *egrid, int *num_lelems, int *rc) {
+#undef  ESMC_METHOD
+#define ESMC_METHOD "MBMesh_createelemdistgrid()"
 
   // Declare id vectors
   std::vector<int> egids;
@@ -2318,6 +2360,8 @@ void MBMesh_createelemdistgrid(void **mbmpp, int *egrid, int *num_lelems, int *r
 
 // DO THIS BETTER, HAVE A FIELD THAT CONTAINS THE POSITION IN THE FINAL ARRAY AND -1 FOR ANYTHING NOT LOCAL OR SPLIT
 void getElems(void **mbmpp, std::vector<EntityHandle> &ehs) {
+#undef  ESMC_METHOD
+#define ESMC_METHOD "MBMesh_getElems()"
 
   // Get localPet
   int localrc;
@@ -2397,6 +2441,9 @@ void getElems(void **mbmpp, std::vector<EntityHandle> &ehs) {
 void MBMesh_getlocalelemcoords(void **mbmpp, double *ecoords,
                                int *_orig_sdim, int *rc)
 {
+#undef  ESMC_METHOD
+#define ESMC_METHOD "MBMesh_getlocalelemcoords()"
+
   int localrc,merr;
     try {
 
@@ -2470,6 +2517,8 @@ void MBMesh_getlocalelemcoords(void **mbmpp, double *ecoords,
 
 
 void MBMesh_getarea(void **mbmpp, int *num_elem, double *elem_areas, int *rc) {
+#undef  ESMC_METHOD
+#define ESMC_METHOD "MBMesh_getarea()"
 
   // Declare polygon information
 #define  MAX_NUM_POLY_COORDS  60
@@ -2669,6 +2718,8 @@ void MBMesh_getarea(void **mbmpp, int *num_elem, double *elem_areas, int *rc) {
 
 // DO THIS BETTER, HAVE A FIELD THAT CONTAINS THE POSITION IN THE FINAL ARRAY AND -1 FOR ANYTHING NOT LOCAL OR SPLIT
 void getNodes(void **mbmpp, std::vector<EntityHandle> &nodes) {
+#undef  ESMC_METHOD
+#define ESMC_METHOD "getNodes()"
 
   // Get localPet
   int localrc;
@@ -2746,6 +2797,9 @@ void getNodes(void **mbmpp, std::vector<EntityHandle> &nodes) {
 
 void MBMesh_getlocalcoords(void **mbmpp, double *ncoords, int *_orig_sdim, int *rc)
 {
+#undef  ESMC_METHOD
+#define ESMC_METHOD "MBMesh_getlocalcoords()"
+
   try {
     // Get Moab Mesh wrapper
     MBMesh *mbmp=*((MBMesh **)mbmpp);
