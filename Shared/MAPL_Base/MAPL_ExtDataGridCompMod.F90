@@ -2120,7 +2120,8 @@ CONTAINS
         ! Get refference time, if not provided use current model date
         pindex=index(item%FileReffTime,'P')
         if (pindex==0) then 
-           Write(*,'(a,a,a)') 'ERROR: File template ', item%file, ' has invalid reference date format'
+           Write(*,'(a,a,a)') 'ERROR: File template ', TRIM(item%file), &
+              ' has invalid reference date format: ', TRIM(item%FileReffTime)
            _ASSERT(.false.,'needs informative message')
         end if
         cReffTime = item%FileReffTime(1:pindex-1) 
