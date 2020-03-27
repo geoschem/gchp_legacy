@@ -1058,12 +1058,12 @@ CONTAINS
  
       else if (item%vartype == MAPL_ExtDataVectorItem) then
      
-         ! check that we are not asking for conservative regridding
-!!$         if (item%Trans /= MAPL_HorzTransOrderBilinear) then
-         if (item%Trans /= REGRID_METHOD_BILINEAR) then
-            if (mapl_am_i_root()) write(*,*)"No conservative regridding with vectors"
-            _ASSERT(.false.,'needs informative message')
-         end if 
+!         ! check that we are not asking for conservative regridding
+!!!$         if (item%Trans /= MAPL_HorzTransOrderBilinear) then
+!         if (item%Trans /= REGRID_METHOD_BILINEAR) then
+!            if (mapl_am_i_root()) write(*,*)"No conservative regridding with vectors"
+!            _ASSERT(.false.,'needs informative message')
+!         end if 
 
          block
             integer :: gridRotation1, gridRotation2
