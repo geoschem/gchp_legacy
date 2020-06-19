@@ -82,6 +82,11 @@
      INC_MPI := $(shell mpif90 --showme:incdirs)
      LIB_MPI := $(shell mpif90 --showme:link)
      LIB_MPI += $(shell mpicxx --showme:link)
+  else ifeq ($(ESMF_COMM),intel)
+     FC := mpiifort
+     INC_MPI := $(MPI_ROOT)/include64
+     LIB_MPI := -L$(MPI_ROOT)/lib64 -lmpifort -lmpi # Intel MPI
+     LIB_MPI_OMP := -L$(MPI_ROOT)/lib64 -lmpifort -lmpi_mt # Intel MPI
   else ifeq ($(ESMF_COMM),mpi)
      # Generic MPI
      INC_MPI := $(MPI_ROOT)/include
