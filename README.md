@@ -1,5 +1,7 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1343546.svg)](https://doi.org/10.5281/zenodo.1343546) [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/geoschem/gchp/blob/master/LICENSE.txt)
 
+## THIS REPOSITORY IS NOW OBSOLETE AND HAS BEEN ARCHIVED.
+
 # README for the GCHP source code repository
 
 This repository (https://github.com/geoschem/geos-chem) contains the source code layer for GCHP (GEOS-Chem with the High-Performance option).
